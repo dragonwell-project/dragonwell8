@@ -1442,9 +1442,11 @@ void PhaseMacroExpand::expand_allocate_common(
       }
     }
 
+ #if INCLUDE_TRACE
     if (EnableJFR && JfrOptionSet::sample_object_allocations()) {
       jfr_sample_fast_object_allocation(alloc, fast_oop, fast_oop_ctrl, fast_oop_rawmem);
     }
+#endif
 
     if (C->env()->dtrace_extended_probes()) {
       // Slow-path call
@@ -1643,6 +1645,7 @@ static jint bottom_java_frame_bci(JVMState* state) {
   return last->bci();
 }
 
+#if INCLUDE_TRACE
 //
 // Pseudo code:
 //
@@ -1739,6 +1742,7 @@ void PhaseMacroExpand::jfr_sample_fast_object_allocation(
     fast_oop_rawmem = alloc_sample_enabled_region_phi_mem;
   }
 }
+#endif
 
 // Helper for PhaseMacroExpand::expand_allocate_common.
 // Initializes the newly-allocated storage.

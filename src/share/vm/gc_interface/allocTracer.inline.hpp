@@ -22,6 +22,7 @@
 #ifndef SHARE_VM_GC_INTERFACE_ALLOCTRACER_INLINE_HPP
 #define SHARE_VM_GC_INTERFACE_ALLOCTRACER_INLINE_HPP
 
+#if INCLUDE_TRACE
 #include "trace/tracing.hpp"
 #include "gc_implementation/shared/gcId.hpp"
 #include "runtime/handles.hpp"
@@ -117,4 +118,5 @@ inline void AllocTracer::send_opto_fast_allocation_event(KlassHandle klass, oop 
   thread->trace_data()->incr_alloc_count_until_sample(interval);
 }
 
+#endif // INCLUDE_TRACE
 #endif /* SHARE_VM_GC_INTERFACE_ALLOCTRACER_INLINE_HPP */

@@ -1677,6 +1677,7 @@ JRT_END
 
 //-----------------------------------------------------------------------------
 // JFR support.
+#if INCLUDE_TRACE
 const TypeFunc *OptoRuntime::jfr_fast_object_alloc_Type() {
   const Type **fields = TypeTuple::fields(3);
   fields[TypeFunc::Parms+0] = TypeRawPtr::BOTTOM;   // newly allocated object
@@ -1703,3 +1704,4 @@ void OptoRuntime::jfr_fast_object_alloc_C(oopDesc* obj, jint top_frame_bci, Java
   thread->trace_data()->clear_cached_top_frame_bci();
   thread->set_vm_result(obj);
 }
+#endif
