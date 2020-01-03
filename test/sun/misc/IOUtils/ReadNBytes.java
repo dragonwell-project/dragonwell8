@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -33,7 +33,7 @@ import sun.misc.IOUtils;
 
 /*
  * @test
- * @bug 8080835
+ * @bug 8080835 8139206
  * @library /lib/testlibrary
  * @build jdk.testlibrary.*
  * @run main ReadNBytes
@@ -48,15 +48,19 @@ public class ReadNBytes {
     public static void main(String[] args) throws IOException {
         test(new byte[]{1, 2, 3});
         test(createRandomBytes(1024));
-        test(createRandomBytes((1 << 13) - 1));
-        test(createRandomBytes((1 << 13)));
-        test(createRandomBytes((1 << 13) + 1));
-        test(createRandomBytes((1 << 15) - 1));
-        test(createRandomBytes((1 << 15)));
-        test(createRandomBytes((1 << 15) + 1));
-        test(createRandomBytes((1 << 17) - 1));
-        test(createRandomBytes((1 << 17)));
-        test(createRandomBytes((1 << 17) + 1));
+        for (int shift : new int[] {13, 15, 17}) {
+            for (int offset : new int[] {-1, 0, 1}) {
+                test(createRandomBytes((1 << shift) + offset));
+            }
+        }
+
+        test(-1);
+        test(0);
+        for (int shift : new int[] {13, 15, 17}) {
+            for (int offset : new int[] {-1, 0, 1}) {
+                test((1 << shift) + offset);
+            }
+        }
     }
 
     static void test(byte[] inputBytes) throws IOException {
@@ -90,6 +94,48 @@ public class ReadNBytes {
               "Expected end of stream from read(byte[], int, int), got " + x);
         check((x = IOUtils.readNBytes(in, tmp, 0, tmp.length)) == 0,
               "Expected end of stream, 0, from readNBytes(byte[], int, int), got " + x);
+        check(!in.isClosed(), "Stream unexpectedly closed");
+    }
+
+    static void test(int max) throws IOException {
+        byte[] subset1, subset2;
+        byte[] inputBytes = max <= 0 ? new byte[0] : createRandomBytes(max);
+        WrapperInputStream in =
+            new WrapperInputStream(new ByteArrayInputStream(inputBytes));
+
+        if (max < 0) {
+            try {
+                IOUtils.readNBytes(in, max);
+                check(false, "Expected IllegalArgumentException not thrown");
+            } catch (IllegalArgumentException iae) {
+                return;
+            }
+        } else if (max == 0) {
+            int x;
+            check((x = IOUtils.readNBytes(in, max).length) == 0,
+                  "Expected zero bytes, got " + x);
+            return;
+        }
+
+        int off = Math.toIntExact(in.skip(generator.nextInt(max/2)));
+        int len = generator.nextInt(max - 1 - off);
+        byte[] readBytes = IOUtils.readNBytes(in, len);
+        check(readBytes.length == len,
+              "Expected " + len + " bytes, got " + readBytes.length);
+        subset1 = Arrays.copyOfRange(inputBytes, off, off + len);
+        subset2 = Arrays.copyOfRange(readBytes, 0, len);
+        check(Arrays.equals(subset1, subset2), "Expected[" + subset1 +
+              "], got:[" + readBytes + "]");
+
+        int remaining = max - (off + len);
+        readBytes = IOUtils.readNBytes(in, remaining);
+        check(readBytes.length == remaining,
+              "Expected " + remaining + "bytes, got " + readBytes.length);
+        subset1 = Arrays.copyOfRange(inputBytes, off + len, max);
+        subset2 = Arrays.copyOfRange(readBytes, 0, remaining);
+        check(Arrays.equals(subset1, subset2), "Expected[" + subset1 +
+          "], got:[" + readBytes + "]");
+
         check(!in.isClosed(), "Stream unexpectedly closed");
     }
 
