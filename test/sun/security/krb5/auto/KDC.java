@@ -40,6 +40,7 @@ import sun.net.spi.nameservice.NameServiceDescriptor;
 import sun.security.krb5.*;
 import sun.security.krb5.internal.*;
 import sun.security.krb5.internal.ccache.CredentialsCache;
+import sun.security.krb5.internal.crypto.EType;
 import sun.security.krb5.internal.crypto.KeyUsage;
 import sun.security.krb5.internal.ktab.KeyTab;
 import sun.security.util.DerInputStream;
@@ -127,10 +128,10 @@ import java.util.regex.Pattern;
  */
 public class KDC {
 
-    // Under the hood.
-
     public static final int DEFAULT_LIFETIME = 39600;
     public static final int DEFAULT_RENEWTIME = 86400;
+
+    // Under the hood.
 
     // The random generator to generate random keys (including session keys)
     private static SecureRandom secureRandom = new SecureRandom();
@@ -242,7 +243,8 @@ public class KDC {
      * A standalone KDC server.
      */
     public static void main(String[] args) throws Exception {
-        KDC kdc = create("RABBIT.HOLE", "kdc.rabbit.hole", 0, false);
+        int port = args.length > 0 ? Integer.parseInt(args[0]) : 0;
+        KDC kdc = create("RABBIT.HOLE", "kdc.rabbit.hole", port, false);
         kdc.addPrincipal("dummy", "bogus".toCharArray());
         kdc.addPrincipal("foo", "bar".toCharArray());
         kdc.addPrincipalRandKey("krbtgt/RABBIT.HOLE");
@@ -830,10 +832,16 @@ public class KDC {
 
             // Check time, TODO
             KerberosTime till = body.till;
+            KerberosTime rtime = body.rtime;
             if (till == null) {
                 throw new KrbException(Krb5.KDC_ERR_NEVER_VALID); // TODO
             } else if (till.isZero()) {
-                till = new KerberosTime(new Date().getTime() + 1000 * 3600 * 11);
+                till = new KerberosTime(
+                        new Date().getTime() + 1000 * DEFAULT_LIFETIME);
+            }
+            if (rtime == null && body.kdcOptions.get(KDCOptions.RENEWABLE)) {
+                rtime = new KerberosTime(
+                        new Date().getTime() + 1000 * DEFAULT_RENEWTIME);
             }
 
             boolean[] bFlags = new boolean[Krb5.TKT_OPTS_MAX+1];
@@ -939,7 +947,7 @@ public class KDC {
                     tFlags,
                     new KerberosTime(new Date()),
                     body.from,
-                    till, body.rtime,
+                    till, rtime,
                     service,
                     body.addresses != null  // always set caddr
                             ? body.addresses
@@ -1007,6 +1015,14 @@ public class KDC {
 
             eTypes = KDCReqBodyDotEType(body);
             int eType = eTypes[0];
+
+            // Maybe server does not support aes256, but a kinit does
+            if (!EType.isSupported(eType)) {
+                if (eTypes.length < 2) {
+                    throw new KrbException(Krb5.KDC_ERR_ETYPE_NOSUPP);
+                }
+                eType = eTypes[1];
+            }
 
             if (body.kdcOptions.get(KDCOptions.CANONICALIZE) &&
                     body.cname.getNameType() == PrincipalName.KRB_NT_ENTERPRISE) {
