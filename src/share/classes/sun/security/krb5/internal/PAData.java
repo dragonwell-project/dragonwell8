@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -31,7 +32,7 @@
 
 package sun.security.krb5.internal;
 
-import sun.security.krb5.KrbException;
+import sun.security.krb5.internal.crypto.EType;
 import sun.security.util.*;
 import sun.security.krb5.Asn1Exception;
 import java.io.IOException;
@@ -207,8 +208,8 @@ public class PAData {
             while (d2.data.available() > 0) {
                 DerValue value = d2.data.getDerValue();
                 ETypeInfo2 tmp = new ETypeInfo2(value);
-                if (tmp.getParams() == null) {
-                    // we don't support non-null s2kparams
+                if (EType.isNewer(tmp.getEType()) || tmp.getParams() == null) {
+                    // we don't support non-null s2kparams for old etypes
                     return tmp.getEType();
                 }
             }
@@ -274,8 +275,9 @@ public class PAData {
             while (d2.data.available() > 0) {
                 DerValue value = d2.data.getDerValue();
                 ETypeInfo2 tmp = new ETypeInfo2(value);
-                if (tmp.getParams() == null && tmp.getEType() == eType) {
-                    // we don't support non-null s2kparams
+                if (tmp.getEType() == eType &&
+                        (EType.isNewer(eType) || tmp.getParams() == null)) {
+                    // we don't support non-null s2kparams for old etypes
                     return new SaltAndParams(tmp.getSalt(), tmp.getParams());
                 }
             }
