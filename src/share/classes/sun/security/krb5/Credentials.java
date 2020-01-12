@@ -48,7 +48,9 @@ public class Credentials {
 
     Ticket ticket;
     PrincipalName client;
+    PrincipalName clientAlias;
     PrincipalName server;
+    PrincipalName serverAlias;
     EncryptionKey key;
     TicketFlags flags;
     KerberosTime authTime;
@@ -78,7 +80,9 @@ public class Credentials {
 
     public Credentials(Ticket new_ticket,
                        PrincipalName new_client,
+                       PrincipalName new_client_alias,
                        PrincipalName new_server,
+                       PrincipalName new_server_alias,
                        EncryptionKey new_key,
                        TicketFlags new_flags,
                        KerberosTime authTime,
@@ -87,14 +91,17 @@ public class Credentials {
                        KerberosTime renewTill,
                        HostAddresses cAddr,
                        AuthorizationData authzData) {
-        this(new_ticket, new_client, new_server, new_key, new_flags,
-                authTime, new_startTime, new_endTime, renewTill, cAddr);
+        this(new_ticket, new_client, new_client_alias, new_server,
+                new_server_alias, new_key, new_flags, authTime,
+                new_startTime, new_endTime, renewTill, cAddr);
         this.authzData = authzData;
     }
 
     public Credentials(Ticket new_ticket,
                        PrincipalName new_client,
+                       PrincipalName new_client_alias,
                        PrincipalName new_server,
+                       PrincipalName new_server_alias,
                        EncryptionKey new_key,
                        TicketFlags new_flags,
                        KerberosTime authTime,
@@ -104,7 +111,9 @@ public class Credentials {
                        HostAddresses cAddr) {
         ticket = new_ticket;
         client = new_client;
+        clientAlias = new_client_alias;
         server = new_server;
+        serverAlias = new_server_alias;
         key = new_key;
         flags = new_flags;
         this.authTime = authTime;
@@ -116,7 +125,9 @@ public class Credentials {
 
     public Credentials(byte[] encoding,
                        String client,
+                       String clientAlias,
                        String server,
+                       String serverAlias,
                        byte[] keyBytes,
                        int keyType,
                        boolean[] flags,
@@ -127,7 +138,11 @@ public class Credentials {
                        InetAddress[] cAddrs) throws KrbException, IOException {
         this(new Ticket(encoding),
              new PrincipalName(client, PrincipalName.KRB_NT_PRINCIPAL),
+             (clientAlias == null? null : new PrincipalName(clientAlias,
+                     PrincipalName.KRB_NT_PRINCIPAL)),
              new PrincipalName(server, PrincipalName.KRB_NT_SRV_INST),
+             (serverAlias == null? null : new PrincipalName(serverAlias,
+                     PrincipalName.KRB_NT_SRV_INST)),
              new EncryptionKey(keyType, keyBytes),
              (flags == null? null: new TicketFlags(flags)),
              (authTime == null? null: new KerberosTime(authTime)),
@@ -152,8 +167,16 @@ public class Credentials {
         return client;
     }
 
+    public final PrincipalName getClientAlias() {
+        return clientAlias;
+    }
+
     public final PrincipalName getServer() {
         return server;
+    }
+
+    public final PrincipalName getServerAlias() {
+        return serverAlias;
     }
 
     public final EncryptionKey getSessionKey() {
@@ -271,6 +294,7 @@ public class Credentials {
         return new KrbTgsReq(options,
                              this,
                              server,
+                             serverAlias,
                              null, // from
                              null, // till
                              null, // rtime
@@ -488,7 +512,11 @@ public class Credentials {
     public static void printDebug(Credentials c) {
         System.out.println(">>> DEBUG: ----Credentials----");
         System.out.println("\tclient: " + c.client.toString());
+        if (c.clientAlias != null)
+            System.out.println("\tclient alias: " + c.clientAlias.toString());
         System.out.println("\tserver: " + c.server.toString());
+        if (c.serverAlias != null)
+            System.out.println("\tserver alias: " + c.serverAlias.toString());
         System.out.println("\tticket: sname: " + c.ticket.sname.toString());
         if (c.startTime != null) {
             System.out.println("\tstartTime: " + c.startTime.getTime());
@@ -516,7 +544,11 @@ public class Credentials {
     public String toString() {
         StringBuffer buffer = new StringBuffer("Credentials:");
         buffer.append(    "\n      client=").append(client);
+        if (clientAlias != null)
+            buffer.append(    "\n      clientAlias=").append(clientAlias);
         buffer.append(    "\n      server=").append(server);
+        if (serverAlias != null)
+            buffer.append(    "\n      serverAlias=").append(serverAlias);
         if (authTime != null) {
             buffer.append("\n    authTime=").append(authTime);
         }
