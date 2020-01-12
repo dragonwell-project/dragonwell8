@@ -224,8 +224,8 @@ $JARSIGNER -verify a.jar
 # ==========================================================
 
 $KT -genkeypair -alias ee -dname CN=ee
-$KT -genkeypair -alias caone -dname CN=caone
-$KT -genkeypair -alias catwo -dname CN=catwo
+$KT -genkeypair -alias caone -dname CN=caone -ext bc:c
+$KT -genkeypair -alias catwo -dname CN=catwo -ext bc:c
 
 $KT -certreq -alias ee | $KT -gencert -alias catwo -rfc > ee.cert
 $KT -certreq -alias catwo | $KT -gencert -alias caone -sigalg MD5withRSA -rfc > catwo.cert
