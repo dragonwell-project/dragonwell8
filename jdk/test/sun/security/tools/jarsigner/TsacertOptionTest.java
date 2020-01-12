@@ -87,6 +87,7 @@ public class TsacertOptionTest {
                 "-storepass", PASSWORD,
                 "-keypass", PASSWORD,
                 "-dname", "CN=CA",
+                "-ext", "bc:c",
                 "-validity", Integer.toString(VALIDITY)).shouldHaveExitValue(0);
         ProcessTools.executeCommand(KEYTOOL,
                 "-genkey",
