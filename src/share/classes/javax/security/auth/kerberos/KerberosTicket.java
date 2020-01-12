@@ -194,6 +194,10 @@ public class KerberosTicket implements Destroyable, Refreshable,
 
     private InetAddress[] clientAddresses;
 
+    transient KerberosPrincipal clientAlias = null;
+
+    transient KerberosPrincipal serverAlias = null;
+
     /**
      * Evidence ticket if proxy_impersonator. This field can be accessed
      * by KerberosSecrets. It's serialized.
@@ -563,7 +567,11 @@ public class KerberosTicket implements Destroyable, Refreshable,
         try {
             krb5Creds = new sun.security.krb5.Credentials(asn1Encoding,
                                                     client.toString(),
+                                                    (clientAlias != null ?
+                                                            clientAlias.getName() : null),
                                                     server.toString(),
+                                                    (serverAlias != null ?
+                                                            serverAlias.getName() : null),
                                                     sessionKey.getEncoded(),
                                                     sessionKey.getKeyType(),
                                                     flags,
