@@ -35,6 +35,7 @@ import sun.security.krb5.internal.*;
 import sun.security.krb5.internal.crypto.*;
 import java.io.IOException;
 import java.net.UnknownHostException;
+import java.time.Instant;
 import java.util.Arrays;
 
 /**
@@ -250,7 +251,12 @@ public class KrbTgsReq {
         throws IOException, KrbException, UnknownHostException {
         KerberosTime req_till = null;
         if (till == null) {
-            req_till = new KerberosTime(0);
+            String d = Config.getInstance().get("libdefaults", "ticket_lifetime");
+            if (d != null) {
+                req_till = new KerberosTime(Instant.now().plusSeconds(Config.duration(d)));
+            } else {
+                req_till = new KerberosTime(0); // Choose KDC maximum allowed
+            }
         } else {
             req_till = till;
         }
