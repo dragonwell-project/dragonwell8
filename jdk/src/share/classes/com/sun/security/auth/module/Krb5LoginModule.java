@@ -1021,6 +1021,10 @@ public class Krb5LoginModule implements LoginModule {
             if (!creds.isRenewable())
                 throw new RefreshFailedException("This ticket" +
                                 " is not renewable");
+            if (creds.getRenewTill() == null) {
+                // Renewable ticket without renew-till. Illegal and ignored.
+                return creds;
+            }
             if (System.currentTimeMillis() > cred.getRenewTill().getTime())
                 throw new RefreshFailedException("This ticket is past "
                                              + "its last renewal time.");
