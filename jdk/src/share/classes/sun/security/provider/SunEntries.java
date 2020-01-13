@@ -65,7 +65,7 @@ import sun.security.action.GetPropertyAction;
  *   and CRLs. Aliases for X.509 are X509.
  *
  * - PKIX is the certification path validation algorithm described
- *   in RFC 3280. The ValidationAlgorithm attribute notes the
+ *   in RFC 5280. The ValidationAlgorithm attribute notes the
  *   specification that this provider implements.
  *
  * - LDAP is the CertStore type for LDAP repositories. The
@@ -257,7 +257,7 @@ final class SunEntries {
         map.put("CertPathBuilder.PKIX",
             "sun.security.provider.certpath.SunCertPathBuilder");
         map.put("CertPathBuilder.PKIX ValidationAlgorithm",
-            "RFC3280");
+            "RFC5280");
 
         /*
          * CertPathValidator
@@ -265,7 +265,7 @@ final class SunEntries {
         map.put("CertPathValidator.PKIX",
             "sun.security.provider.certpath.PKIXCertPathValidator");
         map.put("CertPathValidator.PKIX ValidationAlgorithm",
-            "RFC3280");
+            "RFC5280");
 
         /*
          * CertStores
