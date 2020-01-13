@@ -281,4 +281,33 @@ public class IOUtils {
         return n;
     }
 
+    /**
+     * Compatibility wrapper for third party users of
+     * {@code sun.misc.IOUtils.readFully} following its
+     * removal in JDK-8231139.
+     *
+     * Read up to {@code length} of bytes from {@code in}
+     * until EOF is detected.
+     *
+     * @param is input stream, must not be null
+     * @param length number of bytes to read
+     * @param readAll if true, an EOFException will be thrown if not enough
+     *        bytes are read.
+     * @return bytes read
+     * @throws EOFException if there are not enough bytes in the stream
+     * @throws IOException if an I/O error occurs or {@code length} is negative
+     * @throws OutOfMemoryError if an array of the required size cannot be
+     *         allocated.
+     */
+    public static byte[] readFully(InputStream is, int length, boolean readAll)
+             throws IOException {
+        if (length < 0) {
+            throw new IOException("length cannot be negative: " + length);
+        }
+        if (readAll) {
+            return readExactlyNBytes(is, length);
+        } else {
+            return readNBytes(is, length);
+        }
+    }
 }
