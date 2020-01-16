@@ -302,8 +302,8 @@ static ObsoleteFlag obsolete_jvm_flags[] = {
   { "UsePermISM",                    JDK_Version::jdk(8), JDK_Version::jdk(9) },
   { "UseMPSS",                       JDK_Version::jdk(8), JDK_Version::jdk(9) },
   { "UseStringCache",                JDK_Version::jdk(8), JDK_Version::jdk(9) },
-  { "UseOldInlining",                JDK_Version::jdk(9), JDK_Version::jdk(10) },
-  { "AutoShutdownNMT",               JDK_Version::jdk(9), JDK_Version::jdk(10) },
+  { "UseOldInlining",                JDK_Version::jdk_update(8, 20), JDK_Version::jdk(10) },
+  { "AutoShutdownNMT",               JDK_Version::jdk_update(8, 40), JDK_Version::jdk(10) },
   { "CompilationRepeat",             JDK_Version::jdk(8), JDK_Version::jdk(9) },
 #ifdef PRODUCT
   { "DesiredMethodLimit",
