@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,6 +24,8 @@
  */
 
 package com.sun.crypto.provider;
+
+import sun.security.util.Debug;
 
 import java.io.*;
 import java.util.*;
@@ -61,6 +63,7 @@ import sun.misc.ObjectInputFilter;
 
 public final class JceKeyStore extends KeyStoreSpi {
 
+    private static final Debug debug = Debug.getInstance("keystore");
     private static final int JCEKS_MAGIC = 0xcececece;
     private static final int JKS_MAGIC = 0xfeedfeed;
     private static final int VERSION_1 = 0x01;
@@ -682,6 +685,7 @@ public final class JceKeyStore extends KeyStoreSpi {
             Hashtable<String, CertificateFactory> cfs = null;
             ByteArrayInputStream bais = null;
             byte[] encoded = null;
+            int trustedKeyCount = 0, privateKeyCount = 0, secretKeyCount = 0;
 
             if (stream == null)
                 return;
@@ -728,7 +732,7 @@ public final class JceKeyStore extends KeyStoreSpi {
                     tag = dis.readInt();
 
                     if (tag == 1) { // private-key entry
-
+                        privateKeyCount++;
                         PrivateKeyEntry entry = new PrivateKeyEntry();
 
                         // read the alias
@@ -788,7 +792,7 @@ public final class JceKeyStore extends KeyStoreSpi {
                         entries.put(alias, entry);
 
                     } else if (tag == 2) { // trusted certificate entry
-
+                        trustedKeyCount++;
                         TrustedCertEntry entry = new TrustedCertEntry();
 
                         // read the alias
@@ -827,7 +831,7 @@ public final class JceKeyStore extends KeyStoreSpi {
                         entries.put(alias, entry);
 
                     } else if (tag == 3) { // secret-key entry
-
+                        secretKeyCount++;
                         SecretKeyEntry entry = new SecretKeyEntry();
 
                         // read the alias
@@ -860,8 +864,16 @@ public final class JceKeyStore extends KeyStoreSpi {
                         entries.put(alias, entry);
 
                     } else {
-                        throw new IOException("Unrecognized keystore entry");
+                        throw new IOException("Unrecognized keystore entry: " +
+                                tag);
                     }
+                }
+
+                if (debug != null) {
+                    debug.println("JceKeyStore load: private key count: " +
+                        privateKeyCount + ". trusted key count: " +
+                        trustedKeyCount + ". secret key count: " +
+                        secretKeyCount);
                 }
 
                 /*
