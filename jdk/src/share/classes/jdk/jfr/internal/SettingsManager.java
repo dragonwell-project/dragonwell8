@@ -140,7 +140,7 @@ final class SettingsManager {
                 ec.disable();
             }
         } else {
-            if (LogTag.JFR_SETTING.shouldLog(LogLevel.INFO.level)) {
+            if (Logger.shouldLog(LogTag.JFR_SETTING, LogLevel.INFO)) {
                 Collections.sort(eventControls, (x,y) -> x.getEventType().getName().compareTo(y.getEventType().getName()));
             }
             for (EventControl ec : eventControls) {
@@ -225,7 +225,7 @@ final class SettingsManager {
             if (values != null) {
                 control.apply(values);
                 String after = control.getLastValue();
-                if (LogTag.JFR_SETTING.shouldLog(LogLevel.INFO.level)) {
+                if (Logger.shouldLog(LogTag.JFR_SETTING, LogLevel.INFO)) {
                     if (Utils.isSettingVisible(control, ec.getEventType().hasEventHook())) {
                         if (values.size() > 1) {
                             StringJoiner sj = new StringJoiner(", ", "{", "}");
@@ -242,7 +242,7 @@ final class SettingsManager {
                 }
             } else {
                 control.setDefault();
-                if (LogTag.JFR_SETTING.shouldLog(LogLevel.INFO.level)) {
+                if (Logger.shouldLog(LogTag.JFR_SETTING, LogLevel.INFO)) {
                     String message = "  " + settingName + "=\"" + control.getLastValue() + "\"";
                     Logger.log(LogTag.JFR_SETTING, LogLevel.INFO, message);
                 }

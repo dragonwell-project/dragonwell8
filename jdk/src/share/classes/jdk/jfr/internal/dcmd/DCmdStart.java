@@ -82,7 +82,7 @@ final class DCmdStart extends AbstractDCmd {
      */
     @SuppressWarnings("resource")
     public String execute(String name, String[] settings, Long delay, Long duration, Boolean disk, String path, Long maxAge, Long maxSize, Boolean dumpOnExit, Boolean pathToGcRoots) throws DCmdException {
-        if (LogTag.JFR_DCMD.shouldLog(LogLevel.DEBUG)) {
+        if (Logger.shouldLog(LogTag.JFR_DCMD, LogLevel.DEBUG)) {
             Logger.log(LogTag.JFR_DCMD, LogLevel.DEBUG, "Executing DCmdStart: name=" + name +
                     ", settings=" + (settings != null ? Arrays.asList(settings) : "(none)") +
                     ", delay=" + delay +
@@ -110,11 +110,6 @@ final class DCmdStart extends AbstractDCmd {
             throw new DCmdException("No settings specified. Use settings=none to start without any settings");
         }
         Map<String, String> s = new HashMap<>();
-
-        if (settings == null || settings.length == 0) {
-            settings = new String[] { "default" };
-        }
-
         for (String configName : settings) {
             try {
                 s.putAll(JFC.createKnown(configName).getSettings());
