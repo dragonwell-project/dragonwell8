@@ -35,15 +35,20 @@ import java.util.function.Supplier;
 public final class Logger {
 
     private final static int MAX_SIZE = 10000;
+    static {
+        // This will try to initialize the JVM logging system
+        JVMSupport.tryToInitializeJVM();
+    }
+
 
     public static void log(LogTag logTag, LogLevel logLevel, String message) {
-        if (logTag.shouldLog(logLevel.level)) {
+        if (shouldLog(logTag, logLevel)) {
             logInternal(logTag, logLevel, message);
         }
     }
 
     public static void log(LogTag logTag, LogLevel logLevel, Supplier<String> messageSupplier) {
-        if (logTag.shouldLog(logLevel.level)) {
+        if (shouldLog(logTag, logLevel)) {
             logInternal(logTag, logLevel, messageSupplier.get());
         }
     }
@@ -54,5 +59,11 @@ public final class Logger {
         } else {
             JVM.log(logTag.id, logLevel.level, message.substring(0, MAX_SIZE));
         }
+    }
+
+    public static boolean shouldLog(LogTag tag, LogLevel level) {
+        // Logging level is not initialized because of lack of Xlog support in jdk8,
+        // so this method returns true directly now.
+        return true; // TODO: level.level >= tag.tagSetLevel;
     }
 }
