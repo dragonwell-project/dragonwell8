@@ -297,8 +297,31 @@ void MonitorExitStub::emit_code(LIR_Assembler* ce) {
   } else {
     exit_id = Runtime1::monitorexit_nofpu_id;
   }
+  // Handle special case for wisp unpark.
+  // The code stub is entered only when the following four conditions are all satisfied
+  // 1. A synchronized method is compiled by C1
+  // 2. An exception happened in this method
+  // 3. There is no exception handler in this method, So it needs to unwind to its caller
+  // 4. GC happened during unpark
+  // if (_info == NULL) is true, the four conditions are all true.
+  if (UseWispMonitor && (_info == NULL || _at_method_return)) {
+    if (exit_id == Runtime1::monitorexit_id) {
+      exit_id = Runtime1::monitorexit_proxy_id;
+    } else {
+      assert (exit_id == Runtime1::monitorexit_nofpu_id, "must be monitorexit_nofpu_id");
+      exit_id = Runtime1::monitorexit_nofpu_proxy_id;
+    }
+  }
+  // on X86, despite we will call java, we have no need to generate an oopmap here,
+  // because c1_CodeStubs_x86.cpp only emit a jump here, when GC happens, we won't
+  // see the _last_pc pointing here.
+  // However, on aarch64 here it uses lr to jump from the far_jump stub.
+  // so the _last_pc will be seen by stack unwinding as a single frame,
+  // when GC searches the pc related oopmap, it will crash.
+  // so, because of this implementation we should emit the OopMap where the `continuation` lays.
   __ adr(lr, _continuation);
   __ far_jump(RuntimeAddress(Runtime1::entry_for(exit_id)));
+  __ should_not_reach_here();
 }
 
 

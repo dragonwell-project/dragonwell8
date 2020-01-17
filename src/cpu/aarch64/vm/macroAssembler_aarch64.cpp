@@ -604,6 +604,8 @@ static void pass_arg3(MacroAssembler* masm, Register arg) {
   }
 }
 
+extern address monitorenter_address_interp;
+
 void MacroAssembler::call_VM_base(Register oop_result,
                                   Register java_thread,
                                   Register last_java_sp,
@@ -643,6 +645,13 @@ void MacroAssembler::call_VM_base(Register oop_result,
 
   // do the call, remove parameters
   MacroAssembler::call_VM_leaf_base(entry_point, number_of_arguments, &l);
+
+  if (EnableCoroutine) {
+    // only if the entry_point is equal to `Interpreter::monitorenter()` will we do this amendment.
+    if (entry_point == monitorenter_address_interp) {
+      WISP_V2v_UPDATE;
+    }
+  }
 
   // reset last Java frame
   // Only interpreter should have to clear fp
@@ -884,6 +893,16 @@ void MacroAssembler::get_vm_result(Register oop_result, Register java_thread) {
 void MacroAssembler::get_vm_result_2(Register metadata_result, Register java_thread) {
   ldr(metadata_result, Address(java_thread, JavaThread::vm_result_2_offset()));
   str(zr, Address(java_thread, JavaThread::vm_result_2_offset()));
+}
+
+void MacroAssembler::get_vm_result_for_wisp(Register oop_result, Register java_thread) {
+  assert(EnableCoroutine, "Coroutine is disabled");
+  ldr(oop_result, Address(java_thread, JavaThread::vm_result_for_wisp_offset()));
+  str(zr, Address(java_thread, JavaThread::vm_result_for_wisp_offset()));
+  // In default flow, after calling get_vm_result, vm_result is set to null.
+  // In wisp flow, we should also clear vm_result.
+  str(zr, Address(java_thread, JavaThread::vm_result_offset()));
+  verify_oop(oop_result, "broken oop in call_VM_base");
 }
 
 void MacroAssembler::align(int modulus) {

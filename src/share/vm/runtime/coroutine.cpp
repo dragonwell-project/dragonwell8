@@ -38,6 +38,9 @@
 #ifdef TARGET_ARCH_zero
 # include "vmreg_zero.inline.hpp"
 #endif
+#ifdef TARGET_ARCH_aarch64
+# include "vmreg_aarch64.inline.hpp"
+#endif
 
 
 #ifdef _WINDOWS
@@ -143,10 +146,8 @@ Coroutine* Coroutine::create_coroutine(JavaThread* thread, CoroutineStack* stack
   jobject obj = JNIHandles::make_global(coroutineObj);
 
   intptr_t** d = (intptr_t**)stack->stack_base();
-#ifndef AARCH64
-  // FIXME wisp on aarch64
   set_coroutine_base(d, thread, obj, coro, coroutineObj, (address)coroutine_start);
-#endif
+
   stack->set_last_sp((address) d);
 
   coro->_state = _created;
@@ -466,10 +467,7 @@ void CoroutineStack::frames_do(FrameClosure* fc) {
   // see comments in `frame::sender()`
   // if the sender is a compiler frame, we cannot assume its value.
   StackFrameStream fst(_thread, fr);
-#ifndef AARCH64
-  // FIXME wisp on AARCH64
   fst.register_map()->set_location(get_fp_reg()->as_VMReg(), (address)_last_sp);
-#endif
   fst.register_map()->set_include_argument_oops(false);
   for(; !fst.is_done(); fst.next()) {
     fc->frames_do(fst.current(), fst.register_map());
@@ -482,10 +480,7 @@ frame CoroutineStack::last_frame(Coroutine* coro, RegisterMap& map) const {
   intptr_t* fp = ((intptr_t**)_last_sp)[0];
   address pc = ((address*)_last_sp)[1];
   intptr_t* sp = ((intptr_t*)_last_sp) + 2;
-#ifndef AARCH64
-  // FIXME wisp on AARCH64
   map.set_location(get_fp_reg()->as_VMReg(), (address)_last_sp);
-#endif
   map.set_include_argument_oops(false);
 
   frame f(sp, fp, pc);

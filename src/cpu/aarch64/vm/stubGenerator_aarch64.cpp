@@ -321,6 +321,15 @@ class StubGenerator: public StubCodeGenerator {
     // pop parameters
     __ sub(esp, rfp, -sp_after_call_off * wordSize);
 
+    if (EnableCoroutine) {
+      Label L;    // the steal thread patch
+      __ ldr(rscratch1, thread);
+      __ cmp(rthread, rscratch1);
+      __ br(Assembler::EQ, L);
+      WISP_j2v_UPDATE;
+      __ bind(L);
+    }
+
 #ifdef ASSERT
     // verify that threads correspond
     {
@@ -395,6 +404,11 @@ class StubGenerator: public StubCodeGenerator {
     // same as in generate_call_stub():
     const Address sp_after_call(rfp, sp_after_call_off * wordSize);
     const Address thread        (rfp, thread_off         * wordSize);
+
+    if (EnableCoroutine) {
+      // to pass the assertion fail
+      WISP_j2v_UPDATE;
+    }
 
 #ifdef ASSERT
     // verify that threads correspond

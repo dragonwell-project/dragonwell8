@@ -3373,6 +3373,11 @@ encode %{
       __ add(tmp, disp_hdr, (ObjectMonitor::owner_offset_in_bytes()-markOopDesc::monitor_value));
       __ mov(disp_hdr, zr);
 
+      if (UseWispMonitor) {
+        __ ldr (rthread, Address(rthread, JavaThread::current_coroutine_offset()));
+        __ ldr (rthread, Address(rthread, Coroutine::wisp_thread_offset()));
+      }
+
       if (UseLSE) {
         __ mov(rscratch1, disp_hdr);
         __ casal(Assembler::xword, rscratch1, rthread, tmp);
@@ -3389,6 +3394,10 @@ encode %{
 	__ stlxr(rscratch1, rthread, tmp);
 	__ cbnzw(rscratch1, retry_load);
 	__ bind(fail);
+      }
+
+      if (UseWispMonitor) {
+        __ ldr (rthread, Address(rthread, WispThread::thread_offset()));
       }
 
       // Store a non-null value into the box to avoid looking like a re-entrant
@@ -3469,7 +3478,14 @@ encode %{
       __ add(tmp, tmp, -markOopDesc::monitor_value); // monitor
       __ ldr(rscratch1, Address(tmp, ObjectMonitor::owner_offset_in_bytes()));
       __ ldr(disp_hdr, Address(tmp, ObjectMonitor::recursions_offset_in_bytes()));
+      if (UseWispMonitor) {
+        __ ldr (rthread, Address(rthread, JavaThread::current_coroutine_offset()));
+        __ ldr (rthread, Address(rthread, Coroutine::wisp_thread_offset()));
+      }
       __ eor(rscratch1, rscratch1, rthread); // Will be 0 if we are the owner.
+      if (UseWispMonitor) {
+        __ ldr (rthread, Address(rthread, WispThread::thread_offset()));
+      }
       __ orr(rscratch1, rscratch1, disp_hdr); // Will be 0 if there are 0 recursions
       __ cmp(rscratch1, zr);
       __ br(Assembler::NE, cont);
@@ -13909,6 +13925,25 @@ instruct tlsLoadP(thread_RegP dst)
 
   ins_pipe(pipe_class_empty);
 %}
+
+// Thread refetch:
+// take two main arguments:
+// 1. register @rthread
+// 2. one register which contains the `Coroutine *`
+// and move Coroutine->_thread to @rthread
+instruct tlsRefetchP(thread_RegP dst, iRegP src)
+%{
+  match(Set dst (ThreadRefetch src));
+
+  format %{ "Refetch the rthread register" %}
+
+  ins_encode %{
+  __ ldr(rthread, Address($src$$Register, Coroutine::thread_offset()));
+  %}
+
+  ins_pipe(pipe_class_empty);
+%}
+
 
 // ====================VECTOR INSTRUCTIONS=====================================
 

@@ -46,6 +46,8 @@
 #include "gc_implementation/g1/g1SATBCardTableModRefBS.hpp"
 #endif
 
+// the Runtime1::monitorenter function pointer
+extern address monitorenter_address_C1;
 
 // Implementation of StubAssembler
 
@@ -67,6 +69,18 @@ int StubAssembler::call_RT(Register oop_result1, Register metadata_result, addre
   blr(rscratch1);
   bind(retaddr);
   int call_offset = offset();
+
+  // the call_offset is the pc for the call()'s return rip so that it should be
+  // inserted directly after the call.
+  // the call_offset is used for something like 'frame::sender_for_compiled_frame'
+  // in order to use the call_offset as the pc address to find the OopMap address
+  if (EnableCoroutine) {
+    // only if the entry_point is equal to `Runtime1::monitorenter()` will we do this amendment.
+    if (entry == monitorenter_address_C1) {
+      WISP_V2v_UPDATE;
+    }
+  }
+
   // verify callee-saved register
 #ifdef ASSERT
   push(r0, sp);
@@ -1060,6 +1074,11 @@ OopMapSet* Runtime1::generate_code_for(StubID id, StubAssembler* sasm) {
         oop_maps = new OopMapSet();
         oop_maps->add_gc_map(call_offset, map);
         restore_live_registers(sasm, save_fpu_registers);
+
+        if (EnableCoroutine) {
+          // rthread has been forcibly restored in restore_live_registers so we need fix to it.
+          WISP_COMPILER_RESTORE_FORCE_UPDATE;
+        }
       }
       break;
 
@@ -1078,7 +1097,34 @@ OopMapSet* Runtime1::generate_code_for(StubID id, StubAssembler* sasm) {
         // note: really a leaf routine but must setup last java sp
         //       => use call_RT for now (speed can be improved by
         //       doing last java sp setup manually)
-        int call_offset = __ call_RT(noreg, noreg, CAST_FROM_FN_PTR(address, monitorexit), r0);
+        int call_offset = 0;
+        if (UseWispMonitor) {
+          call_offset  = __ call_RT(noreg, noreg, CAST_FROM_FN_PTR(address, monitorexit_wisp), r0);
+        } else {
+          call_offset  = __ call_RT(noreg, noreg, CAST_FROM_FN_PTR(address, monitorexit), r0);
+        }
+        oop_maps = new OopMapSet();
+        oop_maps->add_gc_map(call_offset, map);
+        restore_live_registers(sasm, save_fpu_registers);
+      }
+      break;
+    case monitorexit_nofpu_proxy_id:
+      save_fpu_registers = false;
+      // fall through
+    case monitorexit_proxy_id:
+      {
+        StubFrame f(sasm, "monitorexit", dont_gc_arguments);
+        OopMap* map = save_live_registers(sasm, save_fpu_registers);
+
+        // Called with store_parameter and not C abi
+        f.load_argument(0, r0); // r0,: lock address
+        int call_offset = 0;
+        if (UseWispMonitor) {
+          call_offset  = __ call_RT(noreg, noreg, CAST_FROM_FN_PTR(address, monitorexit_wisp_proxy), r0);
+        } else {
+          call_offset = 0;
+          __ should_not_reach_here();
+        }
 
         oop_maps = new OopMapSet();
         oop_maps->add_gc_map(call_offset, map);

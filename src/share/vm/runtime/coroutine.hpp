@@ -524,6 +524,9 @@ public:
 #ifdef TARGET_ARCH_x86
 # include "coroutine_x86.hpp"
 #endif
+#ifdef TARGET_ARCH_aarch64
+# include "coroutine_aarch64.hpp"
+#endif
 #define WISP_THREAD_UPDATE get_thread(R_TH)
 #define WISP_CALLING_CONVENTION_V2J_UPDATE __ WISP_THREAD_UPDATE
 #define WISP_CALLING_CONVENTION_V2j_UPDATE __ WISP_THREAD_UPDATE
