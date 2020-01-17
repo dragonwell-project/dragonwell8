@@ -423,7 +423,7 @@ int LIR_Assembler::emit_unwind_handler() {
   MonitorExitStub* stub = NULL;
   if (method()->is_synchronized()) {
     monitor_address(0, FrameMap::r0_opr);
-    stub = new MonitorExitStub(FrameMap::r0_opr, true, 0);
+    stub = new MonitorExitStub(FrameMap::r0_opr, true, 0, NULL);
     __ unlock_object(r5, r4, r0, *stub->entry());
     __ bind(*stub->continuation());
   }
@@ -2592,6 +2592,13 @@ void LIR_Assembler::emit_lock(LIR_OpLock* op) {
     Unimplemented();
   }
   __ bind(*op->stub()->continuation());
+  // add an OopMap here.
+  if (UseWispMonitor && op->code() == lir_unlock) {
+    // For direct unpark in Wisp, _info must be recorded to generate the oopmap.
+    guarantee(op->info() != NULL, "aarch64 needs an OopMap because the adr(lr, ...), so pc will be searched for the OopMap");
+    add_call_info_here(op->info());
+    verify_oop_map(op->info());
+  }
 }
 
 

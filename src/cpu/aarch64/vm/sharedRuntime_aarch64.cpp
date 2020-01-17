@@ -42,6 +42,10 @@
 #include "opto/runtime.hpp"
 #endif
 
+#include "runtime/coroutine.hpp"
+
+void coroutine_start(Coroutine* coroutine, jobject coroutineObj);
+
 #define __ masm->
 
 const int StackAlignmentInSlots = StackAlignmentInBytes / VMRegImpl::stack_slot_size;
@@ -1191,6 +1195,22 @@ static void gen_special_dispatch(MacroAssembler* masm,
                                                  receiver_reg, member_reg, /*for_compiler_entry:*/ true);
 }
 
+void create_switchTo_contents(MacroAssembler *masm, int start, OopMapSet* oop_maps, int &stack_slots, int total_in_args, BasicType *in_sig_bt, VMRegPair *in_regs, BasicType ret_type, bool terminate);
+
+void generate_thread_fix(MacroAssembler *masm, Method *method) {
+  // we can have a check here at the codegen time, so no cost in runtime.
+  if (EnableCoroutine) {
+    if (WispStealCandidate(method->method_holder()->name(), method->name(), method->signature()).is_steal_candidate()) {
+      // as aarch64 calling conventions, the thread register r28 is one of the callee saved registers.
+      // r19~r28 are callee-saved-registers. See StubRoutines::generate_call_stub()'s callee-saved-register restoration.
+      // the r28 register will be saved at method entry and restored implicitly at method exit
+      // so we have to fix it manually after the method returns.
+      // REF: https://developer.arm.com/docs/den0024/latest/the-abi-for-arm-64-bit-architecture/register-use-in-the-aarch64-procedure-call-standard/parameters-in-general-purpose-registers
+      WISP_CALLING_CONVENTION_V2J_UPDATE;
+    }
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Generate a native wrapper for a given method.  The method takes arguments
 // in the Java compiled code convention, marshals them to the native
@@ -1472,6 +1492,16 @@ nmethod* SharedRuntime::generate_native_wrapper(MacroAssembler* masm,
     __ bang_stack_with_offset(StackShadowPages*os::vm_page_size());
   } else {
     Unimplemented();
+  }
+
+  if (EnableCoroutine) {
+    // the coroutine support methods have a hand-coded fast version that will handle the most common cases
+    if (method->intrinsic_id() == vmIntrinsics::_switchTo) {
+      create_switchTo_contents(masm, start, oop_maps, stack_slots, total_in_args, in_sig_bt, in_regs, ret_type, false);
+    } else if (method->intrinsic_id() == vmIntrinsics::_switchToAndTerminate ||
+      method->intrinsic_id() == vmIntrinsics::_switchToAndExit) {
+      create_switchTo_contents(masm, start, oop_maps, stack_slots, total_in_args, in_sig_bt, in_regs, ret_type, true);
+    }
   }
 
   // Generate a new frame for the wrapper.
@@ -1769,6 +1799,13 @@ nmethod* SharedRuntime::generate_native_wrapper(MacroAssembler* masm,
     __ lea(c_rarg0, Address(rthread, in_bytes(JavaThread::jni_environment_offset())));
   }
 
+  if (EnableCoroutine) {
+    __ ldr(rscratch2, Address(rthread, JavaThread::coroutine_list_offset()));
+    __ lea(rscratch2, Address(rscratch2, Coroutine::native_call_counter_offset()));
+    // we couldn't use rscratch1 because `incrementw` will use rscratch1
+    __ incrementw(Address(rscratch2));
+  }
+
   // Now set thread in native
   __ mov(rscratch1, _thread_in_native);
   __ lea(rscratch2, Address(rthread, JavaThread::thread_state_offset()));
@@ -1801,6 +1838,11 @@ nmethod* SharedRuntime::generate_native_wrapper(MacroAssembler* masm,
 	    float_args,   // and up to 8 float args
 	    return_type);
   }
+
+  // In wisp, this coroutine may be stolen by another thread inside the `native_func` call.
+  // If this `native_func` is one of the several native functions we supported,
+  // we will add thread fix code for them.
+  generate_thread_fix(masm, method());
 
   // Unpack native results.
   switch (ret_type) {
@@ -1978,6 +2020,25 @@ nmethod* SharedRuntime::generate_native_wrapper(MacroAssembler* masm,
     __ cbnz(rscratch1, exception_pending);
   }
 
+  // Return
+  if (EnableCoroutine &&
+       (method->intrinsic_id() == vmIntrinsics::_switchToAndTerminate ||
+        method->intrinsic_id() == vmIntrinsics::_switchToAndExit)) {
+
+    Label normal;
+    __ lea(rscratch1, RuntimeAddress((unsigned char*)coroutine_start));
+    __ ldr(rscratch2, Address(sp, 0));
+    __ cmp(rscratch2, rscratch1);
+    __ br(Assembler::NE, normal);
+
+    __ ldr(c_rarg0, Address(sp, HeapWordSize * 2));
+    __ ldr(c_rarg1, Address(sp, HeapWordSize * 3));
+
+    __ bind(normal);
+
+    __ ret(lr);        // <-- this will jump to the stored IP of the target coroutine
+  }
+
   // We're done
   __ ret(lr);
 
@@ -2010,6 +2071,11 @@ nmethod* SharedRuntime::generate_native_wrapper(MacroAssembler* masm,
     // Not a leaf but we have last_Java_frame setup as we want
     __ call_VM_leaf(CAST_FROM_FN_PTR(address, SharedRuntime::complete_monitor_locking_C), 3);
     restore_args(masm, total_c_args, c_arg, out_regs);
+
+    if (EnableCoroutine) {
+      // the rthread has been restored in restore_args so we need to fix it.
+      WISP_COMPILER_RESTORE_FORCE_UPDATE;
+    }
 
 #ifdef ASSERT
     { Label L;
@@ -3003,3 +3069,180 @@ void OptoRuntime::generate_exception_blob() {
   _exception_blob =  ExceptionBlob::create(&buffer, oop_maps, SimpleRuntimeFrame::framesize >> 1);
 }
 #endif // COMPILER2
+
+
+void create_switchTo_contents(MacroAssembler *masm, int start, OopMapSet* oop_maps, int &stack_slots, int total_in_args,
+                              BasicType *in_sig_bt, VMRegPair *in_regs, BasicType ret_type, bool terminate) {
+  assert(total_in_args == 2, "wrong number of arguments");
+
+  // unlike x86, something like TemplateTable::prepare_invoke() will
+  // generate the return ip into lr register instead of pushing
+  // on to the stack in x86.
+
+  // push the ip and frame pointer onto the stack
+  __ push(RegSet::of(lr, rfp), sp);
+
+  Register thread = rthread;
+  Register target_coroutine = j_rarg1;
+  // check that we're dealing with sane objects...
+  __ ldr(target_coroutine, Address(target_coroutine, java_dyn_CoroutineBase::get_data_offset()));
+
+  Register temp = r4;
+  Register temp2 = r5;
+  {
+    //////////////////////////////////////////////////////////////////////////
+    // store information into the old coroutine's object
+    //
+    // valid registers: rsi = old Coroutine, rdx = target Coroutine
+
+    Register old_coroutine_obj = j_rarg0;
+    Register old_coroutine = r5;
+    Register old_stack = r6;
+
+    // check that we're dealing with sane objects...
+    __ ldr(old_coroutine, Address(old_coroutine_obj, java_dyn_CoroutineBase::get_data_offset()));
+    __ ldr(old_stack, Address(old_coroutine, Coroutine::stack_offset()));
+
+    __ movw(temp, Coroutine::_onstack);
+    __ strw(temp, Address(old_coroutine, Coroutine::state_offset()));
+
+    // rescue old handle and resource areas
+    __ ldr(temp, Address(thread, Thread::handle_area_offset()));
+    __ str(temp, Address(old_coroutine, Coroutine::handle_area_offset()));
+    __ ldr(temp, Address(thread, Thread::resource_area_offset()));
+    __ str(temp, Address(old_coroutine, Coroutine::resource_area_offset()));
+    __ ldr(temp, Address(thread, Thread::last_handle_mark_offset()));
+    __ str(temp, Address(old_coroutine, Coroutine::last_handle_mark_offset()));
+    __ ldr(temp, Address(thread, Thread::active_handles_offset()));
+    __ str(temp, Address(old_coroutine, Coroutine::active_handles_offset()));
+    __ ldr(temp, Address(thread, Thread::metadata_handles_offset()));
+    __ str(temp, Address(old_coroutine, Coroutine::metadata_handles_offset()));
+    __ ldr(temp, Address(thread, JavaThread::last_Java_pc_offset()));
+    __ str(temp, Address(old_coroutine, Coroutine::last_Java_pc_offset()));
+    __ ldr(temp, Address(thread, JavaThread::last_Java_sp_offset()));
+    __ str(temp, Address(old_coroutine, Coroutine::last_Java_sp_offset()));
+    __ ldr(temp, Address(thread, JavaThread::privileged_stack_top_offset()));
+    __ str(temp, Address(old_coroutine, Coroutine::privileged_stack_top_offset()));
+    __ ldr(temp, Address(thread, JavaThread::threadObj_offset()));
+    __ ldrw(temp, Address(temp, java_lang_Thread::thread_status_offset()));
+    __ strw(temp, Address(old_coroutine, Coroutine::thread_status_offset()));
+    __ ldrw(temp, Address(thread, JavaThread::java_call_counter_offset()));
+    __ strw(temp, Address(old_coroutine, Coroutine::java_call_counter_offset()));
+    __ mov(temp, sp);
+    __ str(temp, Address(old_stack, CoroutineStack::last_sp_offset())); // str cannot use sp as an argument
+  }
+  Register target_stack = rheapbase;
+  __ ldr(target_stack, Address(target_coroutine, Coroutine::stack_offset()));
+
+  {
+    //////////////////////////////////////////////////////////////////////////
+    // perform the switch to the new stack
+    //
+    // valid registers: rdx = target Coroutine
+
+    __ movw(temp, Coroutine::_current);
+    __ strw(temp, Address(target_coroutine, Coroutine::state_offset()));
+    {
+      Register thread = rthread;
+      __ str(target_coroutine, Address(thread, JavaThread::current_coroutine_offset()));
+      // set new handle and resource areas
+      __ ldr(temp, Address(target_coroutine, Coroutine::handle_area_offset()));
+      __ str(temp, Address(thread, Thread::handle_area_offset()));
+      __ ldr(temp, Address(target_coroutine, Coroutine::resource_area_offset()));
+      __ str(temp, Address(thread, Thread::resource_area_offset()));
+      __ ldr(temp, Address(target_coroutine, Coroutine::last_handle_mark_offset()));
+      __ str(temp, Address(thread, Thread::last_handle_mark_offset()));
+      __ ldr(temp, Address(target_coroutine, Coroutine::active_handles_offset()));
+      __ str(temp, Address(thread, Thread::active_handles_offset()));
+      __ ldr(temp, Address(target_coroutine, Coroutine::metadata_handles_offset()));
+      __ str(temp, Address(thread, Thread::metadata_handles_offset()));
+      __ ldr(temp, Address(target_coroutine, Coroutine::last_Java_pc_offset()));
+      __ str(temp, Address(thread, JavaThread::last_Java_pc_offset()));
+      __ ldr(temp, Address(target_coroutine, Coroutine::last_Java_sp_offset()));
+      __ str(temp, Address(thread, JavaThread::last_Java_sp_offset()));
+      __ ldr(temp, Address(target_coroutine, Coroutine::privileged_stack_top_offset()));
+      __ str(temp, Address(thread, JavaThread::privileged_stack_top_offset()));
+      __ ldrw(temp2, Address(target_coroutine, Coroutine::thread_status_offset()));
+      __ ldr(temp, Address(thread, JavaThread::threadObj_offset()));
+      __ strw(temp2, Address(temp, java_lang_Thread::thread_status_offset()));
+      __ ldrw(temp, Address(target_coroutine, Coroutine::java_call_counter_offset()));
+      __ strw(temp, Address(thread, JavaThread::java_call_counter_offset()));
+#ifdef ASSERT
+      __ str(zr, Address(target_coroutine, Coroutine::handle_area_offset()));
+      __ str(zr, Address(target_coroutine, Coroutine::resource_area_offset()));
+      __ str(zr, Address(target_coroutine, Coroutine::last_handle_mark_offset()));
+      __ strw(zr, Address(target_coroutine, Coroutine::java_call_counter_offset()));
+#endif
+
+      // update the thread's stack base and size
+      __ ldr(temp, Address(target_stack, CoroutineStack::stack_base_offset()));
+      __ str(temp, Address(thread, JavaThread::stack_base_offset()));
+      __ ldrw(temp2, Address(target_stack, CoroutineStack::stack_size_offset()));
+      __ strw(temp2, Address(thread, JavaThread::stack_size_offset()));
+    }
+    // restore the stack pointer
+    __ ldr(temp, Address(target_stack, CoroutineStack::last_sp_offset()));
+
+    __ mov(sp, temp);
+
+    __ pop(RegSet::of(lr, rfp), sp);
+
+    if (!terminate) {
+      //////////////////////////////////////////////////////////////////////////
+      // normal case (resume immediately)
+
+      // this will reset r27
+      __ reinit_heapbase();
+
+#ifdef ASSERT
+      {
+        // bomb: clear all temp regs which are used in create_switchTo_contents()
+        __ mov(r0, zr);
+        __ mov(r1, zr);
+        __ mov(r2, zr);
+        __ mov(r3, zr);
+        __ mov(r4, zr);
+        __ mov(r5, zr);
+        __ mov(r6, zr);
+      }
+#endif
+
+      Label normal;
+      __ lea(rscratch1, RuntimeAddress((unsigned char*)coroutine_start));
+      __ ldr(rscratch2, Address(sp, 0));
+      __ cmp(rscratch2, rscratch1);
+      __ br(Assembler::NE, normal);
+
+      // set up the anchor: return address
+      // lr is 0 now, which is popped from stack settled by create_coroutine()
+      __ mov(lr, rscratch1);
+      // set up the coroutine_start() arguments
+      __ ldr(c_rarg0, Address(sp, HeapWordSize * 2));
+      __ ldr(c_rarg1, Address(sp, HeapWordSize * 3));
+
+      __ bind(normal);
+
+      // if the target coroutine is not the first time running (start from coroutine_start)
+      // it will jump directly to
+      // <interpreter>
+      //  TemplateInterpreterGenerator::generate_return_entry_for() stub after unsafeSymmetricYieldTo(),
+      //  and then load the args thru explicit generated bytecodes aload_0 of `this` and aload_N of other args.
+      // <compiler>
+      //  unsafeSymmetricYieldTo()'s nmethod which is compiled by C1/C2. Because bytecodes aload_0 and aload_N
+      //  is generated by javac, so argument registers will be saved on stack before unsafeSymmetricYieldTo()
+      //  and restored back after it.
+      // So it's safe to bzero all registers we used here.
+
+      __ ret(lr);        // <-- this will jump to the stored IP of the target coroutine
+
+    } else {
+      //////////////////////////////////////////////////////////////////////////
+      // slow case (terminate old coroutine)
+
+      // this will reset r27
+      __ reinit_heapbase();
+
+      __ movptr(j_rarg1, 0);
+    }
+  }
+}

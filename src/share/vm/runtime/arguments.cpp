@@ -4140,7 +4140,7 @@ jint Arguments::parse(const JavaVMInitArgs* args) {
     }
   }
 
-#if !(defined(LINUX) && defined(AMD64))
+#if !(defined(LINUX) && (defined(AMD64) || (defined(AARCH64))))
   if (EnableCoroutine || UseWispMonitor) {
     vm_exit_during_initialization("Wisp only works on Linux x64 platform for now");
   }

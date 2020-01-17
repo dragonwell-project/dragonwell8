@@ -432,7 +432,18 @@ void LIRGenerator::do_MonitorExit(MonitorExit* x) {
   LIR_Opr lock = new_register(T_INT);
   LIR_Opr obj_temp = new_register(T_INT);
   set_no_result(x);
-  monitor_exit(obj_temp, lock, syncTempOpr(), LIR_OprFact::illegalOpr, x->monitor_no());
+  // Info is used to generate the oopmap, which is necessary for calling java code during runtime.
+  if (UseWispMonitor) {
+    CodeEmitInfo *info = NULL;
+    if (x->state()) {
+      info = state_for(x, x->state(), true);
+    }
+    // add info_for_exception CodeInfo here.
+    CodeEmitInfo *info_for_exception = state_for(x, x->state(), true);
+    monitor_exit(obj_temp, lock, syncTempOpr(), LIR_OprFact::illegalOpr, x->monitor_no(), info_for_exception, info);
+  } else {
+    monitor_exit(obj_temp, lock, syncTempOpr(), LIR_OprFact::illegalOpr, x->monitor_no());
+  }
 }
 
 

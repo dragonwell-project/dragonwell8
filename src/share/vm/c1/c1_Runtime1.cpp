@@ -210,13 +210,8 @@ void Runtime1::generate_blob_for(BufferBlob* buffer_blob, StubID id) {
 
     // All other stubs should have oopmaps
     default:
-#ifdef X86
       assert(oop_maps != NULL, "must have an oopmap");
-#else
-      // TODO add support for monitorexit_nofpu_proxy_id
-      assert(oop_maps != NULL || (id == monitorexit_nofpu_proxy_id) || (id == monitorexit_proxy_id), "must have an oopmap");
       break;
-#endif
   }
 #endif
 
