@@ -4376,7 +4376,7 @@ VS_SDK_PLATFORM_NAME_2017=
 #CUSTOM_AUTOCONF_INCLUDE
 
 # Do not change or remove the following line, it is needed for consistency checks:
-DATE_WHEN_GENERATED=1565358475
+DATE_WHEN_GENERATED=1579512479
 
 ###############################################################################
 #
@@ -51600,7 +51600,7 @@ fi
     { $as_echo "$as_me:${as_lineno-$LINENO}: checking for UCRT DLL dir" >&5
 $as_echo_n "checking for UCRT DLL dir... " >&6; }
     if test "x$with_ucrt_dll_dir" != x; then
-      if test -z "$(ls -d "$with_ucrt_dll_dir/*.dll" 2> /dev/null)"; then
+      if test -z "$(ls -d "$with_ucrt_dll_dir/"*.dll 2> /dev/null)"; then
         { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }
         as_fn_error $? "Could not find any dlls in $with_ucrt_dll_dir" "$LINENO" 5
