@@ -63,7 +63,7 @@ do
       shift;
       site=$1
       if [[ $site == "github" ]]; then
-        GITURL="git@github.com:alibaba"
+        GITURL="https://github.com/alibaba"
         REPO_PREFIX="dragonwell8_"
       elif [[ $site == "gitlab" ]]; then
         # inside alibaba
