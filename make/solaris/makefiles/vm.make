@@ -109,6 +109,7 @@ CFLAGS += $(CFLAGS/NOEX)
 
 # Extra flags from gnumake's invocation or environment
 CFLAGS += $(EXTRA_CFLAGS)
+ASFLAGS += $(EXTRA_ASFLAGS)
 
 # Math Library (libm.so), do not use -lm.
 #    There might be two versions of libm.so on the build system:
