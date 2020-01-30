@@ -9,11 +9,11 @@ import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.LinkedHashMap;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
-import java.util.StringJoiner;
-import java.util.function.Predicate;
 
 import javax.xml.XMLConstants;
 import javax.xml.parsers.ParserConfigurationException;
@@ -73,6 +73,38 @@ public class GenerateJfrFiles {
         boolean supportStruct;
     }
 
+    interface TypePredicate {
+        boolean isType(TypeElement type);
+    }
+
+    static class StringJoiner {
+        private final CharSequence delimiter;
+        private final List<CharSequence> elements;
+
+        public StringJoiner(CharSequence delimiter) {
+            this.delimiter = delimiter;
+            elements = new LinkedList<CharSequence>();
+        }
+
+        public StringJoiner add(CharSequence newElement) {
+            elements.add(newElement);
+            return this;
+        }
+
+        @Override
+        public String toString() {
+            StringBuilder builder = new StringBuilder();
+            Iterator<CharSequence> i = elements.iterator();
+            while (i.hasNext()) {
+                builder.append(i.next());
+                if (i.hasNext()) {
+                    builder.append(delimiter);
+                }
+            }
+            return builder.toString();
+        }
+    }
+
     static class Metadata {
         final Map<String, TypeElement> types = new LinkedHashMap<>();
         final Map<String, XmlType> xmlTypes = new HashMap<>();
@@ -85,22 +117,37 @@ public class GenerateJfrFiles {
         }
 
         List<EventElement> getEvents() {
-            return getList(t -> t.getClass() == EventElement.class);
+            return getList(new TypePredicate() {
+                @Override
+                public boolean isType(TypeElement t) {
+                    return t.getClass() == EventElement.class;
+                }
+            });
         }
 
         List<TypeElement> getEventsAndStructs() {
-            return getList(t -> t.getClass() == EventElement.class || t.supportStruct);
+            return getList(new TypePredicate() {
+                @Override
+                public boolean isType(TypeElement t) {
+                    return t.getClass() == EventElement.class || t.supportStruct;
+                }
+            });
         }
 
         List<TypeElement> getTypesAndStructs() {
-            return getList(t -> t.getClass() == TypeElement.class || t.supportStruct);
+            return getList(new TypePredicate() {
+                @Override
+                public boolean isType(TypeElement t) {
+                    return t.getClass() == TypeElement.class || t.supportStruct;
+                }
+            });
         }
 
         @SuppressWarnings("unchecked")
-        <T> List<T> getList(Predicate<? super TypeElement> pred) {
+        <T> List<T> getList(TypePredicate pred) {
             List<T> result = new ArrayList<>(types.size());
             for (TypeElement t : types.values()) {
-                if (pred.test(t)) {
+                if (pred.isType(t)) {
                     result.add((T) t);
                 }
             }
@@ -108,19 +155,39 @@ public class GenerateJfrFiles {
         }
 
         List<EventElement> getPeriodicEvents() {
-            return getList(t -> t.getClass() == EventElement.class && ((EventElement) t).periodic);
+            return getList(new TypePredicate() {
+                @Override
+                public boolean isType(TypeElement t) {
+                    return t.getClass() == EventElement.class && ((EventElement) t).periodic;
+                }
+            });
         }
 
         List<TypeElement> getNonEventsAndNonStructs() {
-            return getList(t -> t.getClass() != EventElement.class && !t.supportStruct);
+            return getList(new TypePredicate() {
+                @Override
+                public boolean isType(TypeElement t) {
+                    return t.getClass() != EventElement.class && !t.supportStruct;
+                }
+            });
         }
 
         List<TypeElement> getTypes() {
-            return getList(t -> t.getClass() == TypeElement.class && !t.supportStruct);
+            return getList(new TypePredicate() {
+                @Override
+                public boolean isType(TypeElement t) {
+                    return t.getClass() == TypeElement.class && !t.supportStruct;
+                }
+            });
         }
 
         List<TypeElement> getStructs() {
-            return getList(t -> t.getClass() == TypeElement.class && t.supportStruct);
+            return getList(new TypePredicate() {
+                @Override
+                public boolean isType(TypeElement t) {
+                    return t.getClass() == TypeElement.class && t.supportStruct;
+                }
+            });
         }
 
         void verify()  {
