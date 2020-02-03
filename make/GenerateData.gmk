@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2011, 2020, Oracle and/or its affiliates. All rights reserved.
 # DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 #
 # This code is free software; you can redistribute it and/or modify it
@@ -51,6 +51,20 @@ include gendata/GendataHtml32dtd.gmk
 GENDATA += $(GENDATA_HTML32DTD)
 
 ##########################################################################################
+
+GENDATA_CACERTS_SRC := $(JDK_TOPDIR)/make/data/cacerts/
+GENDATA_CACERTS := $(JDK_OUTPUTDIR)/lib/security/cacerts
+
+$(GENDATA_CACERTS): $(BUILD_TOOLS) $(wildcard $(GENDATA_CACERTS_SRC)/*)
+	$(ECHO) $(LOG_INFO) "Generating cacerts"
+	$(MKDIR) -p $(@D)
+	$(TOOL_GENERATECACERTS) $(GENDATA_CACERTS_SRC) $@
+
+ifeq ($(CACERTS_FILE), )
+  GENDATA += $(GENDATA_CACERTS)
+endif
+
+################################################################################
 
 GENDATA_UNINAME := $(JDK_OUTPUTDIR)/classes/java/lang/uniName.dat
 
