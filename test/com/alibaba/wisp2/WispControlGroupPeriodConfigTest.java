@@ -5,14 +5,10 @@
  * @run main/othervm -XX:+UnlockExperimentalVMOptions -XX:+UseWisp2 -Dcom.alibaba.wisp.controlGroup.cfsPeriod=200000 WispControlGroupPeriodConfigTest
  */
 
-import java.lang.Long;
 import java.lang.reflect.Method;
 import java.lang.reflect.Field;
 
-import java.security.MessageDigest;
-
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.ExecutionException;
 
 import static jdk.testlibrary.Asserts.*;
 
@@ -20,14 +16,14 @@ public class WispControlGroupPeriodConfigTest {
 
     public static void main(String[] args) throws Exception {
         int cpuRate = 5;
-        Class<?> WispControlGroupClazz = Class.forName("com.alibaba.wisp.engine.WispControlGroup");
-        Class<?> CpuLimitClazz = Class.forName("com.alibaba.wisp.engine.WispControlGroup$CpuLimit");
+        Class<?> wispControlGroupClazz = Class.forName("com.alibaba.wisp.engine.WispControlGroup");
+        Class<?> cpuLimitClazz = Class.forName("com.alibaba.wisp.engine.WispControlGroup$CpuLimit");
 
-        Field fieldCpuLimit = WispControlGroupClazz.getDeclaredField("cpuLimit");
-        Field fieldPeriod = CpuLimitClazz.getDeclaredField("cfsPeriod");
-        Field fieldQuota = CpuLimitClazz.getDeclaredField("cfsQuota");
+        Field fieldCpuLimit = wispControlGroupClazz.getDeclaredField("cpuLimit");
+        Field fieldPeriod = cpuLimitClazz.getDeclaredField("cfsPeriod");
+        Field fieldQuota = cpuLimitClazz.getDeclaredField("cfsQuota");
 
-        Method createMethod = WispControlGroupClazz.getDeclaredMethod("create", int.class);
+        Method createMethod = wispControlGroupClazz.getDeclaredMethod("newInstance", int.class);
         createMethod.setAccessible(true);
         ExecutorService cg = (ExecutorService) createMethod.invoke(null, cpuRate);
 

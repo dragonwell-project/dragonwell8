@@ -25,8 +25,10 @@ package com.alibaba.rcm;
 /**
  * Factory class for {@link ResourceContainer}.
  * <p>
- * Each ResourceContainer implementation needs to provide a public ResourceContainerFactory
- * instance to allow users to choose a specific ResourceContainer implementation:
+ * Each ResourceContainer implementation needs to provide a public
+ * ResourceContainerFactory instance to allow users to choose a specific
+ * ResourceContainer implementation:
+ *
  * <pre>
  * ResourceContainerFactory FACTORY_INSTANCE = new ResourceContainerFactory() {
  *     protected ResourceContainer createContainer(Iterable<Constraint> constraints) {
@@ -36,20 +38,11 @@ package com.alibaba.rcm;
  *     }
  * }
  * </pre>
- * Then API users can create ResourceContainer by {@code FACTORY_INSTANCE.createContainer(...)}
+ *
+ * Then API users can create ResourceContainer by
+ * {@code FACTORY_INSTANCE.createContainer(...)}
  */
 public interface ResourceContainerFactory {
-
-    /**
-     * Returns the system-wide default factory for this invocation of
-     * the Java virtual machine.
-     *
-     * @return The system-wide default factory
-     */
-    static ResourceContainerFactory defaultFactory() {
-        throw new UnsupportedOperationException("NYI");
-    }
-
     /**
      * Builds ResourceContainer with constraints.
      *

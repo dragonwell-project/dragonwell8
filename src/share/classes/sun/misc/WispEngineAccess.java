@@ -23,6 +23,8 @@ package sun.misc;
 
 
 import com.alibaba.wisp.engine.WispTask;
+import com.alibaba.rcm.ResourceContainer;
+import com.alibaba.rcm.Constraint;
 
 import java.io.IOException;
 import java.nio.channels.SelectableChannel;

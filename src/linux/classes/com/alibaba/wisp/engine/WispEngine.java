@@ -162,6 +162,8 @@ public class WispEngine extends AbstractExecutorService {
             carrier.addTimer(System.nanoTime() + Integer.MAX_VALUE, TimeOut.Action.JDK_UNPARK);
             carrier.cancelTimer();
             carrier.createResumeEntry(new WispTask(carrier, null, false, false));
+            // preload classes used by by constraintInResourceContainer method.
+            WispTask.wrapRunOutsideWisp(null);
             registerPerfCounter(carrier);
             deRegisterPerfCounter(carrier);
         } catch (Exception e) {

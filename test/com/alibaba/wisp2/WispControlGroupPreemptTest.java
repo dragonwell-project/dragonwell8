@@ -5,17 +5,12 @@
  * @run main/othervm -XX:+UnlockExperimentalVMOptions -XX:+UseWisp2 -Xcomp -Dcom.alibaba.wisp.carrierEngines=4 WispControlGroupPreemptTest
  */
 
-import com.alibaba.wisp.engine.WispEngine;
 import sun.misc.SharedSecrets;
-
-import java.security.MessageDigest;
 
 import java.lang.reflect.Method;
 import java.lang.reflect.Field;
-import java.util.concurrent.Executors;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.FutureTask;
-import java.util.concurrent.ExecutionException;
 
 import static jdk.testlibrary.Asserts.*;
 
@@ -29,8 +24,8 @@ public class WispControlGroupPreemptTest {
             while (System.currentTimeMillis() - start < timeOut) {
                 runnable.run();
             }
-            Class<?> WispTaskClazz = Class.forName("com.alibaba.wisp.engine.WispTask");
-            Field field = WispTaskClazz.getDeclaredField("preemptCount");
+            Class<?> wispTaskClazz = Class.forName("com.alibaba.wisp.engine.WispTask");
+            Field field = wispTaskClazz.getDeclaredField("preemptCount");
             field.setAccessible(true);
             int preemptCount = field.getInt(SharedSecrets.getWispEngineAccess().getCurrentTask());
             assertTrue(preemptCount > 0, "preempt doesn't happen in the wispTask container!!!");
@@ -48,16 +43,12 @@ public class WispControlGroupPreemptTest {
             }
         });
 
-        try {
-            Class<?> WispControlGroupClazz = Class.forName("com.alibaba.wisp.engine.WispControlGroup");
-            Method createMethod = WispControlGroupClazz.getDeclaredMethod("create", int.class);
-            createMethod.setAccessible(true);
-            ExecutorService cg = (ExecutorService) createMethod.invoke(null, 50);
-            cg.submit(future);
-            future.get();
-        } catch (Exception e) {
-            assertTrue(false, e.toString());
-        }
+        Class<?> wispControlGroupClazz = Class.forName("com.alibaba.wisp.engine.WispControlGroup");
+        Method createMethod = wispControlGroupClazz.getDeclaredMethod("newInstance", int.class);
+        createMethod.setAccessible(true);
+        ExecutorService cg = (ExecutorService) createMethod.invoke(null, 50);
+        cg.submit(future);
+        future.get();
     }
 
     private static void loop(int count) throws Exception {

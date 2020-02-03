@@ -24,6 +24,9 @@ package com.alibaba.wisp.engine;
 import sun.misc.SharedSecrets;
 import sun.misc.UnsafeAccess;
 
+import com.alibaba.rcm.ResourceContainer;
+import com.alibaba.rcm.internal.AbstractResourceContainer;
+
 import java.dyn.Coroutine;
 import java.dyn.CoroutineExitException;
 import java.nio.channels.SelectableChannel;
@@ -180,6 +183,7 @@ public class WispTask implements Comparable<WispTask> {
         this.status       = Status.ALIVE;
         this.runnable     = runnable;
         this.name         = name;
+        this.controlGroup = null;
         interrupted       = 0;
         ctxClassLoader    = ctxLoader;
         ch                = null;
@@ -240,7 +244,7 @@ public class WispTask implements Comparable<WispTask> {
                 if (runnable != null) {
                     Throwable throwable = null;
                     try {
-                        runOutsideWisp(runnable);
+                        runCommand();
                     } catch (Throwable t) {
                         throwable = t;
                     } finally {
@@ -255,11 +259,21 @@ public class WispTask implements Comparable<WispTask> {
                             throw (CoroutineExitException) throwable;
                         }
                         carrier.taskExit();
+
                     }
                 } else {
                     carrier.schedule();
                 }
             }
+        }
+    }
+
+    private void runCommand() {
+        ResourceContainer rc = WispEngine.JLA.getInheritedResourceContainer(threadWrapper);
+        if (rc != null) {
+            rc.run(wrapRunOutsideWisp(runnable));
+        } else {
+            runOutsideWisp(runnable);
         }
     }
 
@@ -271,6 +285,10 @@ public class WispTask implements Comparable<WispTask> {
      */
     static void runOutsideWisp(Runnable runnable) {
         runnable.run();
+    }
+
+    static Runnable wrapRunOutsideWisp(Runnable runnable) {
+        return () -> runOutsideWisp(runnable);
     }
 
     /**

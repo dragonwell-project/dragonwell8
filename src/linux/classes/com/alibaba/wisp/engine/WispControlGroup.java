@@ -1,5 +1,11 @@
 package com.alibaba.wisp.engine;
 
+import com.alibaba.rcm.Constraint;
+import com.alibaba.rcm.ResourceContainer;
+import com.alibaba.rcm.ResourceType;
+import com.alibaba.rcm.internal.AbstractResourceContainer;
+
+import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.AbstractExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -31,25 +37,34 @@ class WispControlGroup extends AbstractExecutorService {
     private static final int ESTIMATED_PERIOD = Math.max(MIN_PERIOD,
             Math.min(MAX_PERIOD, WispConfiguration.SYSMON_TICK_US * SCHEDULE_TIMES));
 
+    private static int defaultCfsPeriod() {
+        // prior to adopt configured cfs period.
+        int cfsPeriodUs = WispConfiguration.WISP_CONTROL_GROUP_CFS_PERIOD;
+        // estimate cpu_cfs quota according to cpu_cfs and giving maxCPUPercent.
+        return cfsPeriodUs == 0 ? ESTIMATED_PERIOD : cfsPeriodUs;
+    }
+
     /**
      * @param quota  max cpu time slice in one period{@param period} the
      *               WispControlGroup could consume.
      * @param period cpu time consumption accounting unit.
      * @return {@link WispControlGroup}.
      */
-    static WispControlGroup create(int quota, int period) {
+    static WispControlGroup newInstance(int quota, int period) {
         return new WispControlGroup(quota, period);
     }
 
-    static WispControlGroup create(int maxCPUPercent) {
-        // prior to adopt configured cfs period.
-        int cfsPeriodUs = WispConfiguration.WISP_CONTROL_GROUP_CFS_PERIOD;
-        if (cfsPeriodUs == 0) {
-            // estimate cpu_cfs quota according to cpu_cfs and giving maxCPUPercent.
-            cfsPeriodUs = ESTIMATED_PERIOD;
-        }
+    static WispControlGroup newInstance(int maxCPUPercent) {
+        int cfsPeriodUs = defaultCfsPeriod();
         int cfsQuotaUs = (int) ((double) cfsPeriodUs * maxCPUPercent / 100);
         return new WispControlGroup(cfsQuotaUs, cfsPeriodUs);
+    }
+
+    // newInstance() should only be used for creating an ResourceContainer.
+    static WispControlGroup newInstance() {
+        int cfsPeriodUs = defaultCfsPeriod();
+        int cfsQuotaUs = cfsPeriodUs * Runtime.getRuntime().availableProcessors();
+        return new WispControlGroup(cfsPeriodUs, cfsQuotaUs);
     }
 
     private WispControlGroup(int cfsQuotaUs, int cfsPeriodUs) {
@@ -63,8 +78,8 @@ class WispControlGroup extends AbstractExecutorService {
     }
 
     private CpuLimit cpuLimit;
-    private AtomicLong currentPeriodStart;
-    private AtomicLong remainQuota;
+    private final AtomicLong currentPeriodStart;
+    private final AtomicLong remainQuota;
 
     private static class CpuLimit {
         long cfsPeriod;
@@ -127,11 +142,11 @@ class WispControlGroup extends AbstractExecutorService {
     private void attach() {
         WispTask task = WispCarrier.current().current;
         assert task.controlGroup == null;
-        task.controlGroup = this;
         if (task.enterTs != 0) {
             task.totalTs += System.nanoTime() - task.enterTs;
             task.enterTs = 0;
         }
+        task.controlGroup = this;
         long delay = checkCpuLimit(task, true);
         if (delay != 0) {
             WispTask.jdkPark(delay);
@@ -198,5 +213,66 @@ class WispControlGroup extends AbstractExecutorService {
     public String toString() {
         CpuLimit limit = this.cpuLimit;
         return "WispControlGroup{" + limit.cfsQuota / 1000 + "/" + limit.cfsPeriod / 1000 + '}';
+    }
+
+    ResourceContainer createResourceContainer() {
+        return new AbstractResourceContainer() {
+            private Constraint constraint;
+
+            @Override
+            public State getState() {
+                if (isTerminated()) {
+                    return State.DEAD;
+                } else if (isShutdown()) {
+                    return State.STOPPING;
+                } else {
+                    return State.RUNNING;
+                }
+            }
+
+            @Override
+            public void updateConstraint(Constraint constraint) {
+                /* check resource type contained in constraint must be CPU_PERCENT */
+                if (constraint.getResourceType() != ResourceType.CPU_PERCENT) {
+                    throw new IllegalArgumentException("Resource type is not CPU_PERCENT");
+                }
+                this.constraint = constraint;
+                long[] para = constraint.getValues();
+                long cpuPercent = para[0];
+                int cfsPeriod = defaultCfsPeriod();
+                int cfsQuota = (int) ((double) cfsPeriod * cpuPercent / 100);
+                cpuLimit = new CpuLimit(cfsQuota, cfsPeriod);
+            }
+
+            @Override
+            public Iterable<Constraint> getConstraints() {
+                assert constraint != null;
+                return Collections.singletonList(constraint);
+            }
+
+            @Override
+            public void destroy() {
+                shutdown();
+                while (!isTerminated()) {
+                    try {
+                        awaitTermination(1, TimeUnit.SECONDS);
+                    } catch (InterruptedException e) {
+                        throw new InternalError(e);
+                    }
+                }
+            }
+
+            @Override
+            protected void attach() {
+                super.attach();
+                WispControlGroup.this.attach();
+            }
+
+            @Override
+            protected void detach() {
+                WispControlGroup.this.detach();
+                super.detach();
+            }
+        };
     }
 }

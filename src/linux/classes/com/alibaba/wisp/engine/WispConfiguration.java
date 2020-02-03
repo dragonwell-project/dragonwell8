@@ -73,7 +73,6 @@ class WispConfiguration {
 
     private static List<String> THREAD_AS_WISP_BLACKLIST;
 
-
     static {
         Properties p = java.security.AccessController.doPrivileged(
                 new java.security.PrivilegedAction<Properties>() {
@@ -161,7 +160,7 @@ class WispConfiguration {
         }
         int res = defaultVal;
         try {
-            res = Integer.valueOf(value);
+            res = Integer.parseInt(value);
         } catch (NumberFormatException e) {
             return defaultVal;
         }
@@ -173,7 +172,7 @@ class WispConfiguration {
         if (p == null || (value = p.getProperty(key)) == null) {
             return defaultVal;
         }
-        return Boolean.valueOf(value);
+        return Boolean.parseBoolean(value);
     }
 
     private static List<String> parseListParameter(Properties p, Properties confProp, String key) {
