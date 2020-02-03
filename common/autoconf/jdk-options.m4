@@ -389,8 +389,6 @@ AC_DEFUN_ONCE([JDKOPT_SETUP_JDK_OPTIONS],
       [specify alternative cacerts file])])
   if test "x$with_cacerts_file" != x; then
     CACERTS_FILE=$with_cacerts_file
-  else
-    CACERTS_FILE=${SRC_ROOT}/jdk/src/share/lib/security/cacerts
   fi
   AC_SUBST(CACERTS_FILE)
 
