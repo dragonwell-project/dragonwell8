@@ -28,125 +28,144 @@
  */
 
 import com.alibaba.wisp.engine.TimeOut;
+import com.alibaba.wisp.engine.WispTask;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.*;
 
-
 import static jdk.testlibrary.Asserts.assertTrue;
 
 public class PriorityQueueSortTest {
 
-	static Class<?> classQ;
-	static Class<?> classT;
+    static Class<?> classQ;
+    static Class<?> classT;
 
-	static Method poll = null;
-	static Method offer = null;
+    static Method poll = null;
+    static Method offer = null;
 
-	static TimeOut ILLEGAL_FLAG = new TimeOut(null, 1, false);
+    static Class<TimeOut> clazz;
+    static Constructor<TimeOut> constructor;
 
-	static class MyComparator implements Comparator<TimeOut> {
-		public int compare(TimeOut x, TimeOut y) {
-			return Long.compare(getDeadNano(x), getDeadNano(y));
-		}
-	}
+    static {
+        try {
+            clazz = (Class<TimeOut>) Class.forName("com.alibaba.wisp.engine.TimeOut");
+            constructor = clazz.getDeclaredConstructor(Class.forName("com.alibaba.wisp.engine.WispTask"), long.class,
+                    Class.forName("com.alibaba.wisp.engine.TimeOut$Action"));
+            ILLEGAL_FLAG = constructor.newInstance(null, 1,
+                    Class.forName("com.alibaba.wisp.engine.TimeOut$Action").getEnumConstants()[1]);
+        } catch (Exception e) {
+            assertTrue(false, e.toString());
+        }
+    }
 
-	static Long getDeadNano(TimeOut t) {
-		try {
-			Field deadline = TimeOut.class.getDeclaredField("deadlineNano");
-			deadline.setAccessible(true);
-			return (Long) deadline.get(t);
-		} catch (Exception e) {
-			throw new Error(e);
-		}
-	}
+    static TimeOut ILLEGAL_FLAG;
 
-	static Object getTimerQueue() {
-		try {
-			classQ = Class.forName("com.alibaba.wisp.engine.TimeOut$TimerManager$Queue");
-			classT = Class.forName("com.alibaba.wisp.engine.TimeOut$TimerManager");
-			Constructor c1 = classQ.getDeclaredConstructor();
-			c1.setAccessible(true);
-			Constructor c2 = classT.getDeclaredConstructor();
-			c2.setAccessible(true);
-			poll = classQ.getDeclaredMethod("poll");
-			poll.setAccessible(true);
-			offer = classQ.getDeclaredMethod("offer", TimeOut.class);
-			offer.setAccessible(true);
-			return c1.newInstance();
-		} catch (Exception e) {
-			e.printStackTrace();
-			return null;
-		}
-	}
+    static class MyComparator implements Comparator<TimeOut> {
+        public int compare(TimeOut x, TimeOut y) {
+            return Long.compare(getDeadNano(x), getDeadNano(y));
+        }
+    }
 
-	static boolean add(Object pq, TimeOut timeOut) {
-		try {
-			offer.invoke(pq, timeOut);
-			return true;
-		} catch (Exception e) {
-			e.printStackTrace();
-			return false;
-		}
-	}
+    static Long getDeadNano(TimeOut t) {
+        try {
+            Field deadline = TimeOut.class.getDeclaredField("deadlineNano");
+            deadline.setAccessible(true);
+            return (Long) deadline.get(t);
+        } catch (Exception e) {
+            throw new Error(e);
+        }
+    }
 
-	static TimeOut poll(Object pq) {
-		try {
-			return (TimeOut)poll.invoke(pq);
-		} catch (Exception e) {
-			e.printStackTrace();
-			return ILLEGAL_FLAG;
-		}
-	}
+    static Object getTimerQueue() {
+        try {
+            classQ = Class.forName("com.alibaba.wisp.engine.TimeOut$TimerManager$Queue");
+            classT = Class.forName("com.alibaba.wisp.engine.TimeOut$TimerManager");
+            Constructor c1 = classQ.getDeclaredConstructor();
+            c1.setAccessible(true);
+            Constructor c2 = classT.getDeclaredConstructor();
+            c2.setAccessible(true);
+            poll = classQ.getDeclaredMethod("poll");
+            poll.setAccessible(true);
+            offer = classQ.getDeclaredMethod("offer", TimeOut.class);
+            offer.setAccessible(true);
+            return c1.newInstance();
+        } catch (Exception e) {
+            e.printStackTrace();
+            return null;
+        }
+    }
 
-	public static void main(String[] args) {
-		int n = 10000;
+    static boolean add(Object pq, TimeOut timeOut) {
+        try {
+            offer.invoke(pq, timeOut);
+            return true;
+        } catch (Exception e) {
+            e.printStackTrace();
+            return false;
+        }
+    }
 
-		List<Long> sorted = new ArrayList<>(n);
-		for (int i = 0; i < n; i++)
-			sorted.add(new Long(i));
-		List<Long> shuffled = new ArrayList<>(sorted);
-		Collections.shuffle(shuffled);
+    static TimeOut poll(Object pq) {
+        try {
+            return (TimeOut) poll.invoke(pq);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ILLEGAL_FLAG;
+        }
+    }
 
-		Object pq = getTimerQueue();
+    public static void main(String[] args) {
+        int n = 10000;
 
+        List<Long> sorted = new ArrayList<>(n);
+        for (int i = 0; i < n; i++)
+            sorted.add(new Long(i));
+        List<Long> shuffled = new ArrayList<>(sorted);
+        Collections.shuffle(shuffled);
 
-		for (Iterator<Long> i = shuffled.iterator(); i.hasNext(); )
-			add(pq, new TimeOut(null, i.next(), false));
+        Object pq = getTimerQueue();
 
-		List<Long> recons = new ArrayList<>();
+        try {
+            for (Iterator<Long> i = shuffled.iterator(); i.hasNext();)
+                add(pq, constructor.newInstance(null, i.next(),
+                        Class.forName("com.alibaba.wisp.engine.TimeOut$Action").getEnumConstants()[1]));
 
-		while (true) {
-			TimeOut t = poll(pq);
-			if (t == null) {
-				break;
-			}
-			recons.add(getDeadNano(t));
-		}
-		assertTrue(recons.equals(sorted), "Sort failed");
+            List<Long> recons = new ArrayList<>();
+            while (true) {
+                TimeOut t = poll(pq);
+                if (t == null) {
+                    break;
+                }
+                recons.add(getDeadNano(t));
+            }
+            assertTrue(recons.equals(sorted), "Sort failed");
 
-		for (Long val : recons) {
-			add(pq, new TimeOut(null, val, false));
-		}
-		recons.clear();
-		while(true){
-			TimeOut timeOut = poll(pq);
-			if (timeOut == null) {
-				break;
-			}
-			if(getDeadNano(timeOut)  % 2 == 1) {
-				recons.add(getDeadNano(timeOut));
-			}
-		}
+            for (Long val : recons) {
+                add(pq, constructor.newInstance(null, val,
+                        Class.forName("com.alibaba.wisp.engine.TimeOut$Action").getEnumConstants()[1]));
+            }
+            recons.clear();
+            while (true) {
+                TimeOut timeOut = poll(pq);
+                if (timeOut == null) {
+                    break;
+                }
+                if (getDeadNano(timeOut) % 2 == 1) {
+                    recons.add(getDeadNano(timeOut));
+                }
+            }
 
-		Collections.sort(recons);
+            Collections.sort(recons);
 
-		for (Iterator<Long> i = sorted.iterator(); i.hasNext(); )
-			if ((i.next().intValue() % 2) != 1)
-				i.remove();
+            for (Iterator<Long> i = sorted.iterator(); i.hasNext();)
+                if ((i.next().intValue() % 2) != 1)
+                    i.remove();
 
-		assertTrue(recons.equals(sorted), "Odd Sort failed");
-	}
+            assertTrue(recons.equals(sorted), "Odd Sort failed");
+        } catch (Exception e) {
+            assertTrue(false, e.toString());
+        }
+    }
 }

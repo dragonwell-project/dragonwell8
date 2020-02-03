@@ -146,6 +146,7 @@ public class WispTask implements Comparable<WispTask> {
     int stealCount;
     int stealFailureCount;
     private int preemptCount;
+    long ttr;
     // perf monitor
     private long enqueueTime;
     private long parkTime;
@@ -158,6 +159,8 @@ public class WispTask implements Comparable<WispTask> {
     private volatile long epollArray;
     private volatile int epollEventNum;
     int epollArraySize;
+
+    WispControlGroup controlGroup;
 
     WispTask(WispCarrier carrier, Coroutine ctx, boolean isRealTask, boolean isThreadTask) {
         this.isThreadTask = isThreadTask;
@@ -242,6 +245,7 @@ public class WispTask implements Comparable<WispTask> {
                         throwable = t;
                     } finally {
                         assert timeOut == null;
+                        assert controlGroup == null; // detached
                         runnable = null;
                         WispEngine.JLA.setWispAlive(threadWrapper, false);
                         if (isThreadAsWisp) {
@@ -265,7 +269,7 @@ public class WispTask implements Comparable<WispTask> {
      * Modify Coroutine::is_usermark_frame accordingly if you need to change this
      * method, because it's name and sig are used
      */
-    private static void runOutsideWisp(Runnable runnable) {
+    static void runOutsideWisp(Runnable runnable) {
         runnable.run();
     }
 
@@ -368,7 +372,7 @@ public class WispTask implements Comparable<WispTask> {
                     // current task is put to unpark queue,
                     // and will wake up eventually
                     if (WispEngine.runningAsCoroutine(threadWrapper) && timeoutNano > 0) {
-                        carrier.addTimer(timeoutNano + System.nanoTime(), fromJvm);
+                        carrier.addTimer(timeoutNano + System.nanoTime(), fromJvm ? TimeOut.Action.JVM_UNPARK : TimeOut.Action.JDK_UNPARK);
                     }
                     carrier.isInCritical = isInCritical0;
                     try {

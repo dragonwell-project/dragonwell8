@@ -159,7 +159,7 @@ public class WispEngine extends AbstractExecutorService {
             new ConcurrentLinkedQueue<>().iterator();
             new ConcurrentSkipListMap<>().keySet().iterator();
             WispCarrier carrier = WispCarrier.current();
-            carrier.addTimer(System.nanoTime() + Integer.MAX_VALUE, false);
+            carrier.addTimer(System.nanoTime() + Integer.MAX_VALUE, TimeOut.Action.JDK_UNPARK);
             carrier.cancelTimer();
             carrier.createResumeEntry(new WispTask(carrier, null, false, false));
             registerPerfCounter(carrier);
@@ -229,7 +229,7 @@ public class WispEngine extends AbstractExecutorService {
 
             @Override
             public void addTimer(long deadlineNano) {
-                WispCarrier.current().addTimer(deadlineNano, false);
+                WispCarrier.current().addTimer(deadlineNano, TimeOut.Action.JDK_UNPARK);
             }
 
             @Override
@@ -353,7 +353,7 @@ public class WispEngine extends AbstractExecutorService {
                 WispTask task = WispCarrier.current().getCurrentTask();
                 if (millsTimeOut > 0) {
                     task.carrier.addTimer(System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(millsTimeOut),
-                            false);
+                            TimeOut.Action.JDK_UNPARK);
                 }
                 try {
                     task.carrier.registerEvent(channel, translateToSelectionKey(interestOps));

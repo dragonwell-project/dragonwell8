@@ -27,7 +27,6 @@
  * @run main/othervm -XX:+UnlockExperimentalVMOptions -XX:+EnableCoroutine OverflowTest
  */
 
-
 import com.alibaba.wisp.engine.WispEngine;
 import com.alibaba.wisp.engine.WispTask;
 import sun.misc.SharedSecrets;
@@ -38,7 +37,6 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import static jdk.testlibrary.Asserts.assertTrue;
 
-
 /**
  * test the time out implementation
  */
@@ -48,7 +46,7 @@ public class OverflowTest {
         WispEngineAccess access = SharedSecrets.getWispEngineAccess();
 
         AtomicReference<WispTask> task1 = new AtomicReference<>();
-        AtomicBoolean doUnpark = new AtomicBoolean(false);
+        AtomicBoolean doAction = new AtomicBoolean(false);
         AtomicBoolean hasError = new AtomicBoolean(false);
 
         WispEngine.dispatch(() -> {
@@ -56,12 +54,12 @@ public class OverflowTest {
             access.park(Long.MAX_VALUE);
             // if timeout is negative(< now()), this task is selected in doSchedule
             // and park returns immediately
-            hasError.set(!doUnpark.get()); // should not reach here before doing unpark
+            hasError.set(!doAction.get()); // should not reach here before doing unpark
         });
 
         access.sleep(100); // switch task
         // let task exit
-        doUnpark.set(true);
+        doAction.set(true);
         access.unpark(task1.get());
         assertTrue(!hasError.get(), "hasError.get() should be false.");
     }
