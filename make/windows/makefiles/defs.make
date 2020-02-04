@@ -157,6 +157,15 @@ endif
 MAKE_ARGS += RM="$(RM)"
 MAKE_ARGS += ZIPEXE=$(ZIPEXE)
 
+MAKE_ARGS += COMPANY_NAME="$(COMPANY_NAME)"
+MAKE_ARGS += VENDOR_URL=$(VENDOR_URL)
+MAKE_ARGS += VENDOR_URL_BUG=$(VENDOR_URL_BUG)
+MAKE_ARGS += VENDOR_URL_VM_BUG=$(VENDOR_URL_VM_BUG)
+ifneq ($(VERSION_CFLAGS),)
+  # transform syntax from -DProp='"Value"' to /D "Prop=\"Value\"" for Windows build
+  MAKE_ARGS += VERSION_CFLAGS="$(subst -D,/D \",$(subst ',,$(subst '$() $(),\"$() $(),$(subst ",\\\",$(VERSION_CFLAGS)))))\""
+endif
+
 # On 32 bit windows we build server and client, on 64 bit just server.
 ifeq ($(JVM_VARIANTS),)
   ifeq ($(ARCH_DATA_MODEL), 32)
