@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -123,20 +123,6 @@ private:
   static Thread* _protected_thread;
   static ThreadCrashProtection* _crash_protection;
   static volatile intptr_t _crash_mux;
-};
-
-/*
- * Crash protection for the watcher thread. Wrap the callback
- * with a __try { call() }
- * To be able to use this - don't take locks, don't rely on destructors,
- * don't make OS library calls, don't allocate memory, don't print,
- * don't call code that could leave the heap / memory in an inconsistent state,
- * or anything else where we are not in control if we suddenly jump out.
- */
-class WatcherThreadCrashProtection : public StackObj {
-public:
-  WatcherThreadCrashProtection();
-  bool call(os::CrashProtectionCallback& cb);
 };
 
 class PlatformEvent : public CHeapObj<mtInternal> {
