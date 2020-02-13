@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1996, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -278,6 +278,11 @@ static final class ClientHello extends HandshakeMessage {
 
     void addExtendedMasterSecretExtension() {
         extensions.add(new ExtendedMasterSecretExtension());
+    }
+
+    // add application_layer_protocol_negotiation extension
+    void addALPNExtension(String[] applicationProtocols) throws SSLException {
+        extensions.add(new ALPNExtension(applicationProtocols));
     }
 
     @Override
