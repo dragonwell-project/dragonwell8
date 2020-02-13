@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1996, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,9 +26,14 @@
 package sun.security.x509;
 
 import java.io.*;
+import java.security.spec.AlgorithmParameterSpec;
+import java.security.spec.InvalidParameterSpecException;
+import java.security.spec.MGF1ParameterSpec;
+import java.security.spec.PSSParameterSpec;
 import java.util.*;
 import java.security.*;
 
+import sun.security.rsa.PSSParameters;
 import sun.security.util.*;
 
 
@@ -182,13 +187,20 @@ public class AlgorithmId implements Serializable, DerEncoder {
                 algid.equals((Object)SHA256_oid) ||
                 algid.equals((Object)SHA384_oid) ||
                 algid.equals((Object)SHA512_oid) ||
+                algid.equals((Object)SHA512_224_oid) ||
+                algid.equals((Object)SHA512_256_oid) ||
                 algid.equals((Object)DSA_oid) ||
                 algid.equals((Object)sha1WithDSA_oid)) {
                 ; // no parameter part encoded
             } else {
                 bytes.putNull();
             }*/
-            bytes.putNull();
+            if (algid.equals(RSASSA_PSS_oid)) {
+                // RFC 4055 3.3: when an RSASSA-PSS key does not require
+                // parameter validation, field is absent.
+            } else {
+                bytes.putNull();
+            }
         } else {
             bytes.putDerValue(params);
         }
@@ -224,6 +236,9 @@ public class AlgorithmId implements Serializable, DerEncoder {
      * return a name such as "MD5withRSA" for a signature algorithm on
      * some systems.  It also returns names like "OID.1.2.3.4", when
      * no particular name for the algorithm is known.
+     *
+     * Note: for ecdsa-with-SHA2 plus hash algorithm (Ex: SHA-256), this method
+     * returns the "full" signature algorithm (Ex: SHA256withECDSA) directly.
      */
     public String getName() {
         String algName = nameTable.get(algid);
@@ -233,7 +248,7 @@ public class AlgorithmId implements Serializable, DerEncoder {
         if ((params != null) && algid.equals((Object)specifiedWithECDSA_oid)) {
             try {
                 AlgorithmId paramsId =
-                        AlgorithmId.parse(new DerValue(getEncodedParams()));
+                        AlgorithmId.parse(new DerValue(params.toByteArray()));
                 String paramsName = paramsId.getName();
                 algName = makeSigAlg(paramsName, "EC");
             } catch (IOException e) {
@@ -249,12 +264,18 @@ public class AlgorithmId implements Serializable, DerEncoder {
 
     /**
      * Returns the DER encoded parameter, which can then be
-     * used to initialize java.security.AlgorithmParamters.
+     * used to initialize java.security.AlgorithmParameters.
+     *
+     * Note: for ecdsa-with-SHA2 plus hash algorithm (Ex: SHA-256), this method
+     * returns null because {@link #getName()} has already returned the "full"
+     * signature algorithm (Ex: SHA256withECDSA).
      *
      * @return DER encoded parameters, or null not present.
      */
     public byte[] getEncodedParams() throws IOException {
-        return (params == null) ? null : params.toByteArray();
+        return (params == null || algid.equals(specifiedWithECDSA_oid))
+                ? null
+                : params.toByteArray();
     }
 
     /**
@@ -483,10 +504,23 @@ public class AlgorithmId implements Serializable, DerEncoder {
             name.equalsIgnoreCase("SHA224")) {
             return AlgorithmId.SHA224_oid;
         }
-
+        if (name.equalsIgnoreCase("SHA-512/224") ||
+            name.equalsIgnoreCase("SHA512/224")) {
+            return AlgorithmId.SHA512_224_oid;
+        }
+        if (name.equalsIgnoreCase("SHA-512/256") ||
+            name.equalsIgnoreCase("SHA512/256")) {
+            return AlgorithmId.SHA512_256_oid;
+        }
         // Various public key algorithms
         if (name.equalsIgnoreCase("RSA")) {
             return AlgorithmId.RSAEncryption_oid;
+        }
+        if (name.equalsIgnoreCase("RSASSA-PSS")) {
+            return AlgorithmId.RSASSA_PSS_oid;
+        }
+        if (name.equalsIgnoreCase("RSAES-OAEP")) {
+            return AlgorithmId.RSAES_OAEP_oid;
         }
         if (name.equalsIgnoreCase("Diffie-Hellman")
             || name.equalsIgnoreCase("DH")) {
@@ -645,6 +679,12 @@ public class AlgorithmId implements Serializable, DerEncoder {
     public static final ObjectIdentifier SHA512_oid =
     ObjectIdentifier.newInternal(new int[] {2, 16, 840, 1, 101, 3, 4, 2, 3});
 
+    public static final ObjectIdentifier SHA512_224_oid =
+    ObjectIdentifier.newInternal(new int[] {2, 16, 840, 1, 101, 3, 4, 2, 5});
+
+    public static final ObjectIdentifier SHA512_256_oid =
+    ObjectIdentifier.newInternal(new int[] {2, 16, 840, 1, 101, 3, 4, 2, 6});
+
     /*
      * COMMON PUBLIC KEY TYPES
      */
@@ -653,8 +693,6 @@ public class AlgorithmId implements Serializable, DerEncoder {
     private static final int DSA_OIW_data[] = { 1, 3, 14, 3, 2, 12 };
     private static final int DSA_PKIX_data[] = { 1, 2, 840, 10040, 4, 1 };
     private static final int RSA_data[] = { 2, 5, 8, 1, 1 };
-    private static final int RSAEncryption_data[] =
-                                 { 1, 2, 840, 113549, 1, 1, 1 };
 
     public static final ObjectIdentifier DH_oid;
     public static final ObjectIdentifier DH_PKIX_oid;
@@ -663,7 +701,14 @@ public class AlgorithmId implements Serializable, DerEncoder {
     public static final ObjectIdentifier EC_oid = oid(1, 2, 840, 10045, 2, 1);
     public static final ObjectIdentifier ECDH_oid = oid(1, 3, 132, 1, 12);
     public static final ObjectIdentifier RSA_oid;
-    public static final ObjectIdentifier RSAEncryption_oid;
+    public static final ObjectIdentifier RSAEncryption_oid =
+                                            oid(1, 2, 840, 113549, 1, 1, 1);
+    public static final ObjectIdentifier RSAES_OAEP_oid =
+                                            oid(1, 2, 840, 113549, 1, 1, 7);
+    public static final ObjectIdentifier mgf1_oid =
+                                            oid(1, 2, 840, 113549, 1, 1, 8);
+    public static final ObjectIdentifier RSASSA_PSS_oid =
+                                            oid(1, 2, 840, 113549, 1, 1, 10);
 
     /*
      * COMMON SECRET KEY TYPES
@@ -690,6 +735,7 @@ public class AlgorithmId implements Serializable, DerEncoder {
                                        { 1, 2, 840, 113549, 1, 1, 12 };
     private static final int sha512WithRSAEncryption_data[] =
                                        { 1, 2, 840, 113549, 1, 1, 13 };
+
     private static final int shaWithDSA_OIW_data[] =
                                        { 1, 3, 14, 3, 2, 13 };
     private static final int sha1WithDSA_OIW_data[] =
@@ -705,6 +751,11 @@ public class AlgorithmId implements Serializable, DerEncoder {
     public static final ObjectIdentifier sha256WithRSAEncryption_oid;
     public static final ObjectIdentifier sha384WithRSAEncryption_oid;
     public static final ObjectIdentifier sha512WithRSAEncryption_oid;
+    public static final ObjectIdentifier sha512_224WithRSAEncryption_oid =
+                                            oid(1, 2, 840, 113549, 1, 1, 15);
+    public static final ObjectIdentifier sha512_256WithRSAEncryption_oid =
+                                            oid(1, 2, 840, 113549, 1, 1, 16);;
+
     public static final ObjectIdentifier shaWithDSA_OIW_oid;
     public static final ObjectIdentifier sha1WithDSA_OIW_oid;
     public static final ObjectIdentifier sha1WithDSA_oid;
@@ -792,13 +843,6 @@ public class AlgorithmId implements Serializable, DerEncoder {
      * OID = 2.5.8.1.1
      */
         RSA_oid = ObjectIdentifier.newInternal(RSA_data);
-
-    /**
-     * Algorithm ID for RSA keys used with RSA encryption, as defined
-     * in PKCS #1.  There are no parameters associated with this algorithm.
-     * OID = 1.2.840.113549.1.1.1
-     */
-        RSAEncryption_oid = ObjectIdentifier.newInternal(RSAEncryption_data);
 
     /**
      * Identifies a signing algorithm where an MD2 digest is encrypted
@@ -895,6 +939,8 @@ public class AlgorithmId implements Serializable, DerEncoder {
         nameTable.put(SHA256_oid, "SHA-256");
         nameTable.put(SHA384_oid, "SHA-384");
         nameTable.put(SHA512_oid, "SHA-512");
+        nameTable.put(SHA512_224_oid, "SHA-512/224");
+        nameTable.put(SHA512_256_oid, "SHA-512/256");
         nameTable.put(RSAEncryption_oid, "RSA");
         nameTable.put(RSA_oid, "RSA");
         nameTable.put(DH_oid, "Diffie-Hellman");
@@ -924,6 +970,11 @@ public class AlgorithmId implements Serializable, DerEncoder {
         nameTable.put(sha256WithRSAEncryption_oid, "SHA256withRSA");
         nameTable.put(sha384WithRSAEncryption_oid, "SHA384withRSA");
         nameTable.put(sha512WithRSAEncryption_oid, "SHA512withRSA");
+        nameTable.put(sha512_224WithRSAEncryption_oid, "SHA512/224withRSA");
+        nameTable.put(sha512_256WithRSAEncryption_oid, "SHA512/256withRSA");
+        nameTable.put(RSASSA_PSS_oid, "RSASSA-PSS");
+        nameTable.put(RSAES_OAEP_oid, "RSAES-OAEP");
+
         nameTable.put(pbeWithMD5AndDES_oid, "PBEWithMD5AndDES");
         nameTable.put(pbeWithMD5AndRC2_oid, "PBEWithMD5AndRC2");
         nameTable.put(pbeWithSHA1AndDES_oid, "PBEWithSHA1AndDES");
@@ -976,5 +1027,91 @@ public class AlgorithmId implements Serializable, DerEncoder {
             return signatureAlgorithm.substring(0, with);
         }
         return null;
+    }
+
+    // Most commonly used PSSParameterSpec and AlgorithmId
+    private static class PSSParamsHolder {
+
+        final static PSSParameterSpec PSS_256_SPEC = new PSSParameterSpec(
+                "SHA-256", "MGF1",
+                new MGF1ParameterSpec("SHA-256"),
+                32, PSSParameterSpec.TRAILER_FIELD_BC);
+        final static PSSParameterSpec PSS_384_SPEC = new PSSParameterSpec(
+                "SHA-384", "MGF1",
+                new MGF1ParameterSpec("SHA-384"),
+                48, PSSParameterSpec.TRAILER_FIELD_BC);
+        final static PSSParameterSpec PSS_512_SPEC = new PSSParameterSpec(
+                "SHA-512", "MGF1",
+                new MGF1ParameterSpec("SHA-512"),
+                64, PSSParameterSpec.TRAILER_FIELD_BC);
+
+        final static AlgorithmId PSS_256_ID;
+        final static AlgorithmId PSS_384_ID;
+        final static AlgorithmId PSS_512_ID;
+
+        static {
+            try {
+                PSS_256_ID = new AlgorithmId(RSASSA_PSS_oid,
+                        new DerValue(PSSParameters.getEncoded(PSS_256_SPEC)));
+                PSS_384_ID = new AlgorithmId(RSASSA_PSS_oid,
+                        new DerValue(PSSParameters.getEncoded(PSS_384_SPEC)));
+                PSS_512_ID = new AlgorithmId(RSASSA_PSS_oid,
+                        new DerValue(PSSParameters.getEncoded(PSS_512_SPEC)));
+            } catch (IOException e) {
+                throw new AssertionError("Should not happen", e);
+            }
+        }
+    }
+
+    public static AlgorithmId getWithParameterSpec(String algName,
+            AlgorithmParameterSpec spec) throws NoSuchAlgorithmException {
+
+        if (spec == null) {
+            return AlgorithmId.get(algName);
+        } else if (spec == PSSParamsHolder.PSS_256_SPEC) {
+            return PSSParamsHolder.PSS_256_ID;
+        } else if (spec == PSSParamsHolder.PSS_384_SPEC) {
+            return PSSParamsHolder.PSS_384_ID;
+        } else if (spec == PSSParamsHolder.PSS_512_SPEC) {
+            return PSSParamsHolder.PSS_512_ID;
+        } else {
+            try {
+                AlgorithmParameters result =
+                        AlgorithmParameters.getInstance(algName);
+                result.init(spec);
+                return get(result);
+            } catch (InvalidParameterSpecException | NoSuchAlgorithmException e) {
+                throw new ProviderException(e);
+            }
+        }
+    }
+
+    public static PSSParameterSpec getDefaultAlgorithmParameterSpec(
+            String sigAlg, PrivateKey k) {
+        if (sigAlg.equalsIgnoreCase("RSASSA-PSS")) {
+            switch (ifcFfcStrength(KeyUtil.getKeySize(k))) {
+                case "SHA256":
+                    return PSSParamsHolder.PSS_256_SPEC;
+                case "SHA384":
+                    return PSSParamsHolder.PSS_384_SPEC;
+                case "SHA512":
+                    return PSSParamsHolder.PSS_512_SPEC;
+                default:
+                    throw new AssertionError("Should not happen");
+            }
+        } else {
+            return null;
+        }
+    }
+
+    // Same values for RSA and DSA (from 8056174)
+    private static String ifcFfcStrength(int bitLength) {
+        if (bitLength > 7680) { // 256 bits
+            return "SHA512";
+        } else if (bitLength > 3072) {  // 192 bits
+            return "SHA384";
+        } else  { // 128 bits and less
+            return "SHA256";
+        }
     }
 }

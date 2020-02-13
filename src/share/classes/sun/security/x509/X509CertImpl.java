@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1996, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -34,6 +34,7 @@ import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.math.BigInteger;
 import java.security.*;
+import java.security.spec.AlgorithmParameterSpec;
 import java.security.cert.*;
 import java.security.cert.Certificate;
 import java.util.*;
@@ -42,7 +43,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import javax.security.auth.x500.X500Principal;
 
 import sun.misc.HexDumpEncoder;
-import java.util.Base64;
 import sun.security.util.*;
 import sun.security.provider.X509Factory;
 
@@ -388,7 +388,6 @@ public class X509CertImpl extends X509Certificate implements DerEncoder {
     public void verify(PublicKey key)
     throws CertificateException, NoSuchAlgorithmException,
         InvalidKeyException, NoSuchProviderException, SignatureException {
-
         verify(key, "");
     }
 
@@ -430,12 +429,21 @@ public class X509CertImpl extends X509Certificate implements DerEncoder {
         }
         // Verify the signature ...
         Signature sigVerf = null;
+        String sigName = algId.getName();
         if (sigProvider.length() == 0) {
-            sigVerf = Signature.getInstance(algId.getName());
+            sigVerf = Signature.getInstance(sigName);
         } else {
-            sigVerf = Signature.getInstance(algId.getName(), sigProvider);
+            sigVerf = Signature.getInstance(sigName, sigProvider);
         }
-        sigVerf.initVerify(key);
+
+        try {
+            SignatureUtil.initVerifyWithParam(sigVerf, key,
+                SignatureUtil.getParamSpec(sigName, getSigAlgParams()));
+        } catch (ProviderException e) {
+            throw new CertificateException(e.getMessage(), e.getCause());
+        } catch (InvalidAlgorithmParameterException e) {
+            throw new CertificateException(e);
+        }
 
         byte[] rawCert = info.getEncodedInfo();
         sigVerf.update(rawCert, 0, rawCert.length);
@@ -475,12 +483,21 @@ public class X509CertImpl extends X509Certificate implements DerEncoder {
         }
         // Verify the signature ...
         Signature sigVerf = null;
+        String sigName = algId.getName();
         if (sigProvider == null) {
-            sigVerf = Signature.getInstance(algId.getName());
+            sigVerf = Signature.getInstance(sigName);
         } else {
-            sigVerf = Signature.getInstance(algId.getName(), sigProvider);
+            sigVerf = Signature.getInstance(sigName, sigProvider);
         }
-        sigVerf.initVerify(key);
+
+        try {
+            SignatureUtil.initVerifyWithParam(sigVerf, key,
+                SignatureUtil.getParamSpec(sigName, getSigAlgParams()));
+        } catch (ProviderException e) {
+            throw new CertificateException(e.getMessage(), e.getCause());
+        } catch (InvalidAlgorithmParameterException e) {
+            throw new CertificateException(e);
+        }
 
         byte[] rawCert = info.getEncodedInfo();
         sigVerf.update(rawCert, 0, rawCert.length);
@@ -492,18 +509,6 @@ public class X509CertImpl extends X509Certificate implements DerEncoder {
         if (verificationResult == false) {
             throw new SignatureException("Signature does not match.");
         }
-    }
-
-     /**
-     * This static method is the default implementation of the
-     * verify(PublicKey key, Provider sigProvider) method in X509Certificate.
-     * Called from java.security.cert.X509Certificate.verify(PublicKey key,
-     * Provider sigProvider)
-     */
-    public static void verify(X509Certificate cert, PublicKey key,
-            Provider sigProvider) throws CertificateException,
-            NoSuchAlgorithmException, InvalidKeyException, SignatureException {
-        cert.verify(key, sigProvider);
     }
 
     /**
@@ -549,20 +554,63 @@ public class X509CertImpl extends X509Certificate implements DerEncoder {
     throws CertificateException, NoSuchAlgorithmException,
         InvalidKeyException, NoSuchProviderException, SignatureException {
         try {
-            if (readOnly)
+            sign(key, null, algorithm, provider);
+        } catch (InvalidAlgorithmParameterException e) {
+            // should not happen; re-throw just in case
+            throw new SignatureException(e);
+        }
+    }
+
+    /**
+     * Creates an X.509 certificate, and signs it using the given key
+     * (associating a signature algorithm and an X.500 name), signature
+     * parameters, and security provider. If the given provider name
+     * is null or empty, the implementation look up will be based on
+     * provider configurations.
+     * This operation is used to implement the certificate generation
+     * functionality of a certificate authority.
+     *
+     * @param key the private key used for signing
+     * @param signingParams the parameters used for signing
+     * @param algorithm the name of the signature algorithm used
+     * @param provider the name of the provider, may be null
+     *
+     * @exception NoSuchAlgorithmException on unsupported signature
+     *            algorithms
+     * @exception InvalidKeyException on incorrect key
+     * @exception InvalidAlgorithmParameterException on invalid signature
+     *            parameters
+     * @exception NoSuchProviderException on incorrect provider
+     * @exception SignatureException on signature errors
+     * @exception CertificateException on encoding errors
+     */
+    public void sign(PrivateKey key, AlgorithmParameterSpec signingParams,
+            String algorithm, String provider)
+            throws CertificateException, NoSuchAlgorithmException,
+            InvalidKeyException, InvalidAlgorithmParameterException,
+            NoSuchProviderException, SignatureException {
+        try {
+            if (readOnly) {
                 throw new CertificateEncodingException(
-                              "cannot over-write existing certificate");
+                        "cannot over-write existing certificate");
+            }
+
             Signature sigEngine = null;
-            if ((provider == null) || (provider.length() == 0))
+            if ((provider == null) || (provider.length() == 0)) {
                 sigEngine = Signature.getInstance(algorithm);
-            else
+            } else {
                 sigEngine = Signature.getInstance(algorithm, provider);
+            }
 
-            sigEngine.initSign(key);
+            SignatureUtil.initSignWithParam(sigEngine, key, signingParams,
+                    null);
 
-                                // in case the name is reset
-            algId = AlgorithmId.get(sigEngine.getAlgorithm());
-
+            // in case the name is reset
+            if (signingParams != null) {
+                algId = AlgorithmId.get(sigEngine.getParameters());
+            } else {
+                algId = AlgorithmId.get(algorithm);
+            }
             DerOutputStream out = new DerOutputStream();
             DerOutputStream tmp = new DerOutputStream();
 
@@ -695,9 +743,10 @@ public class X509CertImpl extends X509Certificate implements DerEncoder {
     public void set(String name, Object obj)
     throws CertificateException, IOException {
         // check if immutable
-        if (readOnly)
+        if (readOnly) {
             throw new CertificateException("cannot over-write existing"
                                            + " certificate");
+        }
 
         X509AttributeName attr = new X509AttributeName(name);
         String id = attr.getPrefix();
@@ -736,9 +785,10 @@ public class X509CertImpl extends X509Certificate implements DerEncoder {
     public void delete(String name)
     throws CertificateException, IOException {
         // check if immutable
-        if (readOnly)
+        if (readOnly) {
             throw new CertificateException("cannot over-write existing"
                                            + " certificate");
+        }
 
         X509AttributeName attr = new X509AttributeName(name);
         String id = attr.getPrefix();
@@ -1768,9 +1818,10 @@ public class X509CertImpl extends X509Certificate implements DerEncoder {
     private void parse(DerValue val)
     throws CertificateException, IOException {
         // check if can over write the certificate
-        if (readOnly)
+        if (readOnly) {
             throw new CertificateParsingException(
                       "cannot over-write existing certificate");
+        }
 
         if (val.data == null || val.tag != DerValue.tag_Sequence)
             throw new CertificateParsingException(
