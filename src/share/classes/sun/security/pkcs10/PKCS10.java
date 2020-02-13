@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1996, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -31,11 +31,7 @@ import java.io.IOException;
 import java.math.BigInteger;
 
 import java.security.cert.CertificateException;
-import java.security.NoSuchAlgorithmException;
-import java.security.InvalidKeyException;
-import java.security.Signature;
-import java.security.SignatureException;
-import java.security.PublicKey;
+import java.security.*;
 
 import java.util.Base64;
 
@@ -43,6 +39,8 @@ import sun.security.util.*;
 import sun.security.x509.AlgorithmId;
 import sun.security.x509.X509Key;
 import sun.security.x509.X500Name;
+import sun.security.util.SignatureUtil;
+
 
 /**
  * A PKCS #10 certificate request is created and sent to a Certificate
@@ -169,12 +167,20 @@ public class PKCS10 {
         try {
             sigAlg = id.getName();
             sig = Signature.getInstance(sigAlg);
-            sig.initVerify(subjectPublicKeyInfo);
+            SignatureUtil.initVerifyWithParam(sig, subjectPublicKeyInfo,
+                SignatureUtil.getParamSpec(sigAlg, id.getParameters()));
+
             sig.update(data);
-            if (!sig.verify(sigData))
+            if (!sig.verify(sigData)) {
                 throw new SignatureException("Invalid PKCS #10 signature");
+            }
         } catch (InvalidKeyException e) {
-            throw new SignatureException("invalid key");
+            throw new SignatureException("Invalid key");
+        } catch (InvalidAlgorithmParameterException e) {
+            throw new SignatureException("Invalid signature parameters", e);
+        } catch (ProviderException e) {
+            throw new SignatureException("Error parsing signature parameters",
+                e.getCause());
         }
     }
 
@@ -226,10 +232,14 @@ public class PKCS10 {
          */
         AlgorithmId algId = null;
         try {
-            algId = AlgorithmId.get(signature.getAlgorithm());
+            AlgorithmParameters params = signature.getParameters();
+            algId = params == null
+                    ? AlgorithmId.get(signature.getAlgorithm())
+                    : AlgorithmId.get(params);
         } catch (NoSuchAlgorithmException nsae) {
             throw new SignatureException(nsae);
         }
+
         algId.encode(scratch);     // sig algorithm
         scratch.putBitString(sig);                      // sig
 
