@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1996, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -106,6 +106,7 @@ final class SunEntries {
             map.put("SecureRandom.NativePRNG",
                 "sun.security.provider.NativePRNG");
         }
+
         map.put("SecureRandom.SHA1PRNG",
              "sun.security.provider.SecureRandom");
         if (nativeAvailable && !useNativePRNG) {
@@ -200,6 +201,14 @@ final class SunEntries {
         map.put("Alg.Alias.MessageDigest.2.16.840.1.101.3.4.2.3", "SHA-512");
         map.put("Alg.Alias.MessageDigest.OID.2.16.840.1.101.3.4.2.3",
                 "SHA-512");
+        map.put("MessageDigest.SHA-512/224", "sun.security.provider.SHA5$SHA512_224");
+        map.put("Alg.Alias.MessageDigest.2.16.840.1.101.3.4.2.5", "SHA-512/224");
+        map.put("Alg.Alias.MessageDigest.OID.2.16.840.1.101.3.4.2.5",
+                "SHA-512/224");
+        map.put("MessageDigest.SHA-512/256", "sun.security.provider.SHA5$SHA512_256");
+        map.put("Alg.Alias.MessageDigest.2.16.840.1.101.3.4.2.6", "SHA-512/256");
+        map.put("Alg.Alias.MessageDigest.OID.2.16.840.1.101.3.4.2.6",
+                "SHA-512/256");
 
         /*
          * Algorithm Parameter Generator engines

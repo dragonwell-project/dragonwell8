@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2009, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,9 +25,7 @@
 
 package sun.security.ec;
 
-import java.io.IOException;
 import java.nio.ByteBuffer;
-import java.math.BigInteger;
 
 import java.security.*;
 import java.security.interfaces.*;
@@ -67,6 +65,9 @@ abstract class ECDSASignature extends SignatureSpi {
 
     // public key, if initialized for verifying
     private ECPublicKey publicKey;
+
+    // signature parameters
+    private ECParameterSpec sigParams = null;
 
     /**
      * Constructs a new ECDSASignature. Used by Raw subclass.
@@ -198,10 +199,14 @@ abstract class ECDSASignature extends SignatureSpi {
     @Override
     protected void engineInitVerify(PublicKey publicKey)
     throws InvalidKeyException {
-        this.publicKey = (ECPublicKey) ECKeyFactory.toECKey(publicKey);
+        ECPublicKey key = (ECPublicKey) ECKeyFactory.toECKey(publicKey);
+        if (!isCompatible(this.sigParams, key.getParams())) {
+            throw new InvalidKeyException("Key params does not match signature params");
+        }
 
         // Should check that the supplied key is appropriate for signature
         // algorithm (e.g. P-256 for SHA256withECDSA)
+        this.publicKey = key;
         this.privateKey = null;
         resetDigest();
     }
@@ -217,10 +222,14 @@ abstract class ECDSASignature extends SignatureSpi {
     @Override
     protected void engineInitSign(PrivateKey privateKey, SecureRandom random)
     throws InvalidKeyException {
-        this.privateKey = (ECPrivateKey) ECKeyFactory.toECKey(privateKey);
+        ECPrivateKey key = (ECPrivateKey) ECKeyFactory.toECKey(privateKey);
+        if (!isCompatible(this.sigParams, key.getParams())) {
+            throw new InvalidKeyException("Key params does not match signature params");
+        }
 
         // Should check that the supplied key is appropriate for signature
         // algorithm (e.g. P-256 for SHA256withECDSA)
+        this.privateKey = key;
         this.publicKey = null;
         this.random = random;
         resetDigest();
@@ -272,6 +281,16 @@ abstract class ECDSASignature extends SignatureSpi {
         messageDigest.update(byteBuffer);
         needsReset = true;
     }
+
+    private static boolean isCompatible(ECParameterSpec sigParams,
+            ECParameterSpec keyParams) {
+        if (sigParams == null) {
+            // no restriction on key param
+            return true;
+        }
+        return ECUtil.equals(sigParams, keyParams);
+    }
+
 
     private byte[] signDigestImpl(ECDSAOperations ops, int seedBits,
         byte[] digest, ECPrivateKeyImpl privImpl, SecureRandom random)
@@ -366,7 +385,7 @@ abstract class ECDSASignature extends SignatureSpi {
             sig = signDigestNative(privateKey, digest, random);
         }
 
-        return encodeSignature(sig);
+        return ECUtil.encodeSignature(sig);
     }
 
     // verify the data and return the result. See JCA doc
@@ -387,7 +406,8 @@ abstract class ECDSASignature extends SignatureSpi {
         try {
 
             return verifySignedDigest(
-                decodeSignature(signature), getDigestValue(), w, encodedParams);
+                ECUtil.decodeSignature(signature), getDigestValue(),
+                w, encodedParams);
 
         } catch (GeneralSecurityException e) {
             throw new SignatureException("Could not verify signature", e);
@@ -402,6 +422,21 @@ abstract class ECDSASignature extends SignatureSpi {
         throw new UnsupportedOperationException("setParameter() not supported");
     }
 
+    @Override
+    protected void engineSetParameter(AlgorithmParameterSpec params)
+            throws InvalidAlgorithmParameterException {
+        if (params != null && !(params instanceof ECParameterSpec)) {
+            throw new InvalidAlgorithmParameterException("No parameter accepted");
+        }
+        ECKey key = (this.privateKey == null? this.publicKey : this.privateKey);
+        if ((key != null) && !isCompatible((ECParameterSpec)params, key.getParams())) {
+            throw new InvalidAlgorithmParameterException
+                ("Signature params does not match key params");
+        }
+
+        sigParams = (ECParameterSpec) params;
+    }
+
     // get parameter, not supported. See JCA doc
     @Override
     @Deprecated
@@ -410,77 +445,19 @@ abstract class ECDSASignature extends SignatureSpi {
         throw new UnsupportedOperationException("getParameter() not supported");
     }
 
-    // Convert the concatenation of R and S into their DER encoding
-    private byte[] encodeSignature(byte[] signature) throws SignatureException {
-
+    @Override
+    protected AlgorithmParameters engineGetParameters() {
+        if (sigParams == null) {
+            return null;
+        }
         try {
-
-            int n = signature.length >> 1;
-            byte[] bytes = new byte[n];
-            System.arraycopy(signature, 0, bytes, 0, n);
-            BigInteger r = new BigInteger(1, bytes);
-            System.arraycopy(signature, n, bytes, 0, n);
-            BigInteger s = new BigInteger(1, bytes);
-
-            DerOutputStream out = new DerOutputStream(signature.length + 10);
-            out.putInteger(r);
-            out.putInteger(s);
-            DerValue result =
-            new DerValue(DerValue.tag_Sequence, out.toByteArray());
-
-            return result.toByteArray();
-
+            AlgorithmParameters ap = AlgorithmParameters.getInstance("EC");
+            ap.init(sigParams);
+            return ap;
         } catch (Exception e) {
-            throw new SignatureException("Could not encode signature", e);
+            // should never happen
+            throw new ProviderException("Error retrieving EC parameters", e);
         }
-    }
-
-    // Convert the DER encoding of R and S into a concatenation of R and S
-    private byte[] decodeSignature(byte[] sig) throws SignatureException {
-
-        try {
-            // Enforce strict DER checking for signatures
-            DerInputStream in = new DerInputStream(sig, 0, sig.length, false);
-            DerValue[] values = in.getSequence(2);
-
-            // check number of components in the read sequence
-            // and trailing data
-            if ((values.length != 2) || (in.available() != 0)) {
-                throw new IOException("Invalid encoding for signature");
-            }
-
-            BigInteger r = values[0].getPositiveBigInteger();
-            BigInteger s = values[1].getPositiveBigInteger();
-
-            // trim leading zeroes
-            byte[] rBytes = trimZeroes(r.toByteArray());
-            byte[] sBytes = trimZeroes(s.toByteArray());
-            int k = Math.max(rBytes.length, sBytes.length);
-            // r and s each occupy half the array
-            byte[] result = new byte[k << 1];
-            System.arraycopy(rBytes, 0, result, k - rBytes.length,
-            rBytes.length);
-            System.arraycopy(sBytes, 0, result, result.length - sBytes.length,
-            sBytes.length);
-            return result;
-
-        } catch (Exception e) {
-            throw new SignatureException("Invalid encoding for signature", e);
-        }
-    }
-
-    // trim leading (most significant) zeroes from the result
-    private static byte[] trimZeroes(byte[] b) {
-        int i = 0;
-        while ((i < b.length - 1) && (b[i] == 0)) {
-            i++;
-        }
-        if (i == 0) {
-            return b;
-        }
-        byte[] t = new byte[b.length - i];
-        System.arraycopy(b, i, t, 0, t.length);
-        return t;
     }
 
     /**

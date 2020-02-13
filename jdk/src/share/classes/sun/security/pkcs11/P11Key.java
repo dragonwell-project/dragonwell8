@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -37,7 +37,9 @@ import javax.crypto.*;
 import javax.crypto.interfaces.*;
 import javax.crypto.spec.*;
 
+import sun.security.rsa.RSAUtil.KeyType;
 import sun.security.rsa.RSAPublicKeyImpl;
+import sun.security.rsa.RSAPrivateCrtKeyImpl;
 
 import sun.security.internal.interfaces.TlsMasterSecret;
 
@@ -543,11 +545,8 @@ abstract class P11Key implements Key, Length {
             if (encoded == null) {
                 fetchValues();
                 try {
-                    // XXX make constructor in SunRsaSign provider public
-                    // and call it directly
-                    KeyFactory factory = KeyFactory.getInstance
-                        ("RSA", P11Util.getSunRsaSignProvider());
-                    Key newKey = factory.translateKey(this);
+                    Key newKey = RSAPrivateCrtKeyImpl.newKey
+                        (KeyType.RSA, null, n, e, d, p, q, pe, qe, coeff);
                     encoded = newKey.getEncoded();
                 } catch (GeneralSecurityException e) {
                     throw new ProviderException(e);
@@ -647,7 +646,6 @@ abstract class P11Key implements Key, Length {
     private static final class P11RSAPublicKey extends P11Key
                                                 implements RSAPublicKey {
         private static final long serialVersionUID = -826726289023854455L;
-
         private BigInteger n, e;
         private byte[] encoded;
         P11RSAPublicKey(Session session, long keyID, String algorithm,
@@ -676,7 +674,8 @@ abstract class P11Key implements Key, Length {
             if (encoded == null) {
                 fetchValues();
                 try {
-                    encoded = new RSAPublicKeyImpl(n, e).getEncoded();
+                    encoded = RSAPublicKeyImpl.newKey
+                        (KeyType.RSA, null, n, e).getEncoded();
                 } catch (InvalidKeyException e) {
                     throw new ProviderException(e);
                 }

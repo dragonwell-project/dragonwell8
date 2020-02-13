@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,34 +23,21 @@
  * questions.
  */
 
-package sun.security.mscapi;
+package sun.misc;
 
-/**
- * The handle for an RSA public/private keypair using the Microsoft Crypto API.
- *
- * @since 1.6
- */
-class RSAKeyPair {
+import java.security.*;
+import java.security.spec.AlgorithmParameterSpec;
 
-    private final RSAPrivateKey privateKey;
+public interface JavaSecuritySignatureAccess {
 
-    private final RSAPublicKey publicKey;
+    void initVerify(Signature s, PublicKey publicKey, AlgorithmParameterSpec params)
+            throws InvalidKeyException, InvalidAlgorithmParameterException;
 
-    /**
-     * Construct an RSAKeyPair object.
-     */
-    RSAKeyPair(long hCryptProv, long hCryptKey, int keyLength)
-    {
-        Key.NativeHandles handles = new Key.NativeHandles(hCryptProv, hCryptKey);
-        privateKey = new RSAPrivateKey(handles, keyLength);
-        publicKey = new RSAPublicKey(handles, keyLength);
-    }
+    void initVerify(Signature s, java.security.cert.Certificate certificate,
+             AlgorithmParameterSpec params)
+             throws InvalidKeyException, InvalidAlgorithmParameterException;
 
-    public RSAPrivateKey getPrivate() {
-        return privateKey;
-    }
-
-    public RSAPublicKey getPublic() {
-        return publicKey;
-    }
+    void initSign(Signature s, PrivateKey privateKey,
+             AlgorithmParameterSpec params, SecureRandom random)
+             throws InvalidKeyException, InvalidAlgorithmParameterException;
 }
