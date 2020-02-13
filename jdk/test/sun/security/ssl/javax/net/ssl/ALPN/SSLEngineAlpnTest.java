@@ -26,12 +26,69 @@
 
 /*
  * @test
- * @bug 1234567
- * @summary SSLEngine has not yet caused Solaris kernel to panic
- * @run main/othervm SSLEngineTemplate
+ * @bug 8051498 8145849 8170282
+ * @summary JEP 244: TLS Application-Layer Protocol Negotiation Extension
+ * @compile MyX509ExtendedKeyManager.java
+ *
+ * @run main/othervm SSLEngineAlpnTest h2          UNUSED   h2          h2
+ * @run main/othervm SSLEngineAlpnTest h2          UNUSED   h2,http/1.1 h2
+ * @run main/othervm SSLEngineAlpnTest h2,http/1.1 UNUSED   h2,http/1.1 h2
+ * @run main/othervm SSLEngineAlpnTest http/1.1,h2 UNUSED   h2,http/1.1 http/1.1
+ * @run main/othervm SSLEngineAlpnTest h4,h3,h2    UNUSED   h1,h2       h2
+ * @run main/othervm SSLEngineAlpnTest EMPTY       UNUSED   h2,http/1.1 NONE
+ * @run main/othervm SSLEngineAlpnTest h2          UNUSED   EMPTY       NONE
+ * @run main/othervm SSLEngineAlpnTest H2          UNUSED   h2          ERROR
+ * @run main/othervm SSLEngineAlpnTest h2          UNUSED   http/1.1    ERROR
+ *
+ * @run main/othervm SSLEngineAlpnTest UNUSED      h2       h2          h2
+ * @run main/othervm SSLEngineAlpnTest UNUSED      h2       h2,http/1.1 h2
+ * @run main/othervm SSLEngineAlpnTest UNUSED      h2       http/1.1,h2 h2
+ * @run main/othervm SSLEngineAlpnTest UNUSED      http/1.1 h2,http/1.1 http/1.1
+ * @run main/othervm SSLEngineAlpnTest UNUSED      EMPTY    h2,http/1.1 NONE
+ * @run main/othervm SSLEngineAlpnTest UNUSED      h2       EMPTY       NONE
+ * @run main/othervm SSLEngineAlpnTest UNUSED      H2       h2          ERROR
+ * @run main/othervm SSLEngineAlpnTest UNUSED      h2       http/1.1    ERROR
+ *
+ * @run main/othervm SSLEngineAlpnTest h2          h2       h2          h2
+ * @run main/othervm SSLEngineAlpnTest H2          h2       h2,http/1.1 h2
+ * @run main/othervm SSLEngineAlpnTest h2,http/1.1 http/1.1 h2,http/1.1 http/1.1
+ * @run main/othervm SSLEngineAlpnTest http/1.1,h2 h2       h2,http/1.1 h2
+ * @run main/othervm SSLEngineAlpnTest EMPTY       h2       h2          h2
+ * @run main/othervm SSLEngineAlpnTest h2,http/1.1 EMPTY    http/1.1    NONE
+ * @run main/othervm SSLEngineAlpnTest h2,http/1.1 h2       EMPTY       NONE
+ * @run main/othervm SSLEngineAlpnTest UNUSED      UNUSED   http/1.1,h2 NONE
+ * @run main/othervm SSLEngineAlpnTest h2          h2       http/1.1    ERROR
+ * @run main/othervm SSLEngineAlpnTest h2,http/1.1 H2       http/1.1    ERROR
+ */
+/**
+ * A simple SSLEngine-based client/server that demonstrates the proposed API
+ * changes for JEP 244 in support of the TLS ALPN extension (RFC 7301).
+ *
+ * Usage:
+ *     java SSLEngineAlpnTest <server-APs> <callback-AP> <client-APs> <result>
+ *
+ * where:
+ *      EMPTY  indicates that ALPN is disabled
+ *      UNUSED indicates that no ALPN values are supplied (server-side only)
+ *      ERROR  indicates that an exception is expected
+ *      NONE   indicates that no ALPN is expected
+ *
+ * This example is based on our standard SSLEngineTemplate.
+ *
+ * The immediate consumer of ALPN will be HTTP/2 (RFC 7540), aka H2. The H2 IETF
+ * Working Group wanted to use TLSv1.3+ as the secure transport mechanism, but
+ * TLSv1.3 wasn't ready. The H2 folk agreed to a compromise that only TLSv1.2+
+ * can be used, and that if TLSv1.2 was selected, non-TLSv.1.3-approved
+ * ciphersuites would be blacklisted and their use discouraged.
+ *
+ * In order to support connections that might negotiate either HTTP/1.1 and H2,
+ * the guidance from the IETF Working Group is that the H2 ciphersuites be
+ * prioritized/tried first.
  */
 
-/**
+/*
+ * The original SSLEngineTemplate comments follow.
+ *
  * A SSLEngine usage example which simplifies the presentation
  * by removing the I/O and multi-threading concerns.
  *
@@ -66,14 +123,14 @@
  *      unwrap()        ...             ChangeCipherSpec
  *      unwrap()        ...             Finished
  */
-
 import javax.net.ssl.*;
 import javax.net.ssl.SSLEngineResult.*;
 import java.io.*;
 import java.security.*;
 import java.nio.*;
+import java.util.Arrays;
 
-public class SSLEngineTemplate {
+public class SSLEngineAlpnTest {
 
     /*
      * Enables logging of the SSLEngine operations.
@@ -90,6 +147,9 @@ public class SSLEngineTemplate {
      * after gaining some familiarity with this application.
      */
     private static final boolean debug = false;
+
+    private static boolean hasServerAPs; // whether server APs are present
+    private static boolean hasCallback; // whether a callback is present
 
     private final SSLContext sslc;
 
@@ -112,17 +172,17 @@ public class SSLEngineTemplate {
     /*
      * The following is to set up the keystores.
      */
-    private static final String pathToStores = "../etc";
+    private static final String pathToStores = "../../../../etc";
     private static final String keyStoreFile = "keystore";
     private static final String trustStoreFile = "truststore";
     private static final String passwd = "passphrase";
 
-    private static final String keyFilename =
-            System.getProperty("test.src", ".") + "/" + pathToStores +
-                "/" + keyStoreFile;
-    private static final String trustFilename =
-            System.getProperty("test.src", ".") + "/" + pathToStores +
-                "/" + trustStoreFile;
+    private static final String keyFilename
+            = System.getProperty("test.src", ".") + "/" + pathToStores
+            + "/" + keyStoreFile;
+    private static final String trustFilename
+            = System.getProperty("test.src", ".") + "/" + pathToStores
+            + "/" + trustStoreFile;
 
     /*
      * Main entry point for this test.
@@ -131,9 +191,26 @@ public class SSLEngineTemplate {
         if (debug) {
             System.setProperty("javax.net.debug", "all");
         }
+        System.out.println("Test args: " + Arrays.toString(args));
 
-        SSLEngineTemplate test = new SSLEngineTemplate();
-        test.runTest();
+        // Validate parameters
+        if (args.length != 4) {
+            throw new Exception("Invalid number of test parameters");
+        }
+
+        hasServerAPs = !args[0].equals("UNUSED"); // are server APs being used?
+        hasCallback = !args[1].equals("UNUSED"); // is callback being used?
+
+        SSLEngineAlpnTest test = new SSLEngineAlpnTest(args[3]);
+        try {
+            test.runTest(convert(args[0]), args[1], convert(args[2]), args[3]);
+        } catch (SSLHandshakeException she) {
+            if (args[3].equals("ERROR")) {
+                System.out.println("Caught the expected exception: " + she);
+            } else {
+                throw she;
+            }
+        }
 
         System.out.println("Test Passed.");
     }
@@ -141,7 +218,7 @@ public class SSLEngineTemplate {
     /*
      * Create an initialized SSLContext to use for these tests.
      */
-    public SSLEngineTemplate() throws Exception {
+    public SSLEngineAlpnTest(String expectedAP) throws Exception {
 
         KeyStore ks = KeyStore.getInstance("JKS");
         KeyStore ts = KeyStore.getInstance("JKS");
@@ -154,14 +231,45 @@ public class SSLEngineTemplate {
         KeyManagerFactory kmf = KeyManagerFactory.getInstance("SunX509");
         kmf.init(ks, passphrase);
 
+        KeyManager [] kms = kmf.getKeyManagers();
+        if (!(kms[0] instanceof X509ExtendedKeyManager)) {
+            throw new Exception("kms[0] not X509ExtendedKeyManager");
+        }
+
+        kms = new KeyManager[] { new MyX509ExtendedKeyManager(
+                (X509ExtendedKeyManager) kms[0], expectedAP,
+                !hasCallback && hasServerAPs) };
+
         TrustManagerFactory tmf = TrustManagerFactory.getInstance("SunX509");
         tmf.init(ts);
 
         SSLContext sslCtx = SSLContext.getInstance("TLS");
 
-        sslCtx.init(kmf.getKeyManagers(), tmf.getTrustManagers(), null);
+        sslCtx.init(kms, tmf.getTrustManagers(), null);
 
         sslc = sslCtx;
+    }
+
+    /*
+     * Convert a comma-separated list into an array of strings.
+     */
+    private static String[] convert(String list) {
+        if (list.equals("UNUSED")) {
+            return null;
+        }
+
+        if (list.equals("EMPTY")) {
+            return new String[0];
+        }
+
+        String[] strings;
+        if (list.indexOf(',') > 0) {
+            strings = list.split(",");
+        } else {
+            strings = new String[]{ list };
+        }
+
+        return strings;
     }
 
     /*
@@ -181,10 +289,12 @@ public class SSLEngineTemplate {
      * One could easily separate these phases into separate
      * sections of code.
      */
-    private void runTest() throws Exception {
+    private void runTest(String[] serverAPs, String callbackAP,
+            String[] clientAPs, String expectedAP) throws Exception {
+
         boolean dataDone = false;
 
-        createSSLEngines();
+        createSSLEngines(serverAPs, callbackAP, clientAPs);
         createBuffers();
 
         SSLEngineResult clientResult;   // results from client's last operation
@@ -198,18 +308,20 @@ public class SSLEngineTemplate {
          * to write to the output pipe, we could reallocate a larger
          * pipe, but instead we wait for the peer to drain it.
          */
-        while (!isEngineClosed(clientEngine) ||
-                !isEngineClosed(serverEngine)) {
+        while (!isEngineClosed(clientEngine)
+                || !isEngineClosed(serverEngine)) {
 
             log("================");
 
             clientResult = clientEngine.wrap(clientOut, cTOs);
             log("client wrap: ", clientResult);
             runDelegatedTasks(clientResult, clientEngine);
+            checkAPResult(clientEngine, clientResult, expectedAP);
 
             serverResult = serverEngine.wrap(serverOut, sTOc);
             log("server wrap: ", serverResult);
             runDelegatedTasks(serverResult, serverEngine);
+            checkAPResult(serverEngine, serverResult, expectedAP);
 
             cTOs.flip();
             sTOc.flip();
@@ -219,10 +331,12 @@ public class SSLEngineTemplate {
             clientResult = clientEngine.unwrap(sTOc, clientIn);
             log("client unwrap: ", clientResult);
             runDelegatedTasks(clientResult, clientEngine);
+            checkAPResult(clientEngine, clientResult, expectedAP);
 
             serverResult = serverEngine.unwrap(cTOs, serverIn);
             log("server unwrap: ", serverResult);
             runDelegatedTasks(serverResult, serverEngine);
+            checkAPResult(serverEngine, serverResult, expectedAP);
 
             cTOs.compact();
             sTOc.compact();
@@ -233,8 +347,8 @@ public class SSLEngineTemplate {
              * This generates a close_notify handshake message, which the
              * server engine receives and responds by closing itself.
              */
-            if (!dataDone && (clientOut.limit() == serverIn.position()) &&
-                    (serverOut.limit() == clientIn.position())) {
+            if (!dataDone && (clientOut.limit() == serverIn.position())
+                    && (serverOut.limit() == clientIn.position())) {
 
                 /*
                  * A sanity check to ensure we got what was sent.
@@ -250,23 +364,112 @@ public class SSLEngineTemplate {
     }
 
     /*
+     * Check that the resulting connection meets our defined ALPN
+     * criteria.  If we were connecting to a non-JSSE implementation,
+     * the server might have negotiated something we shouldn't accept.
+     *
+     * If we were expecting an ALPN value from server, let's make sure
+     * the conditions match.
+     */
+    private static void checkAPResult(SSLEngine engine, SSLEngineResult result,
+            String expectedAP) throws Exception {
+
+        if (result.getHandshakeStatus() != HandshakeStatus.FINISHED) {
+            return;
+        }
+
+        if (engine.getHandshakeApplicationProtocol() != null) {
+            throw new Exception ("getHandshakeApplicationProtocol() should "
+                    + "return null after the handshake is completed");
+        }
+
+        String ap = engine.getApplicationProtocol();
+        System.out.println("Application Protocol: \"" + ap + "\"");
+
+        if (ap == null) {
+            throw new Exception(
+                "Handshake was completed but null was received");
+        }
+        if (expectedAP.equals("NONE")) {
+            if (!ap.isEmpty()) {
+                throw new Exception("Expected no ALPN value");
+            } else {
+                System.out.println("No ALPN value negotiated, as expected");
+            }
+        } else if (!expectedAP.equals(ap)) {
+            throw new Exception(expectedAP +
+                " ALPN value not available on negotiated connection");
+        }
+    }
+
+    /*
      * Using the SSLContext created during object creation,
      * create/configure the SSLEngines we'll use for this test.
      */
-    private void createSSLEngines() throws Exception {
+    private void createSSLEngines(String[] serverAPs, String callbackAP,
+            String[] clientAPs) throws Exception {
         /*
          * Configure the serverEngine to act as a server in the SSL/TLS
          * handshake.  Also, require SSL client authentication.
          */
         serverEngine = sslc.createSSLEngine();
         serverEngine.setUseClientMode(false);
-        serverEngine.setNeedClientAuth(true);
+
+        SSLParameters sslp = serverEngine.getSSLParameters();
+
+        sslp.setNeedClientAuth(true);
+
+        /*
+         * The default ciphersuite ordering from the SSLContext may not
+         * reflect "h2" ciphersuites as being preferred, additionally the
+         * client may not send them in an appropriate order. We could resort
+         * the suite list if so desired.
+         */
+        String[] suites = sslp.getCipherSuites();
+        sslp.setCipherSuites(suites);
+        if (serverAPs != null) {
+            sslp.setApplicationProtocols(serverAPs);
+        }
+        sslp.setUseCipherSuitesOrder(true);  // Set server side order
+
+        serverEngine.setSSLParameters(sslp);
+
+        // check that no callback has been registered
+        if (serverEngine.getHandshakeApplicationProtocolSelector() != null) {
+            throw new Exception("getHandshakeApplicationProtocolSelector() " +
+                "should return null");
+        }
+
+        if (hasCallback) {
+            serverEngine.setHandshakeApplicationProtocolSelector(
+                (sslEngine, clientProtocols) -> {
+                    return callbackAP.equals("EMPTY") ? "" : callbackAP;
+                });
+
+            // check that the callback can be retrieved
+            if (serverEngine.getHandshakeApplicationProtocolSelector()
+                    == null) {
+                throw new Exception("getHandshakeApplicationProtocolSelector()"
+                    + " should return non-null");
+            }
+        }
 
         /*
          * Similar to above, but using client mode instead.
          */
         clientEngine = sslc.createSSLEngine("client", 80);
         clientEngine.setUseClientMode(true);
+        sslp = clientEngine.getSSLParameters();
+        if (clientAPs != null) {
+            sslp.setApplicationProtocols(clientAPs);
+        }
+        clientEngine.setSSLParameters(sslp);
+
+        if ((clientEngine.getHandshakeApplicationProtocol() != null) ||
+                (serverEngine.getHandshakeApplicationProtocol() != null)) {
+            throw new Exception ("getHandshakeApplicationProtocol() should "
+                    + "return null before the handshake starts");
+        }
     }
 
     /*
@@ -317,7 +520,7 @@ public class SSLEngineTemplate {
             HandshakeStatus hsStatus = engine.getHandshakeStatus();
             if (hsStatus == HandshakeStatus.NEED_TASK) {
                 throw new Exception(
-                    "handshake shouldn't need additional tasks");
+                        "handshake shouldn't need additional tasks");
             }
             log("\tnew HandshakeStatus: " + hsStatus);
         }
@@ -358,15 +561,15 @@ public class SSLEngineTemplate {
         }
         if (resultOnce) {
             resultOnce = false;
-            System.out.println("The format of the SSLEngineResult is: \n" +
-                "\t\"getStatus() / getHandshakeStatus()\" +\n" +
-                "\t\"bytesConsumed() / bytesProduced()\"\n");
+            System.out.println("The format of the SSLEngineResult is: \n"
+                    + "\t\"getStatus() / getHandshakeStatus()\" +\n"
+                    + "\t\"bytesConsumed() / bytesProduced()\"\n");
         }
         HandshakeStatus hsStatus = result.getHandshakeStatus();
-        log(str +
-            result.getStatus() + "/" + hsStatus + ", " +
-            result.bytesConsumed() + "/" + result.bytesProduced() +
-            " bytes");
+        log(str
+                + result.getStatus() + "/" + hsStatus + ", "
+                + result.bytesConsumed() + "/" + result.bytesProduced()
+                + " bytes");
         if (hsStatus == HandshakeStatus.FINISHED) {
             log("\t...ready for application data");
         }

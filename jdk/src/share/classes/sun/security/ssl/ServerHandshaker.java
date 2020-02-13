@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1996, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -33,6 +33,7 @@ import java.security.cert.*;
 import java.security.interfaces.*;
 import java.security.spec.ECParameterSpec;
 import java.math.BigInteger;
+import java.util.function.BiFunction;
 
 import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
@@ -508,6 +509,44 @@ final class ServerHandshaker extends Handshaker {
             }
         }
 
+        // check the ALPN extension
+        ALPNExtension clientHelloALPN = (ALPNExtension)
+            mesg.extensions.get(ExtensionType.EXT_ALPN);
+
+        // Use the application protocol callback when provided.
+        // Otherwise use the local list of application protocols.
+        boolean hasAPCallback =
+            ((engine != null && appProtocolSelectorSSLEngine != null) ||
+                (conn != null && appProtocolSelectorSSLSocket != null));
+
+        if (!hasAPCallback) {
+            if ((clientHelloALPN != null) && (localApl.length > 0)) {
+
+                // Intersect the requested and the locally supported,
+                // and save for later.
+                String negotiatedValue = null;
+                List<String> protocols = clientHelloALPN.getPeerAPs();
+
+                // Use server preference order
+                for (String ap : localApl) {
+                    if (protocols.contains(ap)) {
+                        negotiatedValue = ap;
+                        break;
+                    }
+                }
+
+                if (negotiatedValue == null) {
+                    fatalSE(Alerts.alert_no_application_protocol,
+                        new SSLHandshakeException(
+                            "No matching ALPN values"));
+                }
+                applicationProtocol = negotiatedValue;
+
+            } else {
+                applicationProtocol = "";
+            }
+        }  // Otherwise, applicationProtocol will be set by the callback.
+
         /*
          * Always make sure this entire record has been digested before we
          * start emitting output, to ensure correct digesting order.
@@ -856,6 +895,39 @@ final class ServerHandshaker extends Handshaker {
 
         if (session.getUseExtendedMasterSecret()) {
             m1.extensions.add(new ExtendedMasterSecretExtension());
+        }
+
+        // Prepare the ALPN response
+        if (clientHelloALPN != null) {
+            List<String> peerAPs = clientHelloALPN.getPeerAPs();
+
+            // check for a callback function
+            if (hasAPCallback) {
+                if (conn != null) {
+                    applicationProtocol =
+                        appProtocolSelectorSSLSocket.apply(conn, peerAPs);
+                } else {
+                    applicationProtocol =
+                        appProtocolSelectorSSLEngine.apply(engine, peerAPs);
+                }
+            }
+
+            // check for no-match and that the selected name was also proposed
+            // by the TLS peer
+            if (applicationProtocol == null ||
+                   (!applicationProtocol.isEmpty() &&
+                        !peerAPs.contains(applicationProtocol))) {
+
+                fatalSE(Alerts.alert_no_application_protocol,
+                    new SSLHandshakeException(
+                        "No matching ALPN values"));
+
+            } else if (!applicationProtocol.isEmpty()) {
+                m1.extensions.add(new ALPNExtension(applicationProtocol));
+            }
+        } else {
+            // Nothing was negotiated, returned at end of the handshake
+            applicationProtocol = "";
         }
 
         if (debug != null && Debug.isOn("handshake")) {

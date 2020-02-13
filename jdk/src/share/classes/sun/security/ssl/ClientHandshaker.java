@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1996, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -140,6 +140,9 @@ final class ClientHandshaker extends Handshaker {
      */
     private final static boolean allowUnsafeServerCertChange =
         Debug.getBooleanProperty("jdk.tls.allowUnsafeServerCertChange", false);
+
+    // Whether an ALPN extension was sent in the ClientHello
+    private boolean alpnActive = false;
 
     private List<SNIServerName> requestedServerNames =
             Collections.<SNIServerName>emptyList();
@@ -689,6 +692,45 @@ final class ClientHandshaker extends Handshaker {
             }
         }
 
+        // check the ALPN extension
+        ALPNExtension serverHelloALPN =
+            (ALPNExtension) mesg.extensions.get(ExtensionType.EXT_ALPN);
+
+        if (serverHelloALPN != null) {
+            // Check whether an ALPN extension was sent in ClientHello message
+            if (!alpnActive) {
+                fatalSE(Alerts.alert_unsupported_extension,
+                    "Server sent " + ExtensionType.EXT_ALPN +
+                    " extension when not requested by client");
+            }
+
+            List<String> protocols = serverHelloALPN.getPeerAPs();
+            // Only one application protocol name should be present
+            String p;
+            if ((protocols.size() == 1) &&
+                    !((p = protocols.get(0)).isEmpty())) {
+                int i;
+                for (i = 0; i < localApl.length; i++) {
+                    if (localApl[i].equals(p)) {
+                        break;
+                    }
+                }
+                if (i == localApl.length) {
+                    fatalSE(Alerts.alert_handshake_failure,
+                        "Server has selected an application protocol name " +
+                        "which was not offered by the client: " + p);
+
+                }
+                applicationProtocol = p;
+            } else {
+                fatalSE(Alerts.alert_handshake_failure,
+                    "Incorrect data in ServerHello " + ExtensionType.EXT_ALPN +
+                    " message");
+            }
+        } else {
+            applicationProtocol = "";
+        }
+
         if (resumingSession && session != null) {
             setHandshakeSessionSE(session);
             // Reserve the handshake state if this is a session-resumption
@@ -708,6 +750,7 @@ final class ClientHandshaker extends Handshaker {
             } else if ((type != ExtensionType.EXT_ELLIPTIC_CURVES)
                     && (type != ExtensionType.EXT_EC_POINT_FORMATS)
                     && (type != ExtensionType.EXT_SERVER_NAME)
+                    && (type != ExtensionType.EXT_ALPN)
                     && (type != ExtensionType.EXT_RENEGOTIATION_INFO)
                     && (type != ExtensionType.EXT_EXTENDED_MASTER_SECRET)){
                 fatalSE(Alerts.alert_unsupported_extension,
@@ -1535,6 +1578,12 @@ final class ClientHandshaker extends Handshaker {
             if (!requestedServerNames.isEmpty()) {
                 clientHelloMessage.addSNIExtension(requestedServerNames);
             }
+        }
+
+        // Add ALPN extension
+        if (localApl != null && localApl.length > 0) {
+            clientHelloMessage.addALPNExtension(localApl);
+            alpnActive = true;
         }
 
         // reset the client random cookie

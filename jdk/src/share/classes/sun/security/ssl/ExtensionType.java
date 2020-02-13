@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2006, 2012, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2006, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -43,7 +43,8 @@ final class ExtensionType {
         return name;
     }
 
-    static List<ExtensionType> knownExtensions = new ArrayList<ExtensionType>(14);
+    static List<ExtensionType> knownExtensions =
+            new ArrayList<ExtensionType>(15);
 
     static ExtensionType get(int id) {
         for (ExtensionType ext : knownExtensions) {
@@ -95,6 +96,11 @@ final class ExtensionType {
     // extensions defined in RFC 5246
     final static ExtensionType EXT_SIGNATURE_ALGORITHMS =
             e(0x000D, "signature_algorithms");   // IANA registry value: 13
+
+    // extension defined in RFC 7301 (ALPN)
+    static final ExtensionType EXT_ALPN =
+            e(0x0010, "application_layer_protocol_negotiation");
+                                                 // IANA registry value: 16
 
     // extensions defined in RFC 7627
     static final ExtensionType EXT_EXTENDED_MASTER_SECRET =
