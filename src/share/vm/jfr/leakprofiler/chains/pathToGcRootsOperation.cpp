@@ -42,7 +42,6 @@
 #include "jfr/leakprofiler/sampling/objectSampler.hpp"
 #include "jfr/leakprofiler/utilities/granularTimer.hpp"
 #include "memory/universe.hpp"
-#include "oops/markOop.hpp"
 #include "oops/oop.inline.hpp"
 #include "runtime/safepoint.hpp"
 #include "utilities/globalDefinitions.hpp"
@@ -101,7 +100,7 @@ void PathToGcRootsOperation::doit() {
   // Save the original markWord for the potential leak objects,
   // to be restored on function exit
   ObjectSampleMarker marker;
-  if (ObjectSampleCheckpoint::mark(_sampler, marker, _emit_all) == 0) {
+  if (ObjectSampleCheckpoint::save_mark_words(_sampler, marker, _emit_all) == 0) {
     // no valid samples to process
     return;
   }

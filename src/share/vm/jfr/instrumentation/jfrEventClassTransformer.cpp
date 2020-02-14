@@ -1461,7 +1461,7 @@ static void copy_method_trace_flags(const InstanceKlass* the_original_klass, con
     assert(new_method != NULL, "invariant");
     assert(new_method->name() == old_method->name(), "invariant");
     assert(new_method->signature() == old_method->signature(), "invariant");
-    *new_method->trace_flags_addr() = old_method->trace_flags();
+    new_method->set_trace_flags(old_method->trace_flags());
     assert(new_method->trace_flags() == old_method->trace_flags(), "invariant");
   }
 }

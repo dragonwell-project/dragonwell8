@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_JFR_CHECKPOINT_TYPES_TRACEID_JFRTRACEIDBITS_INLINE_HPP
-#define SHARE_VM_JFR_CHECKPOINT_TYPES_TRACEID_JFRTRACEIDBITS_INLINE_HPP
+#ifndef SHARE_JFR_RECORDER_CHECKPOINT_TYPES_TRACEID_JFRTRACEIDBITS_INLINE_HPP
+#define SHARE_JFR_RECORDER_CHECKPOINT_TYPES_TRACEID_JFRTRACEIDBITS_INLINE_HPP
 
 #include "jfr/utilities/jfrTypes.hpp"
 #include "runtime/atomic.inline.hpp"
@@ -31,10 +31,10 @@
 
 #ifdef VM_LITTLE_ENDIAN
 static const int low_offset = 0;
-static const int leakp_offset = low_offset + 1;
+static const int meta_offset = low_offset + 1;
 #else
 static const int low_offset = 7;
-static const int leakp_offset = low_offset - 1;
+static const int meta_offset = low_offset - 1;
 #endif
 
 inline void set_bits(jbyte bits, jbyte* const dest) {
@@ -92,17 +92,28 @@ inline void set_traceid_mask(jbyte mask, traceid* dest) {
   set_mask(mask, ((jbyte*)dest) + low_offset);
 }
 
-inline void set_leakp_traceid_bits(jbyte bits, traceid* dest) {
-  set_bits(bits, ((jbyte*)dest) + leakp_offset);
+inline void set_meta_bits(jbyte bits, jbyte* const dest) {
+  assert(dest != NULL, "invariant");
+  *dest |= bits;
 }
 
-inline void set_leakp_traceid_bits_cas(jbyte bits, traceid* dest) {
-  set_bits_cas(bits, ((jbyte*)dest) + leakp_offset);
+inline void set_traceid_meta_bits(jbyte bits, traceid* dest) {
+  set_meta_bits(bits, ((jbyte*)dest) + meta_offset);
 }
 
-inline void set_leakp_traceid_mask(jbyte mask, traceid* dest) {
-  set_mask(mask, ((jbyte*)dest) + leakp_offset);
+inline void set_meta_mask(jbyte mask, jbyte* const dest) {
+  assert(dest != NULL, "invariant");
+  *dest &= mask;
 }
 
-#endif // SHARE_VM_JFR_CHECKPOINT_TYPES_TRACEID_JFRTRACEIDBITS_INLINE_HPP
+inline void set_traceid_meta_mask(jbyte mask, traceid* dest) {
+  set_meta_mask(mask, ((jbyte*)dest) + meta_offset);
+}
 
+// only used by a single thread with no visibility requirements
+inline void clear_meta_bits(jbyte bits, jbyte* const dest) {
+  assert(dest != NULL, "invariant");
+  *dest ^= bits;
+}
+
+#endif // SHARE_JFR_RECORDER_CHECKPOINT_TYPES_TRACEID_JFRTRACEIDBITS_INLINE_HPP

@@ -29,7 +29,6 @@
 #include "jfr/leakprofiler/checkpoint/rootResolver.hpp"
 #include "memory/iterator.hpp"
 #include "oops/klass.hpp"
-#include "oops/markOop.hpp"
 #include "oops/oop.hpp"
 #include "prims/jvmtiThreadState.hpp"
 #include "prims/privilegedStack.hpp"

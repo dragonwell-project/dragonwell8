@@ -37,7 +37,7 @@ class JfrChunkState : public JfrCHeapObj {
   jlong _start_nanos;
   jlong _previous_start_ticks;
   jlong _previous_start_nanos;
-  jlong _previous_checkpoint_offset;
+  int64_t _last_checkpoint_offset;
 
   void update_start_ticks();
   void update_start_nanos();
@@ -47,8 +47,8 @@ class JfrChunkState : public JfrCHeapObj {
   JfrChunkState();
   ~JfrChunkState();
   void reset();
-  jlong previous_checkpoint_offset() const;
-  void set_previous_checkpoint_offset(jlong offset);
+  int64_t last_checkpoint_offset() const;
+  void set_last_checkpoint_offset(int64_t offset);
   jlong previous_start_ticks() const;
   jlong previous_start_nanos() const;
   jlong last_chunk_duration() const;

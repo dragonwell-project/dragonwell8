@@ -106,10 +106,6 @@ u4 JfrOptionSet::stackdepth() {
   return _stack_depth;
 }
 
-static const u4 STACK_DEPTH_DEFAULT = 64;
-static const u4 MIN_STACK_DEPTH = 1;
-static const u4 MAX_STACK_DEPTH = 2048;
-
 void JfrOptionSet::set_stackdepth(u4 depth) {
   if (depth < MIN_STACK_DEPTH) {
     _stack_depth = MIN_STACK_DEPTH;
