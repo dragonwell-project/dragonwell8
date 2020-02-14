@@ -108,7 +108,6 @@ inline uintptr_t package_name_hash(const char *s) {
   return val;
 }
 
-/**
 static traceid package_id(KlassPtr klass, JfrArtifactSet* artifacts) {
   assert(klass != NULL, "invariant");
   char* klass_name = klass->name()->as_C_string(); // uses ResourceMark declared in JfrTypeSet::serialize()
@@ -118,7 +117,6 @@ static traceid package_id(KlassPtr klass, JfrArtifactSet* artifacts) {
   }
   return CREATE_PACKAGE_ID(artifacts->markPackage(pkg_name, package_name_hash(pkg_name)));
 }
-*/
 
 static traceid method_id(KlassPtr klass, MethodPtr method) {
   assert(klass != NULL, "invariant");
@@ -170,8 +168,7 @@ static int write_klass(JfrCheckpointWriter* writer, KlassPtr klass, bool leakp) 
     theklass = obj_arr_klass->bottom_klass();
   }
   if (theklass->oop_is_instance()) {
-    // pkg_id = package_id(theklass, _artifacts);
-    pkg_id = 0;
+    pkg_id = package_id(theklass, _artifacts);
   } else {
     assert(theklass->oop_is_typeArray(), "invariant");
   }
@@ -206,9 +203,14 @@ int write__klass__leakp(JfrCheckpointWriter* writer, const void* k) {
   return write_klass(writer, klass, true);
 }
 
+static bool is_implied(const Klass* klass) {
+  assert(klass != NULL, "invariant");
+  return klass->is_subclass_of(SystemDictionary::ClassLoader_klass()) || klass == SystemDictionary::Object_klass();
+}
+
 static void do_implied(Klass* klass) {
   assert(klass != NULL, "invariant");
-  if (klass->is_subclass_of(SystemDictionary::ClassLoader_klass()) || klass == SystemDictionary::Object_klass()) {
+  if (is_implied(klass)) {
     if (_leakp_writer != NULL) {
       SET_LEAKP(klass);
     }
@@ -261,6 +263,16 @@ typedef JfrTypeWriterHost<KlassWriterImpl, TYPE_CLASS> KlassWriter;
 typedef CompositeFunctor<KlassPtr, KlassWriter, KlassArtifactRegistrator> KlassWriterRegistration;
 typedef JfrArtifactCallbackHost<KlassPtr, KlassWriterRegistration> KlassCallback;
 
+template <>
+class LeakPredicate<const Klass*> {
+public:
+  LeakPredicate(bool class_unload) {}
+  bool operator()(const Klass* klass) {
+    assert(klass != NULL, "invariant");
+    return IS_LEAKP(klass) || is_implied(klass);
+  }
+};
+
 typedef LeakPredicate<KlassPtr> LeakKlassPredicate;
 typedef JfrPredicatedTypeWriterImplHost<KlassPtr, LeakKlassPredicate, write__klass__leakp> LeakKlassWriterImpl;
 typedef JfrTypeWriterHost<LeakKlassWriterImpl, TYPE_CLASS> LeakKlassWriter;
@@ -308,7 +320,6 @@ int write__artifact__package(JfrCheckpointWriter* writer, const void* p) {
   return 1;
 }
 
-/**
 typedef JfrTypeWriterImplHost<CStringEntryPtr, write__artifact__package> PackageEntryWriterImpl;
 typedef JfrTypeWriterHost<PackageEntryWriterImpl, TYPE_PACKAGE> PackageEntryWriter;
 
@@ -318,7 +329,6 @@ void write_packages() {
   PackageEntryWriter pw(_writer, _class_unload);
   _artifacts->iterate_packages(pw);
 }
-*/
 
 template <typename T>
 static void do_previous_epoch_artifact(JfrArtifactClosure* callback, T* value) {
@@ -657,6 +667,12 @@ static void write_symbols() {
   _artifacts->tally(sw);
 }
 
+static bool clear_artifacts = false;
+
+void JfrTypeSet::clear() {
+  clear_artifacts = true;
+}
+
 typedef Wrapper<KlassPtr, ClearArtifact> ClearKlassBits;
 typedef Wrapper<MethodPtr, ClearArtifact> ClearMethodFlag;
 typedef MethodIteratorHost<ClearMethodFlag, ClearKlassBits, false> ClearKlassAndMethods;
@@ -668,7 +684,7 @@ static size_t teardown() {
     assert(_writer != NULL, "invariant");
     ClearKlassAndMethods clear(_writer);
     _artifacts->iterate_klasses(clear);
-    _artifacts->clear();
+    JfrTypeSet::clear();
     ++checkpoint_id;
   }
   return total_count;
@@ -681,8 +697,9 @@ static void setup(JfrCheckpointWriter* writer, JfrCheckpointWriter* leakp_writer
   if (_artifacts == NULL) {
     _artifacts = new JfrArtifactSet(class_unload);
   } else {
-    _artifacts->initialize(class_unload);
+    _artifacts->initialize(class_unload, clear_artifacts);
   }
+  clear_artifacts = false;
   assert(_artifacts != NULL, "invariant");
   assert(!_artifacts->has_klass_entries(), "invariant");
 }
@@ -699,7 +716,7 @@ size_t JfrTypeSet::serialize(JfrCheckpointWriter* writer, JfrCheckpointWriter* l
   if (!write_klasses()) {
     return 0;
   }
-  // write_packages();
+  write_packages();
   write_classloaders();
   write_methods();
   write_symbols();
