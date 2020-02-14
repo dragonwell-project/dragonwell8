@@ -2023,7 +2023,7 @@ void CompileBroker::invoke_compiler_on_method(CompileTask* task) {
     compilable = ci_env.compilable();
 
     if (ci_env.failing()) {
-      const char *failure_reason = ci_env.failure_reason();
+      const char* failure_reason = ci_env.failure_reason();
       const char* retry_message = ci_env.retry_message();
       task->set_failure_reason(failure_reason);
       if (_compilation_log != NULL) {

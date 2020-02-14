@@ -256,10 +256,12 @@ static BiasedLocking::Condition revoke_bias(oop obj, bool allow_rebias, bool is_
     }
   }
 
+#if INCLUDE_JFR
   // If requested, return information on which thread held the bias
   if (biased_locker != NULL) {
     *biased_locker = biased_thread;
   }
+#endif // INCLUDE_JFR
 
   return BiasedLocking::BIAS_REVOKED;
 }
@@ -497,11 +499,15 @@ public:
       if (TraceBiasedLocking) {
         tty->print_cr("Revoking bias with potentially per-thread safepoint:");
       }
+
       JavaThread* biased_locker = NULL;
       _status_code = revoke_bias((*_obj)(), false, false, _requesting_thread, &biased_locker);
+#if INCLUDE_JFR
       if (biased_locker != NULL) {
         _biased_locker_id = JFR_THREAD_ID(biased_locker);
       }
+#endif // INCLUDE_JFR
+
       clean_up_cached_monitor_info();
       return;
     } else {
@@ -516,9 +522,11 @@ public:
     return _status_code;
   }
 
+#if INCLUDE_JFR
   traceid biased_locker() const {
     return _biased_locker_id;
   }
+#endif // INCLUDE_JFR
 };
 
 

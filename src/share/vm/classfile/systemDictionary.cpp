@@ -617,7 +617,7 @@ static void post_class_load_event(EventClassLoad &event,
                                     (ClassLoaderData*)NULL);
     event.commit();
   }
-#endif // INCLUDE_JFR
+#endif
 }
 
 Klass* SystemDictionary::resolve_instance_class_or_null(Symbol* name,
@@ -1337,24 +1337,23 @@ instanceKlassHandle SystemDictionary::load_instance_class(Symbol* class_name, Ha
     if (!k.is_null()) {
       k = find_or_define_instance_class(class_name, class_loader, k, CHECK_(nh));
     }
+
 #if INCLUDE_JFR
-    else {
+    if (k.is_null() && (class_name == jfr_event_handler_proxy)) {
       assert(jfr_event_handler_proxy != NULL, "invariant");
-      if (class_name == jfr_event_handler_proxy) {
-        // EventHandlerProxy class is generated dynamically in
-        // EventHandlerProxyCreator::makeEventHandlerProxyClass
-        // method, so we generate a Java call from here.
-        //
-        // EventHandlerProxy class will finally be defined in
-        // SystemDictionary::resolve_from_stream method, down
-        // the call stack. Bootstrap classloader is parallel-capable,
-        // so no concurrency issues are expected.
-        CLEAR_PENDING_EXCEPTION;
-        k = JfrUpcalls::load_event_handler_proxy_class(THREAD);
-        assert(!k.is_null(), "invariant");
-      }
+      // EventHandlerProxy class is generated dynamically in
+      // EventHandlerProxyCreator::makeEventHandlerProxyClass
+      // method, so we generate a Java call from here.
+      //
+      // EventHandlerProxy class will finally be defined in
+      // SystemDictionary::resolve_from_stream method, down
+      // the call stack. Bootstrap classloader is parallel-capable,
+      // so no concurrency issues are expected.
+      CLEAR_PENDING_EXCEPTION;
+      k = JfrUpcalls::load_event_handler_proxy_class(THREAD);
+      assert(!k.is_null(), "invariant");
     }
-#endif // INCLUDE_JFR
+#endif
 
     return k;
   } else {
