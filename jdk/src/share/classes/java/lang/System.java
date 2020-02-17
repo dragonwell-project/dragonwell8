@@ -43,6 +43,8 @@ import sun.reflect.Reflection;
 import sun.security.util.SecurityConstants;
 import sun.reflect.annotation.AnnotationType;
 
+import jdk.internal.util.StaticProperty;
+
 /**
  * The <code>System</code> class contains several useful class fields
  * and methods. It cannot be instantiated.
@@ -1183,6 +1185,7 @@ public final class System {
 
 
         lineSeparator = props.getProperty("line.separator");
+        StaticProperty.jdkSerialFilter();   // Load StaticProperty to cache the property values
         sun.misc.Version.init();
 
         FileInputStream fdIn = new FileInputStream(FileDescriptor.in);
@@ -1191,6 +1194,8 @@ public final class System {
         setIn0(new BufferedInputStream(fdIn));
         setOut0(newPrintStream(fdOut, props.getProperty("sun.stdout.encoding")));
         setErr0(newPrintStream(fdErr, props.getProperty("sun.stderr.encoding")));
+
+        ClassLoader.initLibraryPaths();
 
         // Load the zip library now in order to keep java.util.zip.ZipFile
         // from trying to use itself to load this library later.

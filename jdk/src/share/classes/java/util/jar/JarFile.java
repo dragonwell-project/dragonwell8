@@ -422,7 +422,12 @@ class JarFile extends ZipFile {
      */
     private byte[] getBytes(ZipEntry ze) throws IOException {
         try (InputStream is = super.getInputStream(ze)) {
-            return IOUtils.readFully(is, (int)ze.getSize(), true);
+            int len = (int)ze.getSize();
+            byte[] b = IOUtils.readAllBytes(is);
+            if (len != -1 && b.length != len)
+                throw new EOFException("Expected:" + len + ", read:" + b.length);
+
+            return b;
         }
     }
 

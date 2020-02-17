@@ -3,7 +3,7 @@ grant {
         // Specific permission under test
         permission java.security.SerializablePermission "serialFilter";
         // Permissions needed to run the test
-        permission java.util.PropertyPermission "*", "read";
+        permission java.util.PropertyPermission "*", "read,write";
         permission java.io.FilePermission "<<ALL FILES>>", "read,write,delete";
         permission java.lang.reflect.ReflectPermission "suppressAccessChecks";
         permission java.security.SecurityPermission "*";
