@@ -3990,6 +3990,14 @@ class CommandLineFlags {
              "Use the FP register for holding the frame pointer "           \
              "and not as a general purpose register.")                      \
                                                                             \
+  product(bool, EnableTracing, false,                                       \
+          "Enable event-based tracing"                                      \
+          "Deprecated: use FlightRecorder instead")                         \
+                                                                            \
+  product(bool, UseLockedTracing, false,                                    \
+          "Use locked-tracing when doing event-based tracing"               \
+          "Deprecated: use FlightRecorder instead")                         \
+                                                                            \
   JFR_ONLY(product(bool, FlightRecorder, false,                             \
           "Enable Flight Recorder"))                                        \
                                                                             \
