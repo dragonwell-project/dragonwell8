@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,17 +25,17 @@
  * @test
  * @bug 8031321
  * @library /testlibrary /testlibrary/whitebox /compiler/whitebox ..
- * @build AddnTestI
+ * @build AndnTestI
  * @run main ClassFileInstaller sun.hotspot.WhiteBox
  * @run main/othervm -Xbootclasspath/a:. -Xbatch -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
- *                   -XX:+IgnoreUnrecognizedVMOptions -XX:+UseBMI1Instructions AddnTestI
+ *                   -XX:+IgnoreUnrecognizedVMOptions -XX:+UseBMI1Instructions AndnTestI
  */
 
 import java.lang.reflect.Method;
 
-public class AddnTestI extends BmiIntrinsicBase.BmiTestCase {
+public class AndnTestI extends BmiIntrinsicBase.BmiTestCase {
 
-    protected AddnTestI(Method method) {
+    protected AndnTestI(Method method) {
         super(method);
         // from intel manual VEX.NDS.LZ.0F38.W0 F2 /r, example c4e260f2c2
         instrMask = new byte[]{
@@ -51,7 +51,7 @@ public class AddnTestI extends BmiIntrinsicBase.BmiTestCase {
     }
 
     public static void main(String[] args) throws Exception {
-        BmiIntrinsicBase.verifyTestCase(AddnTestI::new, TestAndnI.AndnIExpr.class.getDeclaredMethods());
-        BmiIntrinsicBase.verifyTestCase(AddnTestI::new, TestAndnI.AndnICommutativeExpr.class.getDeclaredMethods());
+        BmiIntrinsicBase.verifyTestCase(AndnTestI::new, TestAndnI.AndnIExpr.class.getDeclaredMethods());
+        BmiIntrinsicBase.verifyTestCase(AndnTestI::new, TestAndnI.AndnICommutativeExpr.class.getDeclaredMethods());
     }
 }
