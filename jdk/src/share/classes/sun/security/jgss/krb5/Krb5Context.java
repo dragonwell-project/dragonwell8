@@ -713,14 +713,14 @@ class Krb5Context implements GSSContextSpi {
                             if (subject != null &&
                                 !subject.isReadOnly()) {
                                 /*
-                             * Store the service credentials as
-                             * javax.security.auth.kerberos.KerberosTicket in
-                             * the Subject. We could wait till the context is
-                             * succesfully established; however it is easier
-                             * to do here and there is no harm indoing it here.
-                             */
+                                * Store the service credentials as
+                                * javax.security.auth.kerberos.KerberosTicket in
+                                * the Subject. We could wait until the context is
+                                * successfully established; however it is easier
+                                * to do it here and there is no harm.
+                                */
                                 final KerberosTicket kt =
-                                    Krb5Util.credsToTicket(serviceCreds);
+                                        Krb5Util.credsToTicket(serviceCreds);
                                 AccessController.doPrivileged (
                                     new java.security.PrivilegedAction<Void>() {
                                       public Void run() {

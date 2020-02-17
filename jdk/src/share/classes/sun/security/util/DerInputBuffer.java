@@ -300,7 +300,7 @@ class DerInputBuffer extends ByteArrayInputStream implements Cloneable {
          *       YYMMDDhhmmss-hhmm
          * UTC Time is broken in storing only two digits of year.
          * If YY < 50, we assume 20YY;
-         * if YY >= 50, we assume 19YY, as per RFC 3280.
+         * if YY >= 50, we assume 19YY, as per RFC 5280.
          *
          * Generalized time has a four-digit year and allows any
          * precision specified in ISO 8601. However, for our purposes,

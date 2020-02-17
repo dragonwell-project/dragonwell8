@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -34,6 +34,7 @@ package sun.security.krb5;
 import sun.security.krb5.internal.*;
 import sun.security.krb5.internal.crypto.KeyUsage;
 import java.io.IOException;
+
 import sun.security.util.DerValue;
 
 /**
@@ -62,7 +63,6 @@ public class KrbCred {
 
         PrincipalName client = tgt.getClient();
         PrincipalName tgService = tgt.getServer();
-        PrincipalName server = serviceTicket.getServer();
         if (!serviceTicket.getClient().equals(client))
             throw new KrbException(Krb5.KRB_ERR_GENERIC,
                                 "Client principal does not match");
@@ -75,14 +75,10 @@ public class KrbCred {
         options.set(KDCOptions.FORWARDED, true);
         options.set(KDCOptions.FORWARDABLE, true);
 
-        HostAddresses sAddrs = null;
-        // XXX Also NT_GSS_KRB5_PRINCIPAL can be a host based principal
-        // GSSName.NT_HOSTBASED_SERVICE should display with KRB_NT_SRV_HST
-        if (server.getNameType() == PrincipalName.KRB_NT_SRV_HST)
-            sAddrs=  new HostAddresses(server);
-
         KrbTgsReq tgsReq = new KrbTgsReq(options, tgt, tgService,
-                                         null, null, null, null, sAddrs, null, null, null);
+                null, null, null, null, null,
+                null,   // No easy way to get addresses right
+                null, null, null);
         credMessg = createMessage(tgsReq.sendAndGetCreds(), key);
 
         obuf = credMessg.asn1Encode();
@@ -94,7 +90,6 @@ public class KrbCred {
         EncryptionKey sessionKey
             = delegatedCreds.getSessionKey();
         PrincipalName princ = delegatedCreds.getClient();
-        Realm realm = princ.getRealm();
         PrincipalName tgService = delegatedCreds.getServer();
 
         KrbCredInfo credInfo = new KrbCredInfo(sessionKey,
@@ -157,7 +152,7 @@ public class KrbCred {
                                + " endtime=" + endtime
                                + "renewTill=" + renewTill);
         }
-        creds = new Credentials(ticket, pname, sname, credInfoKey,
+        creds = new Credentials(ticket, pname, null, sname, null, credInfoKey,
                                 flags, authtime, starttime, endtime, renewTill, caddr);
     }
 

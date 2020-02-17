@@ -1,4 +1,6 @@
 /*
+ * Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -30,10 +32,12 @@
 
 package sun.security.krb5.internal;
 
-import sun.security.krb5.KrbException;
+import sun.security.krb5.internal.crypto.EType;
 import sun.security.util.*;
 import sun.security.krb5.Asn1Exception;
 import java.io.IOException;
+import java.util.Vector;
+
 import sun.security.krb5.internal.util.KerberosString;
 
 /**
@@ -139,6 +143,41 @@ public class PAData {
     }
 
     /**
+     * Parse (unmarshal) a PAData from a DER input stream.  This form
+     * parsing might be used when expanding a value which is part of
+     * a constructed sequence and uses explicitly tagged type.
+     *
+     * @exception Asn1Exception if an Asn1Exception occurs.
+     * @param data the Der input stream value, which contains one or more
+     *        marshaled values.
+     * @param explicitTag tag number.
+     * @param optional indicates if this data field is optional.
+     * @return an array of PAData.
+     */
+    public static PAData[] parseSequence(DerInputStream data,
+                                      byte explicitTag, boolean optional)
+        throws Asn1Exception, IOException {
+        if ((optional) &&
+                (((byte)data.peekByte() & (byte)0x1F) != explicitTag))
+                return null;
+        DerValue subDer = data.getDerValue();
+        DerValue subsubDer = subDer.getData().getDerValue();
+        if (subsubDer.getTag() != DerValue.tag_SequenceOf) {
+            throw new Asn1Exception(Krb5.ASN1_BAD_ID);
+        }
+        Vector<PAData> v = new Vector<>();
+        while (subsubDer.getData().available() > 0) {
+            v.addElement(new PAData(subsubDer.getData().getDerValue()));
+        }
+        if (v.size() > 0) {
+            PAData[] pas = new PAData[v.size()];
+            v.copyInto(pas);
+            return pas;
+        }
+        return null;
+    }
+
+    /**
      * Gets the preferred etype from the PAData array.
      * 1. ETYPE-INFO2-ENTRY with unknown s2kparams ignored
      * 2. ETYPE-INFO2 preferred to ETYPE-INFO
@@ -169,8 +208,8 @@ public class PAData {
             while (d2.data.available() > 0) {
                 DerValue value = d2.data.getDerValue();
                 ETypeInfo2 tmp = new ETypeInfo2(value);
-                if (tmp.getParams() == null) {
-                    // we don't support non-null s2kparams
+                if (EType.isNewer(tmp.getEType()) || tmp.getParams() == null) {
+                    // we don't support non-null s2kparams for old etypes
                     return tmp.getEType();
                 }
             }
@@ -236,8 +275,9 @@ public class PAData {
             while (d2.data.available() > 0) {
                 DerValue value = d2.data.getDerValue();
                 ETypeInfo2 tmp = new ETypeInfo2(value);
-                if (tmp.getParams() == null && tmp.getEType() == eType) {
-                    // we don't support non-null s2kparams
+                if (tmp.getEType() == eType &&
+                        (EType.isNewer(eType) || tmp.getParams() == null)) {
+                    // we don't support non-null s2kparams for old etypes
                     return new SaltAndParams(tmp.getSalt(), tmp.getParams());
                 }
             }

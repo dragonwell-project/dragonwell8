@@ -743,7 +743,7 @@ public class TimestampCheck {
         try (JarFile jf = new JarFile(file)) {
             JarEntry je = jf.getJarEntry("META-INF/SIGNER.RSA");
             try (InputStream is = jf.getInputStream(je)) {
-                byte[] content = IOUtils.readFully(is, -1, true);
+                byte[] content = IOUtils.readAllBytes(is);
                 PKCS7 p7 = new PKCS7(content);
                 SignerInfo[] si = p7.getSignerInfos();
                 if (si == null || si.length == 0) {

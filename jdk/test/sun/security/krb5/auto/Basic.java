@@ -23,10 +23,12 @@
 
 /*
  * @test
- * @bug 7152176
+ * @bug 7152176 8201627
  * @summary More krb5 tests
  * @compile -XDignore.symbol.file Basic.java
- * @run main/othervm -Dsun.net.spi.nameservice.provider.1=ns,mock Basic
+ * @run main/othervm -Dsun.net.spi.nameservice.provider.1=ns,mock
+ *      -Dsun.security.krb5.acceptor.sequence.number.nonmutual=zero
+ *      Basic
  */
 
 import sun.security.jgss.GSSUtil;
@@ -45,6 +47,7 @@ public class Basic {
 
         c.startAsClient(OneKDC.SERVER, GSSUtil.GSS_KRB5_MECH_OID);
         c.x().requestCredDeleg(true);
+        c.x().requestMutualAuth(false);
         s.startAsServer(GSSUtil.GSS_KRB5_MECH_OID);
 
         Context.handshake(c, s);

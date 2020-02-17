@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -42,9 +42,11 @@ import org.testng.annotations.DataProvider;
 import sun.misc.ObjectInputFilter;
 
 /* @test
+ * @bug 8231422
  * @build GlobalFilterTest SerialFilterTest
  * @run testng/othervm GlobalFilterTest
- * @run testng/othervm -Djdk.serialFilter=java.** GlobalFilterTest
+ * @run testng/othervm -Djdk.serialFilter=java.**
+ *          -Dexpected-jdk.serialFilter=java.** GlobalFilterTest
  * @run testng/othervm/policy=security.policy GlobalFilterTest
  * @run testng/othervm/policy=security.policy
  *        -Djava.security.properties=${test.src}/java.security-extra1
@@ -54,6 +56,10 @@ import sun.misc.ObjectInputFilter;
  */
 @Test
 public class GlobalFilterTest {
+    private static final String serialPropName = "jdk.serialFilter";
+    private static final String badSerialFilter = "java.lang.StringBuffer;!*";
+    private static final String origSerialFilterProperty =
+            System.setProperty(serialPropName, badSerialFilter);
 
     /**
      * DataProvider of patterns and objects derived from the configured process-wide filter.
@@ -62,8 +68,8 @@ public class GlobalFilterTest {
     @DataProvider(name="globalPatternElements")
     Object[][] globalPatternElements() {
         String globalFilter =
-                System.getProperty("jdk.serialFilter",
-                        Security.getProperty("jdk.serialFilter"));
+                System.getProperty("expected-" + serialPropName,
+                        Security.getProperty(serialPropName));
         if (globalFilter == null) {
             return new Object[0][];
         }
@@ -100,12 +106,20 @@ public class GlobalFilterTest {
      */
     @Test()
     static void globalFilter() {
-        String pattern =
-                System.getProperty("jdk.serialFilter",
-                        Security.getProperty("jdk.serialFilter"));
         ObjectInputFilter filter = ObjectInputFilter.Config.getSerialFilter();
+
+        // Check that the System.setProperty(jdk.serialFilter) DOES NOT affect the filter.
+        String asSetSystemProp = System.getProperty(serialPropName,
+                Security.getProperty(serialPropName));
+        Assert.assertNotEquals(Objects.toString(filter, null), asSetSystemProp,
+                "System.setProperty(\"jdk.serialfilter\", ...) should not change filter: " +
+                asSetSystemProp);
+
+        String pattern =
+               System.getProperty("expected-" + serialPropName,
+                       Security.getProperty(serialPropName));
         System.out.printf("global pattern: %s, filter: %s%n", pattern, filter);
-        Assert.assertEquals(pattern, Objects.toString(filter, null),
+        Assert.assertEquals(Objects.toString(filter, null), pattern,
                 "process-wide filter pattern does not match");
     }
 

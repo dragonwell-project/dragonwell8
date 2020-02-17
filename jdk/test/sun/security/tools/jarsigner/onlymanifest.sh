@@ -57,7 +57,7 @@ rm $KS $JFILE 2> /dev/null
 echo "Key: Value" > manifest
 $JAR cvfm $JFILE manifest
 
-$KT -alias ca -dname CN=ca -genkey -validity 300 || exit 1
+$KT -alias ca -dname CN=ca -genkey -validity 300 -ext bc:c || exit 1
 $KT -alias a -dname CN=a -genkey -validity 300 || exit 2
 $KT -alias a -certreq | $KT -gencert -alias ca -validity 300 | $KT -import -alias a || exit 3
 $JARSIGNER -keystore $KS -storepass changeit $JFILE a -debug -strict || exit 4

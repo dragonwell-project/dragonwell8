@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -35,6 +35,8 @@ import sun.security.krb5.internal.*;
 import sun.security.krb5.internal.crypto.Nonce;
 import sun.security.krb5.internal.crypto.KeyUsage;
 import java.io.IOException;
+import java.time.Instant;
+import java.util.Arrays;
 
 /**
  * This class encapsulates the KRB-AS-REQ message that the client
@@ -57,14 +59,14 @@ public class KrbAsReq {
                       KerberosTime till,        // ok, will use
                       KerberosTime rtime,       // ok
                       int[] eTypes,             // NO
-                      HostAddresses addresses   // ok
+                      HostAddresses addresses,  // ok
+                      PAData[] extraPAs         // ok
                       )
             throws KrbException, IOException {
 
         if (options == null) {
             options = new KDCOptions();
         }
-
         // check if they are valid arguments. The optional fields should be
         // consistent with settings in KDCOptions. Mar 17 2000
         if (options.get(KDCOptions.FORWARDED) ||
@@ -82,12 +84,6 @@ public class KrbAsReq {
         } else {
             if (from != null)  from = null;
         }
-        if (options.get(KDCOptions.RENEWABLE)) {
-            //  if (rtime == null)
-            //          throw new KrbException(Krb5.KRB_AP_ERR_REQ_OPTIONS);
-        } else {
-            if (rtime != null)  rtime = null;
-        }
 
         PAData[] paData = null;
         if (pakey != null) {
@@ -99,6 +95,15 @@ public class KrbAsReq {
             paData[0] = new PAData( Krb5.PA_ENC_TIMESTAMP,
                                     encTs.asn1Encode());
         }
+        if (extraPAs != null && extraPAs.length > 0) {
+            if (paData == null) {
+                paData = new PAData[extraPAs.length];
+            } else {
+                paData = Arrays.copyOf(paData, paData.length + extraPAs.length);
+            }
+            System.arraycopy(extraPAs, 0, paData,
+                    paData.length - extraPAs.length, extraPAs.length);
+        }
 
         if (cname.getRealm() == null) {
             throw new RealmException(Krb5.REALM_NULL,
@@ -109,8 +114,10 @@ public class KrbAsReq {
             System.out.println(">>> KrbAsReq creating message");
         }
 
+        Config cfg = Config.getInstance();
+
         // check to use addresses in tickets
-        if (addresses == null && Config.getInstance().useAddresses()) {
+        if (addresses == null && cfg.useAddresses()) {
             addresses = HostAddresses.getLocalAddresses();
         }
 
@@ -120,7 +127,26 @@ public class KrbAsReq {
         }
 
         if (till == null) {
-            till = new KerberosTime(0); // Choose KDC maximum allowed
+            String d = cfg.get("libdefaults", "ticket_lifetime");
+            if (d != null) {
+                till = new KerberosTime(Instant.now().plusSeconds(Config.duration(d)));
+            } else {
+                till = new KerberosTime(0); // Choose KDC maximum allowed
+            }
+        }
+
+        if (rtime == null) {
+            String d = cfg.get("libdefaults", "renew_lifetime");
+            if (d != null) {
+                rtime = new KerberosTime(Instant.now().plusSeconds(Config.duration(d)));
+            }
+        }
+
+        if (rtime != null) {
+            options.set(KDCOptions.RENEWABLE, true);
+            if (till.greaterThan(rtime)) {
+                rtime = till;
+            }
         }
 
         // enc-authorization-data and additional-tickets never in AS-REQ

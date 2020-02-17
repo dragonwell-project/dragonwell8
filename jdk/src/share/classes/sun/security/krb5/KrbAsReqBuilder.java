@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2010, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -68,6 +68,7 @@ public final class KrbAsReqBuilder {
     // Common data for AS-REQ fields
     private KDCOptions options;
     private PrincipalName cname;
+    private PrincipalName refCname; // May be changed by referrals
     private PrincipalName sname;
     private KerberosTime from;
     private KerberosTime till;
@@ -100,6 +101,7 @@ public final class KrbAsReqBuilder {
     private void init(PrincipalName cname)
             throws KrbException {
         this.cname = cname;
+        this.refCname = cname;
         state = State.INIT;
     }
 
@@ -224,6 +226,16 @@ public final class KrbAsReqBuilder {
         this.options = options;
     }
 
+    public void setTill(KerberosTime till) {
+        checkState(State.INIT, "Cannot specify till");
+        this.till = till;
+    }
+
+    public void setRTime(KerberosTime rtime) {
+        checkState(State.INIT, "Cannot specify rtime");
+        this.rtime = rtime;
+    }
+
     /**
      * Sets or clears target. If cleared, KrbAsReq might choose krbtgt
      * for cname realm
@@ -252,7 +264,9 @@ public final class KrbAsReqBuilder {
      * @throws KrbException
      * @throws IOException
      */
-    private KrbAsReq build(EncryptionKey key) throws KrbException, IOException {
+    private KrbAsReq build(EncryptionKey key, ReferralsState referralsState)
+            throws KrbException, IOException {
+        PAData[] extraPAs = null;
         int[] eTypes;
         if (password != null) {
             eTypes = EType.getDefaults("default_tkt_enctypes");
@@ -262,15 +276,24 @@ public final class KrbAsReqBuilder {
                     ks);
             for (EncryptionKey k: ks) k.destroy();
         }
+        options = (options == null) ? new KDCOptions() : options;
+        if (referralsState.isEnabled()) {
+            options.set(KDCOptions.CANONICALIZE, true);
+            extraPAs = new PAData[]{ new PAData(Krb5.PA_REQ_ENC_PA_REP,
+                    new byte[]{}) };
+        } else {
+            options.set(KDCOptions.CANONICALIZE, false);
+        }
         return new KrbAsReq(key,
             options,
-            cname,
+            refCname,
             sname,
             from,
             till,
             rtime,
             eTypes,
-            addresses);
+            addresses,
+            extraPAs);
     }
 
     /**
@@ -308,11 +331,15 @@ public final class KrbAsReqBuilder {
      */
     private KrbAsReqBuilder send() throws KrbException, IOException {
         boolean preAuthFailedOnce = false;
-        KdcComm comm = new KdcComm(cname.getRealmAsString());
+        KdcComm comm = null;
         EncryptionKey pakey = null;
+        ReferralsState referralsState = new ReferralsState();
         while (true) {
+            if (referralsState.refreshComm()) {
+                comm = new KdcComm(refCname.getRealmAsString());
+            }
             try {
-                req = build(pakey);
+                req = build(pakey, referralsState);
                 rep = new KrbAsRep(comm.send(req.encoding()));
                 return this;
             } catch (KrbException ke) {
@@ -341,9 +368,68 @@ public final class KrbAsReqBuilder {
                     }
                     paList = kerr.getPA();  // Update current paList
                 } else {
+                    if (referralsState.handleError(ke)) {
+                        pakey = null;
+                        preAuthFailedOnce = false;
+                        continue;
+                    }
                     throw ke;
                 }
             }
+        }
+    }
+
+    private final class ReferralsState {
+        private boolean enabled;
+        private int count;
+        private boolean refreshComm;
+
+        ReferralsState() throws KrbException {
+            if (Config.DISABLE_REFERRALS) {
+                if (refCname.getNameType() == PrincipalName.KRB_NT_ENTERPRISE) {
+                    throw new KrbException("NT-ENTERPRISE principals only allowed" +
+                            " when referrals are enabled.");
+                }
+                enabled = false;
+            } else {
+                enabled = true;
+            }
+            refreshComm = true;
+        }
+
+        boolean handleError(KrbException ke) throws RealmException {
+            if (enabled) {
+                if (ke.returnCode() == Krb5.KRB_ERR_WRONG_REALM) {
+                    Realm referredRealm = ke.getError().getClientRealm();
+                    if (req.getMessage().reqBody.kdcOptions.get(KDCOptions.CANONICALIZE) &&
+                            referredRealm != null && referredRealm.toString().length() > 0 &&
+                            count < Config.MAX_REFERRALS) {
+                        refCname = new PrincipalName(refCname.getNameType(),
+                                refCname.getNameStrings(), referredRealm);
+                        refreshComm = true;
+                        count++;
+                        return true;
+                    }
+                }
+                if (count < Config.MAX_REFERRALS &&
+                        refCname.getNameType() != PrincipalName.KRB_NT_ENTERPRISE) {
+                    // Server may raise an error if CANONICALIZE is true.
+                    // Try CANONICALIZE false.
+                    enabled = false;
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        boolean refreshComm() {
+            boolean retRefreshComm = refreshComm;
+            refreshComm = false;
+            return retRefreshComm;
+        }
+
+        boolean isEnabled() {
+            return enabled;
         }
     }
 

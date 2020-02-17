@@ -42,7 +42,7 @@ public class Warning {
 
         Files.deleteIfExists(Paths.get("ks"));
 
-        newCert("ca", "-validity 365000");
+        newCert("ca", "-validity 365000", "-ext bc:c");
 
         recreateJar();
 

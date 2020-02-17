@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -118,7 +118,7 @@ class KrbAsRep extends KrbKdcRep {
                     "Cannot find key for type/kvno to decrypt AS REP - " +
                     EType.toString(encPartKeyType) + "/" + encPartKvno);
             }
-        decrypt(dkey, asReq);
+        decrypt(dkey, asReq, cname);
     }
 
     /**
@@ -136,7 +136,7 @@ class KrbAsRep extends KrbKdcRep {
                 password,
                 encPartKeyType,
                 PAData.getSaltAndParams(encPartKeyType, rep.pAData));
-        decrypt(dkey, asReq);
+        decrypt(dkey, asReq, cname);
     }
 
     /**
@@ -144,7 +144,8 @@ class KrbAsRep extends KrbKdcRep {
      * @param dkey the decryption key to use
      * @param asReq the original AS-REQ sent, used to validate AS-REP
      */
-    private void decrypt(EncryptionKey dkey, KrbAsReq asReq)
+    private void decrypt(EncryptionKey dkey, KrbAsReq asReq,
+            PrincipalName cname)
             throws KrbException, Asn1Exception, IOException {
         byte[] enc_as_rep_bytes = rep.encPart.decrypt(dkey,
             KeyUsage.KU_ENC_AS_REP_PART);
@@ -155,12 +156,18 @@ class KrbAsRep extends KrbKdcRep {
         rep.encKDCRepPart = enc_part;
 
         ASReq req = asReq.getMessage();
-        check(true, req, rep);
+        check(true, req, rep, dkey);
+
+        PrincipalName clientAlias = cname;
+        if (clientAlias.equals(rep.cname))
+            clientAlias = null;
 
         creds = new Credentials(
                                 rep.ticket,
-                                req.reqBody.cname,
+                                rep.cname,
+                                clientAlias,
                                 enc_part.sname,
+                                null, // No server alias expected in a TGT
                                 enc_part.key,
                                 enc_part.flags,
                                 enc_part.authtime,
