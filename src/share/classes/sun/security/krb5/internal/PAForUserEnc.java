@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -133,6 +133,7 @@ public class PAForUserEnc {
         bytes.write(DerValue.createTag(DerValue.TAG_CONTEXT, true, (byte)0x01), name.getRealm().asn1Encode());
 
         try {
+            // MS-SFU 2.2.1: use hmac-md5 checksum regardless of key type
             Checksum cks = new Checksum(
                     Checksum.CKSUMTYPE_HMAC_MD5_ARCFOUR,
                     getS4UByteArray(),

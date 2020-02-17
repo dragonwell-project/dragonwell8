@@ -53,7 +53,7 @@ rm $KS $JFILE
 echo A > A
 $JAR cvf $JFILE A
 
-$KT -alias ca -dname CN=ca -keyalg ec -genkey -validity 300 || exit 11
+$KT -alias ca -dname CN=ca -keyalg ec -genkey -validity 300 -ext bc:c || exit 11
 
 $KT -alias a -dname CN=a -keyalg ec -genkey || exit 11
 $KT -alias a -certreq | $KT -gencert -alias ca -validity 300 | $KT -import -alias a || exit 111

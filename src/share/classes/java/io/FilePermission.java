@@ -46,8 +46,11 @@ import sun.security.util.SecurityConstants;
  * the file separator character, <code>File.separatorChar</code>) indicates
  * all the files and directories contained in that directory. A pathname
  * that ends with "/-" indicates (recursively) all files
- * and subdirectories contained in that directory. A pathname consisting of
- * the special token "&lt;&lt;ALL FILES&gt;&gt;" matches <b>any</b> file.
+ * and subdirectories contained in that directory. Such a pathname is called
+ * a wildcard pathname. Otherwise, it's a simple pathname.
+ * <P>
+ * A pathname consisting of the special token {@literal "<<ALL FILES>>"}
+ * matches <b>any</b> file.
  * <P>
  * Note: A pathname consisting of a single "*" indicates all the files
  * in the current directory, while a pathname consisting of a single "-"
@@ -80,7 +83,7 @@ import sun.security.util.SecurityConstants;
  * <P>
  * Be careful when granting FilePermissions. Think about the implications
  * of granting read and especially write access to various files and
- * directories. The "&lt;&lt;ALL FILES&gt;&gt;" permission with write action is
+ * directories. The {@literal "<<ALL FILES>>"} permission with write action is
  * especially dangerous. This grants permission to write to the entire
  * file system. One thing this effectively allows is replacement of the
  * system binary, including the JVM runtime environment.
@@ -156,6 +159,7 @@ public final class FilePermission extends Permission implements Serializable {
 
     private transient String cpath;
 
+    private transient boolean allFiles; // whether this is <<ALL FILES>>
     private transient boolean invalid;  // whether input path is invalid
 
     // static Strings used by init(int mask)
@@ -207,6 +211,7 @@ public final class FilePermission extends Permission implements Serializable {
         this.mask = mask;
 
         if (cpath.equals("<<ALL FILES>>")) {
+            allFiles = true;
             directory = true;
             recursive = true;
             cpath = "";
@@ -335,6 +340,23 @@ public final class FilePermission extends Permission implements Serializable {
      *      "/tmp/*" encompasses all files in the "/tmp" directory,
      *      including the one named "foo".
      * </ul>
+     * <P>
+     * Precisely, a simple pathname implies another simple pathname
+     * if and only if they are equal. A simple pathname never implies
+     * a wildcard pathname. A wildcard pathname implies another wildcard
+     * pathname if and only if all simple pathnames implied by the latter
+     * are implied by the former. A wildcard pathname implies a simple
+     * pathname if and only if
+     * <ul>
+     *     <li>if the wildcard flag is "*", the simple pathname's path
+     *     must be right inside the wildcard pathname's path.
+     *     <li>if the wildcard flag is "-", the simple pathname's path
+     *     must be recursively inside the wildcard pathname's path.
+     * </ul>
+     * <P>
+     * {@literal "<<ALL FILES>>"} implies every other pathname. No pathname,
+     * except for {@literal "<<ALL FILES>>"} itself, implies
+     * {@literal "<<ALL FILES>>"}.
      *
      * @param p the permission to check against.
      *
@@ -366,7 +388,13 @@ public final class FilePermission extends Permission implements Serializable {
         if (this == that) {
             return true;
         }
+        if (allFiles) {
+            return true;
+        }
         if (this.invalid || that.invalid) {
+            return false;
+        }
+        if (that.allFiles) {
             return false;
         }
         if (this.directory) {
@@ -415,6 +443,10 @@ public final class FilePermission extends Permission implements Serializable {
      * Checks two FilePermission objects for equality. Checks that <i>obj</i> is
      * a FilePermission, and has the same pathname and actions as this object.
      *
+     * @implNote More specifically, two pathnames are the same if and only if
+     * they have the same wildcard flag and their
+     * {@code npath} are equal. Or they are both {@literal "<<ALL FILES>>"}.
+     *
      * @param obj the object we are testing for equality with this object.
      * @return <code>true</code> if obj is a FilePermission, and has the same
      *          pathname and actions as this FilePermission object,
@@ -433,6 +465,7 @@ public final class FilePermission extends Permission implements Serializable {
             return false;
         }
         return (this.mask == that.mask) &&
+            (this.allFiles == that.allFiles) &&
             this.cpath.equals(that.cpath) &&
             (this.directory == that.directory) &&
             (this.recursive == that.recursive);
