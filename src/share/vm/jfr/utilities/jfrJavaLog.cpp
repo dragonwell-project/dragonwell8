@@ -39,25 +39,25 @@ void JfrJavaLog::log(jint tag_set, jint level, jstring message, TRAPS) {
   ResourceMark rm(THREAD);
   const char* const s = JfrJavaSupport::c_str(message, CHECK);
   assert(s != NULL, "invariant");
-  
+
   switch(level) {
   case LogLevel::Off:
     break;
   case LogLevel::Trace:
-    log_trace(jfr)(s);
+    log_trace(jfr)("%s", s);
     break;
   case LogLevel::Debug:
-    log_debug(jfr)(s);
+    log_debug(jfr)("%s", s);
     break;
   case LogLevel::Info:
-    log_info(jfr)(s);
+    log_info(jfr)("%s", s);
     break;
   case LogLevel::Warning:
-    log_warning(jfr)(s);
+    log_warning(jfr)("%s", s);
     break;
   case LogLevel::Error:
-    log_error(jfr)(s);
-    break;  
+    log_error(jfr)("%s", s);
+    break;
   default:
     break;
   }

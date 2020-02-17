@@ -290,7 +290,7 @@ Monitor*    ElasticHeapTimer::_monitor = NULL;
 
 bool ElasticHeapTimer::has_error(TRAPS, const char* error) {
   if (HAS_PENDING_EXCEPTION) {
-    tty->print_cr(error);
+    tty->print_cr("%s", error);
     java_lang_Throwable::print(PENDING_EXCEPTION, tty);
     tty->cr();
     CLEAR_PENDING_EXCEPTION;
