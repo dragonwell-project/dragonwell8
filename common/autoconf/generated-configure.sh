@@ -1855,7 +1855,7 @@ Optional Features:
                           run the Queens test after Hotspot build [disabled]
   --enable-unlimited-crypto
                           Enable unlimited crypto policy [disabled]
-  --enable-jfr            Enable Java Flight Recorder support [disabled]
+  --disable-jfr           Disable Java Flight Recorder support [enabled]
   --disable-debug-symbols disable generation of debug symbols [enabled]
   --disable-zip-debug-info
                           disable zipping of debug-info files [enabled]
@@ -4391,7 +4391,7 @@ VS_SDK_PLATFORM_NAME_2017=
 #CUSTOM_AUTOCONF_INCLUDE
 
 # Do not change or remove the following line, it is needed for consistency checks:
-DATE_WHEN_GENERATED=1565695932
+DATE_WHEN_GENERATED=1580996389
 
 ###############################################################################
 #
@@ -19827,7 +19827,7 @@ $as_echo_n "checking whether to build jfr... " >&6; }
 if test "${enable_jfr+set}" = set; then :
   enableval=$enable_jfr;
 else
-  enable_jfr=no
+  enable_jfr=yes
 fi
 
   if test "x$enable_jfr" = "xno"; then

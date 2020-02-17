@@ -440,9 +440,9 @@ AC_DEFUN_ONCE([JDKOPT_SETUP_JDK_OPTIONS],
   # Enable or disable JFR
   #
   AC_MSG_CHECKING([whether to build jfr])
-  AC_ARG_ENABLE(jfr, [AS_HELP_STRING([--enable-jfr],
-      [Enable Java Flight Recorder support @<:@disabled@:>@])],,
-      [enable_jfr=no])
+  AC_ARG_ENABLE(jfr, [AS_HELP_STRING([--disable-jfr],
+      [Disable Java Flight Recorder support @<:@enabled@:>@])],,
+      [enable_jfr=yes])
   if test "x$enable_jfr" = "xno"; then
     ENABLE_JFR=false
   elif test "x$enable_jfr" = "xyes"; then
