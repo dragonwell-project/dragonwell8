@@ -36,6 +36,7 @@ import java.util.HashMap;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.locks.LockSupport;
+import com.alibaba.rcm.internal.AbstractResourceContainer;
 import sun.nio.ch.Interruptible;
 import sun.reflect.CallerSensitive;
 import sun.reflect.Reflection;
@@ -213,6 +214,10 @@ class Thread implements Runnable {
 
     private volatile int threadStatus = 0;
 
+    /**
+     * The thread attached {@code ResourceContainer}
+     */
+    AbstractResourceContainer resourceContainer;
 
     private static synchronized long nextThreadID() {
         return ++threadSeqNumber;
@@ -423,6 +428,10 @@ class Thread implements Runnable {
 
         /* Set thread ID */
         tid = nextThreadID();
+
+        /* com.alibaba.rcm API */
+        this.resourceContainer = parent.resourceContainer != null ?
+                parent.resourceContainer : AbstractResourceContainer.root();
     }
 
     /**

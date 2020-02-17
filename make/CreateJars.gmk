@@ -559,7 +559,8 @@ EXPORTED_PRIVATE_PKGS = com.oracle.net \
     com.oracle.nio \
     com.alibaba.jwarmup \
     com.alibaba.management \
-    com.alibaba.jvm.gc
+    com.alibaba.jvm.gc \
+    com.alibaba.rcm
 
 $(IMAGES_OUTPUTDIR)/symbols/_the.symbols: $(IMAGES_OUTPUTDIR)/lib/rt.jar
 	$(RM) -r $(IMAGES_OUTPUTDIR)/symbols/META-INF/sym

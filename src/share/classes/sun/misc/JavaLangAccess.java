@@ -30,6 +30,7 @@ import java.lang.reflect.Executable;
 import java.security.AccessControlContext;
 import java.util.Map;
 
+import com.alibaba.rcm.internal.AbstractResourceContainer;
 import sun.reflect.ConstantPool;
 import sun.reflect.annotation.AnnotationType;
 import sun.nio.ch.Interruptible;
@@ -132,4 +133,16 @@ public interface JavaLangAccess {
      * Invokes the finalize method of the given object.
      */
     void invokeFinalize(Object o) throws Throwable;
+
+    /**
+     * Set the value of {@code thread.resourceContainer}
+     *
+     * @param thread target thread to be modified
+     */
+    void setResourceContainer(Thread thread, AbstractResourceContainer container);
+
+    /**
+     * Get the reference to the thread attached {@code ResourceContainer}
+     */
+    AbstractResourceContainer getResourceContainer(Thread thread);
 }

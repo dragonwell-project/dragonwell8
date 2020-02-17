@@ -37,11 +37,13 @@ import java.security.PrivilegedAction;
 import java.security.AllPermission;
 import java.nio.channels.Channel;
 import java.nio.channels.spi.SelectorProvider;
+import com.alibaba.rcm.internal.AbstractResourceContainer;
 import sun.nio.ch.Interruptible;
 import sun.reflect.CallerSensitive;
 import sun.reflect.Reflection;
 import sun.security.util.SecurityConstants;
 import sun.reflect.annotation.AnnotationType;
+
 
 /**
  * The <code>System</code> class contains several useful class fields
@@ -1268,6 +1270,16 @@ public final class System {
             }
             public void invokeFinalize(Object o) throws Throwable {
                 o.finalize();
+            }
+
+            @Override
+            public void setResourceContainer(Thread thread, AbstractResourceContainer container) {
+                thread.resourceContainer = container;
+            }
+
+            @Override
+            public AbstractResourceContainer getResourceContainer(Thread thread) {
+                return thread.resourceContainer;
             }
         });
     }
