@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -230,8 +230,10 @@ final class GssKrb5Client extends GssKrb5Base implements SaslClient {
 
             // Received S1 (security layer, server max recv size)
 
+            MessageProp msgProp = new MessageProp(false);
             byte[] gssOutToken = secCtx.unwrap(challengeData, 0,
-                challengeData.length, new MessageProp(0, false));
+                challengeData.length, msgProp);
+            checkMessageProp("Handshake failure: ", msgProp);
 
             // First octet is a bit-mask specifying the protections
             // supported by the server
