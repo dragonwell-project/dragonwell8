@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008, 2012, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -169,12 +169,11 @@ Java_sun_nio_fs_LinuxNativeDispatcher_setmntent0(JNIEnv* env, jclass this, jlong
 }
 
 JNIEXPORT jint JNICALL
-Java_sun_nio_fs_LinuxNativeDispatcher_getmntent(JNIEnv* env, jclass this,
-    jlong value, jobject entry)
+Java_sun_nio_fs_LinuxNativeDispatcher_getmntent0(JNIEnv* env, jclass this,
+    jlong value, jobject entry, jlong buffer, jint bufLen)
 {
     struct mntent ent;
-    char buf[1024];
-    int buflen = sizeof(buf);
+    char * buf = (char*)jlong_to_ptr(buffer);
     struct mntent* m;
     FILE* fp = jlong_to_ptr(value);
     jsize len;
@@ -184,7 +183,7 @@ Java_sun_nio_fs_LinuxNativeDispatcher_getmntent(JNIEnv* env, jclass this,
     char* fstype;
     char* options;
 
-    m = getmntent_r(fp, &ent, (char*)&buf, buflen);
+    m = getmntent_r(fp, &ent, buf, (int)bufLen);
     if (m == NULL)
         return -1;
     name = m->mnt_fsname;
@@ -230,3 +229,37 @@ Java_sun_nio_fs_LinuxNativeDispatcher_endmntent(JNIEnv* env, jclass this, jlong 
     /* FIXME - man page doesn't explain how errors are returned */
     endmntent(fp);
 }
+
+/**
+ * This function returns line length without NUL terminator or -1 on EOF.
+ * Since getline is missing on Solaris10 this function was moved from
+ * UnixNativeDispatcher to LinuxNativeDispatcher as part of backport form jdk11.
+ */
+JNIEXPORT jint JNICALL
+Java_sun_nio_fs_LinuxNativeDispatcher_getlinelen(JNIEnv* env, jclass this, jlong stream)
+{
+    FILE* fp = jlong_to_ptr(stream);
+    size_t lineSize = 0;
+    char * lineBuffer = NULL;
+    int saved_errno;
+
+    ssize_t res = getline(&lineBuffer, &lineSize, fp);
+    saved_errno = errno;
+
+    /* Should free lineBuffer no matter result, according to man page */
+    if (lineBuffer != NULL)
+        free(lineBuffer);
+
+    if (feof(fp))
+        return -1;
+
+    /* On successfull return res >= 0, otherwise res is -1 */
+    if (res == -1)
+        throwUnixException(env, saved_errno);
+
+    if (res > INT_MAX)
+        throwUnixException(env, EOVERFLOW);
+
+    return (jint)res;
+}
+
