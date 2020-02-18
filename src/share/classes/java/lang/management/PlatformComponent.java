@@ -35,6 +35,7 @@ import java.util.Set;
 import javax.management.MBeanServerConnection;
 import javax.management.ObjectName;
 
+import com.alibaba.management.TenantContainerMXBean;
 import com.alibaba.management.ElasticHeapMXBean;
 import com.sun.management.HotSpotDiagnosticMXBean;
 import com.sun.management.UnixOperatingSystemMXBean;
@@ -273,6 +274,24 @@ enum PlatformComponent {
         new MXBeanFetcher<HotSpotDiagnosticMXBean>() {
             public List<HotSpotDiagnosticMXBean> getMXBeans() {
                 return Collections.singletonList(ManagementFactoryHelper.getDiagnosticMXBean());
+            }
+        }),
+
+    /**
+     * Tenant Container.
+     */
+    TENANT_CONTAINER(
+        "com.alibaba.management.TenantContainerMXBean",
+        "com.alibaba.management", "TenantContainer", defaultKeyProperties(),
+        true,
+        new MXBeanFetcher<TenantContainerMXBean>() {
+            public List<TenantContainerMXBean> getMXBeans() {
+                TenantContainerMXBean m = ManagementFactoryHelper.getTenantContainerMXBean();
+                if (null == m) {
+                    return Collections.emptyList();
+                } else {
+                    return Collections.singletonList(m);
+                }
             }
         }),
 

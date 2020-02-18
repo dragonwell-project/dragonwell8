@@ -37,10 +37,13 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.locks.LockSupport;
 import com.alibaba.rcm.internal.AbstractResourceContainer;
+import sun.misc.VM;
 import sun.nio.ch.Interruptible;
 import sun.reflect.CallerSensitive;
 import sun.reflect.Reflection;
 import sun.security.util.SecurityConstants;
+import com.alibaba.tenant.TenantContainer;
+import com.alibaba.tenant.TenantGlobals;
 
 
 /**
@@ -213,6 +216,11 @@ class Thread implements Runnable {
      */
 
     private volatile int threadStatus = 0;
+
+    /**
+     * The tenant container which creates this thread object
+     */
+    TenantContainer inheritedTenantContainer;
 
     /**
      * The thread attached {@code ResourceContainer}
@@ -430,8 +438,12 @@ class Thread implements Runnable {
         tid = nextThreadID();
 
         /* com.alibaba.rcm API */
-        this.resourceContainer = parent.resourceContainer != null ?
-                parent.resourceContainer : AbstractResourceContainer.root();
+        this.resourceContainer = AbstractResourceContainer.root();
+
+        /* Set the tenant container */
+        if (VM.isBooted() && TenantGlobals.isTenantEnabled()) {
+            inheritedTenantContainer = TenantContainer.current();
+        }
     }
 
     /**
@@ -775,6 +787,7 @@ class Thread implements Runnable {
         inheritedAccessControlContext = null;
         blocker = null;
         uncaughtExceptionHandler = null;
+        inheritedTenantContainer = null;
     }
 
     /**

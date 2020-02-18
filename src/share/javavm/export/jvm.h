@@ -362,6 +362,12 @@ JNIEXPORT jlong JNICALL
 JVM_ElasticHeapGetTotalUncommittedBytes(JNIEnv *env, jclass clazz);
 
 /*
+ * com.alibaba.tenant.TenantContainer
+ */
+JNIEXPORT void JNICALL
+JVM_AttachToTenant(JNIEnv *env, jobject tenant);
+
+/*
  * java.lang.reflect.Array
  */
 JNIEXPORT jint JNICALL

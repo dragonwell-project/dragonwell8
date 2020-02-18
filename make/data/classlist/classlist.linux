@@ -2559,4 +2559,10 @@ sun/awt/X11/XErrorEvent
 com/alibaba/jwarmup/JWarmUp
 com/alibaba/management
 com/alibaba/jvm/gc
+com/alibaba/tenant/TenantContainer
+com/alibaba/tenant/TenantConfiguration
+com/alibaba/tenant/TenantException
+com/alibaba/tenant/TenantState
+com/alibaba/tenant/TenantGlobals
+com/alibaba/tenant/TenantContainerFactory
 # eea35d9d56e0006e
