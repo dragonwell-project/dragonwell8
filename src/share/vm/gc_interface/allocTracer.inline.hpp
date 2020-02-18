@@ -60,7 +60,7 @@ inline void AllocTracer::send_opto_array_allocation_event(KlassHandle klass, oop
   EventOptoArrayObjectAllocation event;
   if (event.should_commit()) {
     event.set_objectClass(klass());
-    event.set_address((TYPE_ADDRESS)obj);
+    event.set_address(cast_from_oop<TYPE_ADDRESS>(obj));
     event.set_allocationSize(alloc_size);
     event.commit();
   }
@@ -70,7 +70,7 @@ inline void AllocTracer::send_opto_instance_allocation_event(KlassHandle klass, 
   EventOptoInstanceObjectAllocation event;
   if (event.should_commit()) {
     event.set_objectClass(klass());
-    event.set_address((TYPE_ADDRESS)obj);
+    event.set_address(cast_from_oop<TYPE_ADDRESS>(obj));
     event.commit();
   }
 }
