@@ -1,0 +1,170 @@
+#
+# Copyright (c) 2019 Alibaba Group Holding Limited. All Rights Reserved.
+# DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
+#
+# This code is free software; you can redistribute it and/or modify it
+# under the terms of the GNU General Public License version 2 only, as
+# published by the Free Software Foundation. Alibaba designates this
+# particular file as subject to the "Classpath" exception as provided
+# by Oracle in the LICENSE file that accompanied this code.
+#
+# This code is distributed in the hope that it will be useful, but WITHOUT
+# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+# FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License
+# version 2 for more details (a copy is included in the LICENSE file that
+# accompanied this code).
+#
+# You should have received a copy of the GNU General Public License version
+# 2 along with this work; if not, write to the Free Software Foundation,
+# Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.
+#
+
+name: Dragonwell_8_build_test
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  check_commit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: dragonwell-releng/check_commit_action@master
+
+  build_release_jdk:
+    runs-on: ubuntu-latest
+    container:
+      image: docker.io/dragonwelljdk/build_jdk:8u
+    steps:
+      - name: Check out alibaba/dragonwell8_hotspot
+        uses: actions/checkout@v2
+        with:
+            path: 'hotspot'
+      - name: Check out alibaba/dragonwell8_corba
+        uses: actions/checkout@v2
+        with:
+          repository: 'alibaba/dragonwell8_corba'
+          path: 'corba'
+      - name: Check out alibaba/dragonwell8_langtools
+        uses: actions/checkout@v2
+        with:
+          repository: 'alibaba/dragonwell8_langtools'
+          path: 'langtools'
+      - name: Check out alibaba/dragonwell8
+        uses: actions/checkout@v2
+        with:
+          repository: 'alibaba/dragonwell8'
+          path: 'dragonwell8'
+      - name: Check out alibaba/dragonwell8_jdk
+        uses: actions/checkout@v2
+        with:
+          repository: 'alibaba/dragonwell8_jdk'
+          path: 'jdk'
+      - name: Check out alibaba/dragonwell8_jaxws
+        uses: actions/checkout@v2
+        with:
+          repository: 'alibaba/dragonwell8_jaxws'
+          path: 'jaxws'
+      - name: Check out alibaba/dragonwell8_jaxp
+        uses: actions/checkout@v2
+        with:
+          repository: 'alibaba/dragonwell8_jaxp'
+          path: 'jaxp'
+      - name: Check out alibaba/dragonwell8_nashorn
+        uses: actions/checkout@v2
+        with:
+          repository: 'alibaba/dragonwell8_nashorn'
+          path: 'nashorn'
+
+      - name: Compile release mode
+        run: |
+          mv hotspot dragonwell8
+          mv langtools dragonwell8
+          mv jdk dragonwell8
+          mv corba dragonwell8
+          mv jaxp dragonwell8
+          mv jaxws dragonwell8
+          mv nashorn dragonwell8
+          cd dragonwell8
+          sh configure --with-debug-level=release --with-cacerts-file=${PWD}/common/security/cacerts --with-milestone=fcs --enable-unlimited-crypto
+          make LOG=trace images
+
+      - name: Sanity test
+        run: |
+          cd dragonwell8
+          TEST_JDK_HOME=build/linux-x86_64-normal-server-release/images/j2sdk-image
+          ${TEST_JDK_HOME}/bin/java -version
+
+          #- name: Tier1 test
+          #run: |
+          #make test TEST="hotspot_tier1 jdk_tier1"
+
+  build_slowdebug_jdk:
+    runs-on: ubuntu-latest
+    container:
+      image: docker.io/dragonwelljdk/build_jdk:8u
+    steps:
+      - name: Check out alibaba/dragonwell8_hotspot
+        uses: actions/checkout@v2
+        with:
+          path: 'hotspot'
+      - name: Check out alibaba/dragonwell8_corba
+        uses: actions/checkout@v2
+        with:
+          repository: 'alibaba/dragonwell8_corba'
+          path: 'corba'
+      - name: Check out alibaba/dragonwell8_langtools
+        uses: actions/checkout@v2
+        with:
+          repository: 'alibaba/dragonwell8_langtools'
+          path: 'langtools'
+      - name: Check out alibaba/dragonwell8
+        uses: actions/checkout@v2
+        with:
+          repository: 'alibaba/dragonwell8'
+          path: 'dragonwell8'
+      - name: Check out alibaba/dragonwell8_jdk
+        uses: actions/checkout@v2
+        with:
+          repository: 'alibaba/dragonwell8_jdk'
+          path: 'jdk'
+      - name: Check out alibaba/dragonwell8_jaxws
+        uses: actions/checkout@v2
+        with:
+          repository: 'alibaba/dragonwell8_jaxws'
+          path: 'jaxws'
+      - name: Check out alibaba/dragonwell8_jaxp
+        uses: actions/checkout@v2
+        with:
+          repository: 'alibaba/dragonwell8_jaxp'
+          path: 'jaxp'
+      - name: Check out alibaba/dragonwell8_nashorn
+        uses: actions/checkout@v2
+        with:
+          repository: 'alibaba/dragonwell8_nashorn'
+          path: 'nashorn'
+
+      - name: Compile slowdebug mode
+        run: |
+          mv hotspot dragonwell8
+          mv langtools dragonwell8
+          mv jdk dragonwell8
+          mv corba dragonwell8
+          mv jaxp dragonwell8
+          mv jaxws dragonwell8
+          mv nashorn dragonwell8
+          cd dragonwell8
+          sh configure --with-debug-level=slowdebug --with-cacerts-file=${PWD}/common/security/cacerts --with-milestone=fcs --enable-unlimited-crypto
+
+          make LOG=trace images
+
+      - name: Sanity test
+        run: |
+          cd dragonwell8
+          TEST_JDK_HOME=build/linux-x86_64-normal-server-slowdebug/images/j2sdk-image
+          ${TEST_JDK_HOME}/bin/java -version
+
+          # - name: Tier1 test
+          #  run: |
+          #    make test TEST="hotspot_tier1 jdk_tier1"
