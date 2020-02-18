@@ -29,7 +29,7 @@ source dragonwell_version
 
 
 if [ $# -lt 1 ]; then
-  echo "USAGE: $0 release/debug"
+  echo "USAGE: $0 release/debug/fastdebug"
 fi
 
 LC_ALL=C
@@ -44,8 +44,12 @@ case "$BUILD_MODE" in
         DEBUG_LEVEL="slowdebug"
         JDK_IMAGES_DIR=`pwd`/build/linux-x86_64-normal-server-slowdebug/images
     ;;
+    fastdebug)
+	DEBUG_LEVEL="fastdebug"
+	JDK_IMAGES_DIR=`pwd`/build/linux-x86_64-normal-server-fastdebug/images
+    ;;
     *)
-        echo "Argument must be release or debug!"
+        echo "Argument must be release or debug or fastdebug!"
         exit 1
     ;;
 esac
