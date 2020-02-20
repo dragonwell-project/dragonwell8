@@ -358,6 +358,12 @@ JVM_LoadClass0(JNIEnv *env, jobject obj, jclass currClass,
                jstring currClassName);
 
 /*
+ * com.alibaba.tenant.TenantContainer
+ */
+JNIEXPORT void JNICALL
+JVM_AttachToTenant(JNIEnv *env, jobject tenant);
+
+/*
  * java.lang.reflect.Array
  */
 JNIEXPORT jint JNICALL

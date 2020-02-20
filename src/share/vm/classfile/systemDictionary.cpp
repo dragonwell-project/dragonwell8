@@ -2002,6 +2002,17 @@ void SystemDictionary::initialize_preloaded_classes(TRAPS) {
 
   initialize_wk_klasses_through(WK_KLASS_ENUM_NAME(ReferenceQueue_klass), scan, CHECK);
 
+  // Tenant support
+  WKID tenant_group_start = WK_KLASS_ENUM_NAME(com_alibaba_tenant_TenantGlobals_klass);
+  WKID tenant_group_end   = WK_KLASS_ENUM_NAME(com_alibaba_tenant_TenantContainer_klass);
+  initialize_wk_klasses_until(tenant_group_start, scan, CHECK);
+  if (MultiTenant) {
+    initialize_wk_klasses_through(tenant_group_end, scan, CHECK);
+  } else {
+    // Skip the tenant related classes, if not enabled.
+    scan = WKID(tenant_group_end + 1);
+  }
+
   // JSR 292 classes
   WKID jsr292_group_start = WK_KLASS_ENUM_NAME(MethodHandle_klass);
   WKID jsr292_group_end   = WK_KLASS_ENUM_NAME(VolatileCallSite_klass);

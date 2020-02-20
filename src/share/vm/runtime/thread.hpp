@@ -29,6 +29,7 @@
 #include "memory/threadLocalAllocBuffer.hpp"
 #include "oops/oop.hpp"
 #include "prims/jni.h"
+#include "prims/tenantenv.h"
 #include "prims/jvmtiExport.hpp"
 #include "runtime/frame.hpp"
 #include "runtime/javaFrameAnchor.hpp"
@@ -802,6 +803,7 @@ class JavaThread: public Thread {
  private:
   JavaThread*    _next;                          // The next thread in the Threads list
   oop            _threadObj;                     // The Java level thread object
+  oop            _tenantObj;                     // The tenant object which this java thread attaches to
 
 #ifdef ASSERT
  private:
@@ -830,6 +832,8 @@ class JavaThread: public Thread {
   ThreadFunction _entry_point;
 
   JNIEnv        _jni_environment;
+
+  TenantEnv     _tenant_environment;             //  tenant environment
 
   // Deopt support
   DeoptResourceMark*  _deopt_mark;               // Holds special ResourceMark for deoptimization
@@ -1013,6 +1017,10 @@ class JavaThread: public Thread {
     return (struct JNINativeInterface_ *)_jni_environment.functions;
   }
 
+  void set_tenant_functions(struct TenantNativeInterface_* functionTable) {
+    _tenant_environment.functions = functionTable;
+  }
+
   // This function is called at thread creation to allow
   // platform specific thread variables to be initialized.
   void cache_global_variables();
@@ -1040,6 +1048,10 @@ class JavaThread: public Thread {
   // (or for threads attached via JNI)
   oop threadObj() const                          { return _threadObj; }
   void set_threadObj(oop p)                      { _threadObj = p; }
+
+  // Get/set the tenant which the thread is attached to
+  oop tenantObj() const                          { return _tenantObj; }
+  void set_tenantObj(oop tenantObj)              { _tenantObj = tenantObj; }
 
   ThreadPriority java_priority() const;          // Read from threadObj()
 
@@ -1406,6 +1418,9 @@ class JavaThread: public Thread {
 
   // Returns the jni environment for this thread
   JNIEnv* jni_environment()                      { return &_jni_environment; }
+
+  // Returns the tenant environment for this thread
+  TenantEnv* tenant_environment()                { return &_tenant_environment; }
 
   static JavaThread* thread_from_jni_environment(JNIEnv* env) {
     JavaThread *thread_from_jni_env = (JavaThread*)((intptr_t)env - in_bytes(jni_environment_offset()));

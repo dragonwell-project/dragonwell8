@@ -53,6 +53,12 @@
   template(java_lang_Object,                          "java/lang/Object")                         \
   template(java_lang_Class,                           "java/lang/Class")                          \
   template(java_lang_String,                          "java/lang/String")                         \
+  template(com_alibaba_tenant_TenantGlobals,          "com/alibaba/tenant/TenantGlobals")         \
+  template(com_alibaba_tenant_TenantConfiguration,    "com/alibaba/tenant/TenantConfiguration")   \
+  template(com_alibaba_tenant_TenantState,            "com/alibaba/tenant/TenantState")           \
+  template(com_alibaba_tenant_TenantException,        "com/alibaba/tenant/TenantException")       \
+  template(com_alibaba_tenant_TenantContainer,        "com/alibaba/tenant/TenantContainer")       \
+  template(com_alibaba_tenant_JGroup,                 "com/alibaba/tenant/JGroup")                \
   template(java_lang_Thread,                          "java/lang/Thread")                         \
   template(java_lang_ThreadGroup,                     "java/lang/ThreadGroup")                    \
   template(java_lang_Cloneable,                       "java/lang/Cloneable")                      \
@@ -314,8 +320,10 @@
   template(group_name,                                "group")                                    \
   template(daemon_name,                               "daemon")                                   \
   template(eetop_name,                                "eetop")                                    \
+  template(inheritedTenantContainer_name,             "inheritedTenantContainer")                 \
   template(thread_status_name,                        "threadStatus")                             \
   template(run_method_name,                           "run")                                      \
+  template(runThread_method_name,                     "runThread")                                \
   template(exit_method_name,                          "exit")                                     \
   template(add_method_name,                           "add")                                      \
   template(remove_method_name,                        "remove")                                   \
@@ -342,6 +350,7 @@
   template(put_name,                                  "put")                                      \
   template(type_name,                                 "type")                                     \
   template(findNative_name,                           "findNative")                               \
+  template(initializeTenantContainerClass_name,       "initializeTenantContainerClass")           \
   template(deadChild_name,                            "deadChild")                                \
   template(addClass_name,                             "addClass")                                 \
   template(throwIllegalAccessError_name,              "throwIllegalAccessError")                  \
@@ -506,6 +515,7 @@
   template(exception_void_signature,                  "(Ljava/lang/Exception;)V")                                 \
   template(protectiondomain_signature,                "[Ljava/security/ProtectionDomain;")                        \
   template(accesscontrolcontext_signature,            "Ljava/security/AccessControlContext;")                     \
+  template(tenantcontainer_signature,                 "Lcom/alibaba/tenant/TenantContainer;")                     \
   template(class_protectiondomain_signature,          "(Ljava/lang/Class;Ljava/security/ProtectionDomain;)V")     \
   template(thread_signature,                          "Ljava/lang/Thread;")                                       \
   template(thread_array_signature,                    "[Ljava/lang/Thread;")                                      \
@@ -514,6 +524,8 @@
   template(class_array_signature,                     "[Ljava/lang/Class;")                                       \
   template(classloader_signature,                     "Ljava/lang/ClassLoader;")                                  \
   template(object_signature,                          "Ljava/lang/Object;")                                       \
+  template(state_name,                                 "state")                                                   \
+  template(com_alibaba_tenant_TenantState_signature,   "Lcom/alibaba/tenant/TenantState;")                        \
   template(object_array_signature,                    "[Ljava/lang/Object;")                                       \
   template(class_signature,                           "Ljava/lang/Class;")                                        \
   template(string_signature,                          "Ljava/lang/String;")                                       \
@@ -878,6 +890,9 @@
   do_intrinsic(_updateByteBufferCRC32,     java_util_zip_CRC32,   updateByteBuffer_name, updateByteBuffer_signature, F_SN) \
    do_name(     updateByteBuffer_name,                           "updateByteBuffer")                                    \
    do_signature(updateByteBuffer_signature,                      "(IJII)I")                                             \
+     /* support for com.alibaba.tenant.TenantContainer */                                                               \
+  do_name(      allocation_context_address,                      "allocationContext")                                   \
+  do_name(      tenant_id_address,                               "tenantId")                                            \
                                                                                                                         \
   /* support for sun.misc.Unsafe */                                                                                     \
   do_class(sun_misc_Unsafe,               "sun/misc/Unsafe")                                                            \

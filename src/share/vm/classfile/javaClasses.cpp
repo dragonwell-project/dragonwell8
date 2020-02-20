@@ -930,6 +930,7 @@ int java_lang_Thread::_tid_offset = 0;
 int java_lang_Thread::_thread_status_offset = 0;
 int java_lang_Thread::_park_blocker_offset = 0;
 int java_lang_Thread::_park_event_offset = 0 ;
+int java_lang_Thread::_inheritedTenantContainer_offset = 0 ;
 
 
 void java_lang_Thread::compute_offsets() {
@@ -953,6 +954,7 @@ void java_lang_Thread::compute_offsets() {
   compute_optional_offset(_park_blocker_offset, k, vmSymbols::park_blocker_name(), vmSymbols::object_signature());
   compute_optional_offset(_park_event_offset, k, vmSymbols::park_event_name(),
  vmSymbols::long_signature());
+  compute_offset(_inheritedTenantContainer_offset, k, vmSymbols::inheritedTenantContainer_name(), vmSymbols::tenantcontainer_signature());
 }
 
 
@@ -1025,6 +1027,9 @@ oop java_lang_Thread::inherited_access_control_context(oop java_thread) {
   return java_thread->obj_field(_inheritedAccessControlContext_offset);
 }
 
+oop java_lang_Thread::inherited_tenant_container(oop java_thread) {
+  return java_thread->obj_field(_inheritedTenantContainer_offset);
+}
 
 jlong java_lang_Thread::stackSize(oop java_thread) {
   // The stackSize field is only present starting in 1.4

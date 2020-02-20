@@ -48,6 +48,11 @@ extern struct JNINativeInterface_* jni_functions_check();
 extern struct JNINativeInterface_* jni_functions();
 extern void copy_jni_function_table(const struct JNINativeInterface_* new_function_table);
 
+/*
+ * Support for tenant function table.
+ */
+extern struct TenantNativeInterface_* tenant_functions();
+
 // Support for fast JNI accessors
 extern "C" {
   typedef jboolean (JNICALL *GetBooleanField_t)

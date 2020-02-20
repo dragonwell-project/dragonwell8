@@ -132,6 +132,14 @@ class SymbolPropertyTable;
   do_klass(Finalizer_klass,                             java_lang_ref_Finalizer,                   Pre                 ) \
   do_klass(ReferenceQueue_klass,                        java_lang_ref_ReferenceQueue,              Pre                 ) \
                                                                                                                          \
+    /* support for multi-tenant feature */                                                                               \
+  do_klass(com_alibaba_tenant_TenantGlobals_klass,      com_alibaba_tenant_TenantGlobals,          Pre_Tenant          ) \
+  do_klass(com_alibaba_tenant_TenantConfiguration_klass,com_alibaba_tenant_TenantConfiguration,    Pre_Tenant          ) \
+  do_klass(com_alibaba_tenant_TenantState_klass,        com_alibaba_tenant_TenantState,            Pre_Tenant          ) \
+  do_klass(com_alibaba_tenant_TenantException_klass,    com_alibaba_tenant_TenantException,        Pre_Tenant          ) \
+  do_klass(com_alibaba_tenant_TenantContainer_klass,    com_alibaba_tenant_TenantContainer,        Pre_Tenant          ) \
+  /* Note: TenantGlobals must be first, and TenantContainer last in group */                                             \
+                                                                                                                         \
   do_klass(Thread_klass,                                java_lang_Thread,                          Pre                 ) \
   do_klass(ThreadGroup_klass,                           java_lang_ThreadGroup,                     Pre                 ) \
   do_klass(Properties_klass,                            java_util_Properties,                      Pre                 ) \
@@ -221,6 +229,7 @@ class SystemDictionary : AllStatic {
   enum InitOption {
     Pre,                        // preloaded; error if not present
     Pre_JSR292,                 // preloaded if EnableInvokeDynamic
+    Pre_Tenant,                 // preloaded if MultiTenant
 
     // Order is significant.  Options before this point require resolve_or_fail.
     // Options after this point will use resolve_or_null instead.
@@ -407,6 +416,7 @@ public:
 
   static Klass* check_klass_Pre(       Klass* k) { return check_klass(k); }
   static Klass* check_klass_Pre_JSR292(Klass* k) { return EnableInvokeDynamic ? check_klass(k) : k; }
+  static Klass* check_klass_Pre_Tenant(Klass* k) { return MultiTenant ? check_klass(k) : k; }
   static Klass* check_klass_Opt(       Klass* k) { return k; }
   static Klass* check_klass_Opt_Only_JDK15(Klass* k) {
     assert(JDK_Version::is_gte_jdk15x_version(), "JDK 1.5 only");

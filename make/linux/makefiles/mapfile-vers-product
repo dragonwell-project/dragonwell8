@@ -280,6 +280,8 @@ SUNWprivate_1.1 {
 
 		# INSERT VTABLE SYMBOLS HERE
 
+                JVM_AttachToTenant;
+
         local:
                 *;
 };

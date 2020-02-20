@@ -1065,6 +1065,15 @@ static void call_initializeSystemClass(TRAPS) {
                                          vmSymbols::void_method_signature(), CHECK);
 }
 
+static void call_initializeTenantContainerClass(TRAPS) {
+  Klass* k =  SystemDictionary::resolve_or_fail(vmSymbols::com_alibaba_tenant_TenantContainer(), true, CHECK);
+  instanceKlassHandle klass (THREAD, k);
+
+  JavaValue result(T_VOID);
+  JavaCalls::call_static(&result, klass, vmSymbols::initializeTenantContainerClass_name(),
+                                         vmSymbols::void_method_signature(), CHECK);
+}
+
 char java_runtime_name[128] = "";
 char java_runtime_version[128] = "";
 
@@ -1439,6 +1448,7 @@ void JavaThread::initialize() {
   _anchor.clear();
   set_entry_point(NULL);
   set_jni_functions(jni_functions());
+  set_tenant_functions(tenant_functions());
   set_callee_target(NULL);
   set_vm_result(NULL);
   set_vm_result_2(NULL);
@@ -1476,6 +1486,7 @@ void JavaThread::initialize() {
   _do_not_unlock_if_synchronized = false;
   _cached_monitor_info = NULL;
   _parker = Parker::Allocate(this) ;
+  _tenantObj = NULL;
 
 #ifndef PRODUCT
   _jmp_ring_index = 0;
@@ -2805,6 +2816,7 @@ void JavaThread::oops_do(OopClosure* f, CLDClosure* cld_f, CodeBlobClosure* cf) 
   // Traverse instance variables at the end since the GC may be moving things
   // around using this function
   f->do_oop((oop*) &_threadObj);
+  f->do_oop((oop*) &_tenantObj);
   f->do_oop((oop*) &_vm_result);
   f->do_oop((oop*) &_exception_oop);
   f->do_oop((oop*) &_pending_async_exception);
@@ -3553,6 +3565,12 @@ jint Threads::create_vm(JavaVMInitArgs* args, bool* canTryAgain) {
     initialize_class(vmSymbols::java_lang_StackOverflowError(), CHECK_0);
     initialize_class(vmSymbols::java_lang_IllegalMonitorStateException(), CHECK_0);
     initialize_class(vmSymbols::java_lang_IllegalArgumentException(), CHECK_0);
+  }
+
+  // Multi-tenant support
+  if (MultiTenant) {
+    //Initialize TennatContainer class after the system is booted.
+    call_initializeTenantContainerClass(CHECK_0);
   }
 
   // See        : bugid 4211085.

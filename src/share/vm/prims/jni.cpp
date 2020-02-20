@@ -5607,6 +5607,10 @@ jint JNICALL jni_GetEnv(JavaVM *vm, void **penv, jint version) {
       ret = JNI_OK;
       return ret;
 
+    } else if (TENANT_ENV_VERSION_1_0 == version) { //get the tenant environment for java thread.
+      *(TenantEnv**)penv = ((JavaThread*) thread)->tenant_environment();
+      ret = JNI_OK;
+      return ret;
     } else if (version == JVMPI_VERSION_1 ||
                version == JVMPI_VERSION_1_1 ||
                version == JVMPI_VERSION_1_2) {

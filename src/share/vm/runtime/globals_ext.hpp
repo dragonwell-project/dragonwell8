@@ -93,6 +93,10 @@
   product(uintx, ElasticHeapParallelWorkers, 0,                             \
           "Number of parallel worker threads for memory "                   \
           "commit/uncommit. 0 be same as ConcGCThreads")                    \
+                                                                            \
+  product(bool, MultiTenant, false,                                         \
+            "Enable the multi-tenant feature.")                             \
+
 
   //add new AJVM specific flags here
 
