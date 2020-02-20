@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008, 2012, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -54,13 +54,28 @@ class LinuxNativeDispatcher extends UnixNativeDispatcher {
     /**
      * int getmntent(FILE *fp, struct mnttab *mp, int len);
      */
-    static native int getmntent(long fp, UnixMountEntry entry)
+
+    static int getmntent(long fp, UnixMountEntry entry, int buflen) throws UnixException {
+        NativeBuffer buffer = NativeBuffers.getNativeBuffer(buflen);
+        try {
+            return getmntent0(fp, entry, buffer.address(), buflen);
+        } finally {
+            buffer.release();
+        }
+    }
+
+    static native int getmntent0(long fp, UnixMountEntry entry, long buffer, int bufLen)
         throws UnixException;
 
     /**
      * int endmntent(FILE* filep);
      */
     static native void endmntent(long stream) throws UnixException;
+
+    /**
+     * ssize_t getline(char **lineptr, size_t *n, FILE *stream);
+     */
+    static native int getlinelen(long stream) throws UnixException;
 
     /**
      * ssize_t fgetxattr(int filedes, const char *name, void *value, size_t size);
