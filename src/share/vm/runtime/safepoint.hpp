@@ -190,7 +190,7 @@ public:
 };
 
 // State class for a thread suspended at a safepoint
-class ThreadSafepointState: public CHeapObj<mtInternal> {
+class ThreadSafepointState: public CHeapObj<mtThread> {
  public:
   // These states are maintained by VM thread while threads are being brought
   // to a safepoint.  After SafepointSynchronize::end(), they are reset to

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -32,7 +32,6 @@
 // (see globals.hpp)
 
 define_pd_global(bool, ConvertSleepToYield,      true);
-define_pd_global(bool, ShareVtableStubs,         true);
 define_pd_global(bool, CountInterpCalls,         true);
 define_pd_global(bool, NeedsDeoptSuspend,        false); // only register window machines need this
 
