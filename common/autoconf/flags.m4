@@ -747,7 +747,11 @@ AC_DEFUN_ONCE([FLAGS_SETUP_COMPILER_FLAGS_FOR_JDK],
       LDFLAGS_JDKEXE="$LDFLAGS_JDKEXE -Xlinker --allow-shlib-undefined"
     fi
     if test "x$TOOLCHAIN_TYPE" = xgcc; then
-      LDFLAGS_JDKEXE="$LDFLAGS_JDKEXE -pie"
+      # Enabling pie on 32 bit builds prevents the JVM from allocating a continuous
+      # java heap.
+      if test "x$OPENJDK_TARGET_CPU_BITS" != "x32"; then
+        LDFLAGS_JDKEXE="$LDFLAGS_JDKEXE -pie"
+      fi
     fi
   fi
   AC_SUBST(LDFLAGS_JDKLIB)
