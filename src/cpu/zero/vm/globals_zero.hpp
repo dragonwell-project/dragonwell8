@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
  * Copyright 2007, 2008, 2009, 2010, 2011 Red Hat, Inc.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -33,7 +33,6 @@
 // runtime system.  See globals.hpp for details of what they do.
 
 define_pd_global(bool,  ConvertSleepToYield,  true);
-define_pd_global(bool,  ShareVtableStubs,     true);
 define_pd_global(bool,  CountInterpCalls,     true);
 define_pd_global(bool,  NeedsDeoptSuspend,    false);
 
