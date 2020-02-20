@@ -456,7 +456,7 @@ AWT_ASSERT_APPKIT_THREAD;
 
     JNIEnv *env = [ThreadUtilities getJNIEnvUncached];
     [self.javaPlatformWindow setJObject:nil withEnv:env];
-
+    self.javaPlatformWindow = nil;
     self.nsWindow = nil;
     self.ownerWindow = nil;
     [super dealloc];
