@@ -25,7 +25,7 @@ if [ ! -f "dragonwell_version" ]; then
 	echo "File 'dragonwell_version' doesn't exist!"
 	exit 1;
 fi
-source dragonwell_version
+source ./dragonwell_version
 
 
 if [ $# -lt 1 ]; then
