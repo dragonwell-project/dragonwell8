@@ -61,7 +61,7 @@ class JfrBuffer {
  public:
   JfrBuffer();
   bool initialize(size_t header_size, size_t size, const void* id = NULL);
-  void reinitialize();
+  void reinitialize(bool exclusion = false);
   void concurrent_reinitialization();
   size_t discard();
   JfrBuffer* next() const {
@@ -167,6 +167,11 @@ class JfrBuffer {
   bool retired() const;
   void set_retired();
   void clear_retired();
+
+
+  bool excluded() const;
+  void set_excluded();
+  void clear_excluded();
 };
 
 class JfrAgeNode : public JfrBuffer {

@@ -40,6 +40,7 @@
 #include "jfr/periodic/jfrNetworkUtilization.hpp"
 #include "jfr/recorder/jfrRecorder.hpp"
 #include "jfr/support/jfrThreadId.hpp"
+#include "jfr/utilities/jfrThreadIterator.hpp"
 #include "jfr/utilities/jfrTime.hpp"
 #include "jfrfiles/jfrPeriodic.hpp"
 #include "memory/heapInspection.hpp"
@@ -393,13 +394,12 @@ TRACE_REQUEST_FUNC(ThreadAllocationStatistics) {
   GrowableArray<jlong> allocated(initial_size);
   GrowableArray<traceid> thread_ids(initial_size);
   JfrTicks time_stamp = JfrTicks::now();
-  {
-    // Collect allocation statistics while holding threads lock
-    MutexLockerEx ml(Threads_lock);
-    for (JavaThread *thread = Threads::first(); thread != NULL; thread = thread->next()) {
-      allocated.append(thread->cooked_allocated_bytes());
-      thread_ids.append(JFR_THREAD_ID(thread));
-    }
+  JfrJavaThreadIterator iter;
+  while (iter.has_next()) {
+    JavaThread* const jt = iter.next();
+    assert(jt != NULL, "invariant");
+    allocated.append(jt->cooked_allocated_bytes());
+    thread_ids.append(JFR_THREAD_ID(jt));
   }
 
   // Write allocation statistics to buffer.

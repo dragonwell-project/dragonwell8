@@ -27,6 +27,7 @@
 //#include "gc_interface/strongRootsScope.hpp"
 #include "jfr/leakprofiler/utilities/unifiedOop.hpp"
 #include "jfr/leakprofiler/checkpoint/rootResolver.hpp"
+#include "jfr/utilities/jfrThreadIterator.hpp"
 #include "memory/iterator.hpp"
 #include "oops/klass.hpp"
 #include "oops/oop.hpp"
@@ -253,8 +254,9 @@ class ReferenceToThreadRootClosure : public StackObj {
  public:
   ReferenceToThreadRootClosure(RootCallback& callback) :_callback(callback), _complete(false) {
     assert_locked_or_safepoint(Threads_lock);
-    for (JavaThread *thread = Threads::first(); thread != NULL; thread = thread->next()) {
-      if (do_thread_roots(thread)) {
+    JfrJavaThreadIterator iter;
+    while (iter.has_next()) {
+      if (do_thread_roots(iter.next())) {
         return;
       }
     }

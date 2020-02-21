@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,39 +22,70 @@
  *
  */
 
-#ifndef SHARE_VM_JFR_RECORDER_REPOSITORY_JFRRCHUNKSTATE_HPP
-#define SHARE_VM_JFR_RECORDER_REPOSITORY_JFRRCHUNKSTATE_HPP
+#ifndef SHARE_VM_JFR_RECORDER_REPOSITORY_JFRRCHUNK_HPP
+#define SHARE_VM_JFR_RECORDER_REPOSITORY_JFRRCHUNK_HPP
 
-#include "jni.h"
 #include "jfr/utilities/jfrAllocation.hpp"
-#include "jfr/utilities/jfrTypes.hpp"
 
-class JfrChunkState : public JfrCHeapObj {
+const u1 COMPLETE = 0;
+const u1 GUARD = 0xff;
+const u1 PAD = 0;
+
+class JfrChunk : public JfrCHeapObj {
   friend class JfrChunkWriter;
+  friend class JfrChunkHeadWriter;
  private:
   char* _path;
-  jlong _start_ticks;
-  jlong _start_nanos;
-  jlong _previous_start_ticks;
-  jlong _previous_start_nanos;
+  int64_t _start_ticks;
+  int64_t _previous_start_ticks;
+  int64_t _start_nanos;
+  int64_t _previous_start_nanos;
+  int64_t _last_update_nanos;
   int64_t _last_checkpoint_offset;
+  int64_t _last_metadata_offset;
+  mutable u1 _generation;
+
+  JfrChunk();
+  ~JfrChunk();
+  void reset();
+
+  const char* magic() const;
+  u2 major_version() const;
+  u2 minor_version() const;
+  int64_t cpu_frequency() const;
+  u2 capabilities() const;
 
   void update_start_ticks();
   void update_start_nanos();
   void save_current_and_update_start_ticks();
   void save_current_and_update_start_nanos();
 
-  JfrChunkState();
-  ~JfrChunkState();
-  void reset();
   int64_t last_checkpoint_offset() const;
   void set_last_checkpoint_offset(int64_t offset);
-  jlong previous_start_ticks() const;
-  jlong previous_start_nanos() const;
-  jlong last_chunk_duration() const;
-  void update_time_to_now();
+
+  int64_t last_metadata_offset() const;
+  void set_last_metadata_offset(int64_t offset);
+  bool has_metadata() const;
+
+  int64_t start_ticks() const;
+  int64_t start_nanos() const;
+
+  int64_t previous_start_ticks() const;
+  int64_t previous_start_nanos() const;
+  int64_t last_chunk_duration() const;
+
+  void set_time_stamp();
+  void update_current_nanos();
+
   void set_path(const char* path);
   const char* path() const;
+
+  bool is_started() const;
+  bool is_finished() const;
+
+  int64_t duration() const;
+  u1 generation() const;
+  u1 next_generation() const;
 };
 
-#endif // SHARE_VM_JFR_RECORDER_REPOSITORY_JFRRCHUNKSTATE_HPP
+#endif // SHARE_VM_JFR_RECORDER_REPOSITORY_JFRRCHUNK_HPP

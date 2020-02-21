@@ -28,7 +28,6 @@
 #include "jfr/utilities/jfrTypes.hpp"
 #include "memory/allocation.inline.hpp"
 #include "runtime/atomic.inline.hpp"
-#include "runtime/orderAccess.inline.hpp"
 #include "runtime/vm_version.hpp"
 #include "runtime/mutexLocker.hpp"
 #include "utilities/debug.hpp"
@@ -45,7 +44,7 @@ jlong atomic_add_jlong(jlong value, jlong volatile* const dest) {
   }
 #endif
   do {
-    compare_value = OrderAccess::load_acquire(dest);
+    compare_value = *dest;
     exchange_value = compare_value + value;
   } while (Atomic::cmpxchg(exchange_value, dest, compare_value) != compare_value);
   return exchange_value;

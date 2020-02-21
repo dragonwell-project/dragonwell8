@@ -55,10 +55,18 @@ bool JfrBuffer::initialize(size_t header_size, size_t size, const void* id /* NU
   return true;
 }
 
-void JfrBuffer::reinitialize() {
+void JfrBuffer::reinitialize(bool exclusion /* false */) {
   assert(!lease(), "invariant");
   assert(!transient(), "invariant");
   set_pos(start());
+  if (exclusion != excluded()) {
+    // update
+    if (exclusion) {
+      set_excluded();
+    } else {
+      clear_excluded();
+    }
+  }
   clear_retired();
   set_top(start());
 }
@@ -191,7 +199,8 @@ void JfrBuffer::concurrent_move_and_reinitialize(JfrBuffer* const to, size_t siz
 enum FLAG {
   RETIRED = 1,
   TRANSIENT = 2,
-  LEASE = 4
+  LEASE = 4,
+  EXCLUDED = 8
 };
 
 bool JfrBuffer::transient() const {
@@ -249,4 +258,21 @@ void JfrBuffer::clear_retired() {
     new_flags ^= (u1)RETIRED;
     release_store_flags(&_flags, new_flags);
   }
+}
+
+bool JfrBuffer::excluded() const {
+  return (u1)EXCLUDED == (_flags & (u1)EXCLUDED);
+}
+
+void JfrBuffer::set_excluded() {
+  _flags |= (u1)EXCLUDED;
+  assert(excluded(), "invariant");
+}
+
+void JfrBuffer::clear_excluded() {
+  if (excluded()) {
+    OrderAccess::storestore();
+    _flags ^= (u1)EXCLUDED;
+  }
+  assert(!excluded(), "invariant");
 }

@@ -175,13 +175,16 @@ traceid JfrSymbolId::mark(uintptr_t hash, const Symbol* data, bool leakp) {
   return entry.id();
 }
 
-traceid JfrSymbolId::markPackage(const char* name, uintptr_t hash) {
+traceid JfrSymbolId::markPackage(const char* name, uintptr_t hash, bool leakp) {
   assert(name != NULL, "invariant");
   assert(_pkg_table != NULL, "invariant");
   _cstring_query = name;
   const CStringEntry& entry = _pkg_table->lookup_put(hash, name);
   if (_class_unload) {
     entry.set_unloading();
+  }
+  if (leakp) {
+    entry.set_leakp();
   }
   return entry.id();
 }
@@ -308,8 +311,8 @@ traceid JfrArtifactSet::mark(const Klass* klass, bool leakp) {
   return _symbol_id->mark(klass, leakp);
 }
 
-traceid JfrArtifactSet::markPackage(const char* const name, uintptr_t hash) {
-  return _symbol_id->markPackage(name, hash);
+traceid JfrArtifactSet::markPackage(const char* const name, uintptr_t hash, bool leakp) {
+  return _symbol_id->markPackage(name, hash, leakp);
 }
 
 traceid JfrArtifactSet::mark(const Symbol* symbol, bool leakp) {

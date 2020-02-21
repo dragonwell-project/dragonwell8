@@ -33,6 +33,7 @@
 #include "memory/resourceArea.hpp"
 #include "oops/markOop.hpp"
 #include "oops/oop.inline.hpp"
+#include "runtime/mutexLocker.hpp"
 #include "runtime/thread.inline.hpp"
 #include "runtime/vmThread.hpp"
 
@@ -50,8 +51,8 @@ EventEmitter::~EventEmitter() {
 }
 
 void EventEmitter::emit(ObjectSampler* sampler, int64_t cutoff_ticks, bool emit_all) {
+  assert(JfrStream_lock->owned_by_self(), "invariant");
   assert(sampler != NULL, "invariant");
-
   ResourceMark rm;
   EdgeStore edge_store;
   if (cutoff_ticks <= 0) {
@@ -67,6 +68,7 @@ void EventEmitter::emit(ObjectSampler* sampler, int64_t cutoff_ticks, bool emit_
 }
 
 size_t EventEmitter::write_events(ObjectSampler* object_sampler, EdgeStore* edge_store, bool emit_all) {
+  assert_locked_or_safepoint(JfrStream_lock);
   assert(_thread == Thread::current(), "invariant");
   assert(_thread->jfr_thread_local() == _jfr_thread_local, "invariant");
   assert(object_sampler != NULL, "invariant");
