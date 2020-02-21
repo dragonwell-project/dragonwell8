@@ -26,10 +26,8 @@
 package jdk.jfr.consumer;
 
 import java.lang.reflect.Modifier;
-import java.util.List;
 
-import jdk.jfr.ValueDescriptor;
-import jdk.jfr.internal.Type;
+import jdk.jfr.internal.consumer.ObjectContext;
 
 /**
  * A recorded Java type, such as a class or an interface.
@@ -37,21 +35,11 @@ import jdk.jfr.internal.Type;
  * @since 8
  */
 public final class RecordedClass extends RecordedObject {
-
-    static ObjectFactory<RecordedClass> createFactory(Type type, TimeConverter timeConverter) {
-        return new ObjectFactory<RecordedClass>(type) {
-            @Override
-            RecordedClass createTyped(List<ValueDescriptor> desc, long id, Object[] object) {
-                return new RecordedClass(desc, id, object, timeConverter);
-            }
-        };
-    }
-
     private final long uniqueId;
 
     // package private
-    private RecordedClass(List<ValueDescriptor> descriptors, long id, Object[] values, TimeConverter timeConverter) {
-        super(descriptors, values, timeConverter);
+    RecordedClass(ObjectContext objectContext, long id, Object[] values) {
+        super(objectContext, values);
         this.uniqueId = id;
     }
 

@@ -87,6 +87,12 @@ public class TestLookForUntestedEvents {
         )
     );
 
+    // Experimental events
+    private static final Set<String> experimentalEvents = new HashSet<>(
+      Arrays.asList(
+                    "Flush", "FlushStorage", "FlushStacktrace",
+                    "FlushStringPool", "FlushMetadata", "FlushTypeSet")
+    );
 
     public static void main(String[] args) throws Exception {
         for (EventType type : FlightRecorder.getFlightRecorder().getEventTypes()) {
@@ -144,6 +150,10 @@ public class TestLookForUntestedEvents {
                 eventsFromEventNamesClass.add(eventName);
             }
         }
+
+        // remove experimental events from eventsFromEventNamesClass since jfrEventTypes
+        // excludes experimental events
+        eventsFromEventNamesClass.removeAll(experimentalEvents);
 
         if (!jfrEventTypes.equals(eventsFromEventNamesClass)) {
             String exceptionMsg = "Events declared in jdk.test.lib.jfr.EventNames differ " +

@@ -26,10 +26,8 @@
 package jdk.jfr.consumer;
 
 import java.lang.reflect.Modifier;
-import java.util.List;
 
-import jdk.jfr.ValueDescriptor;
-import jdk.jfr.internal.Type;
+import jdk.jfr.internal.consumer.ObjectContext;
 
 /**
  * A recorded method.
@@ -38,17 +36,9 @@ import jdk.jfr.internal.Type;
  */
 public final class RecordedMethod extends RecordedObject {
 
-    static ObjectFactory<RecordedMethod> createFactory(Type type, TimeConverter timeConverter) {
-        return new ObjectFactory<RecordedMethod>(type) {
-            @Override
-            RecordedMethod createTyped(List<ValueDescriptor> desc, long id, Object[] object) {
-                return new RecordedMethod(desc, object, timeConverter);
-            }
-        };
-    }
-
-    private RecordedMethod(List<ValueDescriptor> descriptors, Object[] objects, TimeConverter timeConverter) {
-        super(descriptors, objects, timeConverter);
+    // package private
+    RecordedMethod(ObjectContext objectContext, Object[] values) {
+        super(objectContext, values);
     }
 
     /**
