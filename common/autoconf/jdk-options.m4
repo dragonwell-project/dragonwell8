@@ -442,11 +442,19 @@ AC_DEFUN_ONCE([JDKOPT_SETUP_JDK_OPTIONS],
   AC_MSG_CHECKING([whether to build jfr])
   AC_ARG_ENABLE(jfr, [AS_HELP_STRING([--disable-jfr],
       [Disable Java Flight Recorder support @<:@enabled@:>@])],,
-      [enable_jfr=yes])
+      [enable_jfr=auto])
   if test "x$enable_jfr" = "xno"; then
     ENABLE_JFR=false
-  elif test "x$enable_jfr" = "xyes"; then
-    ENABLE_JFR=true
+  elif test "x$enable_jfr" = "xyes" -o "x$enable_jfr" = "xauto"; then
+    if test "x$JVM_VARIANT_MINIMAL1" = "xtrue" -o "x$JVM_VARIANT_ZERO" = "xtrue"; then
+      if test "x$enable_jfr" = "xyes"; then
+        AC_MSG_ERROR([cannot enable JFR on minimal1 VM or zero build])
+      else
+        ENABLE_JFR=false
+      fi
+    else
+      ENABLE_JFR=true
+    fi
   else
     AC_MSG_ERROR([--enable-jfr must either be set to yes or no])
   fi

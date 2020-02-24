@@ -4391,7 +4391,7 @@ VS_SDK_PLATFORM_NAME_2017=
 #CUSTOM_AUTOCONF_INCLUDE
 
 # Do not change or remove the following line, it is needed for consistency checks:
-DATE_WHEN_GENERATED=1580996389
+DATE_WHEN_GENERATED=1582132239
 
 ###############################################################################
 #
@@ -19827,13 +19827,21 @@ $as_echo_n "checking whether to build jfr... " >&6; }
 if test "${enable_jfr+set}" = set; then :
   enableval=$enable_jfr;
 else
-  enable_jfr=yes
+  enable_jfr=auto
 fi
 
   if test "x$enable_jfr" = "xno"; then
     ENABLE_JFR=false
-  elif test "x$enable_jfr" = "xyes"; then
-    ENABLE_JFR=true
+  elif test "x$enable_jfr" = "xyes" -o "x$enable_jfr" = "xauto"; then
+    if test "x$JVM_VARIANT_MINIMAL1" = "xtrue" -o "x$JVM_VARIANT_ZERO" = "xtrue"; then
+      if test "x$enable_jfr" = "xyes"; then
+        as_fn_error $? "cannot enable JFR on minimal1 VM or zero build" "$LINENO" 5
+      else
+        ENABLE_JFR=false
+      fi
+    else
+      ENABLE_JFR=true
+    fi
   else
     as_fn_error $? "--enable-jfr must either be set to yes or no" "$LINENO" 5
   fi
