@@ -522,11 +522,9 @@ public:
     return _status_code;
   }
 
-#if INCLUDE_JFR
   traceid biased_locker() const {
     return _biased_locker_id;
   }
-#endif // INCLUDE_JFR
 };
 
 
