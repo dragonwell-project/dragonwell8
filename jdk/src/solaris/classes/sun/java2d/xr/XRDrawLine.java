@@ -224,7 +224,7 @@ public class XRDrawLine {
         outcode2 = outcode(x2, y2, cxmin, cymin, cxmax, cymax);
 
         while ((outcode1 | outcode2) != 0) {
-            int xsteps = 0, ysteps = 0;
+            long xsteps = 0, ysteps = 0;
 
             if ((outcode1 & outcode2) != 0) {
                 return false;
