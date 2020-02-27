@@ -88,6 +88,7 @@ address JNI_FastGetField::generate_fast_get_int_field0(BasicType type) {
   __ andr(robj, robj, ~JNIHandles::weak_tag_mask);
 
   __ ldr(robj, Address(robj, 0));             // *obj
+  oopDesc::bs()->interpreter_read_barrier(masm, robj);
   __ lsr(roffset, c_rarg2, 2);                // offset
 
   assert(count < LIST_CAPACITY, "LIST_CAPACITY too small");

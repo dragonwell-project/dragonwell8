@@ -151,6 +151,7 @@ sun/jvm/hotspot/debugger/linux/aarch64/*.java \
 sun/jvm/hotspot/debugger/posix/*.java \
 sun/jvm/hotspot/debugger/posix/elf/*.java \
 sun/jvm/hotspot/debugger/proc/*.java \
+sun/jvm/hotspot/debugger/proc/amd64/*.java \
 sun/jvm/hotspot/debugger/proc/sparc/*.java \
 sun/jvm/hotspot/debugger/proc/x86/*.java \
 sun/jvm/hotspot/debugger/proc/aarch64/*.java \

@@ -27,6 +27,7 @@
 
 #include "memory/allocation.hpp"
 #include "memory/allocation.inline.hpp"
+#include "oops/oop.hpp"
 #include "utilities/debug.hpp"
 #include "utilities/globalDefinitions.hpp"
 #include "utilities/top.hpp"

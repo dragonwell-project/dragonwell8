@@ -35,10 +35,6 @@
 #include "compiler/compileLog.hpp"
 #include "c1/c1_RangeCheckElimination.hpp"
 
-#ifdef BUILTIN_SIM
-#include "../../../../../../simulator/simulator.hpp"
-#endif
-
 typedef enum {
   _t_compile,
   _t_setup,
@@ -336,28 +332,6 @@ int Compilation::emit_code_body() {
   if (!setup_code_buffer(code(), allocator()->num_calls())) {
     BAILOUT_("size requested greater than avail code buffer size", 0);
   }
-
-#ifdef BUILTIN_SIM
-  if (NotifySimulator) {
-    // Names are up to 65536 chars long.  UTF8-coded strings are up to
-    // 3 bytes per character.  We concatenate three such strings.
-    // Yes, I know this is ridiculous, but it's debug code and glibc
-    // allocates large arrays very efficiently.
-//    size_t len = (65536 * 3) * 3;
-//    char *name = new char[len];
-    size_t len = 1024;
-    char name[1024];
-
-    strncpy(name, _method->holder()->name()->as_utf8(), len);
-    strncat(name, ".", len);
-    strncat(name, _method->name()->as_utf8(), len);
-    strncat(name, _method->signature()->as_symbol()->as_utf8(), len);
-    unsigned char *base = code()->insts()->start();
-    AArch64Simulator::get_current(UseSimulatorCache, DisableBCCheck)->notifyCompile(name, base);
-//    delete[] name;
-  }
-#endif
-
   code()->initialize_oop_recorder(env()->oop_recorder());
 
   _masm = new C1_MacroAssembler(code());

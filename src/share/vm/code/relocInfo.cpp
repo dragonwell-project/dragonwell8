@@ -114,6 +114,9 @@ void relocInfo::change_reloc_info_for_address(RelocIterator *itr, address pc, re
       found=true;
     }
   }
+#ifndef AARCH64
+  assert(found, "no relocInfo found for pc");
+#endif
 }
 
 
@@ -150,6 +153,10 @@ void RelocIterator::initialize(nmethod* nm, address begin, address limit) {
   _section_end  [CodeBuffer::SECT_STUBS ] = nm->stub_end()    ;
 
   assert(!has_current(), "just checking");
+#ifndef AARCH64
+  assert(begin == NULL || begin >= nm->code_begin(), "in bounds");
+  assert(limit == NULL || limit <= nm->code_end(),   "in bounds");
+#endif
   set_limits(begin, limit);
 }
 

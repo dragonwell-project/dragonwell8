@@ -58,9 +58,6 @@
 #include "utilities/copy.hpp"
 #include "utilities/events.hpp"
 
-#ifdef BUILTIN_SIM
-#include "../../../../../../simulator/simulator.hpp"
-#endif
 
 // Implementation of StubAssembler
 
@@ -227,27 +224,6 @@ void Runtime1::generate_blob_for(BufferBlob* buffer_blob, StubID id) {
                                                  sasm->frame_size(),
                                                  oop_maps,
                                                  sasm->must_gc_arguments());
-#ifdef BUILTIN_SIM
-  if (NotifySimulator) {
-//    size_t len = 65536;
-//    char *name = new char[len];
-    size_t len = 1024;
-    char name[1024];
-
-    // tell the sim about the new stub code
-    AArch64Simulator *simulator = AArch64Simulator::get_current(UseSimulatorCache, DisableBCCheck);
-    strncpy(name, name_for(id), len);
-    // replace spaces with underscore so we can write to file and reparse
-    for (char *p = strpbrk(name, " "); p; p = strpbrk(p, " ")) {
-      *p = '_';
-    }
-    unsigned char *base = blob->code_begin();
-    simulator->notifyCompile(name, base);
-    // code does not get relocated so just pass offset 0 and the code is live
-    simulator->notifyRelocate(base, 0);
-//    delete[] name;
-  }
-#endif
   // install blob
   assert(blob != NULL, "blob must exist");
   _blobs[id] = blob;
@@ -258,7 +234,7 @@ void Runtime1::initialize(BufferBlob* blob) {
   // platform-dependent initialization
   initialize_pd();
   // generate stubs
-  // for (int id = 0; id < number_of_ids; id++) generate_blob_for(blob, (StubID)id);
+  for (int id = 0; id < number_of_ids; id++) generate_blob_for(blob, (StubID)id);
   // printing
 #ifndef PRODUCT
   if (PrintSimpleStubs) {
@@ -1360,6 +1336,10 @@ JRT_LEAF(int, Runtime1::arraycopy(oopDesc* src, int src_pos, oopDesc* dst, int d
   if ((unsigned int) arrayOop(dst)->length() < (unsigned int)dst_pos + (unsigned int)length) return ac_failed;
 
   if (length == 0) return ac_ok;
+#ifdef AARCH64
+  oopDesc::bs()->read_barrier(src);
+  oopDesc::bs()->write_barrier(dst);
+#endif
   if (src->is_typeArray()) {
     Klass* klass_oop = src->klass();
     if (klass_oop != dst->klass()) return ac_failed;

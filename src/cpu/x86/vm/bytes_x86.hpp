@@ -75,9 +75,6 @@ class Bytes: AllStatic {
 #ifdef TARGET_OS_ARCH_linux_x86
 # include "bytes_linux_x86.inline.hpp"
 #endif
-#ifdef TARGET_OS_ARCH_linux_aarch64
-# include "bytes_linux_aarch64.inline.hpp"
-#endif
 #ifdef TARGET_OS_ARCH_solaris_x86
 # include "bytes_solaris_x86.inline.hpp"
 #endif

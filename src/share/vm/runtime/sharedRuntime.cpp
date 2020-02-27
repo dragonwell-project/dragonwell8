@@ -50,6 +50,9 @@
 #include "runtime/javaCalls.hpp"
 #include "runtime/sharedRuntime.hpp"
 #include "runtime/stubRoutines.hpp"
+#ifdef AARCH64
+#include "runtime/thread.hpp"
+#endif
 #include "runtime/vframe.hpp"
 #include "runtime/vframeArray.hpp"
 #include "utilities/copy.hpp"
@@ -2508,29 +2511,7 @@ AdapterHandlerEntry* AdapterHandlerLibrary::get_adapter(methodHandle method) {
       CompileBroker::handle_full_code_cache();
       return NULL; // Out of CodeCache space
     }
-<<<<<<< HEAD
     entry->relocate(new_adapter->content_begin());
-=======
-#ifdef BUILTIN_SIM
-    address old_i2c = entry->get_i2c_entry();
-    address old_c2i = entry->get_c2i_entry();
-    AArch64Simulator *sim =  (NotifySimulator ? AArch64Simulator::get_current(UseSimulatorCache, DisableBCCheck) : NULL);
-#endif
-
-    entry->relocate(B->content_begin());
-
-#ifdef BUILTIN_SIM
-    if (NotifySimulator) {
-      address new_i2c = entry->get_i2c_entry();
-      address new_c2i = entry->get_c2i_entry();
-      long offset = new_i2c - old_i2c;
-      sim->notifyRelocate(old_i2c, offset);
-      offset = new_c2i - old_c2i;
-      sim->notifyRelocate(old_c2i, offset);
-    }
-#endif
-
->>>>>>> 32b2337... merged ed's changes into update jdk8-b81
 #ifndef PRODUCT
     // debugging suppport
     if (PrintAdapterHandlers || PrintStubCode) {

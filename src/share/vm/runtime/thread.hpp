@@ -27,7 +27,9 @@
 
 #include "memory/allocation.hpp"
 #include "memory/threadLocalAllocBuffer.hpp"
+#ifdef AARCH64
 #include "oops/oop.hpp"
+#endif
 #include "prims/jni.h"
 #include "prims/jvmtiExport.hpp"
 #include "runtime/frame.hpp"

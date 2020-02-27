@@ -446,12 +446,12 @@ class LIR_OprDesc: public CompilationResourceObj {
     return as_register();
   }
 
-#if defined(X86)
+#ifdef X86
   XMMRegister as_xmm_float_reg() const;
   XMMRegister as_xmm_double_reg() const;
   // for compatibility with RInfo
   int fpu () const                                  { return lo_reg_half(); }
-#endif
+#endif // X86
 #if defined(SPARC) || defined(ARM) || defined(PPC) || defined(AARCH64)
   FloatRegister as_float_reg   () const;
   FloatRegister as_double_reg  () const;

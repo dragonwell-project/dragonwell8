@@ -354,16 +354,20 @@ void LIRGenerator::do_StoreIndexed(StoreIndexed* x) {
     null_check_info = new CodeEmitInfo(range_check_info);
   }
 
+  LIR_Opr ary = array.result();
+  LIR_Opr val = value.result();
+  value = NULL;
+
   // emit array address setup early so it schedules better
   // FIXME?  No harm in this on aarch64, and it might help
-  LIR_Address* array_addr = emit_array_address(array.result(), index.result(), x->elt_type(), obj_store);
+  LIR_Address* array_addr = emit_array_address(ary, index.result(), x->elt_type(), obj_store);
 
   if (GenerateRangeChecks && needs_range_check) {
     if (use_length) {
       __ cmp(lir_cond_belowEqual, length.result(), index.result());
       __ branch(lir_cond_belowEqual, T_INT, new RangeCheckStub(range_check_info, index.result()));
     } else {
-      array_range_check(array.result(), index.result(), null_check_info, range_check_info);
+      array_range_check(ary, index.result(), null_check_info, range_check_info);
       // range_check also does the null check
       null_check_info = NULL;
     }
@@ -375,18 +379,18 @@ void LIRGenerator::do_StoreIndexed(StoreIndexed* x) {
     LIR_Opr tmp3 = new_register(objectType);
 
     CodeEmitInfo* store_check_info = new CodeEmitInfo(range_check_info);
-    __ store_check(value.result(), array.result(), tmp1, tmp2, tmp3, store_check_info, x->profiled_method(), x->profiled_bci());
+    __ store_check(val, ary, tmp1, tmp2, tmp3, store_check_info, x->profiled_method(), x->profiled_bci());
   }
 
   if (obj_store) {
     // Needs GC write barriers.
     pre_barrier(LIR_OprFact::address(array_addr), LIR_OprFact::illegalOpr /* pre_val */,
                 true /* do_load */, false /* patch */, NULL);
-    __ move(value.result(), array_addr, null_check_info);
+    __ move(val, array_addr, null_check_info);
     // Seems to be a precise
-    post_barrier(LIR_OprFact::address(array_addr), value.result());
+    post_barrier(LIR_OprFact::address(array_addr), val);
   } else {
-    LIR_Opr result = maybe_mask_boolean(x, array.result(), value.result(), null_check_info);
+    LIR_Opr result = maybe_mask_boolean(x, ary, val, null_check_info);
     __ move(result, array_addr, null_check_info);
   }
 }
@@ -413,7 +417,8 @@ void LIRGenerator::do_MonitorEnter(MonitorEnter* x) {
   // this CodeEmitInfo must not have the xhandlers because here the
   // object is already locked (xhandlers expect object to be unlocked)
   CodeEmitInfo* info = state_for(x, x->state(), true);
-  monitor_enter(obj.result(), lock, syncTempOpr(), scratch,
+  LIR_Opr obj_opr = obj.result();
+  monitor_enter(obj_opr, lock, syncTempOpr(), scratch,
                         x->monitor_no(), info_for_exception, info);
 }
 
@@ -798,21 +803,24 @@ void LIRGenerator::do_CompareAndSwap(Intrinsic* x, ValueType* type) {
   cmp.load_item();
 
   LIR_Address* a;
+
+  LIR_Opr obj_op = obj.result();
+
   if(offset.result()->is_constant()) {
     jlong c = offset.result()->as_jlong();
     if ((jlong)((jint)c) == c) {
-      a = new LIR_Address(obj.result(),
+      a = new LIR_Address(obj_op,
                           (jint)c,
                           as_BasicType(type));
     } else {
       LIR_Opr tmp = new_register(T_LONG);
       __ move(offset.result(), tmp);
-      a = new LIR_Address(obj.result(),
+      a = new LIR_Address(obj_op,
                           tmp,
                           as_BasicType(type));
     }
   } else {
-    a = new LIR_Address(obj.result(),
+    a = new LIR_Address(obj_op,
                         offset.result(),
                         LIR_Address::times_1,
                         0,
@@ -828,24 +836,24 @@ void LIRGenerator::do_CompareAndSwap(Intrinsic* x, ValueType* type) {
   }
 
   LIR_Opr result = rlock_result(x);
+  LIR_Opr val_op = val.result();
 
   LIR_Opr ill = LIR_OprFact::illegalOpr;  // for convenience
-  if (type == objectType)
-    __ cas_obj(addr, cmp.result(), val.result(), new_register(T_INT), new_register(T_INT),
+
+  if (type == objectType) {
+    __ cas_obj(addr, cmp.result(), val_op, new_register(T_INT), new_register(T_INT),
 	       result);
-  else if (type == intType)
-    __ cas_int(addr, cmp.result(), val.result(), ill, ill);
+  } else if (type == intType)
+    __ cas_int(addr, cmp.result(), val_op, ill, ill, result);
   else if (type == longType)
-    __ cas_long(addr, cmp.result(), val.result(), ill, ill);
+    __ cas_long(addr, cmp.result(), val_op, ill, ill, result);
   else {
     ShouldNotReachHere();
   }
 
-  __ logical_xor(FrameMap::r8_opr, LIR_OprFact::intConst(1), result);
-
   if (type == objectType) {   // Write-barrier needed for Object fields.
     // Seems to be precise
-    post_barrier(addr, val.result());
+    post_barrier(addr, val_op);
   }
 }
 
@@ -929,6 +937,9 @@ void LIRGenerator::do_ArrayCopy(Intrinsic* x) {
   LIRItem dst_pos(x->argument_at(3), this);
   LIRItem length(x->argument_at(4), this);
 
+  LIR_Opr dst_op = dst.result();
+  LIR_Opr src_op = src.result();
+
   // operands for arraycopy must use fixed registers, otherwise
   // LinearScan will fail allocation (because arraycopy always needs a
   // call)
@@ -941,9 +952,9 @@ void LIRGenerator::do_ArrayCopy(Intrinsic* x) {
   // of the C convention we can process the java args trivially into C
   // args without worry of overwriting during the xfer
 
-  src.load_item_force     (FrameMap::as_oop_opr(j_rarg0));
+  src_op = force_opr_to(src_op, FrameMap::as_oop_opr(j_rarg0));
   src_pos.load_item_force (FrameMap::as_opr(j_rarg1));
-  dst.load_item_force     (FrameMap::as_oop_opr(j_rarg2));
+  dst_op = force_opr_to(dst_op, FrameMap::as_oop_opr(j_rarg2));
   dst_pos.load_item_force (FrameMap::as_opr(j_rarg3));
   length.load_item_force  (FrameMap::as_opr(j_rarg4));
 
@@ -955,7 +966,7 @@ void LIRGenerator::do_ArrayCopy(Intrinsic* x) {
   ciArrayKlass* expected_type;
   arraycopy_helper(x, &flags, &expected_type);
 
-  __ arraycopy(src.result(), src_pos.result(), dst.result(), dst_pos.result(), length.result(), tmp, expected_type, flags, info); // does add_safepoint
+  __ arraycopy(src_op, src_pos.result(), dst_op, dst_pos.result(), length.result(), tmp, expected_type, flags, info); // does add_safepoint
 }
 
 void LIRGenerator::do_update_CRC32(Intrinsic* x) {
@@ -1348,6 +1359,17 @@ void LIRGenerator::volatile_field_store(LIR_Opr value, LIR_Address* address,
 
 void LIRGenerator::volatile_field_load(LIR_Address* address, LIR_Opr result,
                                        CodeEmitInfo* info) {
+
+  // 8179954: We need to make sure that the code generated for
+  // volatile accesses forms a sequentially-consistent set of
+  // operations when combined with STLR and LDAR.  Without a leading
+  // membar it's possible for a simple Dekker test to fail if loads
+  // use LD;DMB but stores use STLR.  This can happen if C2 compiles
+  // the stores in one method and C1 compiles the loads in another.
+  if (! UseBarriersForVolatile) {
+    __ membar();
+  }
+
   __ volatile_load_mem_reg(address, result, info);
 }
 
@@ -1402,14 +1424,16 @@ void LIRGenerator::do_UnsafeGetAndSetObject(UnsafeGetAndSetObject* x) {
     data = tmp;
   }
 
+  LIR_Opr src_op = src.result();
+
   LIR_Address* addr;
   if (offset->is_constant()) {
     jlong l = offset->as_jlong();
     assert((jlong)((jint)l) == l, "offset too large for constant");
     jint c = (jint)l;
-    addr = new LIR_Address(src.result(), c, type);
+    addr = new LIR_Address(src_op, c, type);
   } else {
-    addr = new LIR_Address(src.result(), offset, type);
+    addr = new LIR_Address(src_op, offset, type);
   }
 
   LIR_Opr tmp = new_register(T_INT);
@@ -1421,7 +1445,7 @@ void LIRGenerator::do_UnsafeGetAndSetObject(UnsafeGetAndSetObject* x) {
     if (is_obj) {
       // Do the pre-write barrier, if any.
       ptr = new_pointer_register();
-      __ add(src.result(), off.result(), ptr);
+      __ add(src_op, off.result(), ptr);
       pre_barrier(ptr, LIR_OprFact::illegalOpr /* pre_val */,
 		  true /* do_load */, false /* patch */, NULL);
     }

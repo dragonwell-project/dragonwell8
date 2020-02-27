@@ -586,6 +586,7 @@ IRT_ENTRY(void, InterpreterRuntime::resolve_get_put(JavaThread* thread, Bytecode
     }
   }
 
+#ifdef AARCH64
   if (is_put && !is_static && klass->is_subclass_of(SystemDictionary::CallSite_klass()) && (info.name() == vmSymbols::target_name())) {
     const jint direction = frame::interpreter_frame_expression_stack_direction();
     Handle call_site    (THREAD, *((oop*) thread->last_frame().interpreter_frame_tos_at(-1 * direction)));
@@ -603,6 +604,7 @@ IRT_ENTRY(void, InterpreterRuntime::resolve_get_put(JavaThread* thread, Bytecode
     put_code = (Bytecodes::Code) 0;
   }
   ConstantPoolCacheEntry *e(cache_entry(thread));
+#endif
   cache_entry(thread)->set_field(
     get_code,
     put_code,
@@ -709,10 +711,7 @@ IRT_ENTRY(void, InterpreterRuntime::_breakpoint(JavaThread* thread, Method* meth
   JvmtiExport::post_raw_breakpoint(thread, method, bcp);
 IRT_END
 
-static long foo;
-
-IRT_ENTRY(void, InterpreterRuntime::resolve_invoke(JavaThread* thread, Bytecodes::Code bytecode))
-foo++;
+IRT_ENTRY(void, InterpreterRuntime::resolve_invoke(JavaThread* thread, Bytecodes::Code bytecode)) {
   // extract receiver from the outgoing argument list if necessary
 
   Handle receiver(thread, NULL);

@@ -2653,6 +2653,7 @@ void Compile::final_graph_reshaping_impl( Node *n, Final_Reshape_Counts &frc) {
             "raw memory operations should have control edge");
   }
 #endif
+
   // Count FPU ops and common calls, implements item (3)
   switch( nop ) {
   // Count all float operations that may use FPU

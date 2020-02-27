@@ -63,15 +63,6 @@ void MetaspaceShared::generate_vtable_methods(void** vtbl_list,
                                                    char** mc_top,
                                                    char* mc_end) {
 
-#ifdef BUILTIN_SIM
-  // Write a dummy word to the writable shared metaspace.
-  // MetaspaceShared::initialize_shared_spaces will fill it with the
-  // address of aarch64_prolog().
-  address *prolog_ptr = (address*)*md_top;
-  *(intptr_t *)(*md_top) = (intptr_t)0;
-  (*md_top) += sizeof(intptr_t);
-#endif
-
   intptr_t vtable_bytes = (num_virtuals * vtbl_list_size) * sizeof(void*);
   *(intptr_t *)(*md_top) = vtable_bytes;
   *md_top += sizeof(intptr_t);
@@ -90,9 +81,6 @@ void MetaspaceShared::generate_vtable_methods(void** vtbl_list,
       dummy_vtable[num_virtuals * i + j] = (void*)masm->pc();
 
       // We're called directly from C code.
-#ifdef BUILTIN_SIM
-      __ c_stub_prolog(8, 0, MacroAssembler::ret_type_integral, prolog_ptr);
-#endif
       // Load rscratch1 with a value indicating vtable/offset pair.
       // -- bits[ 7..0]  (8 bits) which virtual method in table?
       // -- bits[12..8]  (5 bits) which virtual method table?
@@ -111,17 +99,10 @@ void MetaspaceShared::generate_vtable_methods(void** vtbl_list,
   __ str(tmp1, Address(c_rarg0));        // update vtable pointer in obj.
   __ add(rscratch1, tmp1, rscratch1, ext::uxtb, LogBytesPerWord); // address of real method pointer.
   __ ldr(rscratch1, Address(rscratch1)); // get real method pointer.
-  __ blrt(rscratch1, 8, 0, 1);           // jump to the real method.
+  __ blr(rscratch1);                     // jump to the real method.
   __ leave();
   __ ret(lr);
 
   *mc_top = (char*)__ pc();
 }
 
-#ifdef BUILTIN_SIM
-void MetaspaceShared::relocate_vtbl_list(char **buffer) {
-  void **sim_entry = (void**)*buffer;
-  *sim_entry = (void*)aarch64_prolog;
-  *buffer += sizeof(intptr_t);
-}
-#endif

@@ -1576,8 +1576,8 @@ void LIR_OprDesc::print(outputStream* out) const {
   } else if (is_single_cpu()) {
     out->print("%s", as_register()->name());
   } else if (is_double_cpu()) {
-    out->print(as_register_hi()->name());
-    out->print(as_register_lo()->name());
+    out->print("%s", as_register_hi()->name());
+    out->print("%s", as_register_lo()->name());
 #if defined(AARCH64)
   } else if (is_single_fpu()) {
     out->print("fpu%d", fpu_regnr());
@@ -2121,12 +2121,17 @@ void LIR_OpProfileCall::print_instr(outputStream* out) const {
 
 // LIR_OpProfileType
 void LIR_OpProfileType::print_instr(outputStream* out) const {
+#ifdef TARGET_ARCH_aarch64
   out->print("exact = ");
   if (exact_klass())
     exact_klass()->print_name_on(out);
   else
     out->print("(null)");
   out->print(" current = "); ciTypeEntries::print_ciklass(out, current_klass());
+#else
+  out->print("exact = "); exact_klass()->print_name_on(out);
+  out->print("current = "); ciTypeEntries::print_ciklass(out, current_klass());
+#endif
   mdp()->print(out);          out->print(" ");
   obj()->print(out);          out->print(" ");
   tmp()->print(out);          out->print(" ");

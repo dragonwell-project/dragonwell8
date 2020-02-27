@@ -34,8 +34,6 @@
 # include "assembler_aarch64.inline.hpp"
 #endif
 
-unsigned long asm_bp = 0x00007fffee09805c;
-
 // Implementation of AbstractAssembler
 //
 // The AbstractAssembler is generating code into a CodeBuffer. To make code generation faster,

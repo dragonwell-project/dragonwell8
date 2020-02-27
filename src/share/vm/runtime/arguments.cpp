@@ -44,6 +44,10 @@
 #include "utilities/macros.hpp"
 #include "utilities/stringUtils.hpp"
 #include "utilities/taskqueue.hpp"
+#ifdef AARCH64
+#include <ctype.h>
+#include <utilities/growableArray.hpp>
+#endif
 #ifdef TARGET_OS_FAMILY_linux
 # include "os_linux.inline.hpp"
 #endif
@@ -1151,9 +1155,11 @@ void Arguments::set_tiered_flags() {
     Tier3InvokeNotifyFreqLog = 0;
     Tier4InvocationThreshold = 0;
   }
+#ifdef AARCH64
   if (FLAG_IS_DEFAULT(NmethodSweepFraction)) {
     FLAG_SET_DEFAULT(NmethodSweepFraction, 1 + ReservedCodeCacheSize / (16 * M));
   }
+#endif
 }
 
 /**

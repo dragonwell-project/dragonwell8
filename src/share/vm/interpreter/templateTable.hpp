@@ -101,10 +101,8 @@ class TemplateTable: AllStatic {
   static Template        _template_table_wide[Bytecodes::number_of_codes];
 
   static Template*       _desc;                  // the current template to be generated
- public:
   static Bytecodes::Code bytecode()              { return _desc->bytecode(); }
 
- private:
   static BarrierSet*     _bs;                    // Cache the barrier set.
 
  public:
@@ -362,15 +360,11 @@ class TemplateTable: AllStatic {
 # include "templateTable_x86_32.hpp"
 #elif defined TARGET_ARCH_MODEL_x86_64
 # include "templateTable_x86_64.hpp"
-<<<<<<< HEAD
-#elif defined TARGET_ARCH_MODEL_sparc
-=======
 #endif
 #ifdef TARGET_ARCH_MODEL_aarch64
 # include "templateTable_aarch64.hpp"
 #endif
 #ifdef TARGET_ARCH_MODEL_sparc
->>>>>>> be9ee7c... Removed x86 code to create skeleton aarch64 tree
 # include "templateTable_sparc.hpp"
 #elif defined TARGET_ARCH_MODEL_zero
 # include "templateTable_zero.hpp"

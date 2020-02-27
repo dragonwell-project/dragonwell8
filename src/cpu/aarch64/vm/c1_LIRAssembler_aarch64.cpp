@@ -57,7 +57,6 @@ const Register SHIFT_count = r0;   // where count for shift operations must be
 
 #define __ _masm->
 
-
 static void select_different_registers(Register preserve,
                                        Register extra,
                                        Register &tmp1,
@@ -91,7 +90,6 @@ static void select_different_registers(Register preserve,
   }
   assert_different_registers(preserve, tmp1, tmp2, tmp3);
 }
-
 
 bool LIR_Assembler::is_small_constant(LIR_Opr opr) { Unimplemented(); return false; }
 
@@ -517,7 +515,7 @@ void LIR_Assembler::poll_for_safepoint(relocInfo::relocType rtype, CodeEmitInfo*
   __ adr(r0, poll);
   __ str(r0, Address(rthread, JavaThread::saved_exception_pc_offset()));
   __ mov(rscratch1, CAST_FROM_FN_PTR(address, SharedRuntime::get_poll_stub));
-  __ blrt(rscratch1, 1, 0, 1);
+  __ blr(rscratch1);
   __ maybe_isb();
   __ pop(0x3ffffffc, sp);          // integer registers except lr & sp & r0 & r1
   __ mov(rscratch1, r0);
@@ -1156,8 +1154,6 @@ void LIR_Assembler::emit_opBranch(LIR_OpBranch* op) {
   }
 }
 
-
-
 void LIR_Assembler::emit_opConvert(LIR_OpConvert* op) {
   LIR_Opr src  = op->in_opr();
   LIR_Opr dest = op->result_opr();
@@ -1614,29 +1610,39 @@ void LIR_Assembler::casl(Register addr, Register newval, Register cmpval) {
 }
 
 
+// Return 1 in rscratch1 if the CAS fails.
 void LIR_Assembler::emit_compare_and_swap(LIR_OpCompareAndSwap* op) {
   assert(VM_Version::supports_cx8(), "wrong machine");
   Register addr = as_reg(op->addr());
   Register newval = as_reg(op->new_value());
   Register cmpval = as_reg(op->cmp_value());
   Label succeed, fail, around;
+  Register res = op->result_opr()->as_register();
 
   if (op->code() == lir_cas_obj) {
+    assert(op->tmp1()->is_valid(), "must be");
+    Register t1 = op->tmp1()->as_register();
     if (UseCompressedOops) {
-      Register t1 = op->tmp1()->as_register();
-      assert(op->tmp1()->is_valid(), "must be");
-      __ encode_heap_oop(t1, cmpval);
-      cmpval = t1;
-      __ encode_heap_oop(rscratch2, newval);
-      newval = rscratch2;
-      casw(addr, newval, cmpval);
+      {
+        __ encode_heap_oop(t1, cmpval);
+        cmpval = t1;
+        __ encode_heap_oop(rscratch2, newval);
+        newval = rscratch2;
+        casw(addr, newval, cmpval);
+        __ eorw (res, r8, 1);
+      }
     } else {
-      casl(addr, newval, cmpval);
+      {
+        casl(addr, newval, cmpval);
+        __ eorw (res, r8, 1);
+      }
     }
   } else if (op->code() == lir_cas_int) {
     casw(addr, newval, cmpval);
+    __ eorw (res, r8, 1);
   } else {
     casl(addr, newval, cmpval);
+    __ eorw (res, r8, 1);
   }
 }
 
@@ -1926,7 +1932,7 @@ void LIR_Assembler::comp_op(LIR_Condition condition, LIR_Opr opr1, LIR_Opr opr2,
       // cpu register - cpu register
       Register reg2 = opr2->as_register();
       if (opr1->type() == T_OBJECT || opr1->type() == T_ARRAY) {
-        __ cmp(reg1, reg2);
+        __ cmpoops(reg1, reg2);
       } else {
         assert(opr2->type() != T_OBJECT && opr2->type() != T_ARRAY, "cmp int, oop?");
         __ cmpw(reg1, reg2);
@@ -2246,7 +2252,7 @@ void LIR_Assembler::emit_arraycopy(LIR_OpArrayCopy* op) {
     __ mov(c_rarg4, j_rarg4);
     if (copyfunc_addr == NULL) { // Use C version if stub was not generated
       __ mov(rscratch1, RuntimeAddress(C_entry));
-      __ blrt(rscratch1, 5, 0, 1);
+      __ blr(rscratch1);
     } else {
 #ifndef PRODUCT
       if (PrintC1Statistics) {
@@ -2890,40 +2896,7 @@ void LIR_Assembler::rt_call(LIR_Opr result, address dest, const LIR_OprList* arg
     __ far_call(RuntimeAddress(dest));
   } else {
     __ mov(rscratch1, RuntimeAddress(dest));
-    int len = args->length();
-    int type = 0;
-    if (! result->is_illegal()) {
-      switch (result->type()) {
-      case T_VOID:
-	type = 0;
-	break;
-      case T_INT:
-      case T_LONG:
-      case T_OBJECT:
-	type = 1;
-	break;
-      case T_FLOAT:
-	type = 2;
-	break;
-      case T_DOUBLE:
-	type = 3;
-	break;
-      default:
-	ShouldNotReachHere();
-	break;
-      }
-    }
-    int num_gpargs = 0;
-    int num_fpargs = 0;
-    for (int i = 0; i < args->length(); i++) {
-      LIR_Opr arg = args->at(i);
-      if (arg->type() == T_FLOAT || arg->type() == T_DOUBLE) {
-	num_fpargs++;
-      } else {
-	num_gpargs++;
-      }
-    }
-    __ blrt(rscratch1, num_gpargs, num_fpargs, type);
+    __ blr(rscratch1);
   }
 
   if (info != NULL) {

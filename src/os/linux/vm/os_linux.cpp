@@ -1423,11 +1423,7 @@ void os::Linux::clock_init() {
 #ifndef SYS_clock_getres
 
 #if defined(IA32) || defined(AMD64) || defined(AARCH64)
-#ifdef BUILTIN_SIM
-#define SYS_clock_getres 229
-#else
 #define SYS_clock_getres IA32_ONLY(266)  AMD64_ONLY(229) AARCH64_ONLY(114)
-#endif
 #define sys_clock_getres(x,y)  ::syscall(SYS_clock_getres, x, y)
 #else
 #warning "SYS_clock_getres not defined for this platform, disabling fast_thread_cpu_time"
@@ -1575,8 +1571,6 @@ void os::abort(bool dump_core) {
     out.print_raw_cr(buf);
     out.print_raw_cr("Dumping core ...");
 #endif
-    out.print_raw_cr("LOOPING...");
-    for (;;);
     ::abort(); // dump core
   }
 

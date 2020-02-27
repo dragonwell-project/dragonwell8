@@ -43,7 +43,7 @@ void MacroAssembler::get_thread(Register dst) {
   push(saved_regs, sp);
   mov(c_rarg0, ThreadLocalStorage::thread_index());
   mov(r19, CAST_FROM_FN_PTR(address, pthread_getspecific));
-  blrt(r19, 1, 0, 1);
+  blr(r19);
   if (dst != c_rarg0) {
     mov(dst, c_rarg0);
   }

@@ -51,9 +51,6 @@
 #include "runtime/timer.hpp"
 #include "utilities/events.hpp"
 #include "utilities/vmError.hpp"
-#ifdef BUILTIN_SIM
-#include "../../../../../../simulator/simulator.hpp"
-#endif
 
 // put OS-includes here
 # include <sys/types.h>
@@ -77,18 +74,10 @@
 # include <ucontext.h>
 # include <fpu_control.h>
 
-#ifdef BUILTIN_SIM
-#define REG_SP REG_RSP
-#define REG_PC REG_RIP
-#define REG_FP REG_RBP
-#define SPELL_REG_SP "rsp"
-#define SPELL_REG_FP "rbp"
-#else
 #define REG_FP 29
 
 #define SPELL_REG_SP "sp"
 #define SPELL_REG_FP "x29"
-#endif
 
 address os::current_stack_pointer() {
   register void *esp __asm__ (SPELL_REG_SP);
@@ -107,27 +96,15 @@ void os::initialize_thread(Thread *thr) {
 }
 
 address os::Linux::ucontext_get_pc(ucontext_t * uc) {
-#ifdef BUILTIN_SIM
-  return (address)uc->uc_mcontext.gregs[REG_PC];
-#else
   return (address)uc->uc_mcontext.pc;
-#endif
 }
 
 intptr_t* os::Linux::ucontext_get_sp(ucontext_t * uc) {
-#ifdef BUILTIN_SIM
-  return (intptr_t*)uc->uc_mcontext.gregs[REG_SP];
-#else
   return (intptr_t*)uc->uc_mcontext.sp;
-#endif
 }
 
 intptr_t* os::Linux::ucontext_get_fp(ucontext_t * uc) {
-#ifdef BUILTIN_SIM
-  return (intptr_t*)uc->uc_mcontext.gregs[REG_FP];
-#else
   return (intptr_t*)uc->uc_mcontext.regs[REG_FP];
-#endif
 }
 
 // For Forte Analyzer AsyncGetCallTrace profiling support - thread
@@ -175,11 +152,7 @@ frame os::fetch_frame_from_context(void* ucVoid) {
 // By default, gcc always saves frame pointer rfp on this stack. This
 // may get turned off by -fomit-frame-pointer.
 frame os::get_sender_for_C_frame(frame* fr) {
-#ifdef BUILTIN_SIM
-  return frame(fr->sender_sp(), fr->link(), fr->sender_pc());
-#else
   return frame(fr->link(), fr->link(), fr->sender_pc());
-#endif
 }
 
 intptr_t* _get_previous_fp() {
@@ -208,12 +181,6 @@ enum {
   trap_page_fault = 0xE
 };
 
-#ifdef BUILTIN_SIM
-extern "C" void Fetch32PFI () ;
-extern "C" void Fetch32Resume () ;
-extern "C" void FetchNPFI () ;
-extern "C" void FetchNResume () ;
-#endif
 
 // An operation in Unsafe has faulted.  We're going to return to the
 // instruction after the faulting load or store.  We also set
@@ -298,21 +265,10 @@ JVM_handle_linux_signal(int sig,
   if (info != NULL && uc != NULL && thread != NULL) {
     pc = (address) os::Linux::ucontext_get_pc(uc);
 
-#ifdef BUILTIN_SIM
-    if (pc == (address) Fetch32PFI) {
-       uc->uc_mcontext.gregs[REG_PC] = intptr_t(Fetch32Resume) ;
-       return 1 ;
-    }
-    if (pc == (address) FetchNPFI) {
-       uc->uc_mcontext.gregs[REG_PC] = intptr_t (FetchNResume) ;
-       return 1 ;
-    }
-#else
     if (StubRoutines::is_safefetch_fault(pc)) {
       uc->uc_mcontext.pc = intptr_t(StubRoutines::continuation_for_safefetch_fault(pc));
       return 1;
     }
-#endif
 
 #ifndef AMD64
     // Halt if SI_KERNEL before more crashes get misdiagnosed as Java bugs
@@ -440,11 +396,7 @@ JVM_handle_linux_signal(int sig,
     // save all thread context in case we need to restore it
     if (thread != NULL) thread->set_saved_exception_pc(pc);
 
-#ifdef BUILTIN_SIM
-    uc->uc_mcontext.gregs[REG_PC] = (greg_t)stub;
-#else
     uc->uc_mcontext.pc = (__u64)stub;
-#endif
     return true;
   }
 
@@ -603,38 +555,8 @@ void os::print_context(outputStream *st, void *context) {
 
   ucontext_t *uc = (ucontext_t*)context;
   st->print_cr("Registers:");
-#ifdef BUILTIN_SIM
-  st->print(  "RAX=" INTPTR_FORMAT, uc->uc_mcontext.gregs[REG_RAX]);
-  st->print(", RBX=" INTPTR_FORMAT, uc->uc_mcontext.gregs[REG_RBX]);
-  st->print(", RCX=" INTPTR_FORMAT, uc->uc_mcontext.gregs[REG_RCX]);
-  st->print(", RDX=" INTPTR_FORMAT, uc->uc_mcontext.gregs[REG_RDX]);
-  st->cr();
-  st->print(  "RSP=" INTPTR_FORMAT, uc->uc_mcontext.gregs[REG_RSP]);
-  st->print(", RBP=" INTPTR_FORMAT, uc->uc_mcontext.gregs[REG_RBP]);
-  st->print(", RSI=" INTPTR_FORMAT, uc->uc_mcontext.gregs[REG_RSI]);
-  st->print(", RDI=" INTPTR_FORMAT, uc->uc_mcontext.gregs[REG_RDI]);
-  st->cr();
-  st->print(  "R8 =" INTPTR_FORMAT, uc->uc_mcontext.gregs[REG_R8]);
-  st->print(", R9 =" INTPTR_FORMAT, uc->uc_mcontext.gregs[REG_R9]);
-  st->print(", R10=" INTPTR_FORMAT, uc->uc_mcontext.gregs[REG_R10]);
-  st->print(", R11=" INTPTR_FORMAT, uc->uc_mcontext.gregs[REG_R11]);
-  st->cr();
-  st->print(  "R12=" INTPTR_FORMAT, uc->uc_mcontext.gregs[REG_R12]);
-  st->print(", R13=" INTPTR_FORMAT, uc->uc_mcontext.gregs[REG_R13]);
-  st->print(", R14=" INTPTR_FORMAT, uc->uc_mcontext.gregs[REG_R14]);
-  st->print(", R15=" INTPTR_FORMAT, uc->uc_mcontext.gregs[REG_R15]);
-  st->cr();
-  st->print(  "RIP=" INTPTR_FORMAT, uc->uc_mcontext.gregs[REG_RIP]);
-  st->print(", EFLAGS=" INTPTR_FORMAT, uc->uc_mcontext.gregs[REG_EFL]);
-  st->print(", CSGSFS=" INTPTR_FORMAT, uc->uc_mcontext.gregs[REG_CSGSFS]);
-  st->print(", ERR=" INTPTR_FORMAT, uc->uc_mcontext.gregs[REG_ERR]);
-  st->cr();
-  st->print("  TRAPNO=" INTPTR_FORMAT, uc->uc_mcontext.gregs[REG_TRAPNO]);
-  st->cr();
-#else
   for (int r = 0; r < 31; r++)
 	  st->print_cr(  "R%d=" INTPTR_FORMAT, r, (int64_t)uc->uc_mcontext.regs[r]);
-#endif
   st->cr();
 
   intptr_t *sp = (intptr_t *)os::Linux::ucontext_get_sp(uc);
@@ -664,27 +586,8 @@ void os::print_register_info(outputStream *st, void *context) {
 
   // this is only for the "general purpose" registers
 
-#ifdef BUILTIN_SIM
-  st->print("RAX="); print_location(st, uc->uc_mcontext.gregs[REG_RAX]);
-  st->print("RBX="); print_location(st, uc->uc_mcontext.gregs[REG_RBX]);
-  st->print("RCX="); print_location(st, uc->uc_mcontext.gregs[REG_RCX]);
-  st->print("RDX="); print_location(st, uc->uc_mcontext.gregs[REG_RDX]);
-  st->print("RSP="); print_location(st, uc->uc_mcontext.gregs[REG_RSP]);
-  st->print("RBP="); print_location(st, uc->uc_mcontext.gregs[REG_RBP]);
-  st->print("RSI="); print_location(st, uc->uc_mcontext.gregs[REG_RSI]);
-  st->print("RDI="); print_location(st, uc->uc_mcontext.gregs[REG_RDI]);
-  st->print("R8 ="); print_location(st, uc->uc_mcontext.gregs[REG_R8]);
-  st->print("R9 ="); print_location(st, uc->uc_mcontext.gregs[REG_R9]);
-  st->print("R10="); print_location(st, uc->uc_mcontext.gregs[REG_R10]);
-  st->print("R11="); print_location(st, uc->uc_mcontext.gregs[REG_R11]);
-  st->print("R12="); print_location(st, uc->uc_mcontext.gregs[REG_R12]);
-  st->print("R13="); print_location(st, uc->uc_mcontext.gregs[REG_R13]);
-  st->print("R14="); print_location(st, uc->uc_mcontext.gregs[REG_R14]);
-  st->print("R15="); print_location(st, uc->uc_mcontext.gregs[REG_R15]);
-#else
   for (int r = 0; r < 31; r++)
 	  st->print_cr(  "R%d=" INTPTR_FORMAT, r, (int64_t)uc->uc_mcontext.regs[r]);
-#endif
   st->cr();
 }
 

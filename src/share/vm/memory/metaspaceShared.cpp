@@ -997,10 +997,6 @@ void MetaspaceShared::initialize_shared_spaces() {
   buffer += MetaspaceShared::vtbl_list_size * sizeof(void*);
   Universe::init_self_patching_vtbl_list(vtbl_list, vtbl_list_size);
 
-#ifdef AARCH64
-  relocate_vtbl_list(&buffer);
-#endif
-
   // Skip over (reserve space for) dummy C++ vtables Klass objects.
   // They are used as is.
 

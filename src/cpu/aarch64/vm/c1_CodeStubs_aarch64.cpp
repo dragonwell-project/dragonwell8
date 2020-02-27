@@ -65,32 +65,28 @@ void ConversionStub::emit_code(LIR_Assembler* ce) {
     {
       if (v0 != input()->as_float_reg())
 	__ fmovs(v0, input()->as_float_reg());
-      __ call_VM_leaf_base1(CAST_FROM_FN_PTR(address, SharedRuntime::f2i),
-			    0, 1, MacroAssembler::ret_type_integral);
+      __ call_VM_leaf(CAST_FROM_FN_PTR(address, SharedRuntime::f2i));
     }
     break;
   case Bytecodes::_d2i:
     {
       if (v0 != input()->as_double_reg())
 	__ fmovd(v0, input()->as_double_reg());
-      __ call_VM_leaf_base1(CAST_FROM_FN_PTR(address, SharedRuntime::d2i),
-			    0, 1, MacroAssembler::ret_type_integral);
+      __ call_VM_leaf(CAST_FROM_FN_PTR(address, SharedRuntime::d2i));
     }
     break;
   case Bytecodes::_f2l:
     {
       if (v0 != input()->as_float_reg())
 	__ fmovs(v0, input()->as_float_reg());
-      __ call_VM_leaf_base1(CAST_FROM_FN_PTR(address, SharedRuntime::f2l),
-			    0, 1, MacroAssembler::ret_type_integral);
+      __ call_VM_leaf(CAST_FROM_FN_PTR(address, SharedRuntime::f2l));
     }
     break;
   case Bytecodes::_d2l:
     {
       if (v0 != input()->as_double_reg())
 	__ fmovd(v0, input()->as_double_reg());
-      __ call_VM_leaf_base1(CAST_FROM_FN_PTR(address, SharedRuntime::d2l),
-			    0, 1, MacroAssembler::ret_type_integral);
+      __ call_VM_leaf(CAST_FROM_FN_PTR(address, SharedRuntime::d2l));
     }
     break;
   default:

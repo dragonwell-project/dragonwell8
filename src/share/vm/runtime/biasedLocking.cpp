@@ -31,6 +31,9 @@
 #include "runtime/vframe.hpp"
 #include "runtime/vmThread.hpp"
 #include "runtime/vm_operations.hpp"
+#ifdef AARCH64
+#include "trace/tracing.hpp"
+#endif
 
 static bool _biased_locking_enabled = false;
 BiasedLockingCounters BiasedLocking::_counters;

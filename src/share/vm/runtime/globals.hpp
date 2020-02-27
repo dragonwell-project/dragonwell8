@@ -1229,7 +1229,7 @@ class CommandLineFlags {
   product(bool, CheckEndorsedAndExtDirs, false,                             \
           "Verify the endorsed and extension directories are not used")     \
                                                                             \
-  product(bool, UseFastJNIAccessors, false,                                 \
+  product(bool, UseFastJNIAccessors, true,                                  \
           "Use optimized versions of Get<Primitive>Field")                  \
                                                                             \
   product(intx, MaxJNILocalCapacity, 65536,                                 \
@@ -2650,12 +2650,6 @@ class CommandLineFlags {
           "Generate extra debugging information for non-safepoints in "     \
           "nmethods")                                                       \
                                                                             \
-  product(bool, NotifySimulator, true,                                      \
-         "tell the AArch64 sim where we are in method code")                \
-                                                                            \
-  product(bool, UseSimulatorCache, false,                                   \
-         "tell the AArch64 sim where we are in method code")                \
-                                                                            \
   product(bool, PrintVMOptions, false,                                      \
           "Print flags that appeared on the command line")                  \
                                                                             \
@@ -3872,7 +3866,7 @@ class CommandLineFlags {
   product(uintx, SharedMiscDataSize,    NOT_LP64(2*M) LP64_ONLY(4*M),       \
           "Size of the shared miscellaneous data area (in bytes)")          \
                                                                             \
-  product(uintx, SharedMiscCodeSize,    192*K,                              \
+  product(uintx, SharedMiscCodeSize,    120*K,                              \
           "Size of the shared miscellaneous code area (in bytes)")          \
                                                                             \
   product(uintx, SharedBaseAddress, LP64_ONLY(32*G)                         \

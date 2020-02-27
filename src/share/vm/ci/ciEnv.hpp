@@ -33,6 +33,9 @@
 #include "code/exceptionHandlerTable.hpp"
 #include "compiler/oopMap.hpp"
 #include "runtime/thread.hpp"
+#ifdef AARCH64
+#include "runtime/arguments.hpp"
+#endif
 
 class CompileTask;
 

@@ -173,10 +173,14 @@ static void do_oop_store(InterpreterMacroAssembler* _masm,
           // G1 barrier needs uncompressed oop for region cross check.
           Register new_val = val;
           if (UseCompressedOops) {
-            new_val = rscratch1;
+            new_val = rscratch2;
             __ mov(new_val, val);
           }
+          // For Shenandoah, make sure we only store refs into to-space.
+          oopDesc::bs()->interpreter_read_barrier(_masm, val);
+
           __ store_heap_oop(Address(r3, 0), val);
+
           __ g1_write_barrier_post(r3 /* store_adr */,
                                    new_val /* new_val */,
                                    rthread /* thread */,
@@ -676,6 +680,7 @@ void TemplateTable::iaload()
   // r0: array
   // r1: index
   index_check(r0, r1); // leaves index in r1, kills rscratch1
+  oopDesc::bs()->interpreter_read_barrier_not_null(_masm, r0);
   __ lea(r1, Address(r0, r1, Address::uxtw(2)));
   __ ldrw(r0, Address(r1, arrayOopDesc::base_offset_in_bytes(T_INT)));
 }
@@ -688,6 +693,7 @@ void TemplateTable::laload()
   // r0: array
   // r1: index
   index_check(r0, r1); // leaves index in r1, kills rscratch1
+  oopDesc::bs()->interpreter_read_barrier_not_null(_masm, r0);
   __ lea(r1, Address(r0, r1, Address::uxtw(3)));
   __ ldr(r0, Address(r1,  arrayOopDesc::base_offset_in_bytes(T_LONG)));
 }
@@ -700,6 +706,7 @@ void TemplateTable::faload()
   // r0: array
   // r1: index
   index_check(r0, r1); // leaves index in r1, kills rscratch1
+  oopDesc::bs()->interpreter_read_barrier_not_null(_masm, r0);
   __ lea(r1,  Address(r0, r1, Address::uxtw(2)));
   __ ldrs(v0, Address(r1,  arrayOopDesc::base_offset_in_bytes(T_FLOAT)));
 }
@@ -712,6 +719,7 @@ void TemplateTable::daload()
   // r0: array
   // r1: index
   index_check(r0, r1); // leaves index in r1, kills rscratch1
+  oopDesc::bs()->interpreter_read_barrier_not_null(_masm, r0);
   __ lea(r1,  Address(r0, r1, Address::uxtw(3)));
   __ ldrd(v0, Address(r1,  arrayOopDesc::base_offset_in_bytes(T_DOUBLE)));
 }
@@ -724,6 +732,7 @@ void TemplateTable::aaload()
   // r0: array
   // r1: index
   index_check(r0, r1); // leaves index in r1, kills rscratch1
+  oopDesc::bs()->interpreter_read_barrier_not_null(_masm, r0);
   int s = (UseCompressedOops ? 2 : 3);
   __ lea(r1, Address(r0, r1, Address::uxtw(s)));
   __ load_heap_oop(r0, Address(r1, arrayOopDesc::base_offset_in_bytes(T_OBJECT)));
@@ -737,6 +746,7 @@ void TemplateTable::baload()
   // r0: array
   // r1: index
   index_check(r0, r1); // leaves index in r1, kills rscratch1
+  oopDesc::bs()->interpreter_read_barrier_not_null(_masm, r0);
   __ lea(r1,  Address(r0, r1, Address::uxtw(0)));
   __ load_signed_byte(r0, Address(r1,  arrayOopDesc::base_offset_in_bytes(T_BYTE)));
 }
@@ -749,6 +759,7 @@ void TemplateTable::caload()
   // r0: array
   // r1: index
   index_check(r0, r1); // leaves index in r1, kills rscratch1
+  oopDesc::bs()->interpreter_read_barrier_not_null(_masm, r0);
   __ lea(r1,  Address(r0, r1, Address::uxtw(1)));
   __ load_unsigned_short(r0, Address(r1,  arrayOopDesc::base_offset_in_bytes(T_CHAR)));
 }
@@ -766,6 +777,7 @@ void TemplateTable::fast_icaload()
   // r0: array
   // r1: index
   index_check(r0, r1); // leaves index in r1, kills rscratch1
+  oopDesc::bs()->interpreter_read_barrier_not_null(_masm, r0);
   __ lea(r1,  Address(r0, r1, Address::uxtw(1)));
   __ load_unsigned_short(r0, Address(r1,  arrayOopDesc::base_offset_in_bytes(T_CHAR)));
 }
@@ -778,6 +790,7 @@ void TemplateTable::saload()
   // r0: array
   // r1: index
   index_check(r0, r1); // leaves index in r1, kills rscratch1
+  oopDesc::bs()->interpreter_read_barrier_not_null(_masm, r0);
   __ lea(r1,  Address(r0, r1, Address::uxtw(1)));
   __ load_signed_short(r0, Address(r1,  arrayOopDesc::base_offset_in_bytes(T_SHORT)));
 }
@@ -967,6 +980,7 @@ void TemplateTable::iastore() {
   // r1: index
   // r3: array
   index_check(r3, r1); // prefer index in r1
+  oopDesc::bs()->interpreter_write_barrier(_masm, r3);
   __ lea(rscratch1, Address(r3, r1, Address::uxtw(2)));
   __ strw(r0, Address(rscratch1,
 		      arrayOopDesc::base_offset_in_bytes(T_INT)));
@@ -980,6 +994,7 @@ void TemplateTable::lastore() {
   // r1: index
   // r3: array
   index_check(r3, r1); // prefer index in r1
+  oopDesc::bs()->interpreter_write_barrier(_masm, r3);
   __ lea(rscratch1, Address(r3, r1, Address::uxtw(3)));
   __ str(r0, Address(rscratch1,
 		      arrayOopDesc::base_offset_in_bytes(T_LONG)));
@@ -993,6 +1008,7 @@ void TemplateTable::fastore() {
   // r1:  index
   // r3:  array
   index_check(r3, r1); // prefer index in r1
+  oopDesc::bs()->interpreter_write_barrier(_masm, r3);
   __ lea(rscratch1, Address(r3, r1, Address::uxtw(2)));
   __ strs(v0, Address(rscratch1,
 		      arrayOopDesc::base_offset_in_bytes(T_FLOAT)));
@@ -1006,6 +1022,7 @@ void TemplateTable::dastore() {
   // r1:  index
   // r3:  array
   index_check(r3, r1); // prefer index in r1
+  oopDesc::bs()->interpreter_write_barrier(_masm, r3);
   __ lea(rscratch1, Address(r3, r1, Address::uxtw(3)));
   __ strd(v0, Address(rscratch1,
 		      arrayOopDesc::base_offset_in_bytes(T_DOUBLE)));
@@ -1022,6 +1039,7 @@ void TemplateTable::aastore() {
   Address element_address(r4, arrayOopDesc::base_offset_in_bytes(T_OBJECT));
 
   index_check(r3, r2);     // kills r1
+  oopDesc::bs()->interpreter_write_barrier(_masm, r3);
   __ lea(r4, Address(r3, r2, Address::uxtw(UseCompressedOops? 2 : 3)));
 
   // do array store check - check for NULL value first
@@ -1072,6 +1090,7 @@ void TemplateTable::bastore()
   // r0: value
   // r1: index
   // r3: array
+  oopDesc::bs()->interpreter_write_barrier(_masm, r3);
   index_check(r3, r1); // prefer index in r1
 
   // Need to check whether array is boolean or byte
@@ -1099,6 +1118,7 @@ void TemplateTable::castore()
   // r1: index
   // r3: array
   index_check(r3, r1); // prefer index in r1
+  oopDesc::bs()->interpreter_write_barrier(_masm, r3);
   __ lea(rscratch1, Address(r3, r1, Address::uxtw(1)));
   __ strh(r0, Address(rscratch1,
 		      arrayOopDesc::base_offset_in_bytes(T_CHAR)));
@@ -1394,8 +1414,7 @@ void TemplateTable::fop2(Operation op)
   case rem:
     __ fmovs(v1, v0);
     __ pop_f(v0);
-    __ call_VM_leaf_base1(CAST_FROM_FN_PTR(address, SharedRuntime::frem),
-			 0, 2, MacroAssembler::ret_type_float);
+    __ call_VM_leaf(CAST_FROM_FN_PTR(address, SharedRuntime::frem));
     break;
   default:
     ShouldNotReachHere();
@@ -1427,8 +1446,7 @@ void TemplateTable::dop2(Operation op)
   case rem:
     __ fmovd(v1, v0);
     __ pop_d(v0);
-    __ call_VM_leaf_base1(CAST_FROM_FN_PTR(address, SharedRuntime::drem),
-			 0, 2, MacroAssembler::ret_type_double);
+    __ call_VM_leaf(CAST_FROM_FN_PTR(address, SharedRuntime::drem));
     break;
   default:
     ShouldNotReachHere();
@@ -1569,8 +1587,7 @@ void TemplateTable::convert()
     __ fcvtzsw(r0, v0);
     __ get_fpsr(r1);
     __ cbzw(r1, L_Okay);
-    __ call_VM_leaf_base1(CAST_FROM_FN_PTR(address, SharedRuntime::f2i),
-			 0, 1, MacroAssembler::ret_type_integral);
+    __ call_VM_leaf(CAST_FROM_FN_PTR(address, SharedRuntime::f2i));
     __ bind(L_Okay);
   }
     break;
@@ -1581,8 +1598,7 @@ void TemplateTable::convert()
     __ fcvtzs(r0, v0);
     __ get_fpsr(r1);
     __ cbzw(r1, L_Okay);
-    __ call_VM_leaf_base1(CAST_FROM_FN_PTR(address, SharedRuntime::f2l),
-			 0, 1, MacroAssembler::ret_type_integral);
+    __ call_VM_leaf(CAST_FROM_FN_PTR(address, SharedRuntime::f2l));
     __ bind(L_Okay);
   }
     break;
@@ -1596,8 +1612,7 @@ void TemplateTable::convert()
     __ fcvtzdw(r0, v0);
     __ get_fpsr(r1);
     __ cbzw(r1, L_Okay);
-    __ call_VM_leaf_base1(CAST_FROM_FN_PTR(address, SharedRuntime::d2i),
-			 0, 1, MacroAssembler::ret_type_integral);
+    __ call_VM_leaf(CAST_FROM_FN_PTR(address, SharedRuntime::d2i));
     __ bind(L_Okay);
   }
     break;
@@ -1608,8 +1623,7 @@ void TemplateTable::convert()
     __ fcvtzd(r0, v0);
     __ get_fpsr(r1);
     __ cbzw(r1, L_Okay);
-    __ call_VM_leaf_base1(CAST_FROM_FN_PTR(address, SharedRuntime::d2l),
-			 0, 1, MacroAssembler::ret_type_integral);
+    __ call_VM_leaf(CAST_FROM_FN_PTR(address, SharedRuntime::d2l));
     __ bind(L_Okay);
   }
     break;
@@ -1949,7 +1963,7 @@ void TemplateTable::if_acmp(Condition cc)
   // assume branch is more often taken than not (loops use backward branches)
   Label not_taken;
   __ pop_ptr(r1);
-  __ cmp(r1, r0);
+  __ cmpoops(r1, r0);
   __ br(j_not(cc), not_taken);
   branch(false, false);
   __ bind(not_taken);
@@ -2402,15 +2416,30 @@ void TemplateTable::getfield_or_static(int byte_no, bool is_static)
   const Register obj   = r4;
   const Register off   = r19;
   const Register flags = r0;
+  const Register raw_flags = r6;
   const Register bc    = r4; // uses same reg as obj, so don't mix them
 
   resolve_cache_and_index(byte_no, cache, index, sizeof(u2));
   jvmti_post_field_access(cache, index, is_static, false);
-  load_field_cp_cache_entry(obj, cache, index, off, flags, is_static);
+  load_field_cp_cache_entry(obj, cache, index, off, raw_flags, is_static);
 
   if (!is_static) {
     // obj is on the stack
     pop_and_check_object(obj);
+  }
+  oopDesc::bs()->interpreter_read_barrier_not_null(_masm, obj);
+
+  // 8179954: We need to make sure that the code generated for
+  // volatile accesses forms a sequentially-consistent set of
+  // operations when combined with STLR and LDAR.  Without a leading
+  // membar it's possible for a simple Dekker test to fail if loads
+  // use LDR;DMB but stores use STLR.  This can happen if C2 compiles
+  // the stores in one method and we interpret the loads in another.
+  if (! UseBarriersForVolatile) {
+    Label notVolatile;
+    __ tbz(raw_flags, ConstantPoolCacheEntry::is_volatile_shift, notVolatile);
+    __ membar(MacroAssembler::AnyAny);
+    __ bind(notVolatile);
   }
 
   const Address field(obj, off);
@@ -2420,7 +2449,8 @@ void TemplateTable::getfield_or_static(int byte_no, bool is_static)
 
   // x86 uses a shift and mask or wings it with a shift plus assert
   // the mask is not needed. aarch64 just uses bitfield extract
-  __ ubfxw(flags, flags, ConstantPoolCacheEntry::tos_state_shift,  ConstantPoolCacheEntry::tos_state_bits);
+  __ ubfxw(flags, raw_flags, ConstantPoolCacheEntry::tos_state_shift,
+           ConstantPoolCacheEntry::tos_state_bits);
 
   assert(btos == 0, "change code, btos != 0");
   __ cbnz(flags, notByte);
@@ -2539,9 +2569,11 @@ void TemplateTable::getfield_or_static(int byte_no, bool is_static)
 #endif
 
   __ bind(Done);
-  // It's really not worth bothering to check whether this field
-  // really is volatile in the slow case.
+
+  Label notVolatile;
+  __ tbz(raw_flags, ConstantPoolCacheEntry::is_volatile_shift, notVolatile);
   __ membar(MacroAssembler::LoadLoad | MacroAssembler::LoadStore);
+  __ bind(notVolatile);
 }
 
 
@@ -2654,6 +2686,7 @@ void TemplateTable::putfield_or_static(int byte_no, bool is_static) {
   {
     __ pop(btos);
     if (!is_static) pop_and_check_object(obj);
+    oopDesc::bs()->interpreter_write_barrier(_masm, obj);
     __ strb(r0, field);
     if (!is_static) {
       patch_bytecode(Bytecodes::_fast_bputfield, bc, r1, true, byte_no);
@@ -2669,6 +2702,7 @@ void TemplateTable::putfield_or_static(int byte_no, bool is_static) {
   {
     __ pop(ztos);
     if (!is_static) pop_and_check_object(obj);
+    oopDesc::bs()->interpreter_write_barrier(_masm, obj);
     __ andw(r0, r0, 0x1);
     __ strb(r0, field);
     if (!is_static) {
@@ -2685,6 +2719,7 @@ void TemplateTable::putfield_or_static(int byte_no, bool is_static) {
   {
     __ pop(atos);
     if (!is_static) pop_and_check_object(obj);
+    oopDesc::bs()->interpreter_write_barrier(_masm, obj);
     // Store into the field
     do_oop_store(_masm, field, r0, _bs->kind(), false);
     if (!is_static) {
@@ -2701,6 +2736,7 @@ void TemplateTable::putfield_or_static(int byte_no, bool is_static) {
   {
     __ pop(itos);
     if (!is_static) pop_and_check_object(obj);
+    oopDesc::bs()->interpreter_write_barrier(_masm, obj);
     __ strw(r0, field);
     if (!is_static) {
       patch_bytecode(Bytecodes::_fast_iputfield, bc, r1, true, byte_no);
@@ -2716,6 +2752,7 @@ void TemplateTable::putfield_or_static(int byte_no, bool is_static) {
   {
     __ pop(ctos);
     if (!is_static) pop_and_check_object(obj);
+    oopDesc::bs()->interpreter_write_barrier(_masm, obj);
     __ strh(r0, field);
     if (!is_static) {
       patch_bytecode(Bytecodes::_fast_cputfield, bc, r1, true, byte_no);
@@ -2731,6 +2768,7 @@ void TemplateTable::putfield_or_static(int byte_no, bool is_static) {
   {
     __ pop(stos);
     if (!is_static) pop_and_check_object(obj);
+    oopDesc::bs()->interpreter_write_barrier(_masm, obj);
     __ strh(r0, field);
     if (!is_static) {
       patch_bytecode(Bytecodes::_fast_sputfield, bc, r1, true, byte_no);
@@ -2746,6 +2784,7 @@ void TemplateTable::putfield_or_static(int byte_no, bool is_static) {
   {
     __ pop(ltos);
     if (!is_static) pop_and_check_object(obj);
+    oopDesc::bs()->interpreter_write_barrier(_masm, obj);
     __ str(r0, field);
     if (!is_static) {
       patch_bytecode(Bytecodes::_fast_lputfield, bc, r1, true, byte_no);
@@ -2761,6 +2800,7 @@ void TemplateTable::putfield_or_static(int byte_no, bool is_static) {
   {
     __ pop(ftos);
     if (!is_static) pop_and_check_object(obj);
+    oopDesc::bs()->interpreter_write_barrier(_masm, obj);
     __ strs(v0, field);
     if (!is_static) {
       patch_bytecode(Bytecodes::_fast_fputfield, bc, r1, true, byte_no);
@@ -2778,6 +2818,7 @@ void TemplateTable::putfield_or_static(int byte_no, bool is_static) {
   {
     __ pop(dtos);
     if (!is_static) pop_and_check_object(obj);
+    oopDesc::bs()->interpreter_write_barrier(_masm, obj);
     __ strd(v0, field);
     if (!is_static) {
       patch_bytecode(Bytecodes::_fast_dputfield, bc, r1, true, byte_no);
@@ -2895,6 +2936,7 @@ void TemplateTable::fast_storefield(TosState state)
 
   // Get object from stack
   pop_and_check_object(r2);
+  oopDesc::bs()->interpreter_write_barrier(_masm, r2);
 
   // field address
   const Address field(r2, r1);
@@ -2976,7 +3018,21 @@ void TemplateTable::fast_accessfield(TosState state)
   // r0: object
   __ verify_oop(r0);
   __ null_check(r0);
+  oopDesc::bs()->interpreter_read_barrier_not_null(_masm, r0);
   const Address field(r0, r1);
+
+  // 8179954: We need to make sure that the code generated for
+  // volatile accesses forms a sequentially-consistent set of
+  // operations when combined with STLR and LDAR.  Without a leading
+  // membar it's possible for a simple Dekker test to fail if loads
+  // use LDR;DMB but stores use STLR.  This can happen if C2 compiles
+  // the stores in one method and we interpret the loads in another.
+  if (! UseBarriersForVolatile) {
+    Label notVolatile;
+    __ tbz(r3, ConstantPoolCacheEntry::is_volatile_shift, notVolatile);
+    __ membar(MacroAssembler::AnyAny);
+    __ bind(notVolatile);
+  }
 
   // access field
   switch (bytecode()) {
@@ -3026,10 +3082,27 @@ void TemplateTable::fast_xaccess(TosState state)
   __ get_cache_and_index_at_bcp(r2, r3, 2);
   __ ldr(r1, Address(r2, in_bytes(ConstantPoolCache::base_offset() +
 				  ConstantPoolCacheEntry::f2_offset())));
+
+  // 8179954: We need to make sure that the code generated for
+  // volatile accesses forms a sequentially-consistent set of
+  // operations when combined with STLR and LDAR.  Without a leading
+  // membar it's possible for a simple Dekker test to fail if loads
+  // use LDR;DMB but stores use STLR.  This can happen if C2 compiles
+  // the stores in one method and we interpret the loads in another.
+  if (! UseBarriersForVolatile) {
+    Label notVolatile;
+    __ ldrw(r3, Address(r2, in_bytes(ConstantPoolCache::base_offset() +
+                                     ConstantPoolCacheEntry::flags_offset())));
+    __ tbz(r3, ConstantPoolCacheEntry::is_volatile_shift, notVolatile);
+    __ membar(MacroAssembler::AnyAny);
+    __ bind(notVolatile);
+  }
+
   // make sure exception is reported in correct bcp range (getfield is
   // next instruction)
   __ increment(rbcp);
   __ null_check(r0);
+  oopDesc::bs()->interpreter_read_barrier_not_null(_masm, r0);
   switch (state) {
   case itos:
     __ ldrw(r0, Address(r0, r1, Address::lsl(0)));
@@ -3705,6 +3778,11 @@ void TemplateTable::monitorenter()
   // check for NULL object
   __ null_check(r0);
 
+  // We need to preemptively evacuate the object, because we later compare
+  // it to objects in the BasicObjectLock list, and we might get false negatives
+  // if another thread evacuates the object in the meantime. See acmp.
+  oopDesc::bs()->interpreter_write_barrier(_masm, r0);
+
   const Address monitor_block_top(
         rfp, frame::interpreter_frame_monitor_block_top_offset * wordSize);
   const Address monitor_block_bot(
@@ -3803,6 +3881,11 @@ void TemplateTable::monitorexit()
 
   // check for NULL object
   __ null_check(r0);
+
+  // We need to preemptively evacuate the object, because we later compare
+  // it to objects in the BasicObjectLock list, and we might get false negatives
+  // if another thread evacuates the object in the meantime. See acmp.
+  oopDesc::bs()->interpreter_write_barrier(_masm, r0);
 
   const Address monitor_block_top(
         rfp, frame::interpreter_frame_monitor_block_top_offset * wordSize);

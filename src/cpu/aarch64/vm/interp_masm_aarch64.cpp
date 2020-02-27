@@ -273,6 +273,7 @@ void InterpreterMacroAssembler::load_resolved_reference_at_index(
   ldr(result, Address(result, ConstantPool::resolved_references_offset_in_bytes()));
   // JNIHandles::resolve(obj);
   ldr(result, Address(result, 0));
+  oopDesc::bs()->interpreter_read_barrier_not_null(this, result);
   // Add in the index
   add(result, result, tmp);
   load_heap_oop(result, Address(result, arrayOopDesc::base_offset_in_bytes(T_OBJECT)));
@@ -1162,12 +1163,12 @@ void InterpreterMacroAssembler::record_klass_in_profile_helper(
           b(done);
           bind(found_null);
         } else {
-	  cbz(reg2, done);
+	  cbnz(reg2, done);
         }
         break;
       }
       // Since null is rare, make it be the branch-taken case.
-      cbz(reg2,found_null);
+      cbz(reg2, found_null);
 
       // Put all the "Case 3" tests here.
       record_klass_in_profile_helper(receiver, mdp, reg2, start_row + 1, done, is_virtual_call);

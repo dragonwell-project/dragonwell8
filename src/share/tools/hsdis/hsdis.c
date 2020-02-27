@@ -54,8 +54,6 @@
 #include <inttypes.h>
 #include <string.h>
 
-#ifdef TARGET_ARCH_aarch64
-#include <config.h>
 #include <libiberty.h>
 #include <bfd.h>
 #include <bfdver.h>

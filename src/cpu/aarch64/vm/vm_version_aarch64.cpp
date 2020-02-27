@@ -35,12 +35,8 @@
 # include "os_linux.inline.hpp"
 #endif
 
-#ifndef BUILTIN_SIM
 #include <sys/auxv.h>
 #include <asm/hwcap.h>
-#else
-#define getauxval(hwcap) 0
-#endif
 
 #ifndef HWCAP_AES
 #define HWCAP_AES   (1<<3)
@@ -90,10 +86,6 @@ class VM_Version_StubGenerator: public StubCodeGenerator {
     StubCodeMark mark(this, "VM_Version", "getPsrInfo_stub");
 #   define __ _masm->
     address start = __ pc();
-
-#ifdef BUILTIN_SIM
-    __ c_stub_prolog(1, 0, MacroAssembler::ret_type_void);
-#endif
 
     // void getPsrInfo(VM_Version::PsrInfo* psr_info);
 
@@ -237,6 +229,14 @@ void VM_Version::get_processor_features() {
 
   if (FLAG_IS_DEFAULT(UseCRC32Intrinsics)) {
     UseCRC32Intrinsics = true;
+  }
+
+  if (FLAG_IS_DEFAULT(UseFastJNIAccessors)) {
+    UseFastJNIAccessors = false;
+  }
+
+  if (FLAG_IS_DEFAULT(SharedMiscCodeSize)) {
+    SharedMiscCodeSize = 192*K;
   }
 
   if (auxv & (HWCAP_SHA1 | HWCAP_SHA2)) {

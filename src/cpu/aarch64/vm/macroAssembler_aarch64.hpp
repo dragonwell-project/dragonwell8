@@ -159,12 +159,9 @@ class MacroAssembler: public Assembler {
 
   virtual void _call_Unimplemented(address call_site) {
     mov(rscratch2, call_site);
-    haltsim();
   }
 
 #define call_Unimplemented() _call_Unimplemented((address)__PRETTY_FUNCTION__)
-
-  virtual void notify(int type);
 
   // aliases defined in AARCH64 spec
 
@@ -443,14 +440,13 @@ public:
   // 64 bits of each vector register.
   void push_call_clobbered_registers();
   void pop_call_clobbered_registers();
+  void push_call_clobbered_fp_registers();
+  void pop_call_clobbered_fp_registers();
 
   // now mov instructions for loading absolute addresses and 32 or
   // 64 bit integers
 
-  inline void mov(Register dst, address addr)
-  {
-    mov_immediate64(dst, (u_int64_t)addr);
-  }
+  void mov(Register dst, address addr);
 
   inline void mov(Register dst, u_int64_t imm64)
   {
@@ -781,6 +777,8 @@ public:
                              Register tmp,
                              Register tmp2);
 
+  void shenandoah_write_barrier(Register dst);
+
 #endif // INCLUDE_ALL_GCS
 
   // split store_check(Register obj) to enhance instruction interleaving
@@ -973,6 +971,8 @@ public:
   void addptr(const Address &dst, int32_t src);
   void cmpptr(Register src1, Address src2);
 
+  void cmpoops(Register src1, Register src2);
+
   void cmpxchgptr(Register oldv, Register newv, Register addr, Register tmp,
 		  Label &suceed, Label *fail);
 
@@ -1004,6 +1004,8 @@ public:
                bool acquire, bool release,
                Register tmp = rscratch1);
 
+  void cmpxchg_oop_shenandoah(Register addr, Register expected, Register new_val,
+                              bool acquire, bool release, bool weak, bool is_cae, Register result);
   // Calls
 
   address trampoline_call(Address entry, CodeBuffer *cbuf = NULL);
@@ -1156,26 +1158,6 @@ public:
   //
 
   public:
-
-#ifdef BUILTIN_SIM
-  void c_stub_prolog(int gp_arg_count, int fp_arg_count, int ret_type, address *prolog_ptr = NULL);
-#else
-  void c_stub_prolog(int gp_arg_count, int fp_arg_count, int ret_type) { }
-#endif
-
-  // special version of call_VM_leaf_base needed for aarch64 simulator
-  // where we need to specify both the gp and fp arg counts and the
-  // return type so that the linkage routine from aarch64 to x86 and
-  // back knows which aarch64 registers to copy to x86 registers and
-  // which x86 result register to copy back to an aarch64 register
-
-  void call_VM_leaf_base1(
-    address  entry_point,             // the entry point
-    int      number_of_gp_arguments,  // the number of gp reg arguments to pass
-    int      number_of_fp_arguments,  // the number of fp reg arguments to pass
-    ret_type type,		      // the return type for the call
-    Label*   retaddr = NULL
-  );
 
   void ldr_constant(Register dest, const Address &const_addr) {
     if (NearCpool) {

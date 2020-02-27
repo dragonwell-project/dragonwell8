@@ -225,15 +225,13 @@ void InterpreterGenerator::generate_transcendental_entry(AbstractInterpreter::Me
     fn = CAST_FROM_FN_PTR(address, SharedRuntime::dexp);
     break;
   case Interpreter::java_lang_math_pow :
-    fpargs = 2;
     fn = CAST_FROM_FN_PTR(address, SharedRuntime::dpow);
     break;
   default:
     ShouldNotReachHere();
   }
-  const int gpargs = 0, rtype = 3;
   __ mov(rscratch1, fn);
-  __ blrt(rscratch1, gpargs, fpargs, rtype);
+  __ blr(rscratch1);
 }
 
 // Abstract method entry
