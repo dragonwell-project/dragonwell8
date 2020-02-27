@@ -40,6 +40,7 @@ import java.util.List;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
+import sun.misc.Unsafe;
 
 /**
  * A multi-threaded implementation of Selector for Windows.
@@ -49,11 +50,25 @@ import java.util.Iterator;
  */
 
 final class WindowsSelectorImpl extends SelectorImpl {
+    private static final Unsafe unsafe = Unsafe.getUnsafe();
+    private static int addressSize = unsafe.addressSize();
+
+    private static int dependsArch(int value32, int value64) {
+        return (addressSize == 4) ? value32 : value64;
+    }
+
     // Initial capacity of the poll array
     private final int INIT_CAP = 8;
     // Maximum number of sockets for select().
     // Should be INIT_CAP times a power of 2
     private final static int MAX_SELECTABLE_FDS = 1024;
+
+    // Size of FD_SET struct to allocate a buffer for it in SubSelector,
+    // aligned to 8 bytes on 64-bit:
+    // struct { unsigned int fd_count; SOCKET fd_array[MAX_SELECTABLE_FDS]; }.
+    private static final long SIZEOF_FD_SET = dependsArch(
+            4 + MAX_SELECTABLE_FDS * 4,      // SOCKET = unsigned int
+            4 + MAX_SELECTABLE_FDS * 8 + 4); // SOCKET = unsigned __int64
 
     // The list of SelectableChannels serviced by this Selector. Every mod
     // MAX_SELECTABLE_FDS entry is bogus, to align this array with the poll
@@ -283,6 +298,9 @@ final class WindowsSelectorImpl extends SelectorImpl {
         private final int[] readFds = new int [MAX_SELECTABLE_FDS + 1];
         private final int[] writeFds = new int [MAX_SELECTABLE_FDS + 1];
         private final int[] exceptFds = new int [MAX_SELECTABLE_FDS + 1];
+        // Buffer for readfds, writefds and exceptfds structs that are passed
+        // to native select().
+        private final long fdsBuffer = unsafe.allocateMemory(SIZEOF_FD_SET * 6);
 
         private SubSelector() {
             this.pollArrayIndex = 0; // main thread
@@ -295,7 +313,7 @@ final class WindowsSelectorImpl extends SelectorImpl {
         private int poll() throws IOException{ // poll for the main thread
             return poll0(pollWrapper.pollArrayAddress,
                          Math.min(totalChannels, MAX_SELECTABLE_FDS),
-                         readFds, writeFds, exceptFds, timeout);
+                         readFds, writeFds, exceptFds, timeout, fdsBuffer);
         }
 
         private int poll(int index) throws IOException {
@@ -304,11 +322,11 @@ final class WindowsSelectorImpl extends SelectorImpl {
                      (pollArrayIndex * PollArrayWrapper.SIZE_POLLFD),
                      Math.min(MAX_SELECTABLE_FDS,
                              totalChannels - (index + 1) * MAX_SELECTABLE_FDS),
-                     readFds, writeFds, exceptFds, timeout);
+                     readFds, writeFds, exceptFds, timeout, fdsBuffer);
         }
 
         private native int poll0(long pollAddress, int numfds,
-             int[] readFds, int[] writeFds, int[] exceptFds, long timeout);
+             int[] readFds, int[] writeFds, int[] exceptFds, long timeout, long fdsBuffer);
 
         private int processSelectedKeys(long updateCount) {
             int numKeysUpdated = 0;
@@ -400,6 +418,10 @@ final class WindowsSelectorImpl extends SelectorImpl {
             }
             return numKeysUpdated;
         }
+
+        private void freeFDSetBuffer() {
+            unsafe.freeMemory(fdsBuffer);
+        }
     }
 
     // Represents a helper thread used for select.
@@ -425,8 +447,10 @@ final class WindowsSelectorImpl extends SelectorImpl {
             while (true) { // poll loop
                 // wait for the start of poll. If this thread has become
                 // redundant, then exit.
-                if (startLock.waitForStart(this))
+                if (startLock.waitForStart(this)) {
+                    subSelector.freeFDSetBuffer();
                     return;
+                }
                 // call poll()
                 try {
                     subSelector.poll(index);
@@ -525,6 +549,7 @@ final class WindowsSelectorImpl extends SelectorImpl {
                     for (SelectThread t: threads)
                          t.makeZombie();
                     startLock.startThreads();
+                    subSelector.freeFDSetBuffer();
                 }
             }
         }
