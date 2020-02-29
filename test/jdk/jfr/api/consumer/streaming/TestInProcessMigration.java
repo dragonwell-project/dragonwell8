@@ -39,13 +39,13 @@ import jdk.jfr.jcmd.JcmdHelper;
 
 /**
  * @test
- * @summary Verifies that is possible to stream from a repository that is being
- *          moved.
+ * @summary Verifies that is possible to stream from an in-process repository
+ *          that is being moved.
  * @key jfr
  * @library /lib /
- * @run main/othervm jdk.jfr.api.consumer.streaming.TestRepositoryMigration
+ * @run main/othervm jdk.jfr.api.consumer.streaming.TestInProcessMigration
  */
-public class TestRepositoryMigration {
+public class TestInProcessMigration {
     static class MigrationEvent extends Event {
         int id;
     }

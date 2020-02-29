@@ -42,7 +42,6 @@ public final class JVM {
 
     static final long RESERVED_CLASS_ID_LIMIT = 400;
 
-    private volatile boolean recording;
     private volatile boolean nativeOK;
 
     private static native void registerNatives();
@@ -70,11 +69,33 @@ public final class JVM {
     }
 
     /**
+     * Marks current chunk as final
+     * <p>
+     * This allows streaming clients to read the chunk header and
+     * close the stream when no more data will be written into
+     * the current repository.
+     */
+    public native void markChunkFinal();
+
+    /**
      * Begin recording events
      *
      * Requires that JFR has been started with {@link #createNativeJFR()}
      */
     public native void beginRecording();
+
+    /**
+     * Return true if the JVM is recording
+     */
+    public native boolean isRecording();
+
+    /**
+     * End recording events, which includes flushing data in thread buffers
+     *
+     * Requires that JFR has been started with {@link #createNativeJFR()}
+     *
+     */
+    public native void endRecording();
 
     /**
      * Return ticks
@@ -98,13 +119,7 @@ public final class JVM {
      */
     public native boolean emitEvent(long eventTypeId, long timestamp, long when);
 
-    /**
-     * End recording events, which includes flushing data in thread buffers
-     *
-     * Requires that JFR has been started with {@link #createNativeJFR()}
-     *
-     */
-    public native void endRecording();
+
 
     /**
      * Return a list of all classes deriving from {@link Event}
@@ -369,20 +384,6 @@ public final class JVM {
      */
     public native void storeMetadataDescriptor(byte[] bytes);
 
-    public void endRecording_() {
-        endRecording();
-        recording = false;
-    }
-
-    public void beginRecording_() {
-        beginRecording();
-        recording = true;
-    }
-
-    public boolean isRecording() {
-        return recording;
-    }
-
     /**
      * If the JVM supports JVM TI and retransformation has not been disabled this
      * method will return true. This flag can not change during the lifetime of
@@ -573,4 +574,5 @@ public final class JVM {
      *@return start time of the recording in nanos, -1 in case of in-memory
      */
     public native long getChunkStartNanos();
+
 }
