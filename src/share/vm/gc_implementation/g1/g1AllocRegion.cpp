@@ -178,8 +178,8 @@ void G1AllocRegion::update_alloc_region(HeapRegion* alloc_region) {
   assert(alloc_region != NULL && !alloc_region->is_empty(),
          ar_ext_msg(this, "pre-condition"));
 
+  alloc_region->set_allocation_context(allocation_context());
   _alloc_region = alloc_region;
-  _alloc_region->set_allocation_context(allocation_context());
   _count += 1;
   trace("updated");
 }
@@ -243,6 +243,12 @@ G1AllocRegion::G1AllocRegion(const char* name,
 
 HeapRegion* MutatorAllocRegion::allocate_new_region(size_t word_size,
                                                     bool force) {
+  // if it is about to exceed tenant heap limit, fail current request directly
+  if (TenantHeapThrottling && !allocation_context().is_system()
+      && !allocation_context()->can_allocate(word_size)) {
+    return NULL;
+  }
+
   return _g1h->new_mutator_alloc_region(word_size, force);
 }
 

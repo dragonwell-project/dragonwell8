@@ -3901,6 +3901,14 @@ JVM_ENTRY(void, JVM_CreateTenantAllocationContext(JNIEnv *env, jobject ignored, 
   oop tenant_obj = JNIHandles::resolve_non_null(tenant);
   assert(tenant_obj != NULL, "Cannot create allocation context for a null tenant container");
   G1CollectedHeap::heap()->create_tenant_allocation_context(tenant_obj);
+
+  // set up heap limit if TenantHeapThrottling enabled
+  if (TenantHeapThrottling) {
+    assert(heapLimit > 0, "Bad heap limit");
+    G1TenantAllocationContext* context = com_alibaba_tenant_TenantContainer::get_tenant_allocation_context(tenant_obj);
+    assert(context != NULL && context->heap_size_limit() == TENANT_HEAP_NO_LIMIT, "sanity");
+    context->set_heap_size_limit((size_t)heapLimit);
+  }
 JVM_END
 
 // This method should be called before reclaiming of Java TenantContainer object

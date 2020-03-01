@@ -25,6 +25,8 @@
  * @summary Test TenantContainer.containOf() to retrieve tenant container of a Java object
  * @library /testlibrary
  * @build TestContainerOf
+ * @run main/othervm -XX:+MultiTenant -XX:+TenantHeapThrottling -XX:+UseG1GC -Xmx1024M -Xms512M
+ *                   -XX:G1HeapRegionSize=1M TestContainerOf
  * @run main/othervm -XX:+MultiTenant -XX:+TenantHeapIsolation -XX:+UseG1GC -Xmx1024M -Xms512M
  *                   -XX:G1HeapRegionSize=1M TestContainerOf
  */

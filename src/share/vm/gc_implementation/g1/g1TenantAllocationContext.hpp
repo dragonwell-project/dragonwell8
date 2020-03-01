@@ -103,6 +103,25 @@ public:
   void inc_occupied_heap_region_count();
   void dec_occupied_heap_region_count();
   size_t occupied_heap_region_count()                 { return _occupied_heap_region_count;   }
+  //
+  // Check if next allocation request can be satisfied
+  // Called only before trying to allocate new regions, including:
+  // 1, allocate one new eden region for non-humongous object
+  // 2, allocate continuous regions for humongous oject
+  //
+  // NOTE: must be called at safepoint or after grabbing Heap_lock
+  //
+  // can_allocate() works safely with inc/dec_occupied_heap_region_count() because they are
+  // protected by locks depending on different scenarios.
+  // 1, Outside safepoint, Heap_lock is used to provide exclusive access.
+  // 2, Inside safepoint, there may be three stages:
+  //   2.1, before CGC operation starts, the only entrance is G1CollectedHeap::attempt_allocation_at_safepoint()
+  //        which is single-threaded (VMThread), no concurrency issue;
+  //   2.2, During CGC operation, inc/dec_occupied_heap_region_count() methods are guarded
+  //        by FreeList_lock among different GC worker threads;
+  //   2.3, after CGC operation but before safepoint ends, same as 2.1;
+  //
+  bool can_allocate(size_t attempt_word_size);
 
   // record the compact dest
   const CachedCompactPoint& cached_compact_point() const { return _ccp;                       }

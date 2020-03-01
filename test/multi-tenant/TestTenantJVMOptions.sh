@@ -21,9 +21,9 @@
 #
 
 #
-# @test TestMultiTenantOptionDeps
-# @summary Test the dependencies of multi-tenant options
-# @run shell TestMultiTenantOptionDeps.sh
+# @test TestTenantJVMOptions
+# @summary Test the dependencies of multi-tenant JVM options
+# @run shell TestTenantJVMOptions.sh
 #
 
 if [ "${TESTSRC}" = "" ]
@@ -58,6 +58,11 @@ function check_dependency_bool_bool_false() {
   fi
 }
 
+check_dependency_bool_bool '-XX:+UseG1GC -XX:+TenantHeapIsolation' '-XX:+MultiTenant'
+check_dependency_bool_bool '-XX:+UseG1GC -XX:+TenantHeapThrottling' '-XX:+MultiTenant'
+check_dependency_bool_bool '-XX:+UseG1GC -XX:+TenantHeapThrottling' '-XX:+TenantHeapIsolation'
+check_dependency_bool_bool '-XX:+UseG1GC -XX:+TenantHeapIsolation -XX:+UseTLAB' '-XX:+UsePerTenantTLAB'
+
 # check if provided jvm arguments is invalid
 function assert_invalid_jvm_options() {
   JVM_ARGS=$1
@@ -69,7 +74,10 @@ function assert_invalid_jvm_options() {
   fi
 }
 
-check_dependency_bool_bool '-XX:+UseG1GC -XX:+TenantHeapIsolation' '-XX:+MultiTenant'
 assert_invalid_jvm_options '-XX:+TenantHeapIsolation'
 assert_invalid_jvm_options '-XX:+TenantHeapIsolation -XX:+UseConcMarkSweepGC'
+assert_invalid_jvm_options '-XX:+TenantHeapThrottling'
 assert_invalid_jvm_options '-XX:+UseG1GC -XX:+TenantHeapIsolation -XX:-MultiTenant'
+assert_invalid_jvm_options '-XX:+UseG1GC -XX:+TenantHeapThrottling -XX:-TenantHeapIsolation'
+assert_invalid_jvm_options '-XX:+UseG1GC -XX:+UsePerTenantTLAB -XX:+TenantHeapThrottling -XX:-UseTLAB'
+assert_invalid_jvm_options '-XX:+UseG1GC -XX:+UsePerTenantTLAB -XX:+UseTLAB -XX:-TenantHeapThrottling'

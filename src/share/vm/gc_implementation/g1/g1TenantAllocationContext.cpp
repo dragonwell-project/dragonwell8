@@ -141,6 +141,26 @@ G1TenantAllocationContext::~G1TenantAllocationContext() {
   VMThread::execute(&vm_op);
 }
 
+bool G1TenantAllocationContext::can_allocate(size_t attempt_word_size) {
+  assert(TenantHeapThrottling, "pre-condition");
+  assert_heap_locked_or_at_safepoint(true /* should_be_vm_thread */);
+
+  // always allow allocation
+  if (heap_size_limit() == TENANT_HEAP_NO_LIMIT) {
+    return true;
+  }
+
+  size_t occupied_regions = occupied_heap_region_count();
+  if (_g1h->isHumongous(attempt_word_size)) {
+    // reach here only from G1CollectedHeap::humongous_obj_allocate
+    occupied_regions += heap_words_to_region_num(attempt_word_size);
+  } else {
+    // reach here only from MutatorAllocRegion::allocate_new_region
+    occupied_regions++;
+  }
+  return occupied_regions <= heap_region_limit();
+}
+
 void G1TenantAllocationContext::inc_occupied_heap_region_count() {
   assert(TenantHeapIsolation && occupied_heap_region_count() >= 0, "pre-condition");
   assert(Heap_lock->owned_by_self() || SafepointSynchronize::is_at_safepoint(), "not locked");
@@ -161,6 +181,14 @@ G1TenantAllocationContext* G1TenantAllocationContext::current() {
   Thread* thrd = Thread::current();
   assert(NULL != thrd, "Failed to get current thread");
   return thrd->allocation_context().tenant_allocation_context();
+}
+
+void G1TenantAllocationContext::set_heap_size_limit(size_t new_size) {
+  assert(TenantHeapThrottling, "pre-condition");
+  assert(new_size != TENANT_HEAP_NO_LIMIT, "sanity");
+
+  _heap_size_limit = new_size;
+  _heap_region_limit = heap_bytes_to_region_num(_heap_size_limit);
 }
 
 size_t G1TenantAllocationContext::heap_bytes_to_region_num(size_t size_in_bytes) {

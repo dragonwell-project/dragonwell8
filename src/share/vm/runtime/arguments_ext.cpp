@@ -24,6 +24,18 @@
 #include "runtime/java.hpp"
 
 void ArgumentsExt::set_tenant_flags() {
+  // order is critical here, please be careful
+
+  // TenantHeapThrottling directly depends on TenantHeapIsolation
+  if (TenantHeapThrottling) {
+    if (FLAG_IS_DEFAULT(TenantHeapIsolation)) {
+      FLAG_SET_ERGO(bool, TenantHeapIsolation, true);
+    }
+    if (!TenantHeapIsolation) {
+      vm_exit_during_initialization("Invalid combination of -XX:+TenantHeapThrottling and -XX:-TenantHeapIsolation");
+    }
+  }
+
   // TenantHeapIsolation directly depends on MultiTenant, UseG1GC
   if (TenantHeapIsolation) {
     if (FLAG_IS_DEFAULT(MultiTenant)) {
