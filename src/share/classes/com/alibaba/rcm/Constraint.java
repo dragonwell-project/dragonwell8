@@ -47,8 +47,7 @@ public class Constraint {
     /**
      * Constraint should be instantiated by {@link ResourceType#newConstraint(long...)}
      */
-    Constraint(ResourceType type, long[] values) {
-        assert type.validate(values);
+    protected Constraint(ResourceType type, long[] values) {
         this.type = type;
         this.values = values;
     }

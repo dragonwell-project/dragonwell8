@@ -94,6 +94,11 @@ public class TenantContainer {
     private long tenantId;
 
     /*
+     * address of native tenant allocation context
+     */
+    private long allocationContext = 0L;
+
+    /*
      * tenant name
      */
     private String name;
@@ -253,6 +258,10 @@ public class TenantContainer {
      *
      */
     private void cleanUp() {
+        if (TenantGlobals.isHeapIsolationEnabled()) {
+            nd.destroyTenantAllocationContext(allocationContext);
+        }
+
         // clear references
         spawnedThreads.clear();
         attachedThreads.clear();
@@ -274,6 +283,11 @@ public class TenantContainer {
         props = new Properties();
         props.putAll(System.getProperties());
         tenantContainerMap.put(this.tenantId, this);
+
+        // Create allocation context if heap isolation enabled
+        if (TenantGlobals.isHeapIsolationEnabled()) {
+            nd.createTenantAllocationContext(this, configuration.getMaxHeap());
+        }
     }
 
     TenantConfiguration getConfiguration() {
@@ -376,6 +390,7 @@ public class TenantContainer {
         if (null == configuration) {
             throw new IllegalArgumentException("Failed to create tenant, illegal arguments: configuration is null");
         }
+
         TenantContainer tc = new TenantContainer(parent, name, configuration);
         tenantContainerMap.put(tc.getTenantId(), tc);
         return tc;
@@ -422,6 +437,18 @@ public class TenantContainer {
         }
         long cpuTime = 0;
         return cpuTime;
+    }
+
+    /**
+     * Gets the heap space occupied by this tenant
+     * @return heap space occupied by this tenant, 0 if tenant heap isolation is disabled.
+     * @throws IllegalStateException if -XX:+TenantHeapIsolation is not enabled.
+     */
+    public long getOccupiedMemory() {
+        if (!TenantGlobals.isHeapIsolationEnabled()) {
+            throw new IllegalStateException("-XX:+TenantHeapIsolation is not enabled");
+        }
+        return nd.getTenantOccupiedMemory(allocationContext);
     }
 
     /**
@@ -562,6 +589,19 @@ public class TenantContainer {
         } catch (ClassNotFoundException e) {
             e.printStackTrace();
         }
+    }
+
+    /**
+     * Retrieve the tenant container where <code>obj</code> is allocated in
+     * @param obj    object to be searched
+     * @return       TenantContainer object whose memory space contains <code>obj</code>,
+     *               or null if ROOT tenant container
+     */
+    public static TenantContainer containerOf(Object obj) {
+        if (!TenantGlobals.isHeapIsolationEnabled()) {
+            throw new UnsupportedOperationException("containerOf() only works with -XX:+TenantHeapIsolation");
+        }
+        return obj != null ? nd.containerOf(obj) : null;
     }
 
     /**

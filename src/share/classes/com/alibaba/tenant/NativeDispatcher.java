@@ -32,8 +32,21 @@ class NativeDispatcher {
     // Attach the current thread to given {@code tenant}
     native void attach(TenantContainer tenant);
 
+    // Create and initialize native allocation context
+    native void createTenantAllocationContext(TenantContainer tenant, long heapLimit);
+
+    // Destroy native allocation context
+    // NOTE: cannot be called directly in finalize() otherwise will lead to hang issue
+    native void destroyTenantAllocationContext(long allocationContext);
+
+    // Get memory size currently occupied by this allocation context
+    native long getTenantOccupiedMemory(long allocationContext);
+
     // Gets an array containing the amount of memory allocated on the Java heap for a set of threads (in bytes)
     native void getThreadsAllocatedMemory(long[] ids, long[] memSizes);
+
+    // Gets the TenantContainer object whose memory space contains <code>obj</code>, or null if ROOT tenant container
+    native TenantContainer containerOf(Object obj);
 
     private static native void registerNatives0();
 

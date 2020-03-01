@@ -12,7 +12,11 @@
 static const JmmInterface* jmm_interface = NULL;
 
 static JNINativeMethod methods[] = {
-    {"attach",                              "(" TENANT ")V",     (void *)&JVM_AttachToTenant},
+    {"attach",                              "(" TENANT ")V",                      (void *)&JVM_AttachToTenant},
+    {"createTenantAllocationContext",       "(" TENANT "J)V",                     (void *)&JVM_CreateTenantAllocationContext},
+    {"destroyTenantAllocationContext",      "(J)V",                               (void *)&JVM_DestroyTenantAllocationContext},
+    {"getTenantOccupiedMemory",             "(J)J",                               (void *)&JVM_GetTenantOccupiedMemory},
+    {"containerOf",                         "(Ljava/lang/Object;)"TENANT,         (void *)&JVM_TenantContainerOf },
 };
 
 JNIEXPORT void JNICALL

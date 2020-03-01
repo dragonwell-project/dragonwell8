@@ -22,9 +22,6 @@
 
 package com.alibaba.rcm;
 
-import java.util.Arrays;
-import java.util.stream.IntStream;
-
 /**
  * Enumeration of {@link Constraint}'s type.
  * <p>
@@ -54,27 +51,38 @@ public class ResourceType {
      * The value ranges from 0 to CPU_COUNT * 100. For example, {@code 150}
      * means that ResourceContainer can use up to 1.5 CPU cores.
      */
-    public final static ResourceType CPU_PERCENT =
-            new ResourceType("CPU_PERCENT", newChecker(0, Runtime.getRuntime().availableProcessors() * 100));
+    public final static ResourceType CPU_PERCENT = new ResourceType("CPU_PERCENT") {
+        @Override
+        protected void validate(long... values) throws IllegalArgumentException {
+            if (values == null || values.length != 1
+                    || values[0] < 1
+                    || values[0] > Runtime.getRuntime().availableProcessors() * 100) {
+                throw new IllegalArgumentException("Bad CPU_PERCENT constraint: " + values[0]);
+            }
+        }
+    };
+
     /**
      * Throttling the max heap usage.
      * <p>
      * param #1: maximum heap size in bytes
      */
-    public final static ResourceType HEAP_RETAINED =
-            new ResourceType("HEAP_RETAINED", newChecker(0, Runtime.getRuntime().maxMemory()));
+    public final static ResourceType HEAP_RETAINED = new ResourceType("HEAP_RETAINED") {
+        @Override
+        protected void validate(long... values) throws IllegalArgumentException {
+            if (values == null || values.length != 1
+                    || values[0] <= 0
+                    || values[0] > Runtime.getRuntime().maxMemory()) {
+                throw new IllegalArgumentException("Bad HEAP_RETAINED constraint: " + values[0]);
+            }
+        }
+    };
 
+    // name of this ResourceType
     private final String name;
-    private final ParameterChecker[] checkers;
 
     protected ResourceType(String name) {
         this.name = name;
-        this.checkers = null;
-    }
-
-    protected ResourceType(String name, ParameterChecker... checkers) {
-        this.name = name;
-        this.checkers = checkers;
     }
 
     /**
@@ -85,11 +93,8 @@ public class ResourceType {
      * @return newly-created Constraint
      * @throws IllegalArgumentException when parameter check fails
      */
-    public final Constraint newConstraint(long... values) {
-        if (!validate(values)) {
-            throw new IllegalArgumentException(this +
-                    " values: " + Arrays.toString(values));
-        }
+    public Constraint newConstraint(long... values) {
+        validate(values);
         return new Constraint(this, values);
     }
 
@@ -102,49 +107,21 @@ public class ResourceType {
      * <pre>
      * public final static ResourceType MY_RESOURCE =
      *     new ResourceType() {
-     *         protected boolean validate(long[] values) {
+     *         protected void validate(long[] values) throws IllegalArgumentException {
      *              // the check logic
      *         }
      *     };
      * </pre>
      *
      * @param values parameter value
-     * @return if parameter is validated
+     * @throws IllegalArgumentException if validation failed
      */
-    protected boolean validate(long[] values) {
-        if (checkers == null) {
-            return true;
-        }
-        if (checkers.length != values.length) {
-            return false;
-        }
-        return IntStream.range(0, values.length)
-                .allMatch(i -> checkers[i].check(values[i]));
+    protected void validate(long... values) throws IllegalArgumentException {
+        // No check at all!
     }
 
     @Override
     public String toString() {
-        return name;
-    }
-
-    protected static ParameterChecker newChecker(long from, long to) {
-        return new ParameterChecker(from, to);
-    }
-
-    /**
-     * Helper class for parameter range check.
-     */
-    protected static class ParameterChecker {
-        private final long from;
-        private final long to;
-
-        protected ParameterChecker(long from, long to) {
-            this.from = from;
-            this.to = to;
-        }
-
-        protected boolean check(long value) {
-            return value >= from && value < to;
-        }
+        return "ResourceType-" + name;
     }
 }

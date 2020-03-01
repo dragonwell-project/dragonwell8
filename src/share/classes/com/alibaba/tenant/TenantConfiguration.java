@@ -30,6 +30,7 @@ import java.util.Map;
 import java.util.Collection;
 import com.alibaba.rcm.ResourceType;
 import com.alibaba.rcm.Constraint;
+import static com.alibaba.rcm.ResourceType.*;
 
 /**
  *
@@ -69,5 +70,25 @@ public class TenantConfiguration {
 
     void setConstraint(Constraint constraint) {
         constraints.put(constraint.getResourceType(), constraint);
+    }
+
+    /**
+     * Limit total heap size of new {@code TenantContainer} created from this configuration
+     * @param maxJavaHeapBytes maximum heap size in byte
+     * @return current {@code TenantConfiguration}
+     */
+    public TenantConfiguration limitHeap(long maxJavaHeapBytes) {
+        constraints.put(HEAP_RETAINED, HEAP_RETAINED.newConstraint(maxJavaHeapBytes));
+        return this;
+    }
+
+    /**
+     * @return the max amount of heap the tenant is allowed to consume.
+     */
+    public long getMaxHeap() {
+        if (constraints.containsKey(HEAP_RETAINED)) {
+            return constraints.get(HEAP_RETAINED).getValues()[0];
+        }
+        return Runtime.getRuntime().maxMemory();
     }
 }
