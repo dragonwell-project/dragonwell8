@@ -127,7 +127,8 @@ ifeq ($(PROFILE), )
       jsadebugd$(EXE_SUFFIX) \
       jhat$(EXE_SUFFIX) \
       clhsdb$(EXE_SUFFIX) \
-      hsdb$(EXE_SUFFIX)
+      hsdb$(EXE_SUFFIX) \
+      jfr$(EXE_SUFFIX)
 endif
 
 WINDOWS_JDK_BIN_FILES = \
