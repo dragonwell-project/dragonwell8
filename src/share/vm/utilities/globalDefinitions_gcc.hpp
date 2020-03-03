@@ -263,17 +263,18 @@ inline int wcslen(const jchar* x) { return wcslen((const wchar_t*)x); }
 #define PRAGMA_IMPLEMENTATION        #pragma implementation
 #define VALUE_OBJ_CLASS_SPEC
 
-#ifndef ATTRIBUTE_PRINTF
 // Diagnostic pragmas like the ones defined below in PRAGMA_FORMAT_NONLITERAL_IGNORED
 // were only introduced in GCC 4.2. Because we have no other possibility to ignore
 // these warnings for older versions of GCC, we simply don't decorate our printf-style
 // functions with __attribute__(format) in that case.
 #if ((__GNUC__ == 4) && (__GNUC_MINOR__ >= 2)) || (__GNUC__ > 4)
+#ifndef ATTRIBUTE_PRINTF
 #define ATTRIBUTE_PRINTF(fmt,vargs)  __attribute__((format(printf, fmt, vargs)))
-#else
-#define ATTRIBUTE_PRINTF(fmt,vargs)
 #endif
+#ifndef ATTRIBUTE_SCANF
+#define ATTRIBUTE_SCANF(fmt,vargs)  __attribute__((format(scanf, fmt, vargs)))
 #endif
+#endif // gcc version check
 
 #define PRAGMA_FORMAT_NONLITERAL_IGNORED _Pragma("GCC diagnostic ignored \"-Wformat-nonliteral\"") \
                                          _Pragma("GCC diagnostic ignored \"-Wformat-security\"")
@@ -332,5 +333,9 @@ inline int wcslen(const jchar* x) { return wcslen((const wchar_t*)x); }
 #if defined(_LP64) && defined(__APPLE__)
 #define JLONG_FORMAT           "%ld"
 #endif // _LP64 && __APPLE__
+
+// Inlining support
+#define NOINLINE     __attribute__ ((noinline))
+#define ALWAYSINLINE inline __attribute__ ((always_inline))
 
 #endif // SHARE_VM_UTILITIES_GLOBALDEFINITIONS_GCC_HPP

@@ -315,3 +315,6 @@ ifneq ($(SPEC),)
     MAKE_ARGS += MT="$(subst /,\\,$(MT))"
   endif
 endif
+
+MAKE_ARGS += ENABLE_JFR=$(ENABLE_JFR)
+

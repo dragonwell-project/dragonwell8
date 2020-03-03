@@ -76,6 +76,7 @@ public class WhiteBox {
   // Memory
   public native long getObjectAddress(Object o);
   public native int  getHeapOopSize();
+  public native long getHeapAlignment();
   public native int  getVMPageSize();
   public native long getVMLargePageSize();
 
@@ -160,7 +161,12 @@ public class WhiteBox {
   public        boolean enqueueMethodForCompilation(Executable method, int compLevel) {
     return enqueueMethodForCompilation(method, compLevel, -1 /*InvocationEntryBci*/);
   }
-  public native boolean enqueueMethodForCompilation(Executable method, int compLevel, int entry_bci);
+  public boolean enqueueMethodForCompilation(Executable method, int compLevel, int entry_bci) {
+    return enqueueMethodForCompilation0(method, compLevel, entry_bci);
+  }
+
+  public native boolean enqueueInitializerForCompilation0(Class clazz, int compLevel);
+  public native boolean enqueueMethodForCompilation0(Executable method, int compLevel, int entry_bci);
   public native void    clearMethodState(Executable method);
   public native void    markMethodProfiled(Executable method);
   public native int     getMethodEntryBci(Executable method);
@@ -171,6 +177,9 @@ public class WhiteBox {
 
   // Memory
   public native void readReservedMemory();
+  public native long allocateCodeBlob(int size, int blobType);
+  public native void freeCodeBlob(long address);
+  public native Object[] getCodeBlob(long address);
   public native long allocateMetaspace(ClassLoader classLoader, long size);
   public native void freeMetaspace(ClassLoader classLoader, long addr, long size);
   public native long incMetaspaceCapacityUntilGC(long increment);

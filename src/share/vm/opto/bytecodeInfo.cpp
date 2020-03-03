@@ -29,6 +29,7 @@
 #include "compiler/compileBroker.hpp"
 #include "compiler/compileLog.hpp"
 #include "interpreter/linkResolver.hpp"
+#include "jfr/jfrEvents.hpp"
 #include "oops/objArrayKlass.hpp"
 #include "opto/callGenerator.hpp"
 #include "opto/parse.hpp"
@@ -479,9 +480,28 @@ const char* InlineTree::check_can_parse(ciMethod* callee) {
   return NULL;
 }
 
+static void post_inlining_event(int compile_id,const char* msg, bool success, int bci, ciMethod* caller, ciMethod* callee) {
+  assert(caller != NULL, "invariant");
+  assert(callee != NULL, "invariant");
+  EventCompilerInlining event;
+  if (event.should_commit()) {
+    JfrStructCalleeMethod callee_struct;
+    callee_struct.set_type(callee->holder()->name()->as_utf8());
+    callee_struct.set_name(callee->name()->as_utf8());
+    callee_struct.set_descriptor(callee->signature()->as_symbol()->as_utf8());
+    event.set_compileId(compile_id);
+    event.set_message(msg);
+    event.set_succeeded(success);
+    event.set_bci(bci);
+    event.set_caller(caller->get_Method());
+    event.set_callee(callee_struct);
+    event.commit();
+  }
+}
+
 //------------------------------print_inlining---------------------------------
 void InlineTree::print_inlining(ciMethod* callee_method, int caller_bci,
-                                bool success) const {
+                                ciMethod* caller_method, bool success) const {
   const char* inline_msg = msg();
   assert(inline_msg != NULL, "just checking");
   if (C->log() != NULL) {
@@ -500,6 +520,7 @@ void InlineTree::print_inlining(ciMethod* callee_method, int caller_bci,
       //tty->print("  bcs: %d+%d  invoked: %d", top->count_inline_bcs(), callee_method->code_size(), callee_method->interpreter_invocation_count());
     }
   }
+  post_inlining_event(C->compile_id(), inline_msg, success, caller_bci, caller_method, callee_method);
 }
 
 //------------------------------ok_to_inline-----------------------------------
@@ -522,14 +543,14 @@ WarmCallInfo* InlineTree::ok_to_inline(ciMethod* callee_method, JVMState* jvms, 
   // Do some initial checks.
   if (!pass_initial_checks(caller_method, caller_bci, callee_method)) {
     set_msg("failed initial checks");
-    print_inlining(callee_method, caller_bci, false /* !success */);
+    print_inlining(callee_method, caller_bci, caller_method, false /* !success */);
     return NULL;
   }
 
   // Do some parse checks.
   set_msg(check_can_parse(callee_method));
   if (msg() != NULL) {
-    print_inlining(callee_method, caller_bci, false /* !success */);
+    print_inlining(callee_method, caller_bci, caller_method, false /* !success */);
     return NULL;
   }
 
@@ -571,7 +592,7 @@ WarmCallInfo* InlineTree::ok_to_inline(ciMethod* callee_method, JVMState* jvms, 
     if (msg() == NULL) {
       set_msg("inline (hot)");
     }
-    print_inlining(callee_method, caller_bci, true /* success */);
+    print_inlining(callee_method, caller_bci, caller_method, true /* success */);
     build_inline_tree_for_callee(callee_method, jvms, caller_bci);
     if (InlineWarmCalls && !wci.is_hot())
       return new (C) WarmCallInfo(wci);  // copy to heap
@@ -582,7 +603,7 @@ WarmCallInfo* InlineTree::ok_to_inline(ciMethod* callee_method, JVMState* jvms, 
   if (msg() == NULL) {
     set_msg("too cold to inline");
   }
-  print_inlining(callee_method, caller_bci, false /* !success */ );
+  print_inlining(callee_method, caller_bci, caller_method, false /* !success */ );
   return NULL;
 }
 

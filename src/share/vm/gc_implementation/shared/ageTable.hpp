@@ -27,6 +27,7 @@
 
 #include "oops/markOop.hpp"
 #include "oops/oop.hpp"
+#include "gc_implementation/shared/gcTrace.hpp"
 #include "runtime/perfData.hpp"
 
 /* Copyright (c) 1992-2009 Oracle and/or its affiliates, and Stanford University.
@@ -69,7 +70,7 @@ class ageTable VALUE_OBJ_CLASS_SPEC {
   void merge_par(ageTable* subTable);
 
   // calculate new tenuring threshold based on age information
-  uint compute_tenuring_threshold(size_t survivor_capacity);
+  uint compute_tenuring_threshold(size_t survivor_capacity, GCTracer &tracer);
 
  private:
   PerfVariable* _perf_sizes[table_size];

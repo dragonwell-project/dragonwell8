@@ -371,5 +371,9 @@ EXPORT_LIST += $(EXPORT_INCLUDE_DIR)/jni.h
 EXPORT_LIST += $(EXPORT_INCLUDE_DIR)/$(JDK_INCLUDE_SUBDIR)/jni_md.h
 EXPORT_LIST += $(EXPORT_INCLUDE_DIR)/jmm.h
 
+ifeq ($(ENABLE_JFR), true)
+EXPORT_LIST += $(EXPORT_JRE_LIB_DIR)/jdk/jfr/internal/types/metadata.xml
+endif
+
 .PHONY: $(HS_ALT_MAKE)/defs.make
 

@@ -1048,7 +1048,7 @@ void ParNewGeneration::collect(bool   full,
 
     assert(to()->is_empty(), "to space should be empty now");
 
-    adjust_desired_tenuring_threshold();
+    adjust_desired_tenuring_threshold(gc_tracer);
   } else {
     handle_promotion_failed(gch, thread_state_set, gc_tracer);
   }

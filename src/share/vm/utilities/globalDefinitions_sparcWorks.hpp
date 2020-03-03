@@ -281,4 +281,8 @@ int local_vsnprintf(char* buf, size_t count, const char* fmt, va_list argptr);
 
 #define offset_of(klass,field) offsetof(klass,field)
 
+// Inlining support
+#define NOINLINE
+#define ALWAYSINLINE inline __attribute__((always_inline))
+
 #endif // SHARE_VM_UTILITIES_GLOBALDEFINITIONS_SPARCWORKS_HPP

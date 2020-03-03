@@ -32,6 +32,8 @@
 #include "classfile/systemDictionary.hpp"
 #include "classfile/vmSymbols.hpp"
 #include "interpreter/linkResolver.hpp"
+#include "jfr/jfrEvents.hpp"
+#include "jfr/support/jfrThreadId.hpp"
 #include "utilities/macros.hpp"
 #include "utilities/ostream.hpp"
 #if INCLUDE_ALL_GCS
@@ -76,7 +78,6 @@
 #include "runtime/vm_operations.hpp"
 #include "services/memTracker.hpp"
 #include "services/runtimeService.hpp"
-#include "trace/tracing.hpp"
 #include "utilities/defaultStream.hpp"
 #include "utilities/dtrace.hpp"
 #include "utilities/events.hpp"
@@ -5019,6 +5020,14 @@ struct JNINativeInterface_* jni_functions_nocheck() {
   return &jni_NativeInterface;
 }
 
+static void post_thread_start_event(const JavaThread* jt) {
+  assert(jt != NULL, "invariant");
+  EventThreadStart event;
+  if (event.should_commit()) {
+    event.set_thread(JFR_THREAD_ID(jt));
+    event.commit();
+  }
+}
 
 // Invocation API
 
@@ -5243,11 +5252,7 @@ _JNI_IMPORT_OR_EXPORT_ jint JNICALL JNI_CreateJavaVM(JavaVM **vm, void **penv, v
        JvmtiExport::post_thread_start(thread);
     }
 
-    EventThreadStart event;
-    if (event.should_commit()) {
-      event.set_javalangthread(java_lang_Thread::thread_id(thread->threadObj()));
-      event.commit();
-    }
+    post_thread_start_event(thread);
 
 #ifndef PRODUCT
   #ifndef CALL_TEST_FUNC_WITH_WRAPPER_IF_NEEDED
@@ -5458,11 +5463,7 @@ static jint attach_current_thread(JavaVM *vm, void **penv, void *_args, bool dae
     JvmtiExport::post_thread_start(thread);
   }
 
-  EventThreadStart event;
-  if (event.should_commit()) {
-    event.set_javalangthread(java_lang_Thread::thread_id(thread->threadObj()));
-    event.commit();
-  }
+  post_thread_start_event(thread);
 
   *(JNIEnv**)penv = thread->jni_environment();
 

@@ -30,6 +30,15 @@
 #include "runtime/frame.hpp"
 #include "runtime/handles.hpp"
 
+// CodeBlob Types
+// Used in the CodeCache to assign CodeBlobs to different CodeHeaps
+struct CodeBlobType {
+  enum {
+    All                 = 0,    // All types (No code cache segmentation)
+    NumTypes            = 1     // Number of CodeBlobTypes
+  };
+};
+
 // CodeBlob - superclass for all entries in the CodeCache.
 //
 // Suptypes are:
@@ -71,6 +80,7 @@ class CodeBlob VALUE_OBJ_CLASS_SPEC {
  public:
   // Returns the space needed for CodeBlob
   static unsigned int allocation_size(CodeBuffer* cb, int header_size);
+  static unsigned int align_code_offset(int offset);
 
   // Creation
   // a) simple CodeBlob
@@ -205,6 +215,7 @@ class BufferBlob: public CodeBlob {
   friend class AdapterBlob;
   friend class VtableBlob;
   friend class MethodHandlesAdapterBlob;
+  friend class WhiteBox;
 
  private:
   // Creation support

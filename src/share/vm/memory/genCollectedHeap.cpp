@@ -59,6 +59,9 @@
 #include "gc_implementation/concurrentMarkSweep/concurrentMarkSweepThread.hpp"
 #include "gc_implementation/concurrentMarkSweep/vmCMSOperations.hpp"
 #endif // INCLUDE_ALL_GCS
+#if INCLUDE_JFR
+#include "jfr/jfr.hpp"
+#endif // INCLUDE_JFR
 
 GenCollectedHeap* GenCollectedHeap::_gch;
 NOT_PRODUCT(size_t GenCollectedHeap::_skip_header_HeapWords = 0;)
@@ -747,6 +750,7 @@ void GenCollectedHeap::gen_process_roots(int level,
 
 void GenCollectedHeap::gen_process_weak_roots(OopClosure* root_closure) {
   JNIHandles::weak_oops_do(root_closure);
+  JFR_ONLY(Jfr::weak_oops_do(root_closure));
   for (int i = 0; i < _n_gens; i++) {
     _gens[i]->ref_processor()->weak_oops_do(root_closure);
   }

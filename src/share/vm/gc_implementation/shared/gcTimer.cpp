@@ -25,7 +25,7 @@
 #include "precompiled.hpp"
 #include "gc_implementation/shared/gcTimer.hpp"
 #include "utilities/growableArray.hpp"
-#include "utilities/ticks.inline.hpp"
+#include "utilities/ticks.hpp"
 
 // the "time" parameter for most functions
 // has a default value set by Ticks::now()
@@ -349,7 +349,7 @@ public:
     GCTimer gc_timer;
     gc_timer.register_gc_start(1);
 
-    assert(gc_timer.gc_start() == 1, "Incorrect");
+    assert(gc_timer.gc_start() == Ticks(1), "Incorrect");
   }
 
   static void gc_end() {
@@ -357,7 +357,7 @@ public:
     gc_timer.register_gc_start(1);
     gc_timer.register_gc_end(2);
 
-    assert(gc_timer.gc_end() == 2, "Incorrect");
+    assert(gc_timer.gc_end() == Ticks(2), "Incorrect");
   }
 };
 

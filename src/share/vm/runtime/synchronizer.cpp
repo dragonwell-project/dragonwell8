@@ -24,6 +24,7 @@
 
 #include "precompiled.hpp"
 #include "classfile/vmSymbols.hpp"
+#include "jfr/jfrEvents.hpp"
 #include "memory/resourceArea.hpp"
 #include "oops/markOop.hpp"
 #include "oops/oop.inline.hpp"
@@ -1182,6 +1183,15 @@ void ObjectSynchronizer::omFlush (Thread * Self) {
     TEVENT (omFlush) ;
 }
 
+static void post_monitor_inflate_event(EventJavaMonitorInflate* event,
+                                       const oop obj) {
+  assert(event != NULL, "invariant");
+  assert(event->should_commit(), "invariant");
+  event->set_monitorClass(obj->klass());
+  event->set_address((uintptr_t)(void*)obj);
+  event->commit();
+}
+
 // Fast path code shared by multiple functions
 ObjectMonitor* ObjectSynchronizer::inflate_helper(oop obj) {
   markOop mark = obj->mark();
@@ -1203,6 +1213,8 @@ ObjectMonitor * ATTR ObjectSynchronizer::inflate (Thread * Self, oop object) {
   // Relaxing assertion for bug 6320749.
   assert (Universe::verify_in_progress() ||
           !SafepointSynchronize::is_at_safepoint(), "invariant") ;
+
+  EventJavaMonitorInflate event;
 
   for (;;) {
       const markOop mark = object->mark() ;
@@ -1334,6 +1346,9 @@ ObjectMonitor * ATTR ObjectSynchronizer::inflate (Thread * Self, oop object) {
                 object->klass()->external_name());
             }
           }
+          if (event.should_commit()) {
+            post_monitor_inflate_event(&event, object);
+          }
           return m ;
       }
 
@@ -1383,6 +1398,9 @@ ObjectMonitor * ATTR ObjectSynchronizer::inflate (Thread * Self, oop object) {
             (void *) object, (intptr_t) object->mark(),
             object->klass()->external_name());
         }
+      }
+      if (event.should_commit()) {
+        post_monitor_inflate_event(&event, object);
       }
       return m ;
   }

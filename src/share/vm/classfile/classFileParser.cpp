@@ -3884,14 +3884,14 @@ instanceKlassHandle ClassFileParser::parseClassFile(Symbol* name,
   access_flags.set_flags(flags);
 
   // This class and superclass
-  u2 this_class_index = cfs->get_u2_fast();
+  _this_class_index = cfs->get_u2_fast();
   check_property(
-    valid_cp_range(this_class_index, cp_size) &&
-      cp->tag_at(this_class_index).is_unresolved_klass(),
+    valid_cp_range(_this_class_index, cp_size) &&
+      cp->tag_at(_this_class_index).is_unresolved_klass(),
     "Invalid this class index %u in constant pool in class file %s",
-    this_class_index, CHECK_(nullHandle));
+    _this_class_index, CHECK_(nullHandle));
 
-  Symbol*  class_name  = cp->unresolved_klass_at(this_class_index);
+  Symbol*  class_name  = cp->unresolved_klass_at(_this_class_index);
   assert(class_name != NULL, "class_name can't be null");
 
   // It's important to set parsed_name *before* resolving the super class.
@@ -4122,9 +4122,9 @@ instanceKlassHandle ClassFileParser::parseClassFile(Symbol* name,
     // that changes, then InstanceKlass::idnum_can_increment()
     // has to be changed accordingly.
     this_klass->set_initial_method_idnum(methods->length());
-    this_klass->set_name(cp->klass_name_at(this_class_index));
+    this_klass->set_name(cp->klass_name_at(_this_class_index));
     if (is_anonymous())  // I am well known to myself
-      cp->klass_at_put(this_class_index, this_klass()); // eagerly resolve
+      cp->klass_at_put(_this_class_index, this_klass()); // eagerly resolve
 
     this_klass->set_minor_version(minor_version);
     this_klass->set_major_version(major_version);
@@ -4261,6 +4261,8 @@ instanceKlassHandle ClassFileParser::parseClassFile(Symbol* name,
     // preserve result across HandleMark
     preserve_this_klass = this_klass();
   }
+
+  JFR_ONLY(INIT_ID(preserve_this_klass);)
 
   // Create new handle outside HandleMark (might be needed for
   // Extended Class Redefinition)
@@ -5273,3 +5275,25 @@ char* ClassFileParser::skip_over_field_signature(char* signature,
   }
   return NULL;
 }
+
+#if INCLUDE_JFR
+
+// Caller responsible for ResourceMark
+// clone stream with rewound position
+ClassFileStream* ClassFileParser::clone_stream() const {
+  assert(_stream != NULL, "invariant");
+
+  return _stream->clone();
+}
+
+void ClassFileParser::set_klass_to_deallocate(InstanceKlass* klass) {
+#ifdef ASSERT
+  if (klass != NULL) {
+    assert(NULL == _klass, "leaking?");
+  }
+#endif
+
+  _klass = klass;
+}
+
+#endif // INCLUDE_JFR

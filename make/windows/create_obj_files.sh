@@ -57,8 +57,8 @@ ALTSRC_REL=src/closed # Change this to pick up alt sources from somewhere else
 COMMONSRC=${WorkSpace}/${COMMONSRC_REL}
 ALTSRC=${WorkSpace}/${ALTSRC_REL}
 
-BASE_PATHS="`if [ -d ${ALTSRC}/share/vm ]; then $FIND ${ALTSRC}/share/vm ! -name vm -prune -type d \! \( -name adlc -o -name c1 -o -name gc_implementation -o -name opto -o -name shark -o -name libadt \); fi`"
-BASE_PATHS="${BASE_PATHS} ` $FIND ${COMMONSRC}/share/vm ! -name vm -prune -type d \! \( -name adlc -o -name c1 -o -name gc_implementation -o -name opto -o -name shark -o -name libadt \)`"
+BASE_PATHS="`if [ -d ${ALTSRC}/share/vm ]; then $FIND ${ALTSRC}/share/vm ! -name vm -prune -type d \! \( -name adlc -o -name c1 -o -name gc_implementation -o -name opto -o -name shark -o -name libadt -o -name jfr \); fi`"
+BASE_PATHS="${BASE_PATHS} ` $FIND ${COMMONSRC}/share/vm ! -name vm -prune -type d \! \( -name adlc -o -name c1 -o -name gc_implementation -o -name opto -o -name shark -o -name libadt -o -name jfr \)`"
 
 for sd in \
     share/vm/gc_implementation/shared \
@@ -71,10 +71,10 @@ for sd in \
   BASE_PATHS="${BASE_PATHS} ${COMMONSRC}/${sd}"
 done
 
-BASE_PATHS="${BASE_PATHS} ${GENERATED}/jvmtifiles ${GENERATED}/tracefiles"
+BASE_PATHS="${BASE_PATHS} ${GENERATED}/jvmtifiles ${GENERATED}/jfrfiles"
 
-if [ -d "${ALTSRC}/share/vm/jfr/buffers" ]; then
-  BASE_PATHS="${BASE_PATHS} ${ALTSRC}/share/vm/jfr/buffers"
+if [ "$ENABLE_JFR" = "true" ]; then
+BASE_PATHS="${BASE_PATHS} `$FIND ${COMMONSRC}/share/vm/jfr -type d`"
 fi
 
 BASE_PATHS="${BASE_PATHS} ${COMMONSRC}/share/vm/prims/wbtestmethods"

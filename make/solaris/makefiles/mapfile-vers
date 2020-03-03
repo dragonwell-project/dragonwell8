@@ -39,6 +39,7 @@ SUNWprivate_1.1 {
                 JVM_ArrayCopy;
                 JVM_AssertionStatusDirectives;
                 JVM_Available;
+                JVM_BeforeHalt;
                 JVM_Bind;
                 JVM_ClassDepth;
                 JVM_ClassLoaderDepth;

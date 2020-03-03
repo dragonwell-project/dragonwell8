@@ -156,10 +156,39 @@ class YoungGCTracer : public GCTracer {
  public:
   void report_promotion_failed(const PromotionFailedInfo& pf_info);
   void report_tenuring_threshold(const uint tenuring_threshold);
+  /*
+   * Methods for reporting Promotion in new or outside PLAB Events.
+   *
+   * The object age is always required as it is not certain that the mark word
+   * of the oop can be trusted at this stage.
+   *
+   * obj_size is the size of the promoted object in bytes.
+   *
+   * tenured should be true if the object has been promoted to the old
+   * space during this GC, if the object is copied to survivor space
+   * from young space or survivor space (aging) tenured should be false.
+   *
+   * plab_size is the size of the newly allocated PLAB in bytes.
+   */
+  bool should_report_promotion_events() const;
+  bool should_report_promotion_in_new_plab_event() const;
+  bool should_report_promotion_outside_plab_event() const;
+  void report_promotion_in_new_plab_event(Klass* klass, size_t obj_size,
+                                          uint age, bool tenured,
+                                          size_t plab_size) const;
+  void report_promotion_outside_plab_event(Klass* klass, size_t obj_size,
+                                           uint age, bool tenured) const;
 
  private:
   void send_young_gc_event() const;
   void send_promotion_failed_event(const PromotionFailedInfo& pf_info) const;
+  bool should_send_promotion_in_new_plab_event() const;
+  bool should_send_promotion_outside_plab_event() const;
+  void send_promotion_in_new_plab_event(Klass* klass, size_t obj_size,
+                                        uint age, bool tenured,
+                                        size_t plab_size) const;
+  void send_promotion_outside_plab_event(Klass* klass, size_t obj_size,
+                                         uint age, bool tenured) const;
 };
 
 class OldGCTracer : public GCTracer {
@@ -210,6 +239,13 @@ class ParNewTracer : public YoungGCTracer {
 };
 
 #if INCLUDE_ALL_GCS
+class G1MMUTracer : public AllStatic {
+  static void send_g1_mmu_event(double time_slice_ms, double gc_time_ms, double max_time_ms);
+
+ public:
+  static void report_mmu(double time_slice_sec, double gc_time_sec, double max_time_sec);
+};
+
 class G1NewTracer : public YoungGCTracer {
   G1YoungGCInfo _g1_young_gc_info;
 

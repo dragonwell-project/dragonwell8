@@ -48,7 +48,7 @@
 # flags.make	- with macro settings
 # vm.make	- to support making "$(MAKE) -v vm.make" in makefiles
 # adlc.make	-
-# trace.make	- generate tracing event and type definitions
+# jfr.make	- generate jfr event and type definitions
 # jvmti.make	- generate JVMTI bindings from the spec (JSR-163)
 # sa.make	- generate SA jar file and natives
 #
@@ -112,6 +112,10 @@ TOPLEVEL_EXCLUDE_DIRS	= $(ALWAYS_EXCLUDE_DIRS) -o -name adlc -o -name opto -o -n
 endif
 endif
 
+ifeq ($(ENABLE_JFR),false)
+ALWAYS_EXCLUDE_DIRS += -o -name jfr
+endif
+
 # Get things from the platform file.
 COMPILER	= $(shell sed -n 's/^compiler[ 	]*=[ 	]*//p' $(PLATFORM_FILE))
 
@@ -119,7 +123,7 @@ SIMPLE_DIRS	= \
 	$(PLATFORM_DIR)/generated/dependencies \
 	$(PLATFORM_DIR)/generated/adfiles \
 	$(PLATFORM_DIR)/generated/jvmtifiles \
-	$(PLATFORM_DIR)/generated/tracefiles
+	$(PLATFORM_DIR)/generated/jfrfiles
 
 TARGETS      = debug fastdebug optimized product
 SUBMAKE_DIRS = $(addprefix $(PLATFORM_DIR)/,$(TARGETS))
@@ -127,7 +131,7 @@ SUBMAKE_DIRS = $(addprefix $(PLATFORM_DIR)/,$(TARGETS))
 # For dependencies and recursive makes.
 BUILDTREE_MAKE	= $(GAMMADIR)/make/$(OS_FAMILY)/makefiles/buildtree.make
 
-BUILDTREE_TARGETS = Makefile flags.make flags_vm.make vm.make adlc.make jvmti.make trace.make sa.make
+BUILDTREE_TARGETS = Makefile flags.make flags_vm.make vm.make adlc.make jvmti.make jfr.make sa.make
 
 BUILDTREE_VARS	= GAMMADIR=$(GAMMADIR) OS_FAMILY=$(OS_FAMILY) \
 	SRCARCH=$(SRCARCH) BUILDARCH=$(BUILDARCH) LIBARCH=$(LIBARCH) VARIANT=$(VARIANT)
@@ -199,6 +203,13 @@ DATA_MODE/amd64 = 64
 DATA_MODE/ppc64 = 64
 
 DATA_MODE = $(DATA_MODE/$(BUILDARCH))
+
+ifeq ($(ENABLE_JFR), true)
+  INCLUDE_JFR = 1
+else
+  INCLUDE_JFR = 0
+endif
+
 
 flags.make: $(BUILDTREE_MAKE) ../shared_dirs.lst
 	@echo Creating $@ ...
@@ -279,8 +290,7 @@ flags.make: $(BUILDTREE_MAKE) ../shared_dirs.lst
 	    echo && \
 	    echo "HOTSPOT_EXTRA_SYSDEFS\$$(HOTSPOT_EXTRA_SYSDEFS) = $(HOTSPOT_EXTRA_SYSDEFS)" && \
 	    echo "SYSDEFS += \$$(HOTSPOT_EXTRA_SYSDEFS)"; \
-	[ -n "$(INCLUDE_TRACE)" ] && \
-	    echo && echo "INCLUDE_TRACE = $(INCLUDE_TRACE)"; \
+	echo && echo "CFLAGS += -DINCLUDE_JFR=$(INCLUDE_JFR)"; \
 	echo; \
 	[ -n "$(SPEC)" ] && \
 	    echo "include $(SPEC)"; \
@@ -349,7 +359,7 @@ jvmti.make: $(BUILDTREE_MAKE)
 	echo "include \$$(GAMMADIR)/make/$(OS_FAMILY)/makefiles/$(@F)"; \
 	) > $@
 
-trace.make: $(BUILDTREE_MAKE)
+jfr.make: $(BUILDTREE_MAKE)
 	@echo Creating $@ ...
 	$(QUIETLY) ( \
 	$(BUILDTREE_COMMENT); \
