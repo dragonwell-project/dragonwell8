@@ -1857,7 +1857,7 @@ Optional Features:
                           run the Queens test after Hotspot build [disabled]
   --enable-unlimited-crypto
                           Enable unlimited crypto policy [disabled]
-  --disable-jfr           Disable Java Flight Recorder support [enabled]
+  --enable-jfr            Enable Java Flight Recorder support [disabled]
   --disable-debug-symbols disable generation of debug symbols [enabled]
   --disable-zip-debug-info
                           disable zipping of debug-info files [enabled]
@@ -4394,7 +4394,7 @@ VS_SDK_PLATFORM_NAME_2017=
 #CUSTOM_AUTOCONF_INCLUDE
 
 # Do not change or remove the following line, it is needed for consistency checks:
-DATE_WHEN_GENERATED=1582132239
+DATE_WHEN_GENERATED=1583241599
 
 ###############################################################################
 #
@@ -19831,15 +19831,11 @@ else
   enable_jfr=auto
 fi
 
-  if test "x$enable_jfr" = "xno"; then
+  if test "x$enable_jfr" = "xno" -o "x$enable_jfr" = "xauto"; then
     ENABLE_JFR=false
-  elif test "x$enable_jfr" = "xyes" -o "x$enable_jfr" = "xauto"; then
+  elif test "x$enable_jfr" = "xyes" ; then
     if test "x$JVM_VARIANT_MINIMAL1" = "xtrue" -o "x$JVM_VARIANT_ZERO" = "xtrue"; then
-      if test "x$enable_jfr" = "xyes"; then
-        as_fn_error $? "cannot enable JFR on minimal1 VM or zero build" "$LINENO" 5
-      else
-        ENABLE_JFR=false
-      fi
+      as_fn_error $? "cannot enable JFR on minimal1 VM or zero build" "$LINENO" 5
     else
       ENABLE_JFR=true
     fi
