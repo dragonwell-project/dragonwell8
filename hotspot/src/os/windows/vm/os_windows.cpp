@@ -1669,6 +1669,50 @@ void os::print_dll_info(outputStream *st) {
    enumerate_modules(pid, _print_module, (void *)st);
 }
 
+int os::get_loaded_modules_info(os::LoadedModulesCallbackFunc callback, void *param) {
+  HANDLE   hProcess;
+
+# define MAX_NUM_MODULES 128
+  HMODULE     modules[MAX_NUM_MODULES];
+  static char filename[MAX_PATH];
+  int         result = 0;
+
+  int pid = os::current_process_id();
+  hProcess = OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_VM_READ,
+                         FALSE, pid);
+  if (hProcess == NULL) return 0;
+
+  DWORD size_needed;
+  if (!EnumProcessModules(hProcess, modules, sizeof(modules), &size_needed)) {
+    CloseHandle(hProcess);
+    return 0;
+  }
+
+  // number of modules that are currently loaded
+  int num_modules = size_needed / sizeof(HMODULE);
+
+  for (int i = 0; i < MIN2(num_modules, MAX_NUM_MODULES); i++) {
+    // Get Full pathname:
+    if (!GetModuleFileNameEx(hProcess, modules[i], filename, sizeof(filename))) {
+      filename[0] = '\0';
+    }
+
+    MODULEINFO modinfo;
+    if (!GetModuleInformation(hProcess, modules[i], &modinfo, sizeof(modinfo))) {
+      modinfo.lpBaseOfDll = NULL;
+      modinfo.SizeOfImage = 0;
+    }
+
+    // Invoke callback function
+    result = callback(filename, (address)modinfo.lpBaseOfDll,
+                      (address)((u8)modinfo.lpBaseOfDll + (u8)modinfo.SizeOfImage), param);
+    if (result) break;
+  }
+
+  CloseHandle(hProcess);
+  return result;
+}
+
 void os::print_os_info_brief(outputStream* st) {
   os::print_os_info(st);
 }
@@ -4352,6 +4396,22 @@ jlong os::lseek(int fd, jlong offset, int whence) {
   return (jlong) ::_lseeki64(fd, offset, whence);
 }
 
+size_t os::read_at(int fd, void *buf, unsigned int nBytes, jlong offset) {
+  OVERLAPPED ov;
+  DWORD nread;
+  BOOL result;
+
+  ZeroMemory(&ov, sizeof(ov));
+  ov.Offset = (DWORD)offset;
+  ov.OffsetHigh = (DWORD)(offset >> 32);
+
+  HANDLE h = (HANDLE)::_get_osfhandle(fd);
+
+  result = ReadFile(h, (LPVOID)buf, nBytes, &nread, &ov);
+
+  return result ? nread : 0;
+}
+
 // This method is a slightly reworked copy of JDK's sysNativePath
 // from src/windows/hpi/src/path_md.c
 
@@ -4811,31 +4871,37 @@ void os::pause() {
   }
 }
 
-os::WatcherThreadCrashProtection::WatcherThreadCrashProtection() {
-  assert(Thread::current()->is_Watcher_thread(), "Must be WatcherThread");
+Thread* os::ThreadCrashProtection::_protected_thread = NULL;
+os::ThreadCrashProtection* os::ThreadCrashProtection::_crash_protection = NULL;
+volatile intptr_t os::ThreadCrashProtection::_crash_mux = 0;
+
+os::ThreadCrashProtection::ThreadCrashProtection() {
 }
 
-/*
- * See the caveats for this class in os_windows.hpp
- * Protects the callback call so that raised OS EXCEPTIONS causes a jump back
- * into this method and returns false. If no OS EXCEPTION was raised, returns
- * true.
- * The callback is supposed to provide the method that should be protected.
- */
-bool os::WatcherThreadCrashProtection::call(os::CrashProtectionCallback& cb) {
-  assert(Thread::current()->is_Watcher_thread(), "Only for WatcherThread");
-  assert(!WatcherThread::watcher_thread()->has_crash_protection(),
-      "crash_protection already set?");
+// See the caveats for this class in os_windows.hpp
+// Protects the callback call so that raised OS EXCEPTIONS causes a jump back
+// into this method and returns false. If no OS EXCEPTION was raised, returns
+// true.
+// The callback is supposed to provide the method that should be protected.
+//
+bool os::ThreadCrashProtection::call(os::CrashProtectionCallback& cb) {
+
+  Thread::muxAcquire(&_crash_mux, "CrashProtection");
+
+  _protected_thread = ThreadLocalStorage::thread();
+  assert(_protected_thread != NULL, "Cannot crash protect a NULL thread");
 
   bool success = true;
   __try {
-    WatcherThread::watcher_thread()->set_crash_protection(this);
+    _crash_protection = this;
     cb.call();
   } __except(EXCEPTION_EXECUTE_HANDLER) {
     // only for protection, nothing to do
     success = false;
   }
-  WatcherThread::watcher_thread()->set_crash_protection(NULL);
+  _crash_protection = NULL;
+  _protected_thread = NULL;
+  Thread::muxRelease(&_crash_mux);
   return success;
 }
 

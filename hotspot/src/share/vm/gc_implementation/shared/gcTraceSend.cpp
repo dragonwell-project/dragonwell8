@@ -23,14 +23,13 @@
  */
 
 #include "precompiled.hpp"
+#include "jfr/jfrEvents.hpp"
 #include "gc_implementation/shared/gcHeapSummary.hpp"
 #include "gc_implementation/shared/gcTimer.hpp"
 #include "gc_implementation/shared/gcTrace.hpp"
 #include "gc_implementation/shared/gcWhen.hpp"
 #include "gc_implementation/shared/copyFailedInfo.hpp"
 #include "runtime/os.hpp"
-#include "trace/tracing.hpp"
-#include "trace/traceBackend.hpp"
 #if INCLUDE_ALL_GCS
 #include "gc_implementation/g1/evacuationInfo.hpp"
 #include "gc_implementation/g1/g1YCTypes.hpp"
@@ -41,7 +40,7 @@
 typedef uintptr_t TraceAddress;
 
 void GCTracer::send_garbage_collection_event() const {
-  EventGCGarbageCollection event(UNTIMED);
+  EventGarbageCollection event(UNTIMED);
   if (event.should_commit()) {
     event.set_gcId(_shared_gc_info.gc_id().id());
     event.set_name(_shared_gc_info.name());
@@ -89,7 +88,7 @@ void GCTracer::send_metaspace_chunk_free_list_summary(GCWhen::Type when, Metaspa
 }
 
 void ParallelOldTracer::send_parallel_old_event() const {
-  EventGCParallelOld e(UNTIMED);
+  EventParallelOldGarbageCollection e(UNTIMED);
   if (e.should_commit()) {
     e.set_gcId(_shared_gc_info.gc_id().id());
     e.set_densePrefix((TraceAddress)_parallel_old_gc_info.dense_prefix());
@@ -100,7 +99,7 @@ void ParallelOldTracer::send_parallel_old_event() const {
 }
 
 void YoungGCTracer::send_young_gc_event() const {
-  EventGCYoungGarbageCollection e(UNTIMED);
+  EventYoungGarbageCollection e(UNTIMED);
   if (e.should_commit()) {
     e.set_gcId(_shared_gc_info.gc_id().id());
     e.set_tenuringThreshold(_tenuring_threshold);
@@ -110,8 +109,46 @@ void YoungGCTracer::send_young_gc_event() const {
   }
 }
 
+bool YoungGCTracer::should_send_promotion_in_new_plab_event() const {
+  return EventPromoteObjectInNewPLAB::is_enabled();
+}
+
+bool YoungGCTracer::should_send_promotion_outside_plab_event() const {
+  return EventPromoteObjectOutsidePLAB::is_enabled();
+}
+
+void YoungGCTracer::send_promotion_in_new_plab_event(Klass* klass, size_t obj_size,
+                                                     uint age, bool tenured,
+                                                     size_t plab_size) const {
+
+  EventPromoteObjectInNewPLAB event;
+  if (event.should_commit()) {
+    event.set_gcId(_shared_gc_info.gc_id().id());
+    event.set_objectClass(klass);
+    event.set_objectSize(obj_size);
+    event.set_tenured(tenured);
+    event.set_tenuringAge(age);
+    event.set_plabSize(plab_size);
+    event.commit();
+  }
+}
+
+void YoungGCTracer::send_promotion_outside_plab_event(Klass* klass, size_t obj_size,
+                                                      uint age, bool tenured) const {
+
+  EventPromoteObjectOutsidePLAB event;
+  if (event.should_commit()) {
+    event.set_gcId(_shared_gc_info.gc_id().id());
+    event.set_objectClass(klass);
+    event.set_objectSize(obj_size);
+    event.set_tenured(tenured);
+    event.set_tenuringAge(age);
+    event.commit();
+  }
+}
+
 void OldGCTracer::send_old_gc_event() const {
-  EventGCOldGarbageCollection e(UNTIMED);
+  EventOldGarbageCollection e(UNTIMED);
   if (e.should_commit()) {
     e.set_gcId(_shared_gc_info.gc_id().id());
     e.set_starttime(_shared_gc_info.start_timestamp());
@@ -120,8 +157,8 @@ void OldGCTracer::send_old_gc_event() const {
   }
 }
 
-static TraceStructCopyFailed to_trace_struct(const CopyFailedInfo& cf_info) {
-  TraceStructCopyFailed failed_info;
+static JfrStructCopyFailed to_struct(const CopyFailedInfo& cf_info) {
+  JfrStructCopyFailed failed_info;
   failed_info.set_objectCount(cf_info.failed_count());
   failed_info.set_firstSize(cf_info.first_size());
   failed_info.set_smallestSize(cf_info.smallest_size());
@@ -133,7 +170,7 @@ void YoungGCTracer::send_promotion_failed_event(const PromotionFailedInfo& pf_in
   EventPromotionFailed e;
   if (e.should_commit()) {
     e.set_gcId(_shared_gc_info.gc_id().id());
-    e.set_data(to_trace_struct(pf_info));
+    e.set_promotionFailed(to_struct(pf_info));
     e.set_thread(pf_info.thread()->thread_id());
     e.commit();
   }
@@ -150,7 +187,7 @@ void OldGCTracer::send_concurrent_mode_failure_event() {
 
 #if INCLUDE_ALL_GCS
 void G1NewTracer::send_g1_young_gc_event() {
-  EventGCG1GarbageCollection e(UNTIMED);
+  EventG1GarbageCollection e(UNTIMED);
   if (e.should_commit()) {
     e.set_gcId(_shared_gc_info.gc_id().id());
     e.set_type(_g1_young_gc_info.type());
@@ -160,16 +197,27 @@ void G1NewTracer::send_g1_young_gc_event() {
   }
 }
 
+void G1MMUTracer::send_g1_mmu_event(double time_slice_ms, double gc_time_ms, double max_time_ms) {
+  EventG1MMU e;
+  if (e.should_commit()) {
+    e.set_gcId(GCId::peek().id());
+    e.set_timeSlice((s8)time_slice_ms);
+    e.set_gcTime((s8)gc_time_ms);
+    e.set_pauseTarget((s8)max_time_ms);
+    e.commit();
+  }
+}
+
 void G1NewTracer::send_evacuation_info_event(EvacuationInfo* info) {
-  EventEvacuationInfo e;
+  EventEvacuationInformation e;
   if (e.should_commit()) {
     e.set_gcId(_shared_gc_info.gc_id().id());
     e.set_cSetRegions(info->collectionset_regions());
     e.set_cSetUsedBefore(info->collectionset_used_before());
     e.set_cSetUsedAfter(info->collectionset_used_after());
     e.set_allocationRegions(info->allocation_regions());
-    e.set_allocRegionsUsedBefore(info->alloc_regions_used_before());
-    e.set_allocRegionsUsedAfter(info->alloc_regions_used_before() + info->bytes_copied());
+    e.set_allocationRegionsUsedBefore(info->alloc_regions_used_before());
+    e.set_allocationRegionsUsedAfter(info->alloc_regions_used_before() + info->bytes_copied());
     e.set_bytesCopied(info->bytes_copied());
     e.set_regionsFreed(info->regions_freed());
     e.commit();
@@ -180,14 +228,15 @@ void G1NewTracer::send_evacuation_failed_event(const EvacuationFailedInfo& ef_in
   EventEvacuationFailed e;
   if (e.should_commit()) {
     e.set_gcId(_shared_gc_info.gc_id().id());
-    e.set_data(to_trace_struct(ef_info));
+    e.set_evacuationFailed(to_struct(ef_info));
     e.commit();
   }
 }
-#endif
 
-static TraceStructVirtualSpace to_trace_struct(const VirtualSpaceSummary& summary) {
-  TraceStructVirtualSpace space;
+#endif // INCLUDE_ALL_GCS
+
+static JfrStructVirtualSpace to_struct(const VirtualSpaceSummary& summary) {
+  JfrStructVirtualSpace space;
   space.set_start((TraceAddress)summary.start());
   space.set_committedEnd((TraceAddress)summary.committed_end());
   space.set_committedSize(summary.committed_size());
@@ -196,8 +245,8 @@ static TraceStructVirtualSpace to_trace_struct(const VirtualSpaceSummary& summar
   return space;
 }
 
-static TraceStructObjectSpace to_trace_struct(const SpaceSummary& summary) {
-  TraceStructObjectSpace space;
+static JfrStructObjectSpace to_struct(const SpaceSummary& summary) {
+  JfrStructObjectSpace space;
   space.set_start((TraceAddress)summary.start());
   space.set_end((TraceAddress)summary.end());
   space.set_used(summary.used());
@@ -218,8 +267,23 @@ class GCHeapSummaryEventSender : public GCHeapSummaryVisitor {
     if (e.should_commit()) {
       e.set_gcId(_gc_id.id());
       e.set_when((u1)_when);
-      e.set_heapSpace(to_trace_struct(heap_space));
+      e.set_heapSpace(to_struct(heap_space));
       e.set_heapUsed(heap_summary->used());
+      e.commit();
+    }
+  }
+
+  void visit(const G1HeapSummary* g1_heap_summary) const {
+    visit((GCHeapSummary*)g1_heap_summary);
+
+    EventG1HeapSummary e;
+    if (e.should_commit()) {
+      e.set_gcId(_gc_id.id());
+      e.set_when((u1)_when);
+      e.set_edenUsedSize(g1_heap_summary->edenUsed());
+      e.set_edenTotalSize(g1_heap_summary->edenCapacity());
+      e.set_survivorUsedSize(g1_heap_summary->survivorUsed());
+      e.set_numberOfRegions(g1_heap_summary->numberOfRegions());
       e.commit();
     }
   }
@@ -239,12 +303,12 @@ class GCHeapSummaryEventSender : public GCHeapSummaryVisitor {
       e.set_gcId(_gc_id.id());
       e.set_when((u1)_when);
 
-      e.set_oldSpace(to_trace_struct(ps_heap_summary->old()));
-      e.set_oldObjectSpace(to_trace_struct(ps_heap_summary->old_space()));
-      e.set_youngSpace(to_trace_struct(ps_heap_summary->young()));
-      e.set_edenSpace(to_trace_struct(ps_heap_summary->eden()));
-      e.set_fromSpace(to_trace_struct(ps_heap_summary->from()));
-      e.set_toSpace(to_trace_struct(ps_heap_summary->to()));
+      e.set_oldSpace(to_struct(ps_heap_summary->old()));
+      e.set_oldObjectSpace(to_struct(ps_heap_summary->old_space()));
+      e.set_youngSpace(to_struct(ps_heap_summary->young()));
+      e.set_edenSpace(to_struct(ps_heap_summary->eden()));
+      e.set_fromSpace(to_struct(ps_heap_summary->from()));
+      e.set_toSpace(to_struct(ps_heap_summary->to()));
       e.commit();
     }
   }
@@ -255,8 +319,8 @@ void GCTracer::send_gc_heap_summary_event(GCWhen::Type when, const GCHeapSummary
   heap_summary.accept(&visitor);
 }
 
-static TraceStructMetaspaceSizes to_trace_struct(const MetaspaceSizes& sizes) {
-  TraceStructMetaspaceSizes meta_sizes;
+static JfrStructMetaspaceSizes to_struct(const MetaspaceSizes& sizes) {
+  JfrStructMetaspaceSizes meta_sizes;
 
   meta_sizes.set_committed(sizes.committed());
   meta_sizes.set_used(sizes.used());
@@ -271,9 +335,9 @@ void GCTracer::send_meta_space_summary_event(GCWhen::Type when, const MetaspaceS
     e.set_gcId(_shared_gc_info.gc_id().id());
     e.set_when((u1) when);
     e.set_gcThreshold(meta_space_summary.capacity_until_GC());
-    e.set_metaspace(to_trace_struct(meta_space_summary.meta_space()));
-    e.set_dataSpace(to_trace_struct(meta_space_summary.data_space()));
-    e.set_classSpace(to_trace_struct(meta_space_summary.class_space()));
+    e.set_metaspace(to_struct(meta_space_summary.meta_space()));
+    e.set_dataSpace(to_struct(meta_space_summary.data_space()));
+    e.set_classSpace(to_struct(meta_space_summary.class_space()));
     e.commit();
   }
 }
@@ -283,14 +347,14 @@ class PhaseSender : public PhaseVisitor {
  public:
   PhaseSender(GCId gc_id) : _gc_id(gc_id) {}
 
-  template<typename T>
-  void send_phase(PausePhase* pause) {
+   template<typename T>
+  void send_phase(GCPhase* phase) {
     T event(UNTIMED);
     if (event.should_commit()) {
       event.set_gcId(_gc_id.id());
-      event.set_name(pause->name());
-      event.set_starttime(pause->start());
-      event.set_endtime(pause->end());
+      event.set_name(phase->name());
+      event.set_starttime(phase->start());
+      event.set_endtime(phase->end());
       event.commit();
     }
   }

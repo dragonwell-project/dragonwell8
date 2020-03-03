@@ -80,7 +80,7 @@ default: vm_build_preliminaries the_vm
 	@echo All done.
 
 # This is an explicit dependency for the sake of parallel makes.
-vm_build_preliminaries:  checks $(Cached_plat) $(AD_Files_If_Required) jvmti_stuff trace_stuff sa_stuff dtrace_stuff
+vm_build_preliminaries:  checks $(Cached_plat) $(AD_Files_If_Required) jvmti_stuff jfr_stuff sa_stuff dtrace_stuff
 	@# We need a null action here, so implicit rules don't get consulted.
 
 $(Cached_plat): $(Plat_File)
@@ -94,9 +94,9 @@ ad_stuff: $(Cached_plat) $(adjust-mflags)
 jvmti_stuff: $(Cached_plat) $(adjust-mflags)
 	@$(MAKE) -f jvmti.make $(MFLAGS-adjusted)
 
-# generate trace files
-trace_stuff: jvmti_stuff $(Cached_plat) $(adjust-mflags)
-	@$(MAKE) -f trace.make $(MFLAGS-adjusted)
+# generate JFR files
+jfr_stuff: $(Cached_plat) $(adjust-mflags)
+	@$(MAKE) -f jfr.make $(MFLAGS-adjusted)
 
 ifeq ($(OS_VENDOR), Darwin)
 # generate dtrace header files

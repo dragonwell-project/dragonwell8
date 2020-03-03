@@ -30,12 +30,12 @@ void ClassFileStream::truncated_file_error(TRAPS) {
   THROW_MSG(vmSymbols::java_lang_ClassFormatError(), "Truncated class file");
 }
 
-ClassFileStream::ClassFileStream(u1* buffer, int length, const char* source) {
+ClassFileStream::ClassFileStream(u1* buffer, int length, const char* source, bool need_verify) {
   _buffer_start = buffer;
   _buffer_end   = buffer + length;
   _current      = buffer;
   _source       = source;
-  _need_verify  = false;
+  _need_verify  = need_verify;
 }
 
 u1 ClassFileStream::get_u1(TRAPS) {
@@ -100,3 +100,31 @@ void ClassFileStream::skip_u4(int length, TRAPS) {
   }
   _current += length * 4;
 }
+
+#if INCLUDE_JFR
+
+u1* ClassFileStream::clone_buffer() const {
+  u1* const new_buffer_start = NEW_RESOURCE_ARRAY(u1, length());
+  memcpy(new_buffer_start, _buffer_start, length());
+  return new_buffer_start;
+}
+
+const char* const ClassFileStream::clone_source() const {
+  const char* const src = source();
+  char* source_copy = NULL;
+  if (src != NULL) {
+    size_t source_len = strlen(src);
+    source_copy = NEW_RESOURCE_ARRAY(char, source_len + 1);
+    strncpy(source_copy, src, source_len + 1);
+  }
+  return source_copy;
+}
+
+ClassFileStream* ClassFileStream::clone() const {
+  u1* const new_buffer_start = clone_buffer();
+  return new ClassFileStream(new_buffer_start,
+                             length(),
+                             clone_source(),
+                             need_verify());
+}
+#endif // INCLUDE_JFR

@@ -191,6 +191,7 @@ typedef enum {
 
 #define FLAG_SET_CMDLINE(type, name, value) (CommandLineFlagsEx::type##AtPut(FLAG_MEMBER_WITH_TYPE(name,type), (type)(value), Flag::COMMAND_LINE))
 #define FLAG_SET_ERGO(type, name, value)    (CommandLineFlagsEx::type##AtPut(FLAG_MEMBER_WITH_TYPE(name,type), (type)(value), Flag::ERGONOMIC))
+#define FLAG_SET_MGMT(type, name, value)    (CommandLineFlagsEx::type##AtPut(FLAG_MEMBER_WITH_TYPE(name, type), (type)(value), Flag::MANAGEMENT))
 
 // Can't put the following in CommandLineFlags because
 // of a circular dependency on the enum definition.

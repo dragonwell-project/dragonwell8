@@ -64,9 +64,6 @@
 #include "utilities/growableArray.hpp"
 #include "utilities/macros.hpp"
 #include "utilities/ostream.hpp"
-#if INCLUDE_TRACE
-#include "trace/tracing.hpp"
-#endif
 
 ClassLoaderData * ClassLoaderData::_the_null_class_loader_data = NULL;
 
@@ -81,7 +78,8 @@ ClassLoaderData::ClassLoaderData(Handle h_class_loader, bool is_anonymous, Depen
   _claimed(0), _jmethod_ids(NULL), _handles(), _deallocate_list(NULL),
   _next(NULL), _dependencies(dependencies),
   _metaspace_lock(new Mutex(Monitor::leaf+1, "Metaspace allocation lock", true)) {
-    // empty
+
+  JFR_ONLY(INIT_ID(this);)
 }
 
 void ClassLoaderData::init_dependencies(TRAPS) {
@@ -646,6 +644,16 @@ void ClassLoaderDataGraph::cld_do(CLDClosure* cl) {
   }
 }
 
+void ClassLoaderDataGraph::cld_unloading_do(CLDClosure* cl) {
+  assert(SafepointSynchronize::is_at_safepoint(), "must be at safepoint!");
+  // Only walk the head until any clds not purged from prior unloading
+  // (CMS doesn't purge right away).
+  for (ClassLoaderData* cld = _unloading; cld != _saved_unloading; cld = cld->next()) {
+    assert(cld->is_unloading(), "invariant");
+    cl->do_cld(cld);
+  }
+}
+
 void ClassLoaderDataGraph::roots_cld_do(CLDClosure* strong, CLDClosure* weak) {
   for (ClassLoaderData* cld = _head;  cld != NULL; cld = cld->_next) {
     CLDClosure* closure = cld->keep_alive() ? strong : weak;
@@ -740,7 +748,6 @@ bool ClassLoaderDataGraph::contains_loader_data(ClassLoaderData* loader_data) {
 }
 #endif // PRODUCT
 
-
 // Move class loader data from main list to the unloaded list for unloading
 // and deallocation later.
 bool ClassLoaderDataGraph::do_unloading(BoolObjectClosure* is_alive_closure, bool clean_alive) {
@@ -780,10 +787,6 @@ bool ClassLoaderDataGraph::do_unloading(BoolObjectClosure* is_alive_closure, boo
     ClassLoaderDataGraph::clean_metaspaces();
   }
 
-  if (seen_dead_loader) {
-    post_class_unload_events();
-  }
-
   return seen_dead_loader;
 }
 
@@ -818,20 +821,6 @@ void ClassLoaderDataGraph::purge() {
     delete purge_me;
   }
   Metaspace::purge();
-}
-
-void ClassLoaderDataGraph::post_class_unload_events(void) {
-#if INCLUDE_TRACE
-  assert(SafepointSynchronize::is_at_safepoint(), "must be at safepoint!");
-  if (Tracing::enabled()) {
-    if (Tracing::is_event_enabled(TraceClassUnloadEvent)) {
-      assert(_unloading != NULL, "need class loader data unload list!");
-      _class_unload_time = Ticks::now();
-      classes_unloading_do(&class_unload_event);
-    }
-    Tracing::on_unloading_classes();
-  }
-#endif
 }
 
 void ClassLoaderDataGraph::free_deallocate_lists() {
@@ -969,21 +958,3 @@ void ClassLoaderData::print_value_on(outputStream* out) const {
     class_loader()->print_value_on(out);
   }
 }
-
-#if INCLUDE_TRACE
-
-Ticks ClassLoaderDataGraph::_class_unload_time;
-
-void ClassLoaderDataGraph::class_unload_event(Klass* const k) {
-
-  // post class unload event
-  EventClassUnload event(UNTIMED);
-  event.set_endtime(_class_unload_time);
-  event.set_unloadedClass(k);
-  oop defining_class_loader = k->class_loader();
-  event.set_definingClassLoader(defining_class_loader != NULL ?
-                                defining_class_loader->klass() : (Klass*)NULL);
-  event.commit();
-}
-
-#endif // INCLUDE_TRACE
