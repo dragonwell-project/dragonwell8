@@ -30,6 +30,8 @@
 #include "compiler/compileBroker.hpp"
 #include "compiler/compilerOracle.hpp"
 #include "interpreter/bytecodeHistogram.hpp"
+#include "jfr/jfrEvents.hpp"
+#include "jfr/support/jfrThreadId.hpp"
 #include "memory/genCollectedHeap.hpp"
 #include "memory/oopFactory.hpp"
 #include "memory/universe.hpp"
@@ -59,7 +61,6 @@
 #include "runtime/timer.hpp"
 #include "runtime/vm_operations.hpp"
 #include "services/memTracker.hpp"
-#include "trace/tracing.hpp"
 #include "utilities/dtrace.hpp"
 #include "utilities/globalDefinitions.hpp"
 #include "utilities/histogram.hpp"
@@ -95,6 +96,9 @@
 #include "opto/compile.hpp"
 #include "opto/indexSet.hpp"
 #include "opto/runtime.hpp"
+#endif
+#if INCLUDE_JFR
+#include "jfr/jfr.hpp"
 #endif
 
 #ifndef USDT2
@@ -524,9 +528,11 @@ void before_exit(JavaThread * thread) {
 
   EventThreadEnd event;
   if (event.should_commit()) {
-      event.set_javalangthread(java_lang_Thread::thread_id(thread->threadObj()));
-      event.commit();
+    event.set_thread(JFR_THREAD_ID(thread));
+    event.commit();
   }
+
+  JFR_ONLY(Jfr::on_vm_shutdown();)
 
   // Always call even when there are not JVMTI environments yet, since environments
   // may be attached late and JVMTI must track phases of VM execution

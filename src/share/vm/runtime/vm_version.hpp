@@ -98,6 +98,7 @@ class Abstract_VM_Version: AllStatic {
 
   // does HW support an 8-byte compare-exchange operation?
   static bool supports_cx8()  {
+    assert(_initialized, "not initialized");
 #ifdef SUPPORTS_NATIVE_CX8
     return true;
 #else
@@ -106,10 +107,10 @@ class Abstract_VM_Version: AllStatic {
   }
   // does HW support atomic get-and-set or atomic get-and-add?  Used
   // to guide intrinsification decisions for Unsafe atomic ops
-  static bool supports_atomic_getset4()  {return _supports_atomic_getset4;}
-  static bool supports_atomic_getset8()  {return _supports_atomic_getset8;}
-  static bool supports_atomic_getadd4()  {return _supports_atomic_getadd4;}
-  static bool supports_atomic_getadd8()  {return _supports_atomic_getadd8;}
+  static bool supports_atomic_getset4()  { assert(_initialized, "not initialized"); return _supports_atomic_getset4;}
+  static bool supports_atomic_getset8()  { assert(_initialized, "not initialized"); return _supports_atomic_getset8;}
+  static bool supports_atomic_getadd4()  { assert(_initialized, "not initialized"); return _supports_atomic_getadd4;}
+  static bool supports_atomic_getadd8()  { assert(_initialized, "not initialized"); return _supports_atomic_getadd8;}
 
   static unsigned int logical_processors_per_package() {
     return _logical_processors_per_package;

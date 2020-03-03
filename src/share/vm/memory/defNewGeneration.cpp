@@ -551,10 +551,10 @@ HeapWord* DefNewGeneration::expand_and_allocate(size_t size,
   return allocate(size, is_tlab);
 }
 
-void DefNewGeneration::adjust_desired_tenuring_threshold() {
+void DefNewGeneration::adjust_desired_tenuring_threshold(GCTracer &tracer) {
   // Set the desired survivor size to half the real survivor space
   _tenuring_threshold =
-    age_table()->compute_tenuring_threshold(to()->capacity()/HeapWordSize);
+    age_table()->compute_tenuring_threshold(to()->capacity()/HeapWordSize, tracer);
 }
 
 void DefNewGeneration::collect(bool   full,
@@ -664,7 +664,7 @@ void DefNewGeneration::collect(bool   full,
 
     assert(to()->is_empty(), "to space should be empty now");
 
-    adjust_desired_tenuring_threshold();
+    adjust_desired_tenuring_threshold(gc_tracer);
 
     // A successful scavenge should restart the GC time limit count which is
     // for full GC's.

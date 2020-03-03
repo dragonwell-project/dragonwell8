@@ -93,12 +93,6 @@ class ciMethod : public ciMetadata {
   ciMethod(methodHandle h_m, ciInstanceKlass* holder);
   ciMethod(ciInstanceKlass* holder, ciSymbol* name, ciSymbol* signature, ciInstanceKlass* accessor);
 
-  Method* get_Method() const {
-    Method* m = (Method*)_metadata;
-    assert(m != NULL, "illegal use of unloaded method");
-    return m;
-  }
-
   oop loader() const                             { return _holder->loader(); }
 
   const char* type_string()                      { return "ciMethod"; }
@@ -156,6 +150,11 @@ class ciMethod : public ciMetadata {
     }
   }
 
+  Method* get_Method() const {
+    Method* m = (Method*)_metadata;
+    assert(m != NULL, "illegal use of unloaded method");
+    return m;
+  }
 
   // Method code and related information.
   address code()                                 { if (_code == NULL) load_code(); return _code; }

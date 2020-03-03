@@ -280,7 +280,7 @@ template <> void DCmdArgument<MemorySizeArgument>::parse_value(const char* str,
                                                   size_t len, TRAPS) {
   if (str == NULL) {
     THROW_MSG(vmSymbols::java_lang_IllegalArgumentException(),
-              "Integer parsing error nanotime value: syntax error");
+               "Parsing error memory size value: syntax error, value is null\n");
   }
 
   if (*str == '-') {

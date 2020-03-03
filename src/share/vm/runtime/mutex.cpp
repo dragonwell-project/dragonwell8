@@ -1,6 +1,6 @@
 
 /*
- * Copyright (c) 1998, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2017, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -1373,10 +1373,8 @@ void Monitor::check_prelock_state(Thread *thread) {
     debug_only(if (rank() != Mutex::special) \
       thread->check_for_valid_safepoint_state(false);)
   }
-  if (thread->is_Watcher_thread()) {
-    assert(!WatcherThread::watcher_thread()->has_crash_protection(),
-        "locking not allowed when crash protection is set");
-  }
+  assert(!os::ThreadCrashProtection::is_crash_protected(thread),
+         "locking not allowed when crash protection is set");
 }
 
 void Monitor::check_block_state(Thread *thread) {

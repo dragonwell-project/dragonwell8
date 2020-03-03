@@ -58,6 +58,9 @@
 #include "services/memTracker.hpp"
 #include "utilities/events.hpp"
 #include "utilities/stack.inline.hpp"
+#if INCLUDE_JFR
+#include "jfr/jfr.hpp"
+#endif // INCLUDE_JFR
 
 #include <math.h>
 
@@ -2464,6 +2467,7 @@ void PSParallelCompact::adjust_roots() {
   // have been cleared if they pointed to non-surviving objects.)
   // Global (weak) JNI handles
   JNIHandles::weak_oops_do(adjust_pointer_closure());
+  JFR_ONLY(Jfr::weak_oops_do(adjust_pointer_closure()));
 
   CodeBlobToOopClosure adjust_from_blobs(adjust_pointer_closure(), CodeBlobToOopClosure::FixRelocations);
   CodeCache::blobs_do(&adjust_from_blobs);
