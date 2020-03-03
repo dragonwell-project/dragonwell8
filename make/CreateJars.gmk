@@ -211,8 +211,7 @@ RT_JAR_EXCLUDES += \
     sun/util/cldr/CLDRLocaleDataMetaInfo.class \
     sun/util/resources/cldr \
     $(LOCALEDATA_INCLUDES) \
-    com/oracle/jrockit/jfr \
-    oracle/jrockit/jfr \
+    jdk/management/jfr \
     jdk/jfr
 
 # Find all files in the classes dir to use as dependencies. This could be more fine granular.
@@ -400,20 +399,17 @@ $(eval $(call SetupArchive,BUILD_CHARSETS_JAR, , \
 
 ##########################################################################################
 
-ifndef OPENJDK
-  ifeq ($(ENABLE_JFR), true)
-    $(eval $(call SetupArchive,BUILD_JFR_JAR, , \
-        SRCS := $(JDK_OUTPUTDIR)/classes, \
-        SUFFIXES := .class .jfc .xsd, \
-        INCLUDES := com/oracle/jrockit/jfr \
-            oracle/jrockit/jfr \
-            jdk/jfr, \
-        JAR := $(IMAGES_OUTPUTDIR)/lib/jfr.jar, \
-        SKIP_METAINF := true, \
-        MANIFEST := $(MAINMANIFEST), \
-        CHECK_COMPRESS_JAR := true))
+ifeq ($(ENABLE_JFR), true)
+  $(eval $(call SetupArchive,BUILD_JFR_JAR, , \
+      SRCS := $(JDK_OUTPUTDIR)/classes $(HOTSPOT_DIST)/jre/lib, \
+      SUFFIXES := .class .jfc .xsd .xml, \
+      INCLUDES := jdk/management/jfr \
+          jdk/jfr, \
+      JAR := $(IMAGES_OUTPUTDIR)/lib/jfr.jar, \
+      SKIP_METAINF := true, \
+      MANIFEST := $(MAINMANIFEST), \
+      CHECK_COMPRESS_JAR := true))
 
-  endif
 endif
 
 ##########################################################################################

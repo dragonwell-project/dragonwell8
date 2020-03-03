@@ -59,6 +59,10 @@ jdk_lang = \
     jdk/lambda \
     vm
 
+#JFR tests
+jdk_jfr = \
+    jdk/jfr
+
 # All of the java.util package
 jdk_util = \
     :jdk_util_other \

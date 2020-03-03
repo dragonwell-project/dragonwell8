@@ -598,4 +598,15 @@ COPY_FILES += $(JDK_OUTPUTDIR)/lib/sound.properties
 
 ##########################################################################################
 
+$(JDK_OUTPUTDIR)/lib/jfr/%: $(JDK_TOPDIR)/src/share/classes/jdk/jfr/conf/%
+	$(call install-file)
+
+ifeq ($(ENABLE_JFR), true)
+  COPY_FILES += $(subst $(JDK_TOPDIR)/src/share/classes/jdk/jfr/conf, \
+          $(JDK_OUTPUTDIR)/lib/jfr, \
+          $(wildcard $(JDK_TOPDIR)/src/share/classes/jdk/jfr/conf/*))
+endif
+
+##########################################################################################
+
 -include $(CUSTOM_MAKE_DIR)/CopyFiles.gmk
