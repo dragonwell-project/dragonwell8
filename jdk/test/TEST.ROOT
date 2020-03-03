@@ -12,7 +12,7 @@
 # A "headful" test requires a graphical environment to meaningfully
 # run. Tests that are not headful are "headless."
 
-keys=2d dnd i18n intermittent randomness headful
+keys=2d dnd i18n intermittent randomness headful jfr
 
 # Tests that must run in othervm mode
 othervm.dirs=java/awt java/beans java/rmi javax/accessibility javax/imageio javax/sound javax/print javax/management com/sun/awt sun/awt sun/java2d sun/pisces sun/rmi
