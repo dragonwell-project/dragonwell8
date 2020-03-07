@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -93,10 +93,16 @@ public abstract class AbstractDelegateHttpsURLConnection extends
      */
     public void setNewClient (URL url, boolean useCache)
         throws IOException {
+        int readTimeout = getReadTimeout();
         http = HttpsClient.New (getSSLSocketFactory(),
                                 url,
                                 getHostnameVerifier(),
-                                useCache, this);
+                                null,
+                                -1,
+                                useCache,
+                                getConnectTimeout(),
+                                this);
+        http.setReadTimeout(readTimeout);
         ((HttpsClient)http).afterConnect();
     }
 
@@ -146,10 +152,16 @@ public abstract class AbstractDelegateHttpsURLConnection extends
             boolean useCache) throws IOException {
         if (connected)
             return;
+        int readTimeout = getReadTimeout();
         http = HttpsClient.New (getSSLSocketFactory(),
                                 url,
                                 getHostnameVerifier(),
-                                proxyHost, proxyPort, useCache, this);
+                                proxyHost,
+                                proxyPort,
+                                useCache,
+                                getConnectTimeout(),
+                                this);
+        http.setReadTimeout(readTimeout);
         connected = true;
     }
 
