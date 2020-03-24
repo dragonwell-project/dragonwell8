@@ -1,6 +1,5 @@
 /*
  * Copyright (c) 2013, 2015, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2019, Azul Systems, Inc. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -1468,17 +1467,6 @@ public abstract class ClassLoader {
         }
     }
 
-    /*
-     * Initialize default paths for native libraries search.
-     * Must be done early as JDK may load libraries during bootstrap.
-     *
-     * @see java.lang.System#initPhase1
-     */
-    static void initLibraryPaths() {
-        usr_paths = initializePath("java.library.path");
-        sys_paths = initializePath("sun.boot.library.path");
-    }
-
     // Returns true if the specified class loader can be found in this class
     // loader's delegation chain.
     boolean isAncestor(ClassLoader cl) {
@@ -1821,9 +1809,10 @@ public abstract class ClassLoader {
                             boolean isAbsolute) {
         ClassLoader loader =
             (fromClass == null) ? null : fromClass.getClassLoader();
-        assert sys_paths != null : "should be initialized at this point";
-        assert usr_paths != null : "should be initialized at this point";
-
+        if (sys_paths == null) {
+            usr_paths = initializePath("java.library.path");
+            sys_paths = initializePath("sun.boot.library.path");
+        }
         if (isAbsolute) {
             if (loadLibrary0(fromClass, new File(name))) {
                 return;
@@ -1913,14 +1902,13 @@ public abstract class ClassLoader {
                          name +
                          " already loaded in another classloader");
                 }
-                /*
-                 * When a library is being loaded, JNI_OnLoad function can cause
-                 * another loadLibrary invocation that should succeed.
+                /* If the library is being loaded (must be by the same thread,
+                 * because Runtime.load and Runtime.loadLibrary are
+                 * synchronous). The reason is can occur is that the JNI_OnLoad
+                 * function can cause another loadLibrary invocation.
                  *
-                 * We use a static stack to hold the list of libraries we are
-                 * loading because this can happen only when called by the
-                 * same thread because Runtime.load and Runtime.loadLibrary
-                 * are synchronous.
+                 * Thus we can use a static stack to hold the list of libraries
+                 * we are loading.
                  *
                  * If there is a pending load operation for the library, we
                  * immediately return success; otherwise, we raise
