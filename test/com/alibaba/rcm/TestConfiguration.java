@@ -46,14 +46,16 @@ public class TestConfiguration {
                 MyResourceType.MY_RESOURCE1.newConstraint(),
                 MyResourceType.MY_RESOURCE2.newConstraint()));
 
-
         assertTrue(iterator2Stream(mc.operations.iterator()).collect(Collectors.toSet())
-                .equals(new HashSet<>(Arrays.asList("update MY_RESOURCE1", "update MY_RESOURCE2"))));
+                .equals(new HashSet<>(Arrays.asList("update " + MyResourceType.MY_RESOURCE1.toString(),
+                                                    "update " + MyResourceType.MY_RESOURCE2.toString()))));
 
         mc.updateConstraint(MyResourceType.MY_RESOURCE2.newConstraint());
 
         assertTrue(iterator2Stream(mc.operations.iterator()).collect(Collectors.toSet())
-                .equals(new HashSet<>(Arrays.asList("update MY_RESOURCE1", "update MY_RESOURCE2", "update MY_RESOURCE2"))));
+                .equals(new HashSet<>(Arrays.asList("update " + MyResourceType.MY_RESOURCE1.toString(),
+                                                    "update " + MyResourceType.MY_RESOURCE2.toString(),
+                                                    "update " + MyResourceType.MY_RESOURCE2.toString()))));
     }
 
     private static <T> Stream<T> iterator2Stream(Iterator<T> iterator) {

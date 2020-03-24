@@ -1315,6 +1315,11 @@ public final class System {
             public AbstractResourceContainer getResourceContainer(Thread thread) {
                 return thread.resourceContainer;
             }
+
+            @Override
+            public AbstractResourceContainer getInheritedResourceContainer(Thread thread) {
+                return thread.inheritedResourceContainer;
+            }
         });
     }
 }

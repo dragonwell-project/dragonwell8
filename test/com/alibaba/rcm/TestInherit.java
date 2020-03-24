@@ -28,6 +28,7 @@
  */
 
 import com.alibaba.rcm.ResourceContainer;
+import demo.RCInheritedThreadFactory;
 import demo.MyResourceFactory;
 
 import java.util.Collections;
@@ -44,23 +45,23 @@ public class TestInherit {
         rc.run(() -> {
             assertEQ(ResourceContainer.current(), rc);
             FutureTask<ResourceContainer> f1 = new FutureTask<>(ResourceContainer::current);
-            new Thread(f1).start();
+            RCInheritedThreadFactory.INSTANCE.newThread(f1).start();
             assertEQ(get(f1), rc);
             FutureTask<ResourceContainer> f2 = new FutureTask<>(ResourceContainer::current);
-            ResourceContainer.root().run(() -> new Thread(f2).start());
+            ResourceContainer.root().run(() -> RCInheritedThreadFactory.INSTANCE.newThread(f2).start());
             assertEQ(get(f2), ResourceContainer.root());
         });
 
         // thread is bound to it's parent thread(the thread called Thread::init())
         // not dependent on where Thread::start() called.
         FutureTask<ResourceContainer> f3 = new FutureTask<>(ResourceContainer::current);
-        Thread t3 = new Thread(f3);
+        Thread t3 = RCInheritedThreadFactory.INSTANCE.newThread(f3);
         // Thread::init is called in root()
         rc.run(t3::start);
         assertEQ(get(f3), ResourceContainer.root());
 
         FutureTask<ResourceContainer> f4 = new FutureTask<>(ResourceContainer::current);
-        FutureTask<Thread> newThread = new FutureTask<>(() -> new Thread(f4));
+        FutureTask<Thread> newThread = new FutureTask<>(() -> RCInheritedThreadFactory.INSTANCE.newThread(f4));
         // Thread::init is called in container
         rc.run(newThread);
         get(newThread).start();

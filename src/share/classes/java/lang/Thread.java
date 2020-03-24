@@ -227,6 +227,11 @@ class Thread implements Runnable {
      */
     AbstractResourceContainer resourceContainer;
 
+    /**
+     * {@code ResourceContainer} inherited from parent
+     */
+    AbstractResourceContainer inheritedResourceContainer;
+
     private static synchronized long nextThreadID() {
         return ++threadSeqNumber;
     }
@@ -439,6 +444,7 @@ class Thread implements Runnable {
 
         /* com.alibaba.rcm API */
         this.resourceContainer = AbstractResourceContainer.root();
+        this.inheritedResourceContainer = parent.resourceContainer;
 
         /* Set the tenant container */
         if (VM.isBooted() && TenantGlobals.isTenantEnabled()) {
@@ -788,6 +794,8 @@ class Thread implements Runnable {
         blocker = null;
         uncaughtExceptionHandler = null;
         inheritedTenantContainer = null;
+        resourceContainer = null;
+        inheritedResourceContainer = null;
     }
 
     /**

@@ -145,4 +145,9 @@ public interface JavaLangAccess {
      * Get the reference to the thread attached {@code ResourceContainer}
      */
     AbstractResourceContainer getResourceContainer(Thread thread);
+
+    /**
+     * Get the reference to the thread's inherited {@code ResourceContainer}
+     */
+    AbstractResourceContainer getInheritedResourceContainer(Thread thread);
 }
