@@ -379,14 +379,19 @@ final class P11Signature extends SignatureSpi {
         if (key instanceof P11Key) {
             keySize = ((P11Key) key).length();
         } else {
-            if (keyAlgo.equals("RSA")) {
-                keySize = ((RSAKey) key).getModulus().bitLength();
-            } else if (keyAlgo.equals("DSA")) {
-                keySize = ((DSAKey) key).getParams().getP().bitLength();
-            } else if (keyAlgo.equals("EC")) {
-                keySize = ((ECKey) key).getParams().getCurve().getField().getFieldSize();
-            } else {
-                throw new ProviderException("Error: unsupported algo " + keyAlgo);
+            try {
+                if (keyAlgo.equals("RSA")) {
+                    keySize = ((RSAKey) key).getModulus().bitLength();
+                } else if (keyAlgo.equals("DSA")) {
+                    keySize = ((DSAKey) key).getParams().getP().bitLength();
+                } else if (keyAlgo.equals("EC")) {
+                    keySize = ((ECKey) key).getParams().getCurve().getField().getFieldSize();
+                } else {
+                    throw new ProviderException("Error: unsupported algo " + keyAlgo);
+                }
+            } catch (ClassCastException cce) {
+                throw new InvalidKeyException(keyAlgo +
+                    " key must be the right type", cce);
             }
         }
         if ((minKeySize != -1) && (keySize < minKeySize)) {
