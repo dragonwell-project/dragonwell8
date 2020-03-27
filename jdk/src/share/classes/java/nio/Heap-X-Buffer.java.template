@@ -95,12 +95,15 @@ class Heap$Type$Buffer$RW$
     }
 
     public $Type$Buffer slice() {
+        int pos = this.position();
+        int lim = this.limit();
+        int rem = (pos <= lim ? lim - pos : 0);
         return new Heap$Type$Buffer$RW$(hb,
                                         -1,
                                         0,
-                                        this.remaining(),
-                                        this.remaining(),
-                                        this.position() + offset);
+                                        rem,
+                                        rem,
+                                        pos + offset);
     }
 
     public $Type$Buffer duplicate() {
@@ -147,10 +150,11 @@ class Heap$Type$Buffer$RW$
 
     public $Type$Buffer get($type$[] dst, int offset, int length) {
         checkBounds(offset, length, dst.length);
-        if (length > remaining())
+        int pos = position();
+        if (length > limit() - pos)
             throw new BufferUnderflowException();
-        System.arraycopy(hb, ix(position()), dst, offset, length);
-        position(position() + length);
+        System.arraycopy(hb, ix(pos), dst, offset, length);
+        position(pos + length);
         return this;
     }
 
@@ -185,10 +189,11 @@ class Heap$Type$Buffer$RW$
     public $Type$Buffer put($type$[] src, int offset, int length) {
 #if[rw]
         checkBounds(offset, length, src.length);
-        if (length > remaining())
+        int pos = position();
+        if (length > limit() - pos)
             throw new BufferOverflowException();
-        System.arraycopy(src, offset, hb, ix(position()), length);
-        position(position() + length);
+        System.arraycopy(src, offset, hb, ix(pos), length);
+        position(pos + length);
         return this;
 #else[rw]
         throw new ReadOnlyBufferException();
@@ -201,19 +206,22 @@ class Heap$Type$Buffer$RW$
             if (src == this)
                 throw new IllegalArgumentException();
             Heap$Type$Buffer sb = (Heap$Type$Buffer)src;
-            int n = sb.remaining();
-            if (n > remaining())
+            int pos = position();
+            int sbpos = sb.position();
+            int n = sb.limit() - sbpos;
+            if (n > limit() - pos)
                 throw new BufferOverflowException();
-            System.arraycopy(sb.hb, sb.ix(sb.position()),
-                             hb, ix(position()), n);
-            sb.position(sb.position() + n);
-            position(position() + n);
+            System.arraycopy(sb.hb, sb.ix(sbpos),
+                             hb, ix(pos), n);
+            sb.position(sbpos + n);
+            position(pos + n);
         } else if (src.isDirect()) {
             int n = src.remaining();
-            if (n > remaining())
+            int pos = position();
+            if (n > limit() - pos)
                 throw new BufferOverflowException();
-            src.get(hb, ix(position()), n);
-            position(position() + n);
+            src.get(hb, ix(pos), n);
+            position(pos + n);
         } else {
             super.put(src);
         }
@@ -225,8 +233,10 @@ class Heap$Type$Buffer$RW$
 
     public $Type$Buffer compact() {
 #if[rw]
-        System.arraycopy(hb, ix(position()), hb, ix(0), remaining());
-        position(remaining());
+        int pos = position();
+        int rem = limit() - pos;
+        System.arraycopy(hb, ix(pos), hb, ix(0), rem);
+        position(rem);
         limit(capacity());
         discardMark();
         return this;
@@ -284,8 +294,9 @@ class Heap$Type$Buffer$RW$
     }
 
     public CharBuffer asCharBuffer() {
-        int size = this.remaining() >> 1;
-        int off = offset + position();
+        int pos = position();
+        int size = (limit() - pos) >> 1;
+        int off = offset + pos;
         return (bigEndian
                 ? (CharBuffer)(new ByteBufferAsCharBuffer$RW$B(this,
                                                                -1,
@@ -335,8 +346,9 @@ class Heap$Type$Buffer$RW$
     }
 
     public ShortBuffer asShortBuffer() {
-        int size = this.remaining() >> 1;
-        int off = offset + position();
+        int pos = position();
+        int size = (limit() - pos) >> 1;
+        int off = offset + pos;
         return (bigEndian
                 ? (ShortBuffer)(new ByteBufferAsShortBuffer$RW$B(this,
                                                                  -1,
@@ -386,8 +398,9 @@ class Heap$Type$Buffer$RW$
     }
 
     public IntBuffer asIntBuffer() {
-        int size = this.remaining() >> 2;
-        int off = offset + position();
+        int pos = position();
+        int size = (limit() - pos) >> 2;
+        int off = offset + pos;
         return (bigEndian
                 ? (IntBuffer)(new ByteBufferAsIntBuffer$RW$B(this,
                                                              -1,
@@ -437,8 +450,9 @@ class Heap$Type$Buffer$RW$
     }
 
     public LongBuffer asLongBuffer() {
-        int size = this.remaining() >> 3;
-        int off = offset + position();
+        int pos = position();
+        int size = (limit() - pos) >> 3;
+        int off = offset + pos;
         return (bigEndian
                 ? (LongBuffer)(new ByteBufferAsLongBuffer$RW$B(this,
                                                                -1,
@@ -488,8 +502,9 @@ class Heap$Type$Buffer$RW$
     }
 
     public FloatBuffer asFloatBuffer() {
-        int size = this.remaining() >> 2;
-        int off = offset + position();
+        int pos = position();
+        int size = (limit() - pos) >> 2;
+        int off = offset + pos;
         return (bigEndian
                 ? (FloatBuffer)(new ByteBufferAsFloatBuffer$RW$B(this,
                                                                  -1,
@@ -539,8 +554,9 @@ class Heap$Type$Buffer$RW$
     }
 
     public DoubleBuffer asDoubleBuffer() {
-        int size = this.remaining() >> 3;
-        int off = offset + position();
+        int pos = position();
+        int size = (limit() - pos) >> 3;
+        int off = offset + pos;
         return (bigEndian
                 ? (DoubleBuffer)(new ByteBufferAsDoubleBuffer$RW$B(this,
                                                                    -1,

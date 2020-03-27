@@ -190,9 +190,15 @@ public final class DOMXMLSignatureFactory extends XMLSignatureFactory {
                 "support DOM Level 2 and be namespace aware");
         }
         if (tag.equals("Signature")) {
-            return new DOMXMLSignature(element, context, getProvider());
+            try {
+                return new DOMXMLSignature(element, context, getProvider());
+            } catch (MarshalException me) {
+                throw me;
+            } catch (Exception e) {
+                throw new MarshalException(e);
+            }
         } else {
-            throw new MarshalException("invalid Signature tag: " + tag);
+            throw new MarshalException("Invalid Signature tag: " + tag);
         }
     }
 
