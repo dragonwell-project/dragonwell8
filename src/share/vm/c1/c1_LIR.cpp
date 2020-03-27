@@ -2129,8 +2129,14 @@ void LIR_OpProfileType::print_instr(outputStream* out) const {
     out->print("(null)");
   out->print(" current = "); ciTypeEntries::print_ciklass(out, current_klass());
 #else
-  out->print("exact = "); exact_klass()->print_name_on(out);
-  out->print("current = "); ciTypeEntries::print_ciklass(out, current_klass());
+  out->print("exact = ");
+  if  (exact_klass() == NULL) {
+    out->print("unknown");
+  } else {
+    exact_klass()->print_name_on(out);
+  }
+  out->print(" current = "); ciTypeEntries::print_ciklass(out, current_klass());
+  out->print(" ");
 #endif
   mdp()->print(out);          out->print(" ");
   obj()->print(out);          out->print(" ");

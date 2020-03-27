@@ -424,6 +424,14 @@
 #define NOT_EMBEDDED(code) code
 #endif
 
+#ifdef VM_LITTLE_ENDIAN
+#define LITTLE_ENDIAN_ONLY(code) code
+#define BIG_ENDIAN_ONLY(code)
+#else
+#define LITTLE_ENDIAN_ONLY(code)
+#define BIG_ENDIAN_ONLY(code) code
+#endif
+
 #define define_pd_global(type, name, value) const type pd_##name = value;
 
 #endif // SHARE_VM_UTILITIES_MACROS_HPP

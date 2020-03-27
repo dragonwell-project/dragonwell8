@@ -148,6 +148,9 @@ class CompactibleFreeListSpace: public CompactibleSpace {
   // Used to keep track of limit of sweep for the space
   HeapWord* _sweep_limit;
 
+  // Stable value of used().
+  size_t _used_stable;
+
   // Support for compacting cms
   HeapWord* cross_threshold(HeapWord* start, HeapWord* end);
   HeapWord* forward(oop q, size_t size, CompactPoint* cp, HeapWord* compact_top);
@@ -342,6 +345,17 @@ class CompactibleFreeListSpace: public CompactibleSpace {
   // For now, however, we'll just use the default used_region()
   // which overestimates the region by returning the entire
   // committed region (this is safe, but inefficient).
+
+  // Returns monotonically increasing stable used space bytes for CMS.
+  // This is required for jstat and other memory monitoring tools
+  // that might otherwise see inconsistent used space values during a garbage
+  // collection, promotion or allocation into compactibleFreeListSpace.
+  // The value returned by this function might be smaller than the
+  // actual value.
+  size_t used_stable() const;
+  // Recalculate and cache the current stable used() value. Only to be called
+  // in places where we can be sure that the result is stable.
+  void recalculate_used_stable();
 
   // Returns a subregion of the space containing all the objects in
   // the space.
