@@ -72,7 +72,6 @@ class ByteBufferAs$Type$Buffer$RW$$BO$                  // package-private
     public $Type$Buffer slice() {
         int pos = this.position();
         int lim = this.limit();
-        assert (pos <= lim);
         int rem = (pos <= lim ? lim - pos : 0);
         int off = (pos << $LG_BYTES_PER_VALUE$) + offset;
         assert (off >= 0);
