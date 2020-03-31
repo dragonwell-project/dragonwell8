@@ -29,6 +29,47 @@ import java.security.AccessController;
  */
 class NativeDispatcher {
 
+    // ------------- CGroup constants and flags -----------
+    // names of cgroup controllers
+    static final String CG_CPU              = "cpu";
+    static final String CG_CPU_SHARES       = "cpu.shares";
+    static final String CG_CPU_CFS_QUOTA    = "cpu.cfs_quota_us";
+    static final String CG_CPU_CFS_PERIOD   = "cpu.cfs_period_us";
+    static final String CG_CPUSET           = "cpuset";
+    static final String CG_CPUSET_CPUS      = "cpuset.cpus";
+    static final String CG_CPUSET_MEMS      = "cpuset.mems";
+    static final String CG_CPUACCT          = "cpuacct";
+    static final String CG_TASKS            = "tasks";
+
+    // flags to indicate if target cgroup controllers has been enabled
+    // will be initialized by native code
+    static boolean IS_CPU_SHARES_ENABLED  = false;
+    static boolean IS_CPU_CFS_ENABLED     = false;
+    static boolean IS_CPUSET_ENABLED      = false;
+    static boolean IS_CPUACCT_ENABLED     = false;
+
+    // mountpoint of each controller, will be initialized by native code
+    static String CG_MP_CPU       = null;
+    static String CG_MP_CPUSET    = null;
+    static String CG_MP_CPUACCT   = null;
+
+    static final boolean CGROUP_INIT_SUCCESS;
+
+    // retrieve process ID of current JVM process
+    long getProcessId() {
+        String processName = java.lang.management.ManagementFactory.getRuntimeMXBean().getName();
+        return Long.parseLong(processName.split("@")[0]);
+    }
+
+    // --------- CGroup wrappers --------
+    private static native int init0();
+
+    // create new cgroup path
+    native int createCgroup(String groupPath);
+
+    // move current thread to cgroup at 'groupPath'
+    native int moveToCgroup(String groupPath);
+
     // Attach the current thread to given {@code tenant}
     native void attach(TenantContainer tenant);
 
@@ -59,5 +100,21 @@ class NativeDispatcher {
                 }
             });
         registerNatives0();
+
+        boolean initSuccess = false;
+        if (TenantGlobals.isCpuThrottlingEnabled() || TenantGlobals.isCpuAccountingEnabled()) {
+            AccessController.doPrivileged(
+                new java.security.PrivilegedAction<Void>() {
+                    public Void run() {
+                        System.loadLibrary("jgroup");
+                        return null;
+                    }
+                });
+            initSuccess = (0 == init0());
+            if (!initSuccess) {
+                throw new RuntimeException("JGroup native dispatcher initialization failed!");
+            }
+        }
+        CGROUP_INIT_SUCCESS = initSuccess;
     }
 }

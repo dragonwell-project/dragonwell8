@@ -74,6 +74,12 @@ COPY_FILES += \
 COPY_FILES += \
     $(JDK_TOPDIR)/src/share/classes/sun/net/idn/uidna.spp
 
+# Copy jgroup init script to compilation output dir
+ifeq ($(OPENJDK_TARGET_OS), linux)
+    JGROUP_RESOURCE_DIR = $(JDK_TOPDIR)/src/share/classes/com/alibaba/tenant
+    COPY_FILES += $(wildcard $(JGROUP_RESOURCE_DIR)/JGroupInitializer.sh)
+endif
+
 #
 # Swing plaf resources
 #

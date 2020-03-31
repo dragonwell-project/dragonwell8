@@ -199,6 +199,100 @@ public class TestTenantContainer {
         tenant.destroy();
     }
 
+        class TenantWorker implements Runnable{
+        public Tenant tenant;
+        public long cpuTime;
+
+        public long getCpuTime () {
+            ThreadMXBean bean = ManagementFactory.getThreadMXBean();
+            return bean.isCurrentThreadCpuTimeSupported() ? bean
+                    .getCurrentThreadCpuTime() : 0L;
+        }
+
+        TenantWorker(Tenant t) {
+            tenant = t;
+        }
+
+        public void run(){
+            while(System.currentTimeMillis() - tenant.pre_ms < 3000){
+                tenant.nextCount();
+            }
+            cpuTime = getCpuTime();
+        }
+    }
+
+    class Tenant implements Runnable{
+        public AtomicLong count = new AtomicLong(0);
+        public long pre_ms = 0;
+        TenantWorker workers[];
+        int max_cpu;
+        Thread threads[];
+        long time = 0;
+
+        public long nextCount() {
+            return count.incrementAndGet();
+        }
+
+        public void run(){
+            max_cpu = Runtime.getRuntime().availableProcessors();
+            workers = new TenantWorker[max_cpu];
+            threads = new Thread[max_cpu];
+            pre_ms = System.currentTimeMillis();
+            for (int i = 0; i < max_cpu; i++) {
+                workers[i] = new TenantWorker(this);
+                threads[i] = new Thread(workers[i]);
+                threads[i].start();
+            }
+        }
+        public long getcpuTime(){
+            for (int i = 0; i < max_cpu; i++) {
+                try {
+                    threads[i].join();
+                    time += workers[i].cpuTime;
+                } catch (InterruptedException e) {
+                    System.out.println("Interreupted...");
+                }
+            }
+            return time;
+        }
+    }
+
+    @Test
+    public void testTenantCpuThrottling() throws TenantException {
+        if (!TenantGlobals.isCpuThrottlingEnabled()) {
+            return;
+        }
+
+        long time0 = 0;
+        long time1 = 0;
+        // put two tenants on same CPU core
+        TenantConfiguration tconfig0 = new TenantConfiguration().limitCpuShares(512).limitCpuSet("0");
+        TenantConfiguration tconfig1 = new TenantConfiguration().limitCpuShares(1024).limitCpuSet("0");
+        TenantContainer container0 = TenantContainer.create(tconfig0);
+        TenantContainer container1 = TenantContainer.create(tconfig1);
+        Tenant tenant0 = new Tenant();
+        Tenant tenant1 = new Tenant();
+
+        container0.run(tenant0);
+        container1.run(tenant1);
+
+        time1 = tenant1.getcpuTime();
+        time0 = tenant0.getcpuTime();
+
+        System.out.println("testTenantCpuThrottling tenant0 count: " + tenant0.count + " tenant0 CpuTime:" + time0
+                                + " tenant1 count: " + tenant1.count + " tenant1 CpuTime:" + time1);
+        double rate = 0.0;
+        if (TenantGlobals.isCpuThrottlingEnabled()) {
+            rate = (double)time1 / (time0 * 2);
+            if ((rate > 1.1) || (rate < 0.9)) {
+                fail();
+            }
+        } else {
+            rate = (double)time1 / time0;
+        }
+        System.out.println("CPU throttling enabled: "+ TenantGlobals.isCpuThrottlingEnabled()+ ", rate = " + rate);
+    }
+
     @Test
     public void testTenantInheritance() throws TenantException {
         TenantConfiguration tconfig = new TenantConfiguration();
@@ -339,6 +433,7 @@ public class TestTenantContainer {
         test.testGetAttachedThreads();
         test.testRun();
         test.testCurrentWithGC();
+        test.testTenantCpuThrottling();
         test.testTenantInheritance();
         test.testRunInRootTenant();
         test.testTenantGetAllocatedMemory();

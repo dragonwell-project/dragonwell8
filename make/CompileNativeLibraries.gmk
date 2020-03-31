@@ -87,6 +87,8 @@ include lib/Awt2dLibraries.gmk
 
 include lib/SoundLibraries.gmk
 
+include lib/JGroupLibraries.gmk
+
 # Include the corresponding custom file, if present. 
 -include $(CUSTOM_MAKE_DIR)/CompileNativeLibraries.gmk
 

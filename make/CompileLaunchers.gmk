@@ -432,6 +432,11 @@ ifeq ($(OPENJDK_TARGET_OS), windows)
       -DJAVA_ARGS='{ "-J-ms8m"$(COMMA) "sun.security.krb5.internal.tools.Ktab"$(COMMA) }'))
 endif
 
+ifeq ($(OPENJDK_TARGET_OS), linux)
+    $(eval $(call SetupLauncher,jgroup, \
+        -DJAVA_ARGS='{ "-J-ms8m"$(COMMA) "com.alibaba.tenant.JGroupMain"$(COMMA) }'))
+endif
+
 ##########################################################################################
 # The order of the object files on the link command line affects the size of the resulting
 # binary (at least on linux) which causes the size to differ between old and new build.

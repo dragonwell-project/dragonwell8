@@ -262,6 +262,7 @@ public class TenantContainer {
             nd.destroyTenantAllocationContext(allocationContext);
         }
 
+        resourceContainer.destroyImpl();
         // clear references
         spawnedThreads.clear();
         attachedThreads.clear();

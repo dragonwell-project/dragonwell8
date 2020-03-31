@@ -49,10 +49,17 @@ class TenantResourceContainer extends AbstractResourceContainer {
                 Constraint c = translate(constraints.remove(ResourceType.CPU_PERCENT));
                 constraints.put(c.getResourceType(), c);
             }
+            jgroup = new JGroup(this);
         }
     }
 
     private static Constraint translate(Constraint constraint) {
+        if (constraint.getResourceType() == ResourceType.CPU_PERCENT) {
+            // translate CPU_PERCENT to cfs_quota_us/cfs_period_us
+            long period = Long.parseLong(JGroup.jvmGroup().getValue(NativeDispatcher.CG_CPU_CFS_PERIOD));
+            long quota = (period * constraint.getValues()[0] / 100L);
+            return TenantResourceType.CPU_CFS.newConstraint(period, quota);
+        }
         return constraint;
     }
 
@@ -69,8 +76,17 @@ class TenantResourceContainer extends AbstractResourceContainer {
      */
     private TenantContainer tenant;
 
+    /*
+     * tenant jgroup
+     */
+    private volatile JGroup jgroup;
+
     TenantResourceContainer getParent() {
         return parent;
+    }
+
+    JGroup getJGroup() {
+        return jgroup;
     }
 
     TenantContainer getTenant() {
@@ -79,12 +95,18 @@ class TenantResourceContainer extends AbstractResourceContainer {
 
     @Override
     protected void attach() {
+        if (jgroup != null) {
+            jgroup.attach();
+        }
         super.attach();
     }
 
     @Override
     protected void detach() {
         super.detach();
+        if (jgroup != null) {
+            jgroup.detach();
+        }
     }
 
 
@@ -106,6 +128,13 @@ class TenantResourceContainer extends AbstractResourceContainer {
     @Override
     public void updateConstraint(Constraint constraint) {
         Constraint c = translate(constraint);
+        if (c.getResourceType() instanceof TenantResourceType) {
+            TenantResourceType type = (TenantResourceType)c.getResourceType();
+            if (type.isJGroupResource()
+                    && jgroup != null) {
+                ((JGroupConstraint)c).sync(jgroup);
+            }
+        }
         constraints.put(c.getResourceType(), c);
     }
 
@@ -120,12 +149,19 @@ class TenantResourceContainer extends AbstractResourceContainer {
     }
 
     void destroyImpl() {
+        if (jgroup != null) {
+            jgroup.destory();
+            jgroup = null;
+        }
         parent = null;
         tenant = null;
     }
 
     // exposed to TenantContainer implementation
     long getProcessCpuTime() {
+        if ( jgroup != null) {
+            return jgroup.getCpuTime();
+        }
         return 0;
     }
 }
