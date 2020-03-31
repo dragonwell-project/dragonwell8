@@ -104,7 +104,13 @@
           "Mutator may maintain multiple TLABs for each of the tenants")    \
                                                                             \
   product(bool, TenantHeapThrottling, false,                                \
-             "Enable heap throttling per tenant")                           \
+          "Enable heap throttling per tenant")                              \
+                                                                            \
+  product(bool, TenantCpuThrottling, false,                                 \
+          "Enable cpu throttling per tenant")                               \
+                                                                            \
+  product(bool, TenantCpuAccounting, false,                                 \
+          "Enable cpu accounting per tenant")                               \
 
 
   //add new AJVM specific flags here

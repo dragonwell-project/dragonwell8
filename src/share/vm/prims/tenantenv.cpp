@@ -29,6 +29,8 @@
 
 #define TENANT_FLAG_MULTI_TENANT_ENABLED             (0x1)    // bit 0 to indicate if the tenant feature is enabled.
 #define TENANT_FLAG_HEAP_THROTTLING_ENABLED          (0x2)    // bit 1 to indicate if heap throttling feature is enabled.
+#define TENANT_FLAG_CPU_THROTTLING_ENABLED           (0x4)    // bit 2 to indicate if cpu throttling feature is enabled.
+#define TENANT_FLAG_CPU_ACCOUNTING_ENABLED          (0x40)    // bit 6 to indicate if cpu accounting feature is enabled.
 #define TENANT_FLAG_HEAP_ISOLATION_ENABLED          (0x80)    // bit 7 to indicate if heap isolation feature is enabled.
 
 static jint tenant_GetTenantFlags(TenantEnv *env, jclass cls);
@@ -57,6 +59,14 @@ tenant_GetTenantFlags(TenantEnv *env, jclass cls)
 
   if (TenantHeapIsolation) {
     result |= TENANT_FLAG_HEAP_ISOLATION_ENABLED;
+  }
+
+  if (TenantCpuThrottling) {
+    result |= TENANT_FLAG_CPU_THROTTLING_ENABLED;
+  }
+
+  if (TenantCpuAccounting) {
+    result |= TENANT_FLAG_CPU_ACCOUNTING_ENABLED;
   }
 
   return result;

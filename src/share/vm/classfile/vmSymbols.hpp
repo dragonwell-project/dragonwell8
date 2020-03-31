@@ -351,6 +351,7 @@
   template(type_name,                                 "type")                                     \
   template(findNative_name,                           "findNative")                               \
   template(initializeTenantContainerClass_name,       "initializeTenantContainerClass")           \
+  template(initializeJGroupClass_name,                "initializeJGroupClass")                    \
   template(deadChild_name,                            "deadChild")                                \
   template(addClass_name,                             "addClass")                                 \
   template(throwIllegalAccessError_name,              "throwIllegalAccessError")                  \

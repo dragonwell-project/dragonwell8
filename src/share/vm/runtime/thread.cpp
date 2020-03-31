@@ -1078,6 +1078,16 @@ static void call_initializeTenantContainerClass(TRAPS) {
                                          vmSymbols::void_method_signature(), CHECK);
 }
 
+static void call_initializeJGroupClass(TRAPS) {
+  assert(TenantCpuThrottling || TenantCpuAccounting, "TenantCpuThrottling or TenantCpuAccounting disabled");
+  Klass* k =  SystemDictionary::resolve_or_fail(vmSymbols::com_alibaba_tenant_JGroup(), true, CHECK);
+  instanceKlassHandle klass (THREAD, k);
+
+  JavaValue result(T_VOID);
+  JavaCalls::call_static(&result, klass, vmSymbols::initializeJGroupClass_name(),
+                                         vmSymbols::void_method_signature(), CHECK);
+}
+
 char java_runtime_name[128] = "";
 char java_runtime_version[128] = "";
 
@@ -3962,6 +3972,12 @@ jint Threads::create_vm(JavaVMInitArgs* args, bool* canTryAgain) {
       if (PeriodicTask::num_tasks() > 0) {
           WatcherThread::start();
       }
+  }
+
+  if (MultiTenant && (TenantCpuThrottling || TenantCpuAccounting)) {
+    // JGroup initialization may involve complex steps
+    // have to do that after full JVM initialization
+    call_initializeJGroupClass(CHECK_0);
   }
 
   create_vm_timer.end();
