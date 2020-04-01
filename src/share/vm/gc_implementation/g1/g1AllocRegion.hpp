@@ -144,8 +144,18 @@ public:
     return (hr == _dummy_region) ? NULL : hr;
   }
 
-  void set_allocation_context(AllocationContext_t context) { _allocation_context = context; }
-  AllocationContext_t  allocation_context() { return _allocation_context; }
+  void set_allocation_context(AllocationContext_t context) {
+    _allocation_context = context;
+  }
+
+  const AllocationContext_t& allocation_context() const {
+    return _allocation_context;
+  }
+
+  const G1TenantAllocationContext* tenant_allocation_context() const {
+    assert(TenantHeapIsolation, "pre-condition");
+    return allocation_context().tenant_allocation_context();
+  }
 
   uint count() { return _count; }
 

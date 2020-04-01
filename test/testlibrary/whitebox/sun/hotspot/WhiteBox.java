@@ -267,4 +267,7 @@ public class WhiteBox {
   public native boolean isContainerized();
   public native void printOsInfo();
 
+  // TLAB
+  public native boolean isInCurrentTLAB(Object obj);
+
 }

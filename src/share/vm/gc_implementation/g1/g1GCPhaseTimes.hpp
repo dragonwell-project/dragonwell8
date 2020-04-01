@@ -43,6 +43,7 @@ class G1GCPhaseTimes : public CHeapObj<mtGC> {
     GCWorkerStart,
     ExtRootScan,
     ThreadRoots,
+    TenantAllocationContextRoots,
     StringTableRoots,
     UniverseRoots,
     JNIRoots,

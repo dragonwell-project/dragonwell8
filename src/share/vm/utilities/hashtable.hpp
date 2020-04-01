@@ -177,6 +177,8 @@ protected:
   int               _lookup_length;
   void verify_lookup_length(double load);
 #endif
+  // to record allocated memory chunks, only used by DeallocatableHashtable
+  GrowableArray<char*>*  _memory_blocks;
 
   void initialize(int table_size, int entry_size, int number_of_entries);
 
@@ -244,6 +246,43 @@ public:
   int number_of_entries() { return _number_of_entries; }
 
   void verify() PRODUCT_RETURN;
+};
+
+//
+// A derived BasicHashtable with dynamic memory deallocation support
+//
+// BasicHashtable will permanently hold memory allocated via
+// NEW_C_HEAP_ARRAY2 without releasing, because it is intended
+// to be used for global data structures like SymbolTable.
+// Below implementation just deallocates memory chunks in destructor,
+// thus may be used as transient data structure.
+//
+template <MEMFLAGS F> class DeallocatableHashtable : public BasicHashtable<F> {
+public:
+  DeallocatableHashtable(int table_size, int entry_size)
+          : BasicHashtable<F>(table_size, entry_size)
+  {
+    // will be released in BasicHashtable<F>::release_memory()
+    GrowableArray<char*>*& mem_blocks = BasicHashtable<F>::_memory_blocks;
+    mem_blocks = new (ResourceObj::C_HEAP, F) GrowableArray<char*>(0x4 /* initial size */,
+                                                                   true /* on C heap */, F);
+    assert(NULL != mem_blocks, "pre-condition");
+  }
+
+  ~DeallocatableHashtable() {
+    BasicHashtable<F>::free_buckets();
+    GrowableArray<char*>*& mem_blocks = BasicHashtable<F>::_memory_blocks;
+    assert(NULL != mem_blocks, "pre-condition");
+
+    for (GrowableArrayIterator<char*> itr = mem_blocks->begin();
+         itr != mem_blocks->end(); ++itr) {
+      FREE_C_HEAP_ARRAY(char*, *itr, F);
+    }
+    mem_blocks->clear();
+
+    delete mem_blocks;
+    mem_blocks = NULL;
+  }
 };
 
 
@@ -358,6 +397,291 @@ public:
 
   int index_for(Symbol* name, ClassLoaderData* loader_data) {
     return this->hash_to_index(compute_hash(name, loader_data));
+  }
+};
+
+//======================================================================
+// A hash map implementation based on hashtable
+//======================================================================
+
+// forward declaration
+template <typename K, typename V, MEMFLAGS F> class HashMap;
+template <typename K, typename V, MEMFLAGS F> class HashMapIterator;
+
+// utility classes to extract hash_code from various types
+class HashMapUtil : public AllStatic {
+public:
+  // for integers, use its own value as hash
+  static unsigned int hash(long l) { return *(unsigned int*)&l; }
+  static unsigned int hash(int i) { return (unsigned int)i; }
+  static unsigned int hash(short s) { return (unsigned int)s; }
+  static unsigned int hash(char c) { return (unsigned int)c; }
+  static unsigned int hash(unsigned long sz) { return (unsigned int)(sz & 0xFFFFFFFF); }
+
+  // use the middle bits of address value
+  static unsigned int hash(void *p) {
+#ifdef _LP64
+    uint64_t val = *(uint64_t*)&p;
+    return (unsigned int)((val & 0xFFFFFFFF) >> 3);
+#else
+    uint64_t val = *(uint32_t*)&p;
+    return (unsigned int)((val & 0xFFFF) >> 2);
+#endif // _LP64
+  }
+
+  static unsigned int hash(oop o);
+
+  static unsigned int hash(Handle h) { return hash(h()); }
+
+  // a general contract of getting hash code for all non pre-defined types
+  // the type must define a non-static member method `unsigned int hash_code()`
+  // to return an `identical` unsigned int value as hash code.
+  template<typename T>
+  static unsigned int hash(T t) { return t.hash_code(); }
+};
+
+// entry type
+template <typename K, typename V, MEMFLAGS F = mtInternal>
+class HashMapEntry : public BasicHashtableEntry<F> {
+  friend class HashMap<K, V, F>;
+#ifndef PRODUCT
+  friend class HashMapTest;
+#endif // PRODUCT
+
+private:
+  K   _key;
+  V   _value;
+
+public:
+  HashMapEntry* next() {
+    return (HashMapEntry*)BasicHashtableEntry<F>::next();
+  }
+
+  void set_next(HashMapEntry* next) {
+    BasicHashtableEntry<F>::set_next((BasicHashtableEntry<F>*)next);
+  }
+
+  K key()         { return _key;          }
+  V value()       { return _value;        }
+  K* key_addr()   { return &_key;         }
+  V* value_addr() { return &_value;       }
+};
+
+//
+// hash map class implemented in C++ based on BasicHashtable
+// - unordered
+// - unique
+// - not MT-safe
+// - deallocatable
+//
+template <typename K, typename V, MEMFLAGS F = mtInternal>
+class HashMap : public DeallocatableHashtable<F> {
+  friend class HashMapIterator<K, V, F>;
+public:
+  typedef HashMapEntry<K, V, F>       Entry;
+  typedef HashMapIterator<K, V, F>    Iterator;
+  // alternative hashing function
+  typedef int (*AltHashFunc) (K);
+
+private:
+  // if table_size == 1, will cause new_entry() to fail
+  // have to allocate table with larger size, here using 0x4
+  static const int MIN_TABLE_SIZE = 0x4;
+
+  // alternativ hashing method
+  AltHashFunc*     _alt_hasher;
+
+protected:
+  unsigned int compute_hash(K k) {
+    if (_alt_hasher != NULL) {
+      return ((AltHashFunc)_alt_hasher)(k);
+    }
+    return HashMapUtil::hash(k);
+  }
+
+  Entry* bucket(int index) {
+    return (Entry*)BasicHashtable<F>::bucket(index);
+  }
+
+  Entry* get_entry(int index, unsigned int hash, K k) {
+    for (Entry* pp = bucket(index); pp != NULL; pp = pp->next()) {
+      if (pp->hash() == hash && pp->_key == k) {
+        return pp;
+      }
+    }
+    return NULL;
+  }
+
+  Entry* get_entry(K k) {
+    unsigned int hash = compute_hash(k);
+    return get_entry(BasicHashtable<F>::hash_to_index(hash), hash, k);
+  }
+
+  Entry* new_entry(K k, V v) {
+    unsigned int hash = compute_hash(k);
+    Entry* pp = (Entry*)BasicHashtable<F>::new_entry(hash);
+    pp->_key = k;
+    pp->_value = v;
+    return pp;
+  }
+
+  void add_entry(Entry* pp) {
+    int index = BasicHashtable<F>::hash_to_index(pp->hash());
+    BasicHashtable<F>::add_entry(index, pp);
+  }
+
+public:
+  HashMap(int table_size)
+          : DeallocatableHashtable<F>((table_size < MIN_TABLE_SIZE ? MIN_TABLE_SIZE : table_size),
+                                      sizeof(Entry)),
+            _alt_hasher(NULL)
+  { }
+
+  // Associates the specified value with the specified key in this map.
+  // If the map previously contained a mapping for the key, the old value is replaced.
+  void put(K k, V v) {
+    Entry* e = get_entry(k);
+    if (NULL != e) {
+      e->_value = v;
+    } else {
+      Entry* e = new_entry(k, v);
+      assert(NULL != e, "cannot create new entry");
+      add_entry(e);
+    }
+  }
+
+  Entry* remove(K k) {
+    int index = this->hash_to_index(compute_hash(k));
+    Entry *e = bucket(index);
+    Entry *prev = NULL;
+    for (; e != NULL ; prev = e, e = e->next()) {
+      if (e->_key == k) {
+        if (prev != NULL) {
+          prev->set_next(e->next());
+        } else {
+          this->set_entry(index, e->next());
+        }
+        this->free_entry(e);
+        return e;
+      }
+    }
+    return NULL;
+  }
+
+  // Returns true if this map contains a mapping for the specified key
+  bool contains(K k) {
+    return NULL != get_entry(k);
+  }
+
+  // Returns the entry to which the specified key is mapped,
+  // or null if this map contains no mapping for the key.
+  Entry* get(K k) {
+    return get_entry(k);
+  }
+
+  // Removes all of the mappings from this map. The map will be empty after this call returns.
+  void clear() {
+    // put all entries just into free list
+    for (int idx = 0; idx < BasicHashtable<F>::table_size(); ++idx) {
+      for (Entry* entry = bucket(idx); NULL != entry;) {
+        Entry* next = entry->next();
+        this->free_entry(entry);
+        entry = next;
+      }
+      BasicHashtable<F>::set_entry(idx, NULL);
+    }
+  }
+
+  Iterator begin() {
+    return Iterator(this);
+  }
+
+  Iterator end() {
+    Iterator itr(this);
+    itr._cur = NULL;
+    itr._idx = BasicHashtable<F>::table_size();
+    return itr;
+  }
+
+  // set an alternative hashing function
+  void set_alt_hasher(AltHashFunc* hash_func) {
+    _alt_hasher = hash_func;
+  }
+};
+
+// External iteration support
+template <typename K, typename V, MEMFLAGS F = mtInternal>
+class HashMapIterator VALUE_OBJ_CLASS_SPEC {
+  friend class HashMap<K, V, F>;
+#ifndef PRODUCT
+  friend class HashMapTest;
+#endif // PRODUCT
+
+private:
+  typedef typename HashMap<K, V, F>::Entry Entry;
+  Entry*              _cur;
+  HashMap<K, V, F>*   _map;
+  int                 _idx;
+
+public:
+  HashMapIterator(HashMap<K, V, F>* map)
+          : _map(map), _cur(NULL), _idx(0) {
+    for (;_idx < _map->table_size(); ++_idx) {
+      _cur = _map->bucket(_idx);
+      if (NULL != _cur) {
+        break;
+      }
+    }
+  }
+
+  HashMapIterator(const HashMapIterator<K, V, F>& other)
+          : _map(other._map), _cur(other._cur), _idx(other._idx)
+  { }
+
+  HashMapIterator<K, V, F>& operator++() {
+    if (NULL != _cur) {
+      if (NULL != _cur->next()) {
+        _cur = _cur->next();
+      } else {
+        do {
+          ++_idx;
+        } while (_idx < _map->table_size()
+                 && NULL == _map->bucket(_idx));
+
+        assert(_idx <= _map->table_size(), "pre-condition");
+
+        if (_idx == _map->table_size()) {
+          // end of iteration
+          _cur = NULL;
+        } else {
+          // move to next bucket
+          _cur = _map->bucket(_idx);
+        }
+      }
+    }
+
+    return *this;
+  }
+
+  HashMapIterator<K, V, F>& operator = (const HashMapIterator<K, V, F>& other) {
+    if (&other != this) {
+      _map = other._map;
+      _cur = other._cur;
+      _idx = other._idx;
+    }
+    return *this;
+  }
+
+  Entry& operator*() { return *_cur; }
+
+  Entry* operator->() { return _cur; }
+
+  bool operator == (const HashMapIterator<K, V, F>& other) const {
+    return (_map == other._map && _cur == other._cur && _idx == other._idx);
+  }
+
+  bool operator != (const HashMapIterator<K, V, F>& other) const {
+    return (_map != other._map || _cur != other._cur || _idx != other._idx);
   }
 };
 

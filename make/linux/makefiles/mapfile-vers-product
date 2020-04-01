@@ -280,7 +280,11 @@ SUNWprivate_1.1 {
 
 		# INSERT VTABLE SYMBOLS HERE
 
+                JVM_TenantContainerOf;
                 JVM_AttachToTenant;
+                JVM_CreateTenantAllocationContext;
+                JVM_DestroyTenantAllocationContext;
+                JVM_GetTenantOccupiedMemory;
 
         local:
                 *;

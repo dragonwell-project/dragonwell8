@@ -209,6 +209,12 @@ void ThreadLocalAllocBuffer::initialize() {
     _allocation_fraction.sample(alloc_frac);
   }
 
+#if INCLUDE_ALL_GCS
+  if (UsePerTenantTLAB) {
+    _my_thread = Thread::current();
+  }
+#endif
+
   set_refill_waste_limit(initial_refill_waste_limit());
 
   initialize_statistics();
@@ -287,10 +293,38 @@ void ThreadLocalAllocBuffer::verify() {
 }
 
 Thread* ThreadLocalAllocBuffer::myThread() {
+#if INCLUDE_ALL_GCS
+  if (UsePerTenantTLAB) {
+    return _my_thread;
+  }
+#endif
   return (Thread*)(((char *)this) +
                    in_bytes(start_offset()) -
                    in_bytes(Thread::tlab_start_offset()));
 }
+
+#if INCLUDE_ALL_GCS
+
+void ThreadLocalAllocBuffer::swap_content(ThreadLocalAllocBuffer* peer) {
+  assert(UseG1GC && TenantHeapIsolation
+         && UsePerTenantTLAB && peer != NULL, "sanity");
+  assert(peer->myThread() == this->myThread()
+         && (Thread::current() == this->myThread() || SafepointSynchronize::is_at_safepoint()),
+         "only for self thread");
+
+  // do swapping
+  unsigned char buf[sizeof(ThreadLocalAllocBuffer)];
+  memcpy(buf, this, sizeof(ThreadLocalAllocBuffer));
+  memcpy(this, peer, sizeof(ThreadLocalAllocBuffer));
+  memcpy(peer, buf, sizeof(ThreadLocalAllocBuffer));
+
+  // restore linkage info
+  ThreadLocalAllocBuffer* tmp_next = this->next();
+  this->set_next(peer->next());
+  peer->set_next(tmp_next);
+}
+
+#endif // #if INCLUDE_ALL_GCS
 
 
 GlobalTLABStats::GlobalTLABStats() :

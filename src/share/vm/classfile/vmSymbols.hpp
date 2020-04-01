@@ -890,7 +890,8 @@
   do_intrinsic(_updateByteBufferCRC32,     java_util_zip_CRC32,   updateByteBuffer_name, updateByteBuffer_signature, F_SN) \
    do_name(     updateByteBuffer_name,                           "updateByteBuffer")                                    \
    do_signature(updateByteBuffer_signature,                      "(IJII)I")                                             \
-     /* support for com.alibaba.tenant.TenantContainer */                                                               \
+                                                                                                                        \
+  /* support for com.alibaba.tenant.TenantContainer */                                                                  \
   do_name(      allocation_context_address,                      "allocationContext")                                   \
   do_name(      tenant_id_address,                               "tenantId")                                            \
                                                                                                                         \

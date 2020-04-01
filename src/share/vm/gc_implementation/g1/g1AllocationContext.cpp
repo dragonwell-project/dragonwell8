@@ -17,42 +17,30 @@
  * You should have received a copy of the GNU General Public License version
  * 2 along with this work; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.
+ *
  */
 
-#include "prims/tenantenv.h"
-#include "runtime/globals.hpp"
+#include "gc_implementation/g1/g1AllocationContext.hpp"
+#include "runtime/thread.hpp"
 
-/**
- * Be careful: any change to the following constant defintions, you MUST
- * synch up them with ones defined in com.alibaba.tenant.TenantGlobals
- */
+// 0 will be returned if in ROOT tenant or memory isolation not enabled
+AllocationContext_t AllocationContext::_root_context;
 
-#define TENANT_FLAG_MULTI_TENANT_ENABLED             (0x1)    // bit 0 to indicate if the tenant feature is enabled.
-#define TENANT_FLAG_HEAP_ISOLATION_ENABLED          (0x80)    // bit 7 to indicate if heap isolation feature is enabled.
-
-static jint tenant_GetTenantFlags(TenantEnv *env, jclass cls);
-
-static struct TenantNativeInterface_ tenantNativeInterface = {
-  tenant_GetTenantFlags
-};
-
-struct TenantNativeInterface_* tenant_functions()
-{
-  return &tenantNativeInterface;
+AllocationContext_t AllocationContext::current() {
+  return Thread::current()->allocation_context();
 }
 
-static jint
-tenant_GetTenantFlags(TenantEnv *env, jclass cls)
-{
-  jint result = 0x0;
+AllocationContext_t AllocationContext::system() {
+  return _root_context;
+}
 
-  if (MultiTenant) {
-    result |= TENANT_FLAG_MULTI_TENANT_ENABLED;
-  }
+AllocationContextMark::AllocationContextMark(AllocationContext_t ctxt)
+        : _saved_context(Thread::current()->allocation_context()) {
+  Thread* thrd = Thread::current();
+  thrd->set_allocation_context(ctxt);
+}
 
-  if (TenantHeapIsolation) {
-    result |= TENANT_FLAG_HEAP_ISOLATION_ENABLED;
-  }
-
-  return result;
+AllocationContextMark::~AllocationContextMark() {
+  Thread* thrd = Thread::current();
+  thrd->set_allocation_context(_saved_context);
 }

@@ -29,6 +29,8 @@
 #include "runtime/arguments.hpp"
 
 class ArgumentsExt: AllStatic {
+private:
+  static        void set_tenant_flags();
 public:
   static inline void set_gc_specific_flags();
   static        void process_options(const JavaVMInitArgs* args) {}
@@ -36,6 +38,8 @@ public:
 
 void ArgumentsExt::set_gc_specific_flags() {
   Arguments::set_gc_specific_flags();
+
+  set_tenant_flags();
 }
 
 #endif // SHARE_VM_RUNTIME_ARGUMENTS_EXT_HPP

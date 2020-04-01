@@ -45,6 +45,27 @@
 #include "utilities/globalDefinitions.hpp"
 #include "utilities/macros.hpp"
 
+#if INCLUDE_ALL_GCS
+CompactPoint& CompactPoint::operator = (const CompactPoint& cp) {
+  space     = cp.space;
+  threshold = cp.threshold;
+  gen       = cp.gen;
+  return *this;
+}
+
+CompactPoint& CompactPoint::operator = (const CachedCompactPoint& ccp) {
+  space     = ccp.space;
+  threshold = ccp.threshold;
+  return *this;
+}
+
+CachedCompactPoint& CachedCompactPoint::operator = (const CompactPoint& cp) {
+  space     = cp.space;
+  threshold = cp.threshold;
+  return *this;
+}
+#endif
+
 PRAGMA_FORMAT_MUTE_WARNINGS_FOR_GCC
 
 HeapWord* DirtyCardToOopClosure::get_actual_top(HeapWord* top,

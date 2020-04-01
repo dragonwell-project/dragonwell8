@@ -49,6 +49,11 @@ public:
     _allocation_regions = allocation_regions;
   }
 
+  void increment_allocation_regions(uint allocation_regions) {
+    assert(TenantHeapIsolation, "pre-condition");
+    _allocation_regions += allocation_regions;
+  }
+
   void set_collectionset_used_before(size_t used) {
     _collectionset_used_before = used;
   }
@@ -59,6 +64,13 @@ public:
 
   void set_alloc_regions_used_before(size_t used) {
     _alloc_regions_used_before = used;
+  }
+
+  // For multi-tenant mode, multiple calls to set_alloc_regions_used_before() may happen,
+  // thus change to below method to accumulate those results
+  void increment_alloc_regions_used_before(size_t used) {
+    assert(TenantHeapIsolation, "pre-condition");
+    _alloc_regions_used_before += used;
   }
 
   void set_bytes_copied(size_t copied) {

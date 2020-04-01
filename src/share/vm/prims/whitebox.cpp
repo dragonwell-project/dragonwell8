@@ -1403,6 +1403,17 @@ WB_ENTRY(jboolean, WB_TestFixDanglingPointerInDeopt(JNIEnv* env, jobject o, jstr
   }
   return true;
 WB_END
+
+WB_ENTRY(jboolean, WB_IsInCurrentTLAB(JNIEnv* env, jobject wb, jobject o))
+  ThreadToNativeFromVM ttn(thread);
+  if (o != NULL) {
+    HeapWord* addr = (HeapWord*)JNIHandles::resolve_non_null(o);
+    ThreadLocalAllocBuffer& tlab = Thread::current()->tlab();
+    return (addr >= tlab.start() && addr < tlab.end()) ? JNI_TRUE : JNI_FALSE;
+  }
+  return JNI_FALSE;
+WB_END
+
 #define CC (char*)
 
 static JNINativeMethod methods[] = {
@@ -1538,7 +1549,8 @@ static JNINativeMethod methods[] = {
   {CC"testFixDanglingPointerInDeopt",
       CC"(Ljava/lang/String;)Z",                      (void*)&WB_TestFixDanglingPointerInDeopt},
   {CC"getClassInitOrderList", CC"()[Ljava/lang/String;",
-                                                      (void*)&WB_GetClassInitOrderList }
+                                                      (void*)&WB_GetClassInitOrderList },
+  {CC"isInCurrentTLAB",    CC"(Ljava/lang/Object;)Z", (void*)&WB_IsInCurrentTLAB },
 };
 
 #undef CC

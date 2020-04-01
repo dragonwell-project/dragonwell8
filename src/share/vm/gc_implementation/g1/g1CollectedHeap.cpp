@@ -68,6 +68,7 @@
 #include "runtime/orderAccess.inline.hpp"
 #include "runtime/vmThread.hpp"
 #include "gc_implementation/g1/elasticHeap.hpp"
+#include "gc_implementation/g1/g1TenantAllocationContext.hpp"
 
 size_t G1CollectedHeap::_humongous_object_threshold_in_words = 0;
 
@@ -849,6 +850,14 @@ G1CollectedHeap::mem_allocate(size_t word_size,
     } else {
       result = attempt_allocation_humongous(word_size, &gc_count_before, &gclocker_retry_count);
     }
+
+#ifndef PRODUCT
+    if (TenantHeapIsolation && TraceNonRootTenantAllocation && !AllocationContext::current().is_system()) {
+      tty->print_cr("Non-root allocation: " SIZE_FORMAT " bytes @0x" PTR_FORMAT " in tenant 0x" PTR_FORMAT,
+                    word_size * HeapWordSize, result, AllocationContext::current().tenant_allocation_context());
+    }
+#endif
+
     if (result != NULL) {
       return result;
     }
@@ -1971,6 +1980,11 @@ jint G1CollectedHeap::initialize() {
   // We have to initialize the printer before committing the heap, as
   // it will be used then.
   _hr_printer.set_active(G1PrintHeapRegions);
+
+  // have to do this early before mutator_alloc_region initialization
+  if (TenantHeapIsolation) {
+    G1TenantAllocationContexts::initialize();
+  }
 
   // While there are no constraints in the GC code that HeapWordSize
   // be any particular value, there are multiple other areas in the
@@ -7054,4 +7068,42 @@ public:
 void G1CollectedHeap::rebuild_strong_code_roots() {
   RebuildStrongCodeRootClosure blob_cl(this);
   CodeCache::blobs_do(&blob_cl);
+}
+
+void G1CollectedHeap::create_tenant_allocation_context(oop tenant_obj) {
+  assert(TenantHeapIsolation, "pre-condition");
+  assert(tenant_obj != NULL, "Tenant container object is null");
+
+  G1TenantAllocationContext* context = new (mtTenant) G1TenantAllocationContext(this);
+  assert(NULL != context, "Failed to create tenant context");
+
+  com_alibaba_tenant_TenantContainer::set_tenant_allocation_context(tenant_obj, context);
+  context->set_tenant_container(tenant_obj);
+}
+
+void G1CollectedHeap::destroy_tenant_allocation_context(jlong context_val) {
+  assert(TenantHeapIsolation, "pre-condition");
+  G1TenantAllocationContext* context = (G1TenantAllocationContext*)context_val;
+  assert(NULL != context, "Delete an uninitialized tenant container");
+  oop tenant_obj = context->tenant_container();
+  assert(tenant_obj != NULL, "TenantContainer object cannot be NULL");
+  delete context;
+  com_alibaba_tenant_TenantContainer::set_tenant_allocation_context(tenant_obj, NULL);
+}
+
+oop G1CollectedHeap::tenant_container_of(oop obj) {
+  assert(TenantHeapIsolation, "pre-condition");
+
+  if (obj != NULL) {
+    // Get: oop-> object address-> heap region -> tenant allocation context -> tenant obj
+    // assert obj
+    HeapRegion* hr = _hrm.addr_to_region((HeapWord*)obj);
+    if (NULL != hr) {
+      const G1TenantAllocationContext* context = hr->tenant_allocation_context();
+      if (NULL != context) {
+        return context->tenant_container();
+      }
+    }
+  }
+  return NULL;
 }

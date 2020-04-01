@@ -17,42 +17,36 @@
  * You should have received a copy of the GNU General Public License version
  * 2 along with this work; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.
+ *
  */
 
-#include "prims/tenantenv.h"
-#include "runtime/globals.hpp"
+#include "runtime/arguments_ext.hpp"
+#include "runtime/java.hpp"
 
-/**
- * Be careful: any change to the following constant defintions, you MUST
- * synch up them with ones defined in com.alibaba.tenant.TenantGlobals
- */
-
-#define TENANT_FLAG_MULTI_TENANT_ENABLED             (0x1)    // bit 0 to indicate if the tenant feature is enabled.
-#define TENANT_FLAG_HEAP_ISOLATION_ENABLED          (0x80)    // bit 7 to indicate if heap isolation feature is enabled.
-
-static jint tenant_GetTenantFlags(TenantEnv *env, jclass cls);
-
-static struct TenantNativeInterface_ tenantNativeInterface = {
-  tenant_GetTenantFlags
-};
-
-struct TenantNativeInterface_* tenant_functions()
-{
-  return &tenantNativeInterface;
-}
-
-static jint
-tenant_GetTenantFlags(TenantEnv *env, jclass cls)
-{
-  jint result = 0x0;
-
-  if (MultiTenant) {
-    result |= TENANT_FLAG_MULTI_TENANT_ENABLED;
-  }
-
+void ArgumentsExt::set_tenant_flags() {
+  // TenantHeapIsolation directly depends on MultiTenant, UseG1GC
   if (TenantHeapIsolation) {
-    result |= TENANT_FLAG_HEAP_ISOLATION_ENABLED;
+    if (FLAG_IS_DEFAULT(MultiTenant)) {
+      FLAG_SET_ERGO(bool, MultiTenant, true);
+    }
+    if (UseTLAB && FLAG_IS_DEFAULT(UsePerTenantTLAB)) {
+      // enable per-tenant TLABs if unspecified and heap isolation is enabled
+      FLAG_SET_ERGO(bool, UsePerTenantTLAB, true);
+    }
+
+    // check GC policy compatibility
+    if (!UseG1GC) {
+      vm_exit_during_initialization("-XX:+TenantHeapIsolation only works with -XX:+UseG1GC");
+    }
+    if (!MultiTenant) {
+      vm_exit_during_initialization("Cannot use multi-tenant features if -XX:-MultiTenant specified");
+    }
   }
 
-  return result;
+  // UsePerTenantTLAB depends on TenantHeapIsolation and UseTLAB
+  if (UsePerTenantTLAB) {
+    if (!TenantHeapIsolation || !UseTLAB) {
+      vm_exit_during_initialization("-XX:+UsePerTenantTLAB only works with -XX:+TenantHeapIsolation and -XX:+UseTLAB");
+    }
+  }
 }

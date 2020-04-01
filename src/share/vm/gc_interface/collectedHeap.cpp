@@ -525,7 +525,16 @@ void CollectedHeap::ensure_parsability(bool retire_tlabs) {
          "Attempt to fill tlabs before main thread has been added"
          " to threads list is doomed to failure!");
   for (JavaThread *thread = Threads::first(); thread; thread = thread->next()) {
-     if (use_tlab) thread->tlab().make_parsable(retire_tlabs);
+    if (use_tlab) {
+      if (UsePerTenantTLAB) {
+        thread->make_all_tlabs_parsable(retire_tlabs,
+                // do not delete saved TLABs to make per-thread + per-tenant
+                // TLAB adaptive size policy to take effect
+                                        false /* delete saved TLABs */);
+      } else {
+        thread->tlab().make_parsable(retire_tlabs);
+      }
+    }
 #ifdef COMPILER2
      // The deferred store barriers must all have been flushed to the
      // card-table (or other remembered set structure) before GC starts

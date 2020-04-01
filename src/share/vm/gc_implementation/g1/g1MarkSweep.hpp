@@ -79,12 +79,16 @@ class G1PrepareCompactClosure : public HeapRegionClosure {
   G1CollectedHeap* _g1h;
   ModRefBarrierSet* _mrbs;
   CompactPoint _cp;
+  CompactPoint _root_cp;
   HeapRegionSetCount _humongous_regions_removed;
 
   virtual void prepare_for_compaction(HeapRegion* hr, HeapWord* end);
   void prepare_for_compaction_work(CompactPoint* cp, HeapRegion* hr, HeapWord* end);
   void free_humongous_region(HeapRegion* hr);
   bool is_cp_initialized() const { return _cp.space != NULL; }
+
+  // check cp based on alloc context, this is to support TenantHeapIsolation
+  bool is_cp_initialized_for(AllocationContext_t ac);
 
  public:
   G1PrepareCompactClosure() :

@@ -1404,6 +1404,45 @@ class java_util_concurrent_locks_AbstractOwnableSynchronizer : AllStatic {
   static oop  get_owner_threadObj(oop obj);
 };
 
+#if INCLUDE_ALL_GCS
+
+class G1TenantAllocationContext;
+
+class com_alibaba_tenant_TenantContainer : AllStatic {
+private:
+  static int _tenant_id_offset;
+  static int _allocation_context_offset;
+  static int _tenant_state_offset;
+public:
+  static jlong get_tenant_id(oop obj);
+  static G1TenantAllocationContext* get_tenant_allocation_context(oop obj);
+  static void set_tenant_allocation_context(oop obj, G1TenantAllocationContext* context);
+  static oop get_tenant_state(oop obj);
+  static bool is_dead(oop obj);
+  static void compute_offsets();
+};
+
+class com_alibaba_tenant_TenantState : AllStatic {
+  friend class JavaClasses;
+public:
+  // C++ level definition of tenant status
+  enum {
+    TS_STARTING = 0,
+    TS_RUNNING = 1,
+    TS_STOPPING = 2,
+    TS_DEAD = 3,
+    TS_SIZE,
+  };
+
+private:
+  // offsets
+  static int _static_state_offsets[TS_SIZE];
+public:
+  static int state_of(oop tenant_obj);
+};
+
+#endif // INCLUDE_ALL_GCS
+
 // Use to declare fields that need to be injected into Java classes
 // for the JVM to use.  The name_index and signature_index are
 // declared in vmSymbols.  The may_be_java flag is used to declare

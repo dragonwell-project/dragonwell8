@@ -94,6 +94,8 @@ void VM_G1IncCollectionPause::doit() {
       "only a GC locker, a System.gc(), stats update, whitebox, or a hum allocation induced GC should start a cycle");
 
   if (_word_size > 0) {
+    AllocationContextMark acm(this->allocation_context());
+
     // An allocation has been requested. So, try to do that first.
     _result = g1h->attempt_allocation_at_safepoint(_word_size, allocation_context(),
                                      false /* expect_null_cur_alloc_region */);
@@ -147,6 +149,7 @@ void VM_G1IncCollectionPause::doit() {
   _pause_succeeded =
     g1h->do_collection_pause_at_safepoint(_target_pause_time_ms);
   if (_pause_succeeded && _word_size > 0) {
+    AllocationContextMark acm(this->allocation_context());
     // An allocation had been requested.
     _result = g1h->attempt_allocation_at_safepoint(_word_size, allocation_context(),
                                       true /* expect_null_cur_alloc_region */);

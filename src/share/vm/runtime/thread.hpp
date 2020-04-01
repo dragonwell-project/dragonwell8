@@ -81,6 +81,10 @@ class GCTaskQueue;
 class ThreadClosure;
 class IdealGraphPrinter;
 
+#if INCLUDE_ALL_GCS
+class G1TenantAllocationContext;
+#endif
+
 class Metadata;
 template <class T, MEMFLAGS F> class ChunkedList;
 typedef ChunkedList<Metadata*, mtInternal> MetadataOnStackBuffer;
@@ -457,6 +461,11 @@ class Thread: public ThreadShadow {
       tlab().initialize();
     }
   }
+#if INCLUDE_ALL_GCS
+  void make_all_tlabs_parsable(bool retire, bool delete_saved);
+  // called during tenantContainer destruction
+  void clean_tlab_for(const G1TenantAllocationContext* context);
+#endif // if INCLUDE_ALL_GCS
 
   jlong allocated_bytes()               { return _allocated_bytes; }
   void set_allocated_bytes(jlong value) { _allocated_bytes = value; }
@@ -677,6 +686,13 @@ protected:
   static void muxAcquire  (volatile intptr_t * Lock, const char * Name) ;
   static void muxAcquireW (volatile intptr_t * Lock, ParkEvent * ev) ;
   static void muxRelease  (volatile intptr_t * Lock) ;
+
+private:
+  AllocationContext_t _alloc_context;         // context for Java allocation requests
+                                              // put it here because allocation may happen in VM thread
+public:
+  const AllocationContext_t& allocation_context() const;
+  void set_allocation_context(AllocationContext_t context);
 };
 
 // Inline implementation of Thread::current()
@@ -1051,7 +1067,13 @@ class JavaThread: public Thread {
 
   // Get/set the tenant which the thread is attached to
   oop tenantObj() const                          { return _tenantObj; }
-  void set_tenantObj(oop tenantObj)              { _tenantObj = tenantObj; }
+  void set_tenantObj(oop tenantObj);
+
+#if INCLUDE_ALL_GCS
+  G1TenantAllocationContext* tenant_allocation_context();
+
+  void set_tenant_allocation_context(G1TenantAllocationContext* context);
+#endif
 
   ThreadPriority java_priority() const;          // Read from threadObj()
 

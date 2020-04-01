@@ -29,6 +29,8 @@
 #include "gc_implementation/g1/g1AllocRegion.hpp"
 #include "gc_implementation/g1/g1InCSetState.hpp"
 #include "gc_implementation/shared/parGCAllocBuffer.hpp"
+#include "utilities/hashtable.hpp"
+#include "utilities/hashtable.inline.hpp"
 
 // Base class for G1 allocators.
 class G1Allocator : public CHeapObj<mtGC> {
@@ -114,34 +116,15 @@ public:
   virtual void release_gc_alloc_regions(uint no_of_gc_workers, EvacuationInfo& evacuation_info);
   virtual void abandon_gc_alloc_regions();
 
-  virtual bool is_retained_old_region(HeapRegion* hr) {
-    return _retained_old_gc_alloc_region == hr;
-  }
+  virtual bool is_retained_old_region(HeapRegion* hr);
 
-  virtual MutatorAllocRegion* mutator_alloc_region(AllocationContext_t context) {
-    return &_mutator_alloc_region;
-  }
+  virtual MutatorAllocRegion* mutator_alloc_region(AllocationContext_t context);
 
-  virtual SurvivorGCAllocRegion* survivor_gc_alloc_region(AllocationContext_t context) {
-    return &_survivor_gc_alloc_region;
-  }
+  virtual SurvivorGCAllocRegion* survivor_gc_alloc_region(AllocationContext_t context);
 
-  virtual OldGCAllocRegion* old_gc_alloc_region(AllocationContext_t context) {
-    return &_old_gc_alloc_region;
-  }
+  virtual OldGCAllocRegion* old_gc_alloc_region(AllocationContext_t context);
 
-  virtual size_t used() {
-    assert(Heap_lock->owner() != NULL,
-           "Should be owned on this thread's behalf.");
-    size_t result = _summary_bytes_used;
-
-    // Read only once in case it is set to NULL concurrently
-    HeapRegion* hr = mutator_alloc_region(AllocationContext::current())->get();
-    if (hr != NULL) {
-      result += hr->used();
-    }
-    return result;
-  }
+  virtual size_t used();
 };
 
 class G1ParGCAllocBuffer: public ParGCAllocBuffer {
@@ -209,6 +192,8 @@ public:
     _alloc_buffer_waste(0), _undo_waste(0) {
   }
 
+  virtual ~G1ParGCAllocator() { }
+
   static G1ParGCAllocator* create_allocator(G1CollectedHeap* g1h);
 
   size_t alloc_buffer_waste() { return _alloc_buffer_waste; }
@@ -255,21 +240,51 @@ public:
   }
 };
 
-class G1DefaultParGCAllocator : public G1ParGCAllocator {
+class G1DefaultParGCAllocator;
+
+// To encapsulate per-tenant ParGCAllocBuffer for G1DefaultParGCAllocator to use
+// during GC pause.
+// NOTE: thread local object
+class G1TenantParGCAllocBuffer : public CHeapObj<mtTenant> {
+  friend class G1DefaultParGCAllocator;
+private:
   G1ParGCAllocBuffer  _surviving_alloc_buffer;
   G1ParGCAllocBuffer  _tenured_alloc_buffer;
   G1ParGCAllocBuffer* _alloc_buffers[InCSetState::Num];
 
+  AllocationContext_t _allocation_context;        // NOTE: used during GC, be careful with dereferencing
+  G1CollectedHeap*    _g1h;
+
+private:
+  G1TenantParGCAllocBuffer(G1CollectedHeap* g1h, AllocationContext_t ac);
+
+  G1ParGCAllocBuffer* alloc_buffer(InCSetState dest);
+
+  AllocationContext_t allocation_context() { return _allocation_context; }
+  void set_allocation_context(AllocationContext_t ac) { _allocation_context = ac; }
+};
+
+class G1DefaultParGCAllocator : public G1ParGCAllocator {
+private:
+  // only for ROOT tenant if TenantHeapIsolation enabled
+  G1ParGCAllocBuffer  _surviving_alloc_buffer;
+  G1ParGCAllocBuffer  _tenured_alloc_buffer;
+  G1ParGCAllocBuffer* _alloc_buffers[InCSetState::Num];
+
+  // Per-tenant par gc allocation buffers
+  typedef HashMap<AllocationContext_t, G1TenantParGCAllocBuffer*, mtTenant> TenantBufferMap;
+  TenantBufferMap*    _tenant_par_alloc_buffers;
+
+protected:
+  // returns tenant alloc buffer of target allocation context, NULL if not exist
+  G1TenantParGCAllocBuffer* tenant_par_alloc_buffer_of(AllocationContext_t ac);
+
 public:
   G1DefaultParGCAllocator(G1CollectedHeap* g1h);
 
-  virtual G1ParGCAllocBuffer* alloc_buffer(InCSetState dest, AllocationContext_t context) {
-    assert(dest.is_valid(),
-           err_msg("Allocation buffer index out-of-bounds: " CSETSTATE_FORMAT, dest.value()));
-    assert(_alloc_buffers[dest.value()] != NULL,
-           err_msg("Allocation buffer is NULL: " CSETSTATE_FORMAT, dest.value()));
-    return _alloc_buffers[dest.value()];
-  }
+  virtual ~G1DefaultParGCAllocator();
+
+  virtual G1ParGCAllocBuffer* alloc_buffer(InCSetState dest, AllocationContext_t context);
 
   virtual void retire_alloc_buffers() ;
 };

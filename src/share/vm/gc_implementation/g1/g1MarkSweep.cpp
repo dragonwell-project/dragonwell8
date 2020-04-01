@@ -332,14 +332,67 @@ void G1PrepareCompactClosure::free_humongous_region(HeapRegion* hr) {
   dummy_free_list.remove_all();
 }
 
+bool G1PrepareCompactClosure::is_cp_initialized_for(AllocationContext_t ac) {
+  assert_at_safepoint(true /* in vm thread */);
+  assert(TenantHeapIsolation, "pre-condition");
+
+  if (ac.is_system()) {
+    return _root_cp.space != NULL;
+  }
+  G1TenantAllocationContext* tac = ac.tenant_allocation_context();
+  assert(NULL != tac, "Tenant alloc context cannot be NULL");
+  return tac->cached_compact_point().space != NULL;
+}
+
 void G1PrepareCompactClosure::prepare_for_compaction(HeapRegion* hr, HeapWord* end) {
   // If this is the first live region that we came across which we can compact,
   // initialize the CompactPoint.
-  if (!is_cp_initialized()) {
-    _cp.space = hr;
-    _cp.threshold = hr->initialize_threshold();
+  // Otherwise if TenantHeapIsolation enabled, just load saved CompactPoint from
+  // corresponding tenant context
+  if (TenantHeapIsolation) {
+    assert_at_safepoint(true /* in vm thread */);
+    AllocationContext_t ac = hr->allocation_context();
+    if (!is_cp_initialized_for(ac)) {
+      // first live region of this tenant
+      _cp.threshold = hr->initialize_threshold();
+      _cp.space = hr;
+    } else {
+      // if not the first time, should do switching
+      HeapRegion* cur_space = (HeapRegion*)_cp.space;
+      if (ac != cur_space->allocation_context()) {
+        // pick the corresponding saved compact compact points base on tenant alloc contexts
+        if (ac.is_system()) {
+          _cp = _root_cp;
+        } else {
+          G1TenantAllocationContext* tac = ac.tenant_allocation_context();
+          assert(NULL != tac, "just checking");
+          _cp = tac->cached_compact_point();
+        }
+        assert(NULL != _cp.space, "post-condition");
+      }
+    }
+  } else /* if (!TenantHeapIsolation) */ {
+    if (!is_cp_initialized()) {
+      // will be called only once during the whole iteration
+      _cp.space = hr;
+      _cp.threshold = hr->initialize_threshold();
+    }
   }
+
   prepare_for_compaction_work(&_cp, hr, end);
+
+  // save current CompactPoint to corresponding tenant context
+  if (TenantHeapIsolation) {
+    assert(NULL != _cp.space, "pre-condition");
+    HeapRegion* cur_space = (HeapRegion*)_cp.space;
+    if (cur_space->allocation_context().is_system()) {
+      _root_cp = _cp;
+    } else {
+      G1TenantAllocationContext* tac = cur_space->allocation_context().tenant_allocation_context();
+      assert(NULL != tac, "just checking");
+      tac->set_cached_compact_point(_cp);
+    }
+  }
 }
 
 void G1PrepareCompactClosure::prepare_for_compaction_work(CompactPoint* cp,

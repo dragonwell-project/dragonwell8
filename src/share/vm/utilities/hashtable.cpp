@@ -58,6 +58,9 @@ template <MEMFLAGS F> BasicHashtableEntry<F>* BasicHashtable<F>::new_entry(unsig
       len = 1 << log2_int(len); // round down to power of 2
       assert(len >= _entry_size, "");
       _first_free_entry = NEW_C_HEAP_ARRAY2(char, len, F, CURRENT_PC);
+      if (NULL != _memory_blocks) {
+        _memory_blocks->append(_first_free_entry);
+      }
       _end_block = _first_free_entry + len;
     }
     entry = (BasicHashtableEntry<F>*)_first_free_entry;
@@ -337,6 +340,9 @@ template <MEMFLAGS F> void BasicHashtable<F>::copy_buckets(char** top, char* end
   *top += len;
 }
 
+unsigned int HashMapUtil::hash(oop o) {
+  return (unsigned int)ObjectSynchronizer::FastHashCode(JavaThread::current(), o);
+}
 
 #ifndef PRODUCT
 
@@ -405,6 +411,7 @@ template class HashtableEntry<Symbol*, mtClass>;
 template class HashtableEntry<oop, mtSymbol>;
 template class BasicHashtableEntry<mtSymbol>;
 template class BasicHashtableEntry<mtCode>;
+template class BasicHashtableEntry<mtTenant>;
 template class BasicHashtable<mtClass>;
 template class BasicHashtable<mtSymbol>;
 template class BasicHashtable<mtCode>;
@@ -413,3 +420,174 @@ template class Hashtable<Method*, mtInternal>;
 template class Hashtable<Method*, mtNone>;
 template class BasicHashtable<mtNone>;
 template class Hashtable<Symbol*, mtNone>;
+template class BasicHashtable<mtTenant>;
+template class BasicHashtable<mtCompiler>;
+
+#ifndef PRODUCT
+// Testcase for HashMap
+
+// customized key type for testing
+class TestKey VALUE_OBJ_CLASS_SPEC {
+private:
+  int i;
+public:
+  TestKey(int i_) : i(i_) { }
+  bool operator == (const TestKey& tc) { return i == tc.i; }
+  bool operator != (const TestKey& tc) { return i != tc.i; }
+
+  unsigned int hash_code() { return *(unsigned int*)this; }
+};
+
+class HashMapTest : public AllStatic {
+public:
+  static void test_basic();
+
+  static void test_customized_keytype();
+
+  static void test_for_each();
+
+  static void test_map_Iterator();
+
+  static void test_clear();
+};
+
+void HashMapTest::test_basic() {
+  // integer as hash key
+  HashMap<int, int> hm(8);
+  hm.put(10, 10);
+  hm.put(20, 2);
+
+  assert(hm.contains(10), "");
+  assert(hm.contains(20), "");
+  assert(!hm.contains(30), "");
+  assert(!hm.contains(0), "");
+  assert(10 == hm.get(10)->value(), "");
+  assert(2 == hm.get(20)->value(), "");
+
+  // should overwrite
+  hm.put(10, 11);
+  assert(11 == hm.get(10)->value(), "");
+  hm.put(20, 3);
+  assert(3 == hm.get(20)->value(), "");
+
+  // remove test
+  hm.put(18, 3);
+  assert(3 == hm.remove(18)->value(), "");
+  assert(!hm.contains(18), "");
+  assert(NULL == hm.remove(18), "");
+
+  assert(11 == hm.remove(10)->value(), "");
+  assert(!hm.contains(10), "");
+  assert(NULL == hm.remove(10), "");
+
+  // pointer as hash key
+  HashMap<void*, int>  map2(8);
+  void* p = &hm;
+  map2.put(p, 10);
+  assert(map2.contains(p), "");
+  assert(!map2.contains(NULL), "");
+  assert(10 == map2.get(p)->value(), "");
+
+  // test overwrite
+  map2.put(p, 20);
+  assert(20 == map2.get(p)->value(), "");
+}
+
+void HashMapTest::test_customized_keytype() {
+  HashMap<TestKey, int> map(8);
+  TestKey k1(1), k2(2);
+
+  assert(0 == map.number_of_entries(), "");
+  map.put(k1, 2);
+  assert(map.contains(k1), "");
+  assert(2 == map.get(k1)->value(), "");
+  map.put(k1, 3);
+  assert(3 == map.get(k1)->value(), "");
+  assert(1 == map.number_of_entries(), "");
+
+  map.put(k1, 1);
+  map.put(k2, 2);
+  assert(2 == map.number_of_entries(), "");
+  assert(2 == map.get(k2)->value(), "");
+  assert(1 == map.get(k1)->value(), "");
+}
+
+void HashMapTest::test_for_each() {
+  HashMap<int, int> hm(32);
+
+  for (int i = 0; i < 32; ++i) {
+    hm.put(i, i + 1);
+    assert((i + 1) == hm.number_of_entries(), "");
+  }
+
+  for (HashMapIterator<int, int> itr = hm.begin();
+       itr != hm.end(); ++itr) {
+    assert(hm.contains(itr->key()), "");
+    // bad to modify during iteration, but this is just a test
+    hm.put(itr->key(), 1 + itr->value());
+  }
+
+  assert(32 == hm.number_of_entries(), "");
+
+  for (int i = 0; i < 32; ++i) {
+    assert(hm.contains(i), "");
+    assert((i + 2) == hm.get(i)->value(), "");
+  }
+}
+
+void HashMapTest::test_map_Iterator() {
+  HashMap<AllocationContext_t, int> map(8);
+  AllocationContext_t ac((G1TenantAllocationContext*)&map);
+
+  assert(map.number_of_entries() == 0, "");
+  HashMap<AllocationContext_t, int>::Iterator bg = map.begin(), ed = map.end();
+  // test different operators
+  assert(bg == ed, "");
+  assert(!(bg != ed), "");
+  assert(bg._idx == ed._idx, "");
+  assert(bg._cur == ed._cur, "");
+  assert(bg._map == ed._map, "");
+
+  map.put(ac, 1);
+  assert(map.contains(ac), "");
+  assert(map.get(ac)->value() == 1, "");
+  assert(map.number_of_entries() == 1, "");
+
+  bg = map.begin();
+
+  assert(bg != ed, "");
+  assert(!(bg == ed), "");
+  assert(bg._idx != ed._idx, "");
+  assert(bg._cur != ed._cur, "");
+  assert(bg._map == ed._map, "");
+
+  HashMap<AllocationContext_t, int>::Entry& entry = *bg;
+  assert(ac == entry._key, "");
+  assert(1 == entry._value, "");
+  assert(ac == bg->_key, "");
+  assert(1 == bg->_value, "");
+}
+
+void HashMapTest::test_clear() {
+  HashMap<int, int> map(16);
+  for (int i = 0; i < 32; ++i) {
+    map.put(i, i + 1);
+  }
+  assert(map.number_of_entries() == 32, "");
+  map.clear();
+  assert(map.number_of_entries() == 0, "");
+  for (int i = 0; i < 32; ++i) {
+    map.put(i, i + 1);
+  }
+  assert(map.number_of_entries() == 32, "");
+}
+
+// Test case
+void Test_HashMap() {
+  HashMapTest::test_basic();
+  HashMapTest::test_for_each();
+  HashMapTest::test_customized_keytype();
+  HashMapTest::test_map_Iterator();
+  HashMapTest::test_clear();
+}
+#endif // PRODUCT

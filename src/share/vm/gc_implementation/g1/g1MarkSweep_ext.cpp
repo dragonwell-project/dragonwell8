@@ -26,6 +26,11 @@
 #include "gc_implementation/g1/g1MarkSweep.hpp"
 
 void G1MarkSweep::prepare_compaction() {
+  if (TenantHeapIsolation) {
+    // clear compaction dest info for all tenants
+    G1TenantAllocationContexts::prepare_for_compaction();
+  }
+
   G1PrepareCompactClosure blk;
   G1MarkSweep::prepare_compaction_work(&blk);
 }

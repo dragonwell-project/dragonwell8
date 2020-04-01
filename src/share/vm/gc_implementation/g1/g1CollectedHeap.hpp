@@ -35,6 +35,7 @@
 #include "gc_implementation/g1/g1InCSetState.hpp"
 #include "gc_implementation/g1/g1MonitoringSupport.hpp"
 #include "gc_implementation/g1/g1SATBCardTableModRefBS.hpp"
+#include "gc_implementation/g1/g1TenantAllocationContext.hpp"
 #include "gc_implementation/g1/g1YCTypes.hpp"
 #include "gc_implementation/g1/heapRegionManager.hpp"
 #include "gc_implementation/g1/heapRegionSet.hpp"
@@ -1651,6 +1652,11 @@ public:
   // The following two methods are helpful for debugging RSet issues.
   void print_cset_rsets() PRODUCT_RETURN;
   void print_all_rsets() PRODUCT_RETURN;
+
+  // Tenant allocation context manipulation
+  void create_tenant_allocation_context(oop tenant_obj);
+  void destroy_tenant_allocation_context(jlong context);
+  oop tenant_container_of(oop obj);
 
 public:
   size_t pending_card_num();

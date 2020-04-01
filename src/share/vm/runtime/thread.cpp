@@ -307,6 +307,10 @@ Thread::Thread() {
            "bug in forced alignment of thread objects");
   }
 #endif /* ASSERT */
+
+  if (UseG1GC) {
+    _alloc_context = AllocationContext::system();
+  }
 }
 
 void Thread::initialize_thread_local_storage() {
@@ -1921,7 +1925,11 @@ void JavaThread::exit(bool destroy_vm, ExitType exit_type) {
   remove_stack_guard_pages();
 
   if (UseTLAB) {
-    tlab().make_parsable(true);  // retire TLAB
+    if (UsePerTenantTLAB) {
+      make_all_tlabs_parsable(true, true);
+    } else {
+      tlab().make_parsable(true);  // retire TLAB
+    }
   }
 
   if (JvmtiEnv::environments_might_exist()) {
@@ -1947,12 +1955,212 @@ void JavaThread::exit(bool destroy_vm, ExitType exit_type) {
   Threads::remove(this);
 }
 
+// NOTE: active TLABs will only be retired & deleted at safepoint or thread ending.
+//       it is OK to destroy a G1TenantAllocationContext while its previously
+//       used TLABs are still linked in any mutator threads, because no further alloc requests
+//       can happen on this stale TLAB, its remaining free space cannot be
+//       used by any other threads or tenants either.
+
+#if INCLUDE_ALL_GCS
+void Thread::make_all_tlabs_parsable(bool retire, bool delete_saved) {
+  assert(UseG1GC && TenantHeapIsolation
+         && UseTLAB && UsePerTenantTLAB, "pre-condition");
+
+  for (ThreadLocalAllocBuffer* tlab = &(this->tlab()); tlab != NULL;
+       tlab = tlab->next()) {
+    tlab->make_parsable(retire);
+  }
+
+  if (delete_saved) {
+    assert(retire, "should only delete after retire!");
+    ThreadLocalAllocBuffer* tlab = this->tlab().next();
+    while (tlab != NULL) {
+      ThreadLocalAllocBuffer* next = tlab->next();
+      delete tlab;
+      tlab = next;
+    }
+
+    this->tlab().set_next(NULL);
+  }
+}
+
+void Thread::clean_tlab_for(const G1TenantAllocationContext* context) {
+  assert(UseG1GC && TenantHeapIsolation
+         && UseTLAB && UsePerTenantTLAB, "sanity");
+  assert(SafepointSynchronize::is_at_safepoint()
+         && Thread::current()->is_VM_thread(), "pre-condition");
+  guarantee(context != G1TenantAllocationContexts::system_context(),
+            "never clean root tenant context");
+
+  if (this->is_Java_thread()) {
+    JavaThread* java_thread = (JavaThread*)this;
+    // make sure TLAB's tenant allocation context is same as Java thread's
+    guarantee(java_thread->tenant_allocation_context() == this->tlab().tenant_allocation_context(),
+              err_msg("Inconsistent tenant allocation context thread=" PTR_FORMAT ",context=" PTR_FORMAT
+                      ", but its TLAB's context=" PTR_FORMAT,
+                      java_thread,
+                      java_thread->tenant_allocation_context(),
+                      this->tlab().tenant_allocation_context()));
+  }
+
+  // if the to-be-deleted context is current active context,
+  // we just completely switch to ROOT tenant's TLAB
+  const G1TenantAllocationContext* context_to_search =
+          this->tlab().tenant_allocation_context() == context ? G1TenantAllocationContexts::system_context() : context;
+
+  for (ThreadLocalAllocBuffer* tlab = &(this->tlab()), *prev = NULL;
+       tlab != NULL;
+       prev = tlab, tlab = tlab->next())
+  {
+    if (tlab->tenant_allocation_context() == context_to_search) {
+      guarantee(prev != NULL, "Cannot be an in-use TLAB");
+      if (context_to_search == G1TenantAllocationContexts::system_context()) {
+        guarantee(this->tlab().tenant_allocation_context() == context,
+                  "must be in-use TLAB");
+        guarantee(tlab != &(this->tlab()),
+                  "Cannot be root context");
+        this->tlab().make_parsable(true);
+        if (this->is_Java_thread()) {
+          // set_tenantObj will do search and swap, without changing the list structure
+          ((JavaThread*)this)->set_tenantObj(NULL);
+        } else {
+          this->tlab().swap_content(tlab);
+        }
+      } else {
+        guarantee(this->tlab().tenant_allocation_context() != context,
+                  "cannot be in-use TLAB");
+        tlab->make_parsable(true);
+      }
+      // remove the 'dead' TLAB from list
+      ThreadLocalAllocBuffer* next_tlab = tlab->next();
+      prev->set_next(next_tlab);
+      delete tlab;
+      return;
+    }
+  }
+}
+
+const AllocationContext_t& Thread::allocation_context() const {
+  assert(UseG1GC, "Only G1 policy supported");
+  return _alloc_context;
+}
+void Thread::set_allocation_context(AllocationContext_t context) {
+  assert(UseG1GC, "Only G1 policy supported");
+  assert(Thread::current() == this
+         || (SafepointSynchronize::is_at_safepoint() && Thread::current()->is_VM_thread()
+             && VMThread::vm_operation() != NULL
+             && VMThread::vm_operation()->type() == VM_Operation::VMOp_DestroyG1TenantAllocationContext),
+         "Only allowed to be set by self thread or tenant destruction vm_op");
+
+  _alloc_context = context;
+
+  if (UseG1GC && TenantHeapIsolation
+      && UseTLAB
+      && this->is_Java_thread()) { // only for Java thread, though _tlab is in Thread
+
+    if (UsePerTenantTLAB) {
+      G1TenantAllocationContext* tac = context.tenant_allocation_context();
+      ThreadLocalAllocBuffer* tlab = &(this->tlab());
+      assert(tlab != NULL, "Attach to same tenant twice!");
+
+      if (tlab->tenant_allocation_context() == tac) {
+        // no need to switch TLAB
+        assert(tac == G1TenantAllocationContexts::system_context(),
+               "Must be ROOT allocation context");
+        return;
+      }
+
+      // traverse saved TLAB list to search used TALBs for 'tac'
+      do {
+        tlab = tlab->next();
+        if (tlab != NULL && tlab->tenant_allocation_context() == tac) {
+          this->tlab().swap_content(tlab);
+          break;
+        }
+      } while (tlab != NULL);
+
+      // cannot find a saved TLAB, this is the first time current thread running into 'tac'
+      if (tlab == NULL) {
+        ThreadLocalAllocBuffer* new_tlab = new ThreadLocalAllocBuffer();
+        new_tlab->initialize();
+        // link to list
+        new_tlab->set_next(this->tlab().next());
+        new_tlab->set_tenant_allocation_context(tac);
+        this->tlab().set_next(new_tlab);
+        // make the new TLAB active
+        this->tlab().swap_content(new_tlab);
+      }
+    } else {
+      tlab().make_parsable(true /* retire */);
+    }
+  }
+}
+#endif // INCLUDE_ALL_GCS
+
 #if INCLUDE_ALL_GCS
 // Flush G1-related queues.
 void JavaThread::flush_barrier_queues() {
   satb_mark_queue().flush();
   dirty_card_queue().flush();
 }
+
+G1TenantAllocationContext* JavaThread::tenant_allocation_context() {
+  assert(TenantHeapIsolation, "pre-condition");
+
+  oop tenant_obj = tenantObj();
+  return (tenant_obj == NULL ? NULL : com_alibaba_tenant_TenantContainer::get_tenant_allocation_context(tenant_obj));
+}
+
+void JavaThread::set_tenant_allocation_context(G1TenantAllocationContext* context) {
+  assert(TenantHeapIsolation, "pre-condition");
+  set_tenantObj(context == NULL ? (oop)NULL : context->tenant_container());
+}
+
+void JavaThread::set_tenantObj(oop tenantObj) {
+  assert(MultiTenant
+         // prevent duplicate assigning values of non-ROOT tenant;
+         // but allow duplicated values of ROOT tenant, to support
+         // TenantContainer.destroy() while alive threads attached
+         && (_tenantObj != tenantObj || tenantObj == NULL),
+         "pre-condition");
+
+  if (_tenantObj == tenantObj) {
+    return;
+  }
+
+  oop prev_tenant = _tenantObj;
+  _tenantObj = tenantObj;
+
+#if INCLUDE_ALL_GCS
+  if (UseG1GC) {
+    set_allocation_context(AllocationContext_t(tenantObj == NULL ?
+                                               NULL : com_alibaba_tenant_TenantContainer::get_tenant_allocation_context(tenantObj)));
+
+#ifndef PRODUCT
+    if (TenantHeapIsolation && UseTLAB && UsePerTenantTLAB) {
+      G1TenantAllocationContext* prev_context = prev_tenant == NULL ? NULL /* root tenant */
+                                                                    : com_alibaba_tenant_TenantContainer::get_tenant_allocation_context(prev_tenant);
+      //
+      // thread was attached to tenant container whose allocation context is ROOT tenant's,
+      // which means the tenant container is DEAD.
+      //
+      // in current implementation, inconsistency between TenantContainer object
+      // and its G1TenantAllocationContext pointer is allowed.
+      // when a TenantContainer is destroyed before all attached threads get detached,
+      // JVM will just switch all the allocation contexts of attached threads to ROOT tenant,
+      // including the pointer recorded in TenantContainer object.
+      //
+      if (prev_tenant != NULL && prev_context == G1TenantAllocationContexts::system_context()) {
+        assert(com_alibaba_tenant_TenantContainer::is_dead(prev_tenant),
+               "Must be dead TenantContainer");
+      }
+    }
+#endif
+  }
+#endif // #if INCLUDE_ALL_GCS
+}
+
+
 
 void JavaThread::initialize_queues() {
   assert(!SafepointSynchronize::is_at_safepoint(),
@@ -2000,7 +2208,11 @@ void JavaThread::cleanup_failed_attach_current_thread() {
   remove_stack_guard_pages();
 
   if (UseTLAB) {
-    tlab().make_parsable(true);  // retire TLAB, if any
+    if (UsePerTenantTLAB) {
+      this->make_all_tlabs_parsable(true, false);
+    } else {
+      tlab().make_parsable(true);  // retire TLAB, if any
+    }
   }
 
 #if INCLUDE_ALL_GCS
@@ -4732,7 +4944,6 @@ void Thread::muxRelease (volatile intptr_t * Lock)  {
     return ;
   }
 }
-
 
 void Threads::verify() {
   ALL_JAVA_THREADS(p) {

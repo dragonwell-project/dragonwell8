@@ -350,6 +350,12 @@ class HeapRegion: public G1OffsetTableContigSpace {
   // All allocated blocks are occupied by objects in a HeapRegion
   bool block_is_obj(const HeapWord* p) const;
 
+  // Get and set tenant allocation context of this heap region
+  const G1TenantAllocationContext* tenant_allocation_context() const {
+    assert(TenantHeapIsolation, "pre-condition");
+    return allocation_context().tenant_allocation_context();
+  }
+
   // Returns the object size for all valid block starts
   // and the amount of unallocated words if called on top()
   size_t block_size(const HeapWord* p) const;
@@ -512,11 +518,9 @@ class HeapRegion: public G1OffsetTableContigSpace {
     _next_in_special_set = r;
   }
 
-  void set_allocation_context(AllocationContext_t context) {
-    _allocation_context = context;
-  }
+  void set_allocation_context(AllocationContext_t context);
 
-  AllocationContext_t  allocation_context() const {
+  const AllocationContext_t&  allocation_context() const {
     return _allocation_context;
   }
 

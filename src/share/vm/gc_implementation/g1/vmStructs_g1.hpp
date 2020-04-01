@@ -28,6 +28,7 @@
 #include "gc_implementation/g1/heapRegion.hpp"
 #include "gc_implementation/g1/heapRegionManager.inline.hpp"
 #include "gc_implementation/g1/g1CollectedHeap.inline.hpp"
+#include "gc_implementation/g1/g1TenantAllocationContext.hpp"
 
 #define VM_STRUCTS_G1(nonstatic_field, static_field)                          \
                                                                               \
@@ -64,6 +65,10 @@
                                                                               \
   nonstatic_field(HeapRegionSetCount,  _length,         uint)                 \
   nonstatic_field(HeapRegionSetCount,  _capacity,       size_t)               \
+  nonstatic_field(G1TenantAllocationContext, _heap_size_limit,     size_t)                                               \
+  nonstatic_field(G1TenantAllocationContext, _heap_region_limit,   size_t)                                               \
+  nonstatic_field(G1TenantAllocationContext, _occupied_heap_region_count, size_t)                                        \
+  nonstatic_field(G1TenantAllocationContext, _tenant_container,   oop)                                                   \
 
 
 #define VM_TYPES_G1(declare_type, declare_toplevel_type)                      \
@@ -84,6 +89,8 @@
   declare_toplevel_type(HeapRegion*)                                          \
   declare_toplevel_type(G1MonitoringSupport*)                                 \
   declare_toplevel_type(G1Allocator*)                                         \
+  declare_toplevel_type(G1TenantAllocationContext)                            \
+  declare_toplevel_type(G1TenantAllocationContext*)                           \
 
 
 #endif // SHARE_VM_GC_IMPLEMENTATION_G1_VMSTRUCTS_G1_HPP

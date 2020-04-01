@@ -52,6 +52,10 @@
 #include "runtime/vframe.hpp"
 #include "utilities/preserveException.hpp"
 
+#if INCLUDE_ALL_GCS
+#include "gc_implementation/g1/g1TenantAllocationContext.hpp"
+#endif  // INCLUDE_ALL_GCS
+
 PRAGMA_FORMAT_MUTE_WARNINGS_FOR_GCC
 
 #define INJECTED_FIELD_COMPUTE_OFFSET(klass, name, signature, may_be_java)    \
@@ -3247,6 +3251,13 @@ int java_lang_AssertionStatusDirectives::packages_offset;
 int java_lang_AssertionStatusDirectives::packageEnabled_offset;
 int java_lang_AssertionStatusDirectives::deflt_offset;
 int java_nio_Buffer::_limit_offset;
+#if INCLUDE_ALL_GCS
+int com_alibaba_tenant_TenantContainer::_allocation_context_offset;
+int com_alibaba_tenant_TenantContainer::_tenant_id_offset;
+int com_alibaba_tenant_TenantContainer::_tenant_state_offset;
+
+int com_alibaba_tenant_TenantState::_static_state_offsets[com_alibaba_tenant_TenantState::TS_SIZE] = { 0 };
+#endif // INCLUDE_ALL_GCS
 int java_util_concurrent_locks_AbstractOwnableSynchronizer::_owner_offset = 0;
 int sun_reflect_ConstantPool::_oop_offset;
 int sun_reflect_UnsafeStaticFieldAccessorImpl::_base_offset;
@@ -3305,6 +3316,73 @@ void java_nio_Buffer::compute_offsets() {
   assert(k != NULL, "must be loaded in 1.4+");
   compute_offset(_limit_offset, k, vmSymbols::limit_name(), vmSymbols::int_signature());
 }
+
+#if INCLUDE_ALL_GCS
+
+// Support for com.alibaba.tenant.TenantContainer
+
+void com_alibaba_tenant_TenantContainer::compute_offsets() {
+  Klass* k = SystemDictionary::com_alibaba_tenant_TenantContainer_klass();
+  assert(k != NULL, "Cannot find TenantContainer in current JDK");
+  compute_offset(_tenant_id_offset, k, vmSymbols::tenant_id_address(), vmSymbols::long_signature());
+  compute_offset(_allocation_context_offset, k, vmSymbols::allocation_context_address(), vmSymbols::long_signature());
+  compute_offset(_tenant_state_offset, k, vmSymbols::state_name(), vmSymbols::com_alibaba_tenant_TenantState_signature());
+}
+
+jlong com_alibaba_tenant_TenantContainer::get_tenant_id(oop obj) {
+  assert(obj != NULL, "TenantContainer object cannot be NULL");
+  return obj->long_field(_tenant_id_offset);
+}
+
+G1TenantAllocationContext* com_alibaba_tenant_TenantContainer::get_tenant_allocation_context(oop obj) {
+  assert(obj != NULL, "TenantContainer object cannot be NULL");
+  return (G1TenantAllocationContext*)(obj->long_field(_allocation_context_offset));
+}
+
+void com_alibaba_tenant_TenantContainer::set_tenant_allocation_context(oop obj, G1TenantAllocationContext* context) {
+  assert(obj != NULL, "TenantContainer object cannot be NULL");
+  obj->long_field_put(_allocation_context_offset, (jlong)context);
+}
+
+bool com_alibaba_tenant_TenantContainer::is_dead(oop obj) {
+  assert(obj != NULL, "TenantContainer object cannot be NULL");
+  int state = com_alibaba_tenant_TenantState::state_of(obj);
+  return state == com_alibaba_tenant_TenantState::TS_STOPPING
+         || state == com_alibaba_tenant_TenantState::TS_DEAD;
+}
+
+oop com_alibaba_tenant_TenantContainer::get_tenant_state(oop obj) {
+  assert(obj != NULL, "TenantContainer object cannot be NULL");
+  obj->obj_field(_tenant_state_offset);
+}
+
+// Support for com.alibaba.tenant.TenantState
+
+int com_alibaba_tenant_TenantState::state_of(oop tenant_obj) {
+  assert(tenant_obj != NULL, "TenantContainer ");
+
+  oop tenant_state = com_alibaba_tenant_TenantContainer::get_tenant_state(tenant_obj);
+  InstanceKlass* ik = InstanceKlass::cast(SystemDictionary::com_alibaba_tenant_TenantState_klass());
+
+  for (int i = TS_STARTING; i < TS_SIZE; ++i) {
+    assert(_static_state_offsets[i] == i * heapOopSize, "Must have been initialized");
+    address addr = ik->static_field_addr(_static_state_offsets[i]);
+    oop o = NULL;
+    if (UseCompressedOops) {
+      o = oopDesc::load_decode_heap_oop((narrowOop*)addr);
+    } else {
+      o = oopDesc::load_decode_heap_oop((oop*)addr);
+    }
+    assert(!oopDesc::is_null(o), "sanity");
+    if (tenant_state == o) {
+      return i;
+    }
+  }
+
+  ShouldNotReachHere();
+}
+
+#endif // INCLUDE_ALL_GCS
 
 void java_util_concurrent_locks_AbstractOwnableSynchronizer::initialize(TRAPS) {
   if (_owner_offset != 0) return;
@@ -3415,6 +3493,10 @@ void JavaClasses::compute_offsets() {
 
   // generated interpreter code wants to know about the offsets we just computed:
   AbstractAssembler::update_delayed_values();
+
+  if(MultiTenant) {
+    com_alibaba_tenant_TenantContainer::compute_offsets();
+  }
 }
 
 #ifndef PRODUCT

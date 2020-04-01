@@ -323,6 +323,10 @@ public:
 #endif
 };
 
+#if INCLUDE_ALL_GCS
+class CachedCompactPoint;
+#endif
+
 // A structure to represent a point at which objects are being copied
 // during compaction.
 class CompactPoint : public StackObj {
@@ -333,7 +337,28 @@ public:
 
   CompactPoint(Generation* g = NULL) :
     gen(g), space(NULL), threshold(0) {}
+#if INCLUDE_ALL_GCS
+  CompactPoint& operator = (const CompactPoint&);
+  CompactPoint& operator = (const CachedCompactPoint&);
+#endif
 };
+
+#if INCLUDE_ALL_GCS
+
+// To cache CompactPoint info on C heap
+class CachedCompactPoint : public CHeapObj<mtTenant> {
+public:
+  // Generation* is not used by G1, thus no need to cache it
+  CompactibleSpace*           space;      // cached space
+  HeapWord*                   threshold;  // cached threshold
+
+public:
+  CachedCompactPoint() : space(NULL), threshold(NULL) {}
+  void reset() { space = NULL; threshold = NULL; }
+  CachedCompactPoint& operator = (const CompactPoint&);
+};
+
+#endif
 
 // A space that supports compaction operations.  This is usually, but not
 // necessarily, a space that is normally contiguous.  But, for example, a

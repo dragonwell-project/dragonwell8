@@ -49,6 +49,17 @@
 inline jlong Thread::cooked_allocated_bytes() {
   jlong allocated_bytes = OrderAccess::load_acquire(&_allocated_bytes);
   if (UseTLAB) {
+    if (MultiTenant && UsePerTenantTLAB) {
+      // accumulate used_bytes from all TLABs
+      size_t used_bytes = 0;
+      for (ThreadLocalAllocBuffer* tlab = &_tlab;
+           tlab != NULL;
+           tlab = tlab->next()) {
+        used_bytes += tlab->used_bytes();
+      }
+      return allocated_bytes + used_bytes;
+    }
+
     size_t used_bytes = tlab().used_bytes();
     if ((ssize_t)used_bytes > 0) {
       // More-or-less valid tlab. The load_acquire above should ensure

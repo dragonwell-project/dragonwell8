@@ -26,6 +26,7 @@
 #define SHARE_VM_RUNTIME_THREAD_EXT_HPP
 
 #include "memory/allocation.hpp"
+#include "gc_implementation/g1/g1AllocationContext.hpp"
 
 class ThreadExt VALUE_OBJ_CLASS_SPEC {
 public:

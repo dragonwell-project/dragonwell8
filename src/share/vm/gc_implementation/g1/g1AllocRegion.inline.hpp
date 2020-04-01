@@ -60,6 +60,15 @@ inline HeapWord* G1AllocRegion::attempt_allocation(size_t word_size,
   HeapRegion* alloc_region = _alloc_region;
   assert(alloc_region != NULL, ar_ext_msg(this, "not initialized properly"));
 
+  DEBUG_ONLY(if (TenantHeapIsolation
+      /* (_alloc_region == _dummy_region) means current AllocRegion has not yet
+       * really initialized
+       */
+      && alloc_region != G1AllocRegion::_dummy_region) {
+    assert(allocation_context() == alloc_region->allocation_context(),
+           "Tring to allocate in the wrong heap region");
+  });
+
   HeapWord* result = par_allocate(alloc_region, word_size, bot_updates);
   if (result != NULL) {
     trace("alloc", word_size, result);
@@ -82,6 +91,12 @@ inline HeapWord* G1AllocRegion::attempt_allocation_locked(size_t word_size,
   retire(true /* fill_up */);
   result = new_alloc_region_and_allocate(word_size, false /* force */);
   if (result != NULL) {
+    DEBUG_ONLY(if (TenantHeapIsolation) {
+      // _alloc_region was updated, check its tenant alloc context
+      assert(allocation_context() == _alloc_region->allocation_context(),
+             "Allocate in wrong region");
+    });
+
     trace("alloc locked (second attempt)", word_size, result);
     return result;
   }
@@ -97,6 +112,12 @@ inline HeapWord* G1AllocRegion::attempt_allocation_force(size_t word_size,
   trace("forcing alloc");
   HeapWord* result = new_alloc_region_and_allocate(word_size, true /* force */);
   if (result != NULL) {
+    DEBUG_ONLY(if (TenantHeapIsolation) {
+      // _alloc_region was updated, check its tenant alloc context
+      assert(allocation_context() == _alloc_region->allocation_context(),
+             "Allocate in wrong region");
+    });
+
     trace("alloc forced", word_size, result);
     return result;
   }

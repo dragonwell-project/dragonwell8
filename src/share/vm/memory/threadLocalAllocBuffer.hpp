@@ -31,6 +31,10 @@
 
 class GlobalTLABStats;
 
+#if INCLUDE_ALL_GCS
+class G1TenantAllocationContext;
+#endif
+
 // ThreadLocalAllocBuffer: a descriptor for thread-local storage used by
 // the threads for allocation.
 //            It is thread-private at any time, but maybe multiplexed over
@@ -101,7 +105,14 @@ private:
   static GlobalTLABStats* global_stats() { return _global_stats; }
 
 public:
-  ThreadLocalAllocBuffer() : _allocation_fraction(TLABAllocationWeight), _allocated_before_last_gc(0) {
+  ThreadLocalAllocBuffer()
+    : _allocation_fraction(TLABAllocationWeight),
+#if INCLUDE_ALL_GCS
+      _next(NULL),
+      _tenant_context(NULL),
+      _my_thread(NULL),
+#endif // #if INCLUDE_ALL_GCS
+      _allocated_before_last_gc(0) {
     // do nothing.  tlabs must be inited by initialize() calls
   }
 
@@ -173,6 +184,31 @@ public:
   static ByteSize slow_allocations_offset()      { return byte_offset_of(ThreadLocalAllocBuffer, _slow_allocations ); }
 
   void verify();
+
+#if INCLUDE_ALL_GCS
+private:
+  // retained TLAB support
+  G1TenantAllocationContext* _tenant_context;    // Tenant allocation context associated with this TLAB
+  ThreadLocalAllocBuffer*    _next;              // linked to next TLAB
+
+  //
+  // This is a little redundant, but have to keep a pointer to its owner thread
+  // when -XX:+UsePerTenantTLAB specified. In that case, a TLAB object may be
+  // allocated directly on C heap, instead of being embeded in Thread object.
+  // Which means owner Thread address can no longer be calculated by using
+  // 'cur_tlab->_start + Thread::tlab_start_offset()'.
+  //
+  Thread*                    _my_thread;
+
+public:
+  G1TenantAllocationContext* tenant_allocation_context() const            { return _tenant_context;     }
+  void set_tenant_allocation_context(G1TenantAllocationContext* context)  { _tenant_context = context;  }
+  // retain/get per-tenant TLAB support
+  ThreadLocalAllocBuffer* next() const                                    { return _next;               }
+  void set_next(ThreadLocalAllocBuffer* next)                             { _next = next;               }
+  // swap context with another TLABs
+  void swap_content(ThreadLocalAllocBuffer* peer);
+#endif // #if INCLUDE_ALL_GCS
 };
 
 class GlobalTLABStats: public CHeapObj<mtThread> {

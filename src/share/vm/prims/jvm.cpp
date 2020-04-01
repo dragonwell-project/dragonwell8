@@ -3876,11 +3876,49 @@ JVM_END
 
 /***************** Tenant support ************************************/
 
-JVM_ENTRY(void, JVM_AttachToTenant(JNIEnv *env, jobject tenant))
+JVM_ENTRY(jobject, JVM_TenantContainerOf(JNIEnv* env, jclass tenantContainerClass, jobject obj))
+  JVMWrapper("JVM_TenantContainerOf");
+  assert(MultiTenant && TenantHeapIsolation, "pre-condition");
+  if (NULL != obj) {
+    oop container = G1CollectedHeap::heap()->tenant_container_of(JNIHandles::resolve_non_null(obj));
+    if (container != NULL) {
+      return JNIHandles::make_local(env, container);
+    }
+  }
+  return NULL;
+JVM_END
+
+JVM_ENTRY(void, JVM_AttachToTenant(JNIEnv *env, jobject ignored, jobject tenant))
   JVMWrapper("JVM_AttachToTenant");
   assert(MultiTenant, "pre-condition");
   assert (NULL != thread, "no current thread!");
   thread->set_tenantObj(tenant == NULL ? (oop)NULL : JNIHandles::resolve_non_null(tenant));
+JVM_END
+
+JVM_ENTRY(void, JVM_CreateTenantAllocationContext(JNIEnv *env, jobject ignored, jobject tenant, jlong heapLimit))
+  JVMWrapper("JVM_CreateTenantAllocationContext");
+  guarantee(UseG1GC && TenantHeapIsolation, "pre-condition");
+  oop tenant_obj = JNIHandles::resolve_non_null(tenant);
+  assert(tenant_obj != NULL, "Cannot create allocation context for a null tenant container");
+  G1CollectedHeap::heap()->create_tenant_allocation_context(tenant_obj);
+JVM_END
+
+// This method should be called before reclaiming of Java TenantContainer object
+JVM_ENTRY(void, JVM_DestroyTenantAllocationContext(JNIEnv *env, jobject ignored, jlong context))
+  JVMWrapper("JVM_DestroyTenantAllocationContext");
+  assert(UseG1GC && TenantHeapIsolation, "pre-condition");
+  oop tenant_obj = ((G1TenantAllocationContext*)context)->tenant_container();
+  assert(tenant_obj != NULL, "Cannot destroy allocation context from a null tenant container");
+  G1CollectedHeap::heap()->destroy_tenant_allocation_context(context);
+JVM_END
+
+JVM_ENTRY(jlong, JVM_GetTenantOccupiedMemory(JNIEnv* env, jobject ignored, jlong context))
+  JVMWrapper("JVM_GetTenantOccupiedMemory");
+  assert(UseG1GC && TenantHeapIsolation, "pre-condition");
+  G1TenantAllocationContext* alloc_context = (G1TenantAllocationContext*)context;
+  assert(alloc_context != NULL, "Bad allocation context!");
+  assert(alloc_context->tenant_container() != NULL, "NULL tenant container");
+  return (alloc_context->occupied_heap_region_count() * HeapRegion::GrainBytes);
 JVM_END
 
 // Array ///////////////////////////////////////////////////////////////////////////////////////////

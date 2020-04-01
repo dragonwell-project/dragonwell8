@@ -77,6 +77,9 @@ G1GCPhaseTimes::G1GCPhaseTimes(uint max_gc_threads) :
   _gc_par_phases[RedirtyCards] = new WorkerDataArray<double>(max_gc_threads, "Parallel Redirty", true, G1Log::LevelFinest, 3);
   _redirtied_cards = new WorkerDataArray<size_t>(max_gc_threads, "Redirtied Cards", true, G1Log::LevelFinest, 3);
   _gc_par_phases[RedirtyCards]->link_thread_work_items(_redirtied_cards);
+
+  // Cannot guard below line with TenantHeapIsolation since we do not have conditional compilation for tenant mode
+  _gc_par_phases[TenantAllocationContextRoots] = new WorkerDataArray<double>(max_gc_threads, "G1TenantAllocationContext Roots (ms)", true, G1Log::LevelFinest, 3);
 }
 
 void G1GCPhaseTimes::note_gc_start(uint active_gc_threads, bool mark_in_progress) {
@@ -90,6 +93,8 @@ void G1GCPhaseTimes::note_gc_start(uint active_gc_threads, bool mark_in_progress
 
   _gc_par_phases[StringDedupQueueFixup]->set_enabled(G1StringDedup::is_enabled());
   _gc_par_phases[StringDedupTableFixup]->set_enabled(G1StringDedup::is_enabled());
+
+  _gc_par_phases[TenantAllocationContextRoots]->set_enabled(TenantHeapIsolation);
 }
 
 void G1GCPhaseTimes::note_gc_end() {

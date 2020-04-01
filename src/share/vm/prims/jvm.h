@@ -361,7 +361,19 @@ JVM_LoadClass0(JNIEnv *env, jobject obj, jclass currClass,
  * com.alibaba.tenant.TenantContainer
  */
 JNIEXPORT void JNICALL
-JVM_AttachToTenant(JNIEnv *env, jobject tenant);
+JVM_AttachToTenant(JNIEnv *env, jobject ignored, jobject tenant);
+
+JNIEXPORT void JNICALL
+JVM_CreateTenantAllocationContext(JNIEnv *env, jobject ignored, jobject tenant, jlong heapLimit);
+
+JNIEXPORT void JNICALL
+JVM_DestroyTenantAllocationContext(JNIEnv *env, jobject ignored, jlong context);
+
+JNIEXPORT jobject JNICALL
+JVM_TenantContainerOf(JNIEnv *env, jclass tenantContainerClass, jobject obj);
+
+JNIEXPORT long JNICALL
+JVM_GetTenantOccupiedMemory(JNIEnv *env, jobject ignored, jlong context);
 
 /*
  * java.lang.reflect.Array

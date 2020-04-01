@@ -328,7 +328,13 @@
           "Verify the code root lists attached to each heap region.")       \
                                                                             \
   develop(bool, G1VerifyBitmaps, false,                                     \
-          "Verifies the consistency of the marking bitmaps")
+          "Verifies the consistency of the marking bitmaps")                \
+                                                                            \
+  develop(bool, TraceG1TenantAllocationContext, false,                      \
+          "Trace tenant allocation context changes")                        \
+                                                                            \
+  develop(bool, TraceNonRootTenantAllocation, false,                        \
+          "Trace memory allocated for non-root tenants")                    \
 
 G1_FLAGS(DECLARE_DEVELOPER_FLAG, DECLARE_PD_DEVELOPER_FLAG, DECLARE_PRODUCT_FLAG, DECLARE_PD_PRODUCT_FLAG, DECLARE_DIAGNOSTIC_FLAG, DECLARE_EXPERIMENTAL_FLAG, DECLARE_NOTPRODUCT_FLAG, DECLARE_MANAGEABLE_FLAG, DECLARE_PRODUCT_RW_FLAG)
 
