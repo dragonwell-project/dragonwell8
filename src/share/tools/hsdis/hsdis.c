@@ -438,6 +438,7 @@ static void parse_caller_options(struct hsdis_app_data* app_data, const char* ca
     }
     p = q;
   }
+  *iop = '\0';
 }
 
 static void print_help(struct hsdis_app_data* app_data,
