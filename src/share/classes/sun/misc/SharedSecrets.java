@@ -61,6 +61,7 @@ public class SharedSecrets {
     private static JavaxCryptoSealedObjectAccess javaxCryptoSealedObjectAccess;
     private static JavaObjectInputStreamReadString javaObjectInputStreamReadString;
     private static JavaObjectInputStreamAccess javaObjectInputStreamAccess;
+    private static TenantAccess tenantAccess;
 
     public static JavaUtilJarAccess javaUtilJarAccess() {
         if (javaUtilJarAccess == null) {
@@ -234,5 +235,13 @@ public class SharedSecrets {
             unsafe.ensureClassInitialized(SealedObject.class);
         }
         return javaxCryptoSealedObjectAccess;
+    }
+
+    public static void setTenantAccess(TenantAccess access) {
+        tenantAccess = access;
+    }
+
+    public static TenantAccess getTenantAccess() {
+        return tenantAccess;
     }
 }

@@ -36,6 +36,8 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
 import com.alibaba.rcm.ResourceContainer;
 import com.alibaba.rcm.Constraint;
 import com.alibaba.rcm.internal.AbstractResourceContainer;
+import sun.misc.SharedSecrets;
+import sun.misc.TenantAccess;
 import static com.alibaba.tenant.TenantState.*;
 
 
@@ -137,9 +139,22 @@ public class TenantContainer {
     }
 
     /**
+     * Data repository used to store the data isolated per tenant.
+     */
+    private TenantData tenantData = new TenantData();
+
+    /**
      * Used to track and run tenant shutdown hooks
      */
     private TenantShutdownHooks tenantShutdownHooks = new TenantShutdownHooks();
+
+    /**
+     * Retrieves the data repository used by this tenant.
+     * @return the data repository associated with this tenant.
+     */
+    public TenantData getTenantData() {
+        return tenantData;
+    }
 
     /**
      * Sets the tenant properties to the one specified by argument.
@@ -266,6 +281,7 @@ public class TenantContainer {
         // clear references
         spawnedThreads.clear();
         attachedThreads.clear();
+        tenantData.clear();
         tenantShutdownHooks = null;
     }
 
@@ -584,6 +600,18 @@ public class TenantContainer {
         //Initialize this field after the system is booted.
         tenantContainerMap = Collections.synchronizedMap(new HashMap());
 
+        // initialize TenantAccess
+        if (SharedSecrets.getTenantAccess() == null) {
+            SharedSecrets.setTenantAccess(new TenantAccess() {
+                @Override
+                public void registerServiceThread(TenantContainer tenant, Thread thread) {
+                    if (tenant != null && thread != null) {
+                        tenant.addServiceThread(thread);
+                    }
+                }
+            });
+        }
+
         try {
             // force initialization of TenantConfiguration
             Class.forName("com.alibaba.tenant.TenantConfiguration");
@@ -603,6 +631,31 @@ public class TenantContainer {
             throw new UnsupportedOperationException("containerOf() only works with -XX:+TenantHeapIsolation");
         }
         return obj != null ? nd.containerOf(obj) : null;
+    }
+
+    /**
+     * Gets the field value stored in the data repository of this tenant, which is same to call the
+     * {@code TenantData.getFieldValue} on the tenant data object retrieved by {@code TenantContainer.getTenantData}.
+     *
+     * @param obj           Object the field associates with
+     * @param fieldName     Field name
+     * @param supplier      Responsible for creating the initial field value
+     * @return              Value of field.
+     */
+    public <K, T> T getFieldValue(K obj, String fieldName, Supplier<T> supplier) {
+        return tenantData.getFieldValue(obj, fieldName, supplier);
+    }
+
+    /**
+     * Gets the field value stored in the data repository of this tenant, which is same to call the
+     * {@code TenantData.getFieldValue} on the tenant data object retrieved by {@code TenantContainer.getTenantData}.
+     *
+     * @param obj           Object the field associates with
+     * @param fieldName     Field name
+     * @return              Value of field, null if not found
+     */
+    public <K, T> T getFieldValue(K obj, String fieldName) {
+        return getFieldValue(obj, fieldName, () -> null);
     }
 
     /**

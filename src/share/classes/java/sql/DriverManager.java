@@ -32,6 +32,8 @@ import java.security.PrivilegedAction;
 import java.util.concurrent.CopyOnWriteArrayList;
 import sun.reflect.CallerSensitive;
 import sun.reflect.Reflection;
+import com.alibaba.tenant.TenantContainer;
+import com.alibaba.tenant.TenantGlobals;
 
 
 /**
@@ -92,6 +94,13 @@ public class DriverManager {
     /* Prevent the DriverManager class from being instantiated. */
     private DriverManager(){}
 
+    private static CopyOnWriteArrayList<DriverInfo> getRegisteredDrivers() {
+        if (TenantGlobals.isDataIsolationEnabled() && TenantContainer.current() != null) {
+            return TenantContainer.current().getFieldValue(DriverManager.class, "registeredDrivers",
+                    () -> new CopyOnWriteArrayList<>());
+        }
+        return registeredDrivers;
+    }
 
     /**
      * Load the initial JDBC drivers by checking the System property
@@ -291,7 +300,7 @@ public class DriverManager {
 
         // Walk through the loaded registeredDrivers attempting to locate someone
         // who understands the given URL.
-        for (DriverInfo aDriver : registeredDrivers) {
+        for (DriverInfo aDriver : getRegisteredDrivers()) {
             // If the caller does not have permission to load the driver then
             // skip it.
             if(isDriverAllowed(aDriver.driver, callerClass)) {
@@ -355,7 +364,7 @@ public class DriverManager {
 
         /* Register the driver if it has not already been added to our list */
         if(driver != null) {
-            registeredDrivers.addIfAbsent(new DriverInfo(driver, da));
+            getRegisteredDrivers().addIfAbsent(new DriverInfo(driver, da));
         } else {
             // This is for compatibility with the original DriverManager
             throw new NullPointerException();
@@ -405,15 +414,16 @@ public class DriverManager {
         println("DriverManager.deregisterDriver: " + driver);
 
         DriverInfo aDriver = new DriverInfo(driver, null);
-        if(registeredDrivers.contains(aDriver)) {
+        CopyOnWriteArrayList<DriverInfo> drivers = getRegisteredDrivers();
+        if (drivers.contains(aDriver)) {
             if (isDriverAllowed(driver, Reflection.getCallerClass())) {
-                DriverInfo di = registeredDrivers.get(registeredDrivers.indexOf(aDriver));
+                DriverInfo di = drivers.get(drivers.indexOf(aDriver));
                  // If a DriverAction was specified, Call it to notify the
                  // driver that it has been deregistered
                  if(di.action() != null) {
                      di.action().deregister();
                  }
-                 registeredDrivers.remove(aDriver);
+                 drivers.remove(aDriver);
             } else {
                 // If the caller does not have permission to load the driver then
                 // throw a SecurityException.
@@ -440,7 +450,7 @@ public class DriverManager {
         Class<?> callerClass = Reflection.getCallerClass();
 
         // Walk through the loaded registeredDrivers.
-        for(DriverInfo aDriver : registeredDrivers) {
+        for (DriverInfo aDriver : getRegisteredDrivers()) {
             // If the caller does not have permission to load the driver then
             // skip it.
             if(isDriverAllowed(aDriver.driver, callerClass)) {
@@ -655,7 +665,7 @@ public class DriverManager {
         // Remember the first exception that gets raised so we can reraise it.
         SQLException reason = null;
 
-        for(DriverInfo aDriver : registeredDrivers) {
+        for (DriverInfo aDriver : getRegisteredDrivers()) {
             // If the caller does not have permission to load the driver then
             // skip it.
             if(isDriverAllowed(aDriver.driver, callerCL)) {

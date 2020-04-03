@@ -57,6 +57,8 @@ import java.util.concurrent.ConcurrentMap;
 import java.util.jar.JarEntry;
 import java.util.spi.ResourceBundleControlProvider;
 
+import com.alibaba.tenant.TenantContainer;
+import com.alibaba.tenant.TenantGlobals;
 import sun.reflect.CallerSensitive;
 import sun.reflect.Reflection;
 import sun.util.locale.BaseLocale;
@@ -311,6 +313,14 @@ public abstract class ResourceBundle {
      */
     private static final ConcurrentMap<CacheKey, BundleReference> cacheList
         = new ConcurrentHashMap<>(INITIAL_CACHE_SIZE);
+
+    private static ConcurrentMap<CacheKey, BundleReference> getCacheList() {
+        if (TenantGlobals.isDataIsolationEnabled() && TenantContainer.current() != null) {
+            return TenantContainer.current().getFieldValue(ResourceBundle.class, "cacheList",
+                    () -> new ConcurrentHashMap<>(INITIAL_CACHE_SIZE));
+        }
+        return cacheList;
+    }
 
     /**
      * Queue for reference objects referring to class loaders or bundles.
@@ -1334,7 +1344,7 @@ public abstract class ResourceBundle {
         ResourceBundle bundle = null;
 
         // Quick lookup of the cache.
-        BundleReference bundleRef = cacheList.get(cacheKey);
+        BundleReference bundleRef = getCacheList().get(cacheKey);
         if (bundleRef != null) {
             bundle = bundleRef.get();
             bundleRef = null;
@@ -1445,7 +1455,7 @@ public abstract class ResourceBundle {
         // information from the cache.
         Object ref;
         while ((ref = referenceQueue.poll()) != null) {
-            cacheList.remove(((CacheKeyReference)ref).getCacheKey());
+            getCacheList().remove(((CacheKeyReference)ref).getCacheKey());
         }
 
         // flag indicating the resource bundle has expired in the cache
@@ -1468,9 +1478,9 @@ public abstract class ResourceBundle {
                 }
                 // Otherwise, remove the cached one since we can't keep
                 // the same bundles having different parents.
-                BundleReference bundleRef = cacheList.get(cacheKey);
+                BundleReference bundleRef = getCacheList().get(cacheKey);
                 if (bundleRef != null && bundleRef.get() == bundle) {
-                    cacheList.remove(cacheKey, bundleRef);
+                    getCacheList().remove(cacheKey, bundleRef);
                 }
             }
         }
@@ -1597,7 +1607,7 @@ public abstract class ResourceBundle {
      */
     private static ResourceBundle findBundleInCache(CacheKey cacheKey,
                                                     Control control) {
-        BundleReference bundleRef = cacheList.get(cacheKey);
+        BundleReference bundleRef = getCacheList().get(cacheKey);
         if (bundleRef == null) {
             return null;
         }
@@ -1644,7 +1654,7 @@ public abstract class ResourceBundle {
             assert bundle != NONEXISTENT_BUNDLE;
             bundle.expired = true;
             bundle.cacheKey = null;
-            cacheList.remove(cacheKey, bundleRef);
+            getCacheList().remove(cacheKey, bundleRef);
             bundle = null;
         } else {
             CacheKey key = bundleRef.getCacheKey();
@@ -1675,7 +1685,7 @@ public abstract class ResourceBundle {
                                 // return the bundle with the expired flag
                                 // on.
                                 bundle.cacheKey = null;
-                                cacheList.remove(cacheKey, bundleRef);
+                                getCacheList().remove(cacheKey, bundleRef);
                             } else {
                                 // Update the expiration control info. and reuse
                                 // the same bundle instance
@@ -1685,7 +1695,7 @@ public abstract class ResourceBundle {
                     }
                 } else {
                     // We just remove NONEXISTENT_BUNDLE from the cache.
-                    cacheList.remove(cacheKey, bundleRef);
+                    getCacheList().remove(cacheKey, bundleRef);
                     bundle = null;
                 }
             }
@@ -1712,7 +1722,7 @@ public abstract class ResourceBundle {
             bundle.cacheKey = key;
 
             // Put the bundle in the cache if it's not been in the cache.
-            BundleReference result = cacheList.putIfAbsent(key, bundleRef);
+            BundleReference result = getCacheList().putIfAbsent(key, bundleRef);
 
             // If someone else has put the same bundle in the cache before
             // us and it has not expired, we should use the one in the cache.
@@ -1728,7 +1738,7 @@ public abstract class ResourceBundle {
                 } else {
                     // Replace the invalid (garbage collected or expired)
                     // instance with the valid one.
-                    cacheList.put(key, bundleRef);
+                    getCacheList().put(key, bundleRef);
                 }
             }
         }
@@ -1776,7 +1786,7 @@ public abstract class ResourceBundle {
         if (loader == null) {
             throw new NullPointerException();
         }
-        Set<CacheKey> set = cacheList.keySet();
+        Set<CacheKey> set = getCacheList().keySet();
         for (CacheKey key : set) {
             if (key.getLoader() == loader) {
                 set.remove(key);

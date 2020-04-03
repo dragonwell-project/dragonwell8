@@ -30,7 +30,6 @@ import javax.management.MBeanServerConnection;
 import javax.management.MBeanServerFactory;
 import javax.management.MBeanServerPermission;
 import javax.management.NotificationEmitter;
-import javax.management.ObjectInstance;
 import javax.management.ObjectName;
 import javax.management.InstanceAlreadyExistsException;
 import javax.management.InstanceNotFoundException;
@@ -39,6 +38,8 @@ import javax.management.MBeanRegistrationException;
 import javax.management.NotCompliantMBeanException;
 import javax.management.StandardEmitterMBean;
 import javax.management.StandardMBean;
+import com.alibaba.tenant.TenantContainer;
+import com.alibaba.tenant.TenantGlobals;
 import java.util.Collections;
 import java.util.List;
 import java.util.Set;
@@ -465,36 +466,49 @@ public class ManagementFactory {
             sm.checkPermission(perm);
         }
 
-        if (platformMBeanServer == null) {
-            platformMBeanServer = MBeanServerFactory.createMBeanServer();
-            for (PlatformComponent pc : PlatformComponent.values()) {
-                List<? extends PlatformManagedObject> list =
-                    pc.getMXBeans(pc.getMXBeanInterface());
-                for (PlatformManagedObject o : list) {
-                    // Each PlatformComponent represents one management
-                    // interface. Some MXBean may extend another one.
-                    // The MXBean instances for one platform component
-                    // (returned by pc.getMXBeans()) might be also
-                    // the MXBean instances for another platform component.
-                    // e.g. com.sun.management.GarbageCollectorMXBean
-                    //
-                    // So need to check if an MXBean instance is registered
-                    // before registering into the platform MBeanServer
-                    if (!platformMBeanServer.isRegistered(o.getObjectName())) {
-                        addMXBean(platformMBeanServer, o);
-                    }
-                }
+        MBeanServer thePlatformMBeanServer= null;
+        if(TenantGlobals.isDataIsolationEnabled() && null != TenantContainer.current()) {
+            thePlatformMBeanServer = TenantContainer.current().getFieldValue(ManagementFactory.class, "platformMBeanServer",
+                    ManagementFactory::createPlatformMBeanServer);
+        } else {
+            //use the value in root.
+            if (platformMBeanServer == null) {
+                platformMBeanServer = createPlatformMBeanServer();
             }
-            HashMap<ObjectName, DynamicMBean> dynmbeans =
-                    ManagementFactoryHelper.getPlatformDynamicMBeans();
-            for (Map.Entry<ObjectName, DynamicMBean> e : dynmbeans.entrySet()) {
-                addDynamicMBean(platformMBeanServer, e.getValue(), e.getKey());
-            }
-            for (final PlatformManagedObject o :
-                                       ExtendedPlatformComponent.getMXBeans()) {
+            thePlatformMBeanServer = platformMBeanServer;
+        }
+        return thePlatformMBeanServer;
+    }
+
+    private static MBeanServer createPlatformMBeanServer() {
+        MBeanServer platformMBeanServer = MBeanServerFactory.createMBeanServer();
+        for (PlatformComponent pc : PlatformComponent.values()) {
+            List<? extends PlatformManagedObject> list =
+                pc.getMXBeans(pc.getMXBeanInterface());
+            for (PlatformManagedObject o : list) {
+                // Each PlatformComponent represents one management
+                // interface. Some MXBean may extend another one.
+                // The MXBean instances for one platform component
+                // (returned by pc.getMXBeans()) might be also
+                // the MXBean instances for another platform component.
+                // e.g. com.sun.management.GarbageCollectorMXBean
+                //
+                // So need to check if an MXBean instance is registered
+                // before registering into the platform MBeanServer
                 if (!platformMBeanServer.isRegistered(o.getObjectName())) {
                     addMXBean(platformMBeanServer, o);
                 }
+            }
+        }
+        HashMap<ObjectName, DynamicMBean> dynmbeans =
+                ManagementFactoryHelper.getPlatformDynamicMBeans();
+        for (Map.Entry<ObjectName, DynamicMBean> e : dynmbeans.entrySet()) {
+            addDynamicMBean(platformMBeanServer, e.getValue(), e.getKey());
+        }
+        for (final PlatformManagedObject o :
+                                   ExtendedPlatformComponent.getMXBeans()) {
+            if (!platformMBeanServer.isRegistered(o.getObjectName())) {
+                addMXBean(platformMBeanServer, o);
             }
         }
         return platformMBeanServer;

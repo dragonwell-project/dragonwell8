@@ -27,9 +27,14 @@ package java.lang.ref;
 
 import java.security.PrivilegedAction;
 import java.security.AccessController;
+
+import com.alibaba.tenant.TenantState;
 import sun.misc.JavaLangAccess;
 import sun.misc.SharedSecrets;
 import sun.misc.VM;
+import com.alibaba.tenant.TenantContainer;
+import com.alibaba.tenant.TenantData;
+import com.alibaba.tenant.TenantGlobals;
 
 final class Finalizer extends FinalReference<Object> { /* Package-private; must be in
                                                           same package as the Reference
@@ -39,9 +44,32 @@ final class Finalizer extends FinalReference<Object> { /* Package-private; must 
     private static Finalizer unfinalized = null;
     private static final Object lock = new Object();
 
+    private static final String ID_UNFINALIZED = "unfinalized";
+
     private Finalizer
         next = null,
         prev = null;
+
+    private static ReferenceQueue<Object> initTenantReferenceQueue() {
+        if (!TenantGlobals.isDataIsolationEnabled() || TenantContainer.current() == null) {
+            throw new UnsupportedOperationException();
+        }
+        // spawn a new finalizer thread for this tenant, put it into system thread group
+        // will be terminated after destruction of tenant container
+        ThreadGroup tg = Thread.currentThread().getThreadGroup();
+        for (ThreadGroup tgn = tg;
+             tgn != null;
+             tg = tgn, tgn = tg.getParent());
+        Thread finalizer = new FinalizerThread(tg);
+        SharedSecrets.getTenantAccess()
+                .registerServiceThread(TenantContainer.current(), finalizer);
+        finalizer.setName("TenantFinalizer-" + TenantContainer.current().getTenantId());
+        finalizer.setPriority(Thread.MAX_PRIORITY - 2);
+        finalizer.setDaemon(true);
+        finalizer.start();
+
+        return new ReferenceQueue<>();
+    }
 
     private boolean hasBeenFinalized() {
         return (next == this);
@@ -49,21 +77,42 @@ final class Finalizer extends FinalReference<Object> { /* Package-private; must 
 
     private void add() {
         synchronized (lock) {
-            if (unfinalized != null) {
-                this.next = unfinalized;
-                unfinalized.prev = this;
+            if (VM.isBooted() && TenantGlobals.isDataIsolationEnabled() && TenantContainer.current() != null) {
+                TenantData td = TenantContainer.current().getTenantData();
+                Finalizer tenantUnfinalized = td.getFieldValue(Finalizer.class, ID_UNFINALIZED);
+                if (tenantUnfinalized != null) {
+                    this.next = tenantUnfinalized;
+                    tenantUnfinalized.prev = this;
+                }
+                td.setFieldValue(Finalizer.class, ID_UNFINALIZED, this);
+            } else {
+                if (unfinalized != null) {
+                    this.next = unfinalized;
+                    unfinalized.prev = this;
+                }
+                unfinalized = this;
             }
-            unfinalized = this;
         }
     }
 
     private void remove() {
         synchronized (lock) {
-            if (unfinalized == this) {
-                if (this.next != null) {
-                    unfinalized = this.next;
-                } else {
-                    unfinalized = this.prev;
+            if (TenantGlobals.isDataIsolationEnabled() && TenantContainer.current() != null) {
+                TenantData td = TenantContainer.current().getTenantData();
+                if (td.getFieldValue(Finalizer.class, ID_UNFINALIZED) == this) {
+                    if (this.next != null) {
+                        td.setFieldValue(Finalizer.class, ID_UNFINALIZED, this.next);
+                    } else {
+                        td.setFieldValue(Finalizer.class, ID_UNFINALIZED, this.prev);
+                    }
+                }
+            } else {
+                if (unfinalized == this) {
+                    if (this.next != null) {
+                        unfinalized = this.next;
+                    } else {
+                        unfinalized = this.prev;
+                    }
                 }
             }
             if (this.next != null) {
@@ -78,12 +127,17 @@ final class Finalizer extends FinalReference<Object> { /* Package-private; must 
     }
 
     private Finalizer(Object finalizee) {
-        super(finalizee, queue);
+        super(finalizee, getQueue());
         add();
     }
 
     static ReferenceQueue<Object> getQueue() {
-        return queue;
+        if (VM.isBooted() && TenantGlobals.isDataIsolationEnabled() && TenantContainer.current() != null) {
+            return TenantContainer.current().getFieldValue(Finalizer.class, "queue",
+                    Finalizer::initTenantReferenceQueue);
+        } else {
+            return queue;
+        }
     }
 
     /* Invoked by VM */
@@ -131,6 +185,12 @@ final class Finalizer extends FinalReference<Object> { /* Package-private; must 
                          tgn != null;
                          tg = tgn, tgn = tg.getParent());
                     Thread sft = new Thread(tg, proc, "Secondary finalizer");
+
+                    if (TenantGlobals.isDataIsolationEnabled() && TenantContainer.current() != null) {
+                        SharedSecrets.getTenantAccess()
+                                .registerServiceThread(TenantContainer.current(), sft);
+                    }
+
                     sft.start();
                     try {
                         sft.join();
@@ -155,8 +215,9 @@ final class Finalizer extends FinalReference<Object> { /* Package-private; must 
                     return;
                 final JavaLangAccess jla = SharedSecrets.getJavaLangAccess();
                 running = true;
+                ReferenceQueue<Object> q = getQueue();
                 for (;;) {
-                    Finalizer f = (Finalizer)queue.poll();
+                    Finalizer f = (Finalizer)q.poll();
                     if (f == null) break;
                     f.runFinalizer(jla);
                 }
@@ -180,10 +241,19 @@ final class Finalizer extends FinalReference<Object> { /* Package-private; must 
                 running = true;
                 for (;;) {
                     Finalizer f;
-                    synchronized (lock) {
-                        f = unfinalized;
-                        if (f == null) break;
-                        unfinalized = f.next;
+                    if (TenantGlobals.isDataIsolationEnabled() && TenantContainer.current() != null) {
+                        TenantData td = TenantContainer.current().getTenantData();
+                        synchronized (lock) {
+                            f = td.getFieldValue(Finalizer.class, ID_UNFINALIZED);
+                            if (f == null) break;
+                            td.setFieldValue(Finalizer.class, ID_UNFINALIZED, f.next);
+                        }
+                    } else {
+                        synchronized (lock) {
+                            f = unfinalized;
+                            if (f == null) break;
+                            unfinalized = f.next;
+                        }
                     }
                     f.runFinalizer(jla);
                 }}});
@@ -211,12 +281,20 @@ final class Finalizer extends FinalReference<Object> { /* Package-private; must 
             }
             final JavaLangAccess jla = SharedSecrets.getJavaLangAccess();
             running = true;
-            for (;;) {
+            ReferenceQueue<Object> q = getQueue();
+            for (;q != null;) {
                 try {
-                    Finalizer f = (Finalizer)queue.remove();
+                    Finalizer f = (Finalizer)q.remove();
                     f.runFinalizer(jla);
                 } catch (InterruptedException x) {
                     // ignore and continue
+                }
+
+                // terminate Finalizer thread proactively after TenantContainer.destroy()
+                if (TenantGlobals.isDataIsolationEnabled()
+                        && TenantContainer.current() != null
+                        && TenantContainer.current().getState() == TenantState.DEAD) {
+                    break;
                 }
             }
         }

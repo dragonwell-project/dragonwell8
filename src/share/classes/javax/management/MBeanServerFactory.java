@@ -35,6 +35,8 @@ import java.util.ArrayList;
 import java.util.logging.Level;
 import javax.management.loading.ClassLoaderRepository;
 import sun.reflect.misc.ReflectUtil;
+import com.alibaba.tenant.TenantContainer;
+import com.alibaba.tenant.TenantGlobals;
 
 
 /**
@@ -361,10 +363,10 @@ public class MBeanServerFactory {
         checkPermission("findMBeanServer");
 
         if (agentId == null)
-            return new ArrayList<MBeanServer>(mBeanServerList);
+            return new ArrayList<MBeanServer>(getMBeanServerList());
 
         ArrayList<MBeanServer> result = new ArrayList<MBeanServer>();
-        for (MBeanServer mbs : mBeanServerList) {
+        for (MBeanServer mbs : getMBeanServerList()) {
             String name = mBeanServerId(mbs);
             if (agentId.equals(name))
                 result.add(mbs);
@@ -415,11 +417,11 @@ public class MBeanServerFactory {
     }
 
     private static synchronized void addMBeanServer(MBeanServer mbs) {
-        mBeanServerList.add(mbs);
+        getMBeanServerList().add(mbs);
     }
 
     private static synchronized void removeMBeanServer(MBeanServer mbs) {
-        boolean removed = mBeanServerList.remove(mbs);
+        boolean removed = getMBeanServerList().remove(mbs);
         if (!removed) {
             MBEANSERVER_LOGGER.logp(Level.FINER,
                     MBeanServerFactory.class.getName(),
@@ -431,6 +433,15 @@ public class MBeanServerFactory {
 
     private static final ArrayList<MBeanServer> mBeanServerList =
             new ArrayList<MBeanServer>();
+
+    private static ArrayList<MBeanServer> getMBeanServerList() {
+        if (TenantGlobals.isDataIsolationEnabled() && TenantContainer.current() != null) {
+            return TenantContainer.current().getFieldValue(MBeanServerFactory.class, "mBeanServerList",
+                    () -> new ArrayList<>());
+        } else {
+            return mBeanServerList;
+        }
+    }
 
     /**
      * Load the builder class through the context class loader.

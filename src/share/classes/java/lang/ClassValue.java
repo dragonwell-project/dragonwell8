@@ -25,6 +25,9 @@
 
 package java.lang;
 
+import com.alibaba.tenant.TenantContainer;
+import com.alibaba.tenant.TenantGlobals;
+
 import java.lang.ClassValue.ClassValueMap;
 import java.util.WeakHashMap;
 import java.lang.ref.WeakReference;
@@ -186,7 +189,13 @@ public abstract class ClassValue<T> {
     /** Return the cache, if it exists, else a dummy empty cache. */
     private static Entry<?>[] getCacheCarefully(Class<?> type) {
         // racing type.classValueMap{.cacheArray} : null => new Entry[X] <=> new Entry[Y]
-        ClassValueMap map = type.classValueMap;
+        ClassValueMap map = null;
+        if (TenantGlobals.isDataIsolationEnabled() && TenantContainer.current() != null) {
+            map = TenantContainer.current().getFieldValue(type, "classValueMap",
+                    () -> new ClassValueMap(type));
+        } else {
+            map = type.classValueMap;
+        }
         if (map == null)  return EMPTY_CACHE;
         Entry<?>[] cache = map.getCache();
         return cache;
@@ -364,7 +373,13 @@ public abstract class ClassValue<T> {
         // racing type.classValueMap : null (blank) => unique ClassValueMap
         // if a null is observed, a map is created (lazily, synchronously, uniquely)
         // all further access to that map is synchronized
-        ClassValueMap map = type.classValueMap;
+        ClassValueMap map = null;
+        if (TenantGlobals.isDataIsolationEnabled() && TenantContainer.current() != null) {
+            map = TenantContainer.current().getFieldValue(type, "classValueMap",
+                    () -> new ClassValueMap(type));
+        } else {
+            map = type.classValueMap;
+        }
         if (map != null)  return map;
         return initializeMap(type);
     }
@@ -374,11 +389,17 @@ public abstract class ClassValue<T> {
         ClassValueMap map;
         synchronized (CRITICAL_SECTION) {  // private object to avoid deadlocks
             // happens about once per type
-            if ((map = type.classValueMap) == null)
-                type.classValueMap = map = new ClassValueMap(type);
+            if (TenantGlobals.isDataIsolationEnabled() && TenantContainer.current() != null) {
+                type.classValueMap = map = TenantContainer.current()
+                        .getFieldValue(type, "classValueMap", () -> new ClassValueMap(type));
+            } else {
+                if ((map = type.classValueMap) == null) {
+                    type.classValueMap = map = new ClassValueMap(type);
+                }
+            }
         }
-            return map;
-        }
+        return map;
+    }
 
     static <T> Entry<T> makeEntry(Version<T> explicitVersion, T value) {
         // Note that explicitVersion might be different from this.version.

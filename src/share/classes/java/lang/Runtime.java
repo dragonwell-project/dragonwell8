@@ -28,6 +28,10 @@ package java.lang;
 
 import java.io.*;
 import java.util.StringTokenizer;
+
+import com.alibaba.tenant.TenantContainer;
+import com.alibaba.tenant.TenantGlobals;
+
 import sun.reflect.CallerSensitive;
 import sun.reflect.Reflection;
 
@@ -209,7 +213,11 @@ public class Runtime {
         if (sm != null) {
             sm.checkPermission(new RuntimePermission("shutdownHooks"));
         }
-        ApplicationShutdownHooks.add(hook);
+        if(TenantGlobals.isDataIsolationEnabled() && null != TenantContainer.current()) {
+            TenantContainer.current().addShutdownHook(hook);
+        } else {
+            ApplicationShutdownHooks.add(hook);
+        }
     }
 
     /**
@@ -237,7 +245,11 @@ public class Runtime {
         if (sm != null) {
             sm.checkPermission(new RuntimePermission("shutdownHooks"));
         }
-        return ApplicationShutdownHooks.remove(hook);
+        if(TenantGlobals.isDataIsolationEnabled() && null != TenantContainer.current()) {
+            return TenantContainer.current().removeShutdownHook(hook);
+        } else {
+            return ApplicationShutdownHooks.remove(hook);
+        }
     }
 
     /**
