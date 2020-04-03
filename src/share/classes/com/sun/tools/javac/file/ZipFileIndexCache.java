@@ -25,6 +25,8 @@
 
 package com.sun.tools.javac.file;
 
+import com.alibaba.tenant.TenantContainer;
+import com.alibaba.tenant.TenantGlobals;
 import com.sun.tools.javac.file.RelativePath.RelativeDirectory;
 import com.sun.tools.javac.util.Context;
 import java.io.File;
@@ -34,6 +36,7 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.zip.ZipFile;
 
 
 /** A cache for ZipFileIndex objects. */
@@ -44,10 +47,17 @@ public class ZipFileIndexCache {
 
     /** Get a shared instance of the cache. */
     private static ZipFileIndexCache sharedInstance;
+
     public synchronized static ZipFileIndexCache getSharedInstance() {
-        if (sharedInstance == null)
-            sharedInstance = new ZipFileIndexCache();
-        return sharedInstance;
+        // sharedInstance was shared by all TenantContainers and never cleared, which would cause HUGE memory footprint.
+        if (TenantGlobals.isDataIsolationEnabled() && TenantContainer.current() != null) {
+            return TenantContainer.current()
+                    .getFieldValue(ZipFileIndexCache.class, "sharedInstance", ZipFileIndexCache::new);
+        } else {
+            if (sharedInstance == null)
+                sharedInstance = new ZipFileIndexCache();
+            return sharedInstance;
+        }
     }
 
     /** Get a context-specific instance of a cache. */

@@ -25,6 +25,8 @@
 
 package javax.tools;
 
+import com.alibaba.tenant.TenantContainer;
+import com.alibaba.tenant.TenantGlobals;
 import java.io.File;
 import java.lang.ref.Reference;
 import java.lang.ref.WeakReference;
@@ -138,9 +140,14 @@ public class ToolProvider {
     private static ToolProvider instance;
 
     private static synchronized ToolProvider instance() {
-        if (instance == null)
-            instance = new ToolProvider();
-        return instance;
+        if (TenantGlobals.isDataIsolationEnabled() && TenantContainer.current() != null) {
+            return TenantContainer.current()
+                    .getFieldValue(ToolProvider.class, "instance", ToolProvider::new);
+        } else {
+            if (instance == null)
+                instance = new ToolProvider();
+            return instance;
+        }
     }
 
     // Cache for tool classes.
