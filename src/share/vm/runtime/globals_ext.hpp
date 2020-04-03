@@ -111,7 +111,9 @@
                                                                             \
   product(bool, TenantCpuAccounting, false,                                 \
           "Enable cpu accounting per tenant")                               \
-
+                                                                            \
+  product(bool, TenantDataIsolation, false,                                 \
+          "Enable data isolation(e.g static vairable) per tenant")          \
 
   //add new AJVM specific flags here
 
