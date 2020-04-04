@@ -65,12 +65,12 @@ else
   BUILD_INDEX=b$BUILD_NUMBER
 fi
 
-DISTRO_VERSION=${DRAGONWELL_VERSION}-${BUILD_INDEX}
+DISTRO_VERSION=${DRAGONWELL_VERSION}
 
 shift
 
 bash ./configure --with-milestone=fcs \
-                 --with-build-number=${DRAGONWELL_JDK_BUILD_NUMBER} \
+                 --with-build-number=${BUILD_INDEX} \
                  --with-user-release-suffix="" \
                  --enable-unlimited-crypto \
                  --with-cacerts-file=`pwd`/common/security/cacerts \
