@@ -616,6 +616,7 @@ void SafepointSynchronize::do_cleanup_tasks() {
   if (UseGCLogFileRotation) {
     const char* name = "rotate gc log";
     EventSafepointCleanupTask event;
+    TraceTime t8("rotating gc logs", TraceSafepointCleanupTime);
     gclog_or_tty->rotate_log(false);
     event_safepoint_cleanup_task_commit(event, name);
   }

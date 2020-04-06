@@ -2591,6 +2591,12 @@ void G1CollectedHeap::collect(GCCause::Cause cause) {
           }
         }
       }
+    } else if (GC_locker::should_discard(cause, gc_count_before)) {
+      // Return to be consistent with VMOp failure due to another
+      // collection slipping in after our gc_count but before our
+      // request is processed.  _gc_locker collections upgraded by
+      // GCLockerInvokesConcurrent are handled above and never discarded.
+      return;
     } else {
       if (cause == GCCause::_gc_locker || cause == GCCause::_wb_young_gc
           || cause == GCCause::_g1_elastic_heap_trigger_gc
