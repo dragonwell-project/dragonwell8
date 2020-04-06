@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -42,6 +42,8 @@
 #include "jvm.h"
 #include "TimeZone_md.h"
 
+static char *isFileIdentical(char* buf, size_t size, char *pathname);
+
 #define SKIP_SPACE(p)   while (*p == ' ' || *p == '\t') p++;
 
 #if defined(_ALLBSD_SOURCE)
@@ -64,6 +66,8 @@ static const char *SYS_INIT_FILE = "/etc/default/init";
 static const char *ZONEINFO_DIR = "/usr/share/lib/zoneinfo";
 static const char *DEFAULT_ZONEINFO_FILE = "/usr/share/lib/zoneinfo/localtime";
 #endif /* defined(__linux__) || defined(_ALLBSD_SOURCE) */
+
+static const char popularZones[][4] = {"UTC", "GMT"};
 
 #if defined(_AIX)
 static const char *ETC_ENVIRONMENT_FILE = "/etc/environment";
@@ -114,13 +118,27 @@ static char *
 findZoneinfoFile(char *buf, size_t size, const char *dir)
 {
     DIR *dirp = NULL;
-    struct stat statbuf;
     struct dirent64 *dp = NULL;
     struct dirent64 *entry = NULL;
     char *pathname = NULL;
-    int fd = -1;
-    char *dbuf = NULL;
     char *tz = NULL;
+
+    if (strcmp(dir, ZONEINFO_DIR) == 0) {
+        /* fast path for 1st iteration */
+        unsigned int i;
+        for (i = 0; i < sizeof (popularZones) / sizeof (popularZones[0]); i++) {
+            pathname = getPathName(dir, popularZones[i]);
+            if (pathname == NULL) {
+                continue;
+            }
+            tz = isFileIdentical(buf, size, pathname);
+            free((void *) pathname);
+            pathname = NULL;
+            if (tz != NULL) {
+                return tz;
+            }
+        }
+    }
 
     dirp = opendir(dir);
     if (dirp == NULL) {
@@ -161,40 +179,14 @@ findZoneinfoFile(char *buf, size_t size, const char *dir)
         if (pathname == NULL) {
             break;
         }
-        if (stat(pathname, &statbuf) == -1) {
-            break;
-        }
 
-        if (S_ISDIR(statbuf.st_mode)) {
-            tz = findZoneinfoFile(buf, size, pathname);
-            if (tz != NULL) {
-                break;
-            }
-        } else if (S_ISREG(statbuf.st_mode) && (size_t)statbuf.st_size == size) {
-            dbuf = (char *) malloc(size);
-            if (dbuf == NULL) {
-                break;
-            }
-            if ((fd = open(pathname, O_RDONLY)) == -1) {
-                break;
-            }
-            if (read(fd, dbuf, size) != (ssize_t) size) {
-                break;
-            }
-            if (memcmp(buf, dbuf, size) == 0) {
-                tz = getZoneName(pathname);
-                if (tz != NULL) {
-                    tz = strdup(tz);
-                }
-                break;
-            }
-            free((void *) dbuf);
-            dbuf = NULL;
-            (void) close(fd);
-            fd = -1;
-        }
+        tz = isFileIdentical(buf, size, pathname);
+
         free((void *) pathname);
         pathname = NULL;
+        if (tz != NULL) {
+            break;
+        }
     }
 
     if (entry != NULL) {
@@ -203,16 +195,53 @@ findZoneinfoFile(char *buf, size_t size, const char *dir)
     if (dirp != NULL) {
         (void) closedir(dirp);
     }
-    if (pathname != NULL) {
-        free((void *) pathname);
+    return tz;
+}
+
+/*
+ * Checks if the file pointed to by pathname matches
+ * the data contents in buf.
+ * Returns a representation of the timezone file name
+ * if file match is found, otherwise NULL.
+ */
+static char *
+isFileIdentical(char *buf, size_t size, char *pathname)
+{
+    char *possibleMatch = NULL;
+    struct stat statbuf;
+    char *dbuf = NULL;
+    int fd = -1;
+    int res;
+
+    if (stat(pathname, &statbuf) == -1) {
+        return NULL;
     }
-    if (fd != -1) {
+
+    if (S_ISDIR(statbuf.st_mode)) {
+        possibleMatch  = findZoneinfoFile(buf, size, pathname);
+    } else if (S_ISREG(statbuf.st_mode) && (size_t)statbuf.st_size == size) {
+        dbuf = (char *) malloc(size);
+        if (dbuf == NULL) {
+            return NULL;
+        }
+        if ((fd = open(pathname, O_RDONLY)) == -1) {
+            goto freedata;
+        }
+        if (read(fd, dbuf, size) != (ssize_t) size) {
+            goto freedata;
+        }
+        if (memcmp(buf, dbuf, size) == 0) {
+            possibleMatch = getZoneName(pathname);
+            if (possibleMatch != NULL) {
+                possibleMatch = strdup(possibleMatch);
+            }
+        }
+        freedata:
+        free((void *) dbuf);
+        dbuf = NULL;
         (void) close(fd);
     }
-    if (dbuf != NULL) {
-        free((void *) dbuf);
-    }
-    return tz;
+    return possibleMatch;
 }
 
 #if defined(__linux__) || defined(MACOSX)

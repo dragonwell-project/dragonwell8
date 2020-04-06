@@ -108,4 +108,27 @@ public class GetPropertyAction implements PrivilegedAction<String> {
                     new GetPropertyAction(theProp));
         }
     }
+
+    /**
+     * Convenience method to get a property without going through doPrivileged
+     * if no security manager is present. This is unsafe for inclusion in a
+     * public API but allowable here since this class is now encapsulated.
+     *
+     * Note that this method performs a privileged action using caller-provided
+     * inputs. The caller of this method should take care to ensure that the
+     * inputs are not tainted and the returned property is not made accessible
+     * to untrusted code if it contains sensitive information.
+     *
+     * @param theProp the name of the system property.
+     * @param defaultVal the default value.
+     */
+    public static String privilegedGetProperty(String theProp,
+            String defaultVal) {
+        if (System.getSecurityManager() == null) {
+            return System.getProperty(theProp, defaultVal);
+        } else {
+            return AccessController.doPrivileged(
+                    new GetPropertyAction(theProp, defaultVal));
+        }
+    }
 }
