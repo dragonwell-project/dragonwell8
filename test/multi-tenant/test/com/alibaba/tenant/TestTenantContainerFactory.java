@@ -32,6 +32,8 @@ import static jdk.testlibrary.Asserts.*;
 
 /*
  * @test
+ * @requires os.family == "Linux"
+ * @requires os.arch == "amd64"
  * @library /lib/testlibrary
  * @summary test RCM API based TenantContainerFactory
  * @run main/othervm/bootclasspath -XX:+MultiTenant com.alibaba.tenant.TestTenantContainerFactory

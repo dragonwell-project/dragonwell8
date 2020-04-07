@@ -21,6 +21,8 @@
 import java.lang.reflect.Field;
 
 /* @test
+ * @requires os.family == "Linux"
+ * @requires os.arch == "amd64"
  * @summary test scenario where JGroup will not be initialized
  * @compile TestNoJGroupInit.java
  * @run main/othervm/timeout=300 -XX:+MultiTenant TestNoJGroupInit

@@ -31,6 +31,8 @@ import static java.nio.file.StandardOpenOption.WRITE;
 
 /*
  * @test
+ * @requires os.family == "Linux"
+ * @requires os.arch == "amd64"
  * @summary Test JGroup
  * @library /lib/testlibrary
  * @run main/othervm/bootclasspath -XX:+MultiTenant -XX:+TenantCpuAccounting -XX:+TenantCpuThrottling -XX:+UseG1GC -Xmx200m -Xms200m -Dcom.alibaba.tenant.DebugJGroup=true com.alibaba.tenant.TestJGroup

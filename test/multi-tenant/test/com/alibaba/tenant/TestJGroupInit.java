@@ -34,6 +34,8 @@ import static jdk.testlibrary.Asserts.*;
 
 /*
  * @test
+ * @requires os.family == "Linux"
+ * @requires os.arch == "amd64"
  * @summary Test initialization code of JGroup
  * @library /lib/testlibrary
  * @run main/othervm/bootclasspath -XX:+MultiTenant -XX:+TenantCpuThrottling -XX:+UseG1GC

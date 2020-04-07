@@ -37,6 +37,8 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.IntStream;
 
 /* @test
+ * @requires os.family == "Linux"
+ * @requires os.arch == "amd64"
  * @summary unit tests for com.alibaba.tenant.TenantContainer
  * @library /lib/testlibrary
  * @compile TestTenantContainer.java

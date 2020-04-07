@@ -28,6 +28,8 @@ import com.alibaba.tenant.TenantGlobals;
 import static org.junit.Assert.*;
 
 /* @test
+ * @requires os.family == "Linux"
+ * @requires os.arch == "amd64"
  * @summary unit tests for com.alibaba.tenant.TenantGlobals
  * @library /lib/testlibrary
  * @compile TestTenantGlobals.java

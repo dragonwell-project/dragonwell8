@@ -23,6 +23,8 @@
 
 #
 # @test TestJGroupDebugMode.sh
+# @requires os.family == "Linux"
+# @requires os.arch == "amd64"
 # @summary test debugging mode of JGroup native implementation
 # @run shell/timeout=300 TestJGroupDebugMode.sh
 #

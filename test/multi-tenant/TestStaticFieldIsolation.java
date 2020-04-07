@@ -1,6 +1,8 @@
 
 /*
  * @test
+ * @requires os.family == "Linux"
+ * @requires os.arch == "amd64"
  * @summary Test isolation of various static fields
  * @library /lib/testlibrary
  * @run main/othervm -XX:+UseG1GC -XX:+MultiTenant -XX:+TenantDataIsolation TestStaticFieldIsolation

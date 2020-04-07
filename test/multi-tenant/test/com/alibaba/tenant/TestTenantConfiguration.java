@@ -21,6 +21,8 @@
 package com.alibaba.tenant;
 
 /* @test
+ * @requires os.family == "Linux"
+ * @requires os.arch == "amd64"
  * @summary test TenantConfiguration facilities
  * @library /lib/testlibrary
  * @run main/othervm/bootclasspath -XX:+MultiTenant -XX:+UseG1GC -XX:+TenantCpuThrottling

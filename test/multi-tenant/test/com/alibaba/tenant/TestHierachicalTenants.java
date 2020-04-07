@@ -27,6 +27,8 @@ import static jdk.testlibrary.Asserts.*;
 
 /*
  * @test
+ * @requires os.family == "Linux"
+ * @requires os.arch == "amd64"
  * @summary Test hierarchical tenants support
  * @library /lib/testlibrary
  * @run main/othervm/bootclasspath -XX:+MultiTenant -XX:+TenantCpuThrottling -Xmx200m -Xms200m

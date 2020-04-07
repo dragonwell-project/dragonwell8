@@ -32,6 +32,8 @@ import static jdk.testlibrary.Asserts.*;
 
 /*
  * @test
+ * @requires os.family == "Linux"
+ * @requires os.arch == "amd64"
  * @summary test.com.alibaba.tenant.TestCpuCfsThrottling
  * @library /lib/testlibrary
  * @run main/othervm/bootclasspath -Xint -XX:+MultiTenant -XX:+TenantCpuThrottling -XX:+TenantCpuAccounting

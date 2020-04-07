@@ -21,6 +21,8 @@
 
 /*
  * @test
+ * @requires os.family == "Linux"
+ * @requires os.arch == "amd64"
  * @summary Test data structure integrity while access TenantContainer.tenantContainerMap concurrently
  * @library /lib/testlibrary
  * @build TestGetAllTenantIDs

@@ -15,6 +15,8 @@ import com.alibaba.tenant.TenantContainer;
 import com.alibaba.tenant.TenantException;
 
 /* @test
+ * @requires os.family == "Linux"
+ * @requires os.arch == "amd64"
  * @summary JMX related unit tests
  * @library /lib/testlibrary
  * @compile TestJMX.java
