@@ -22,6 +22,8 @@
 
 #
 # @test TestParGCAllocatorLeak.sh
+# @requires os.family == "Linux"
+# @requires os.arch == "amd64"
 # @summary test memory leak of G1ParGCAllocator
 # @run shell TestParGCAllocatorLeak.sh
 #

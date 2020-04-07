@@ -22,6 +22,8 @@
 
 /*
  * @test
+ * @requires os.family == "Linux"
+ * @requires os.arch == "amd64"
  * @summary Test TenantContainer.containOf() to retrieve tenant container of a Java object
  * @library /testlibrary
  * @build TestContainerOf

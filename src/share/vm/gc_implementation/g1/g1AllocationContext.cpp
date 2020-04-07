@@ -20,6 +20,7 @@
  *
  */
 
+#include "precompiled.hpp"
 #include "gc_implementation/g1/g1AllocationContext.hpp"
 #include "runtime/thread.hpp"
 

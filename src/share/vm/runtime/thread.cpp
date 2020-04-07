@@ -3974,11 +3974,13 @@ jint Threads::create_vm(JavaVMInitArgs* args, bool* canTryAgain) {
       }
   }
 
+#if (defined(LINUX) && defined(AMD64))
   if (MultiTenant && (TenantCpuThrottling || TenantCpuAccounting)) {
     // JGroup initialization may involve complex steps
     // have to do that after full JVM initialization
     call_initializeJGroupClass(CHECK_0);
   }
+#endif
 
   create_vm_timer.end();
 #ifdef ASSERT

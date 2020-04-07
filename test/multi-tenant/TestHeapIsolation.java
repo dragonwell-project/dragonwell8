@@ -23,6 +23,8 @@
 
 /*
  * @test
+ * @requires os.family == "Linux"
+ * @requires os.arch == "amd64"
  * @summary Test isolation of per-tenant Java heap space
  * @library /testlibrary /testlibrary/whitebox
  * @build TestHeapIsolation

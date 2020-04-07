@@ -22,6 +22,8 @@
 
 /*
  * @test
+ * @requires os.family == "Linux"
+ * @requires os.arch == "amd64"
  * @summary Test retain and reuse of TLAB
  * @library /testlibrary /testlibrary/whitebox
  * @build TestPerTenantTLAB

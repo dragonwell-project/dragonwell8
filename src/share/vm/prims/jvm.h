@@ -372,7 +372,7 @@ JVM_DestroyTenantAllocationContext(JNIEnv *env, jobject ignored, jlong context);
 JNIEXPORT jobject JNICALL
 JVM_TenantContainerOf(JNIEnv *env, jclass tenantContainerClass, jobject obj);
 
-JNIEXPORT long JNICALL
+JNIEXPORT jlong JNICALL
 JVM_GetTenantOccupiedMemory(JNIEnv *env, jobject ignored, jlong context);
 
 /*

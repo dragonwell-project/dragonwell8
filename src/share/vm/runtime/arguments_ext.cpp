@@ -20,11 +20,18 @@
  *
  */
 
+#include "precompiled.hpp"
 #include "runtime/arguments_ext.hpp"
 #include "runtime/java.hpp"
 
 void ArgumentsExt::set_tenant_flags() {
   // order is critical here, please be careful
+#if !(defined(LINUX) && defined(AMD64))
+  if (TenantCpuThrottling || TenantCpuAccounting
+      || TenantHeapIsolation || TenantHeapThrottling || MultiTenant) {
+    vm_exit_during_initialization("MultiTenant only works on Linux x64 platform");
+  }
+#endif
 
   // TenantHeapThrottling directly depends on TenantHeapIsolation
   if (TenantHeapThrottling) {

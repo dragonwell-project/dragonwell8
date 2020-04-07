@@ -3353,7 +3353,7 @@ bool com_alibaba_tenant_TenantContainer::is_dead(oop obj) {
 
 oop com_alibaba_tenant_TenantContainer::get_tenant_state(oop obj) {
   assert(obj != NULL, "TenantContainer object cannot be NULL");
-  obj->obj_field(_tenant_state_offset);
+  return obj->obj_field(_tenant_state_offset);
 }
 
 // Support for com.alibaba.tenant.TenantState
@@ -3380,6 +3380,7 @@ int com_alibaba_tenant_TenantState::state_of(oop tenant_obj) {
   }
 
   ShouldNotReachHere();
+  return -1;
 }
 
 #endif // INCLUDE_ALL_GCS

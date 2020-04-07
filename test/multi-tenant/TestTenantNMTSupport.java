@@ -23,6 +23,8 @@
 
 /*
  * @test
+ * @requires os.family == "Linux"
+ * @requires os.arch == "amd64"
  * @summary Verify PrintNMTStatistics with TenantHeapThrottling enabled
  * @library /testlibrary
  */

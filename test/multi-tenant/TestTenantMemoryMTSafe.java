@@ -23,6 +23,8 @@
 
 /*
  * @test
+ * @requires os.family == "Linux"
+ * @requires os.arch == "amd64"
  * @summary TestTenantMemoryMTSafe
  * @library /testlibrary /testlibrary/whitebox
  * @build TestTenantMemoryMTSafe sun.hotspot.WhiteBox

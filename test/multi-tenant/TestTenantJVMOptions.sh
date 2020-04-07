@@ -22,6 +22,8 @@
 
 #
 # @test TestTenantJVMOptions
+# @requires os.family == "Linux"
+# @requires os.arch == "amd64"
 # @summary Test the dependencies of multi-tenant JVM options
 # @run shell TestTenantJVMOptions.sh
 #

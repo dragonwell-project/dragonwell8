@@ -23,6 +23,8 @@
 
 /*
  * @test
+ * @requires os.family == "Linux"
+ * @requires os.arch == "amd64"
  * @summary Test heap limit on tenant
  * @library /testlibrary /testlibrary/whitebox
  * @build TestTenantHeapLimit
