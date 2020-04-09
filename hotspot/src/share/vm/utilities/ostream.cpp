@@ -27,6 +27,7 @@
 #include "gc_implementation/shared/gcId.hpp"
 #include "oops/oop.inline.hpp"
 #include "runtime/arguments.hpp"
+#include "runtime/mutexLocker.hpp"
 #include "runtime/os.hpp"
 #include "utilities/defaultStream.hpp"
 #include "utilities/ostream.hpp"
@@ -794,9 +795,11 @@ gcLogFileStream::~gcLogFileStream() {
     FREE_C_HEAP_ARRAY(char, _file_name, mtInternal);
     _file_name = NULL;
   }
+
+  delete _file_lock;
 }
 
-gcLogFileStream::gcLogFileStream(const char* file_name) {
+gcLogFileStream::gcLogFileStream(const char* file_name) : _file_lock(NULL) {
   _cur_file_num = 0;
   _bytes_written = 0L;
   _file_name = make_log_name(file_name, NULL);
@@ -819,6 +822,10 @@ gcLogFileStream::gcLogFileStream(const char* file_name) {
   if (_file != NULL) {
     _need_close = true;
     dump_loggc_header();
+
+    if (UseGCLogFileRotation) {
+      _file_lock = new Mutex(Mutex::leaf, "GCLogFile");
+    }
   } else {
     warning("Cannot open file %s due to %s\n", _file_name, strerror(errno));
     _need_close = false;
@@ -827,21 +834,54 @@ gcLogFileStream::gcLogFileStream(const char* file_name) {
 
 void gcLogFileStream::write(const char* s, size_t len) {
   if (_file != NULL) {
-    size_t count = fwrite(s, 1, len, _file);
-    _bytes_written += count;
+    // we can't use Thread::current() here because thread may be NULL
+    // in early stage(ostream_init_log)
+    Thread* thread = ThreadLocalStorage::thread();
+
+    // avoid the mutex in the following cases
+    // 1) ThreadLocalStorage::thread() hasn't been initialized
+    // 2) _file_lock is not in use.
+    // 3) current() is VMThread and its reentry flag is set
+    if (!thread || !_file_lock || (thread->is_VM_thread()
+                               && ((VMThread* )thread)->is_gclog_reentry())) {
+      size_t count = fwrite(s, 1, len, _file);
+      _bytes_written += count;
+    }
+    else {
+      MutexLockerEx ml(_file_lock, Mutex::_no_safepoint_check_flag);
+      size_t count = fwrite(s, 1, len, _file);
+      _bytes_written += count;
+    }
   }
   update_position(s, len);
 }
 
-// rotate_log must be called from VMThread at safepoint. In case need change parameters
+// rotate_log must be called from VMThread at a safepoint. In case need change parameters
 // for gc log rotation from thread other than VMThread, a sub type of VM_Operation
 // should be created and be submitted to VMThread's operation queue. DO NOT call this
-// function directly. Currently, it is safe to rotate log at safepoint through VMThread.
-// That is, no mutator threads and concurrent GC threads run parallel with VMThread to
-// write to gc log file at safepoint. If in future, changes made for mutator threads or
-// concurrent GC threads to run parallel with VMThread at safepoint, write and rotate_log
-// must be synchronized.
+// function directly. It is safe to rotate log through VMThread because
+// no mutator threads run concurrently with the VMThread, and GC threads that run
+// concurrently with the VMThread are synchronized in write and rotate_log via _file_lock.
+// rotate_log can write log entries, so write supports reentry for it.
 void gcLogFileStream::rotate_log(bool force, outputStream* out) {
+ #ifdef ASSERT
+   Thread *thread = Thread::current();
+   assert(thread == NULL ||
+          (thread->is_VM_thread() && SafepointSynchronize::is_at_safepoint()),
+          "Must be VMThread at safepoint");
+ #endif
+
+  VMThread* vmthread = VMThread::vm_thread();
+  {
+    // nop if _file_lock is NULL.
+    MutexLockerEx ml(_file_lock, Mutex::_no_safepoint_check_flag);
+    vmthread->set_gclog_reentry(true);
+    rotate_log_impl(force, out);
+    vmthread->set_gclog_reentry(false);
+  }
+}
+
+void gcLogFileStream::rotate_log_impl(bool force, outputStream* out) {
   char time_msg[O_BUFLEN];
   char time_str[EXTRACHARLEN];
   char current_file_name[JVM_MAXPATHLEN];
@@ -851,12 +891,6 @@ void gcLogFileStream::rotate_log(bool force, outputStream* out) {
     return;
   }
 
-#ifdef ASSERT
-  Thread *thread = Thread::current();
-  assert(thread == NULL ||
-         (thread->is_VM_thread() && SafepointSynchronize::is_at_safepoint()),
-         "Must be VMThread at safepoint");
-#endif
   if (NumberOfGCLogFiles == 1) {
     // rotate in same file
     rewind();

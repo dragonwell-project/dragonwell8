@@ -209,8 +209,9 @@ void VMOperationQueue::oops_do(OopClosure* f) {
 //------------------------------------------------------------------------------------------------------------------
 // Implementation of VMThread stuff
 
-bool                VMThread::_should_terminate   = false;
+bool              VMThread::_should_terminate   = false;
 bool              VMThread::_terminated         = false;
+bool              VMThread::_gclog_reentry      = false;
 Monitor*          VMThread::_terminate_lock     = NULL;
 VMThread*         VMThread::_vm_thread          = NULL;
 VM_Operation*     VMThread::_cur_vm_operation   = NULL;
