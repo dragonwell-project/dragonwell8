@@ -29,6 +29,7 @@
 #include "runtime/arguments.hpp"
 #include "runtime/mutexLocker.hpp"
 #include "runtime/os.hpp"
+#include "runtime/vmThread.hpp"
 #include "utilities/defaultStream.hpp"
 #include "utilities/ostream.hpp"
 #include "utilities/top.hpp"
