@@ -146,7 +146,7 @@ public class TsacertOptionTest {
 
             // sign jar file
             // specify -tsadigestalg option because
-            // TSA server uses SHA-1 digest algorithm
+            // TSA server uses SHA-512 digest algorithm
              OutputAnalyzer analyzer = ProcessTools.executeCommand(JARSIGNER,
                     "-J-Dhttp.proxyHost=",
                     "-J-Dhttp.proxyPort=",
@@ -157,7 +157,7 @@ public class TsacertOptionTest {
                     "-keypass", PASSWORD,
                     "-signedjar", SIGNED_JARFILE,
                     "-tsacert", TSA_KEY_ALIAS,
-                    "-tsadigestalg", "SHA-1",
+                    "-tsadigestalg", "SHA-512",
                     UNSIGNED_JARFILE,
                     SIGNING_KEY_ALIAS);
 

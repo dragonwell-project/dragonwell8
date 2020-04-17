@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2009, 2012, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2009, 2020, Oracle and/or its affiliates. All rights reserved.
 # DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 #
 # This code is free software; you can redistribute it and/or modify it
@@ -69,7 +69,7 @@ $KT -alias x -dname CN=x -keyalg ec -genkey -validity 300 || exit 14
 $KT -alias x -certreq | $KT -gencert -alias ca -validity 300 | $KT -import -alias x || exit 141
 
 $JARSIGNER -keystore $KS -storepass changeit $JFILE a -debug -strict || exit 21
-$JARSIGNER -keystore $KS -storepass changeit $JFILE b -debug -strict -sigalg SHA1withECDSA || exit 22
+$JARSIGNER -keystore $KS -storepass changeit $JFILE b -debug -strict -sigalg SHA256withECDSA || exit 22
 $JARSIGNER -keystore $KS -storepass changeit $JFILE c -debug -strict -sigalg SHA512withECDSA || exit 23
 
 $JARSIGNER -keystore $KS -storepass changeit -verify $JFILE a -debug -strict || exit 31

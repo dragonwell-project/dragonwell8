@@ -184,6 +184,10 @@ public final class Main {
             new DisabledAlgorithmConstraints(
                     DisabledAlgorithmConstraints.PROPERTY_CERTPATH_DISABLED_ALGS);
 
+    private static final DisabledAlgorithmConstraints LEGACY_CHECK =
+            new DisabledAlgorithmConstraints(
+                    DisabledAlgorithmConstraints.PROPERTY_SECURITY_LEGACY_ALGS);
+
     private static final Set<CryptoPrimitive> SIG_PRIMITIVE_SET = Collections
             .unmodifiableSet(EnumSet.of(CryptoPrimitive.SIGNATURE));
 
@@ -3086,9 +3090,13 @@ public final class Main {
 
     private String withWeak(String alg) {
         if (DISABLED_CHECK.permits(SIG_PRIMITIVE_SET, alg, null)) {
-            return alg;
+            if (LEGACY_CHECK.permits(SIG_PRIMITIVE_SET, alg, null)) {
+                return alg;
+            } else {
+                return String.format(rb.getString("with.weak"), alg);
+            }
         } else {
-            return String.format(rb.getString("with.weak"), alg);
+            return String.format(rb.getString("with.disabled"), alg);
         }
     }
 
@@ -3104,18 +3112,20 @@ public final class Main {
     }
 
     private String withWeak(PublicKey key) {
+        int kLen = KeyUtil.getKeySize(key);
+        String displayAlg = fullDisplayAlgName(key);
         if (DISABLED_CHECK.permits(SIG_PRIMITIVE_SET, key)) {
-            int kLen = KeyUtil.getKeySize(key);
-            if (kLen >= 0) {
-                return String.format(rb.getString("key.bit"),
-                        kLen, key.getAlgorithm());
+            if (LEGACY_CHECK.permits(SIG_PRIMITIVE_SET, key)) {
+                if (kLen >= 0) {
+                    return String.format(rb.getString("key.bit"), kLen, displayAlg);
+                } else {
+                    return String.format(rb.getString("unknown.size.1"), displayAlg);
+                }
             } else {
-                return String.format(
-                        rb.getString("unknown.size.1"), key.getAlgorithm());
+                return String.format(rb.getString("key.bit.weak"), kLen, displayAlg);
             }
         } else {
-            return String.format(rb.getString("key.bit.weak"),
-                    KeyUtil.getKeySize(key), key.getAlgorithm());
+            return String.format(rb.getString("key.bit.disabled"), kLen, displayAlg);
         }
     }
 
@@ -4370,18 +4380,28 @@ public final class Main {
     }
 
     private void checkWeak(String label, String sigAlg, Key key) {
-
-        if (sigAlg != null && !DISABLED_CHECK.permits(
-                SIG_PRIMITIVE_SET, sigAlg, null)) {
-            weakWarnings.add(String.format(
-                    rb.getString("whose.sigalg.risk"), label, sigAlg));
+        if (sigAlg != null) {
+            if (!DISABLED_CHECK.permits(SIG_PRIMITIVE_SET, sigAlg, null)) {
+                weakWarnings.add(String.format(
+                    rb.getString("whose.sigalg.disabled"), label, sigAlg));
+            } else if (!LEGACY_CHECK.permits(SIG_PRIMITIVE_SET, sigAlg, null)) {
+                weakWarnings.add(String.format(
+                    rb.getString("whose.sigalg.weak"), label, sigAlg));
+            }
         }
-        if (key != null && !DISABLED_CHECK.permits(SIG_PRIMITIVE_SET, key)) {
-            weakWarnings.add(String.format(
-                    rb.getString("whose.key.risk"),
-                    label,
+
+        if (key != null) {
+            if (!DISABLED_CHECK.permits(SIG_PRIMITIVE_SET, key)) {
+                weakWarnings.add(String.format(
+                    rb.getString("whose.key.disabled"), label,
                     String.format(rb.getString("key.bit"),
-                            KeyUtil.getKeySize(key), fullDisplayAlgName(key))));
+                    KeyUtil.getKeySize(key), fullDisplayAlgName(key))));
+            } else if (!LEGACY_CHECK.permits(SIG_PRIMITIVE_SET, key)) {
+                weakWarnings.add(String.format(
+                    rb.getString("whose.key.weak"), label,
+                    String.format(rb.getString("key.bit"),
+                    KeyUtil.getKeySize(key), fullDisplayAlgName(key))));
+            }
         }
     }
 
