@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2012, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2020 SAP SE. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,8 +29,7 @@
 #include "os_aix.inline.hpp"
 #include "runtime/os.hpp"
 #include "runtime/os_perf.hpp"
-
-#include CPU_HEADER(vm_version_ext)
+#include "vm_version_ext_ppc.hpp"
 
 #include <stdio.h>
 #include <stdarg.h>
@@ -179,32 +179,6 @@ format:       %d %s %c %d %d %d %d %d %lu %lu %lu %lu %lu %lu %lu %ld %ld %ld %l
 
 */
 
-/**
- * For platforms that have them, when declaring
- * a printf-style function,
- *   formatSpec is the parameter number (starting at 1)
- *       that is the format argument ("%d pid %s")
- *   params is the parameter number where the actual args to
- *       the format starts. If the args are in a va_list, this
- *       should be 0.
- */
-#ifndef PRINTF_ARGS
-#  define PRINTF_ARGS(formatSpec,  params) ATTRIBUTE_PRINTF(formatSpec, params)
-#endif
-
-#ifndef SCANF_ARGS
-#  define SCANF_ARGS(formatSpec,   params) ATTRIBUTE_SCANF(formatSpec, params)
-#endif
-
-#ifndef _PRINTFMT_
-#  define _PRINTFMT_
-#endif
-
-#ifndef _SCANFMT_
-#  define _SCANFMT_
-#endif
-
-
 struct CPUPerfTicks {
   uint64_t  used;
   uint64_t  usedKernel;
@@ -234,7 +208,7 @@ static double get_cpu_load(int which_logical_cpu, CPUPerfCounters* counters, dou
 /** reads /proc/<pid>/stat data, with some checks and some skips.
  *  Ensure that 'fmt' does _NOT_ contain the first two "%d %s"
  */
-static int SCANF_ARGS(2, 0) vread_statdata(const char* procfile, _SCANFMT_ const char* fmt, va_list args) {
+static int vread_statdata(const char* procfile, const char* fmt, va_list args) {
   FILE*f;
   int n;
   char buf[2048];
@@ -263,7 +237,7 @@ static int SCANF_ARGS(2, 0) vread_statdata(const char* procfile, _SCANFMT_ const
   return n;
 }
 
-static int SCANF_ARGS(2, 3) read_statdata(const char* procfile, _SCANFMT_ const char* fmt, ...) {
+static int read_statdata(const char* procfile, const char* fmt, ...) {
   int   n;
   va_list args;
 
@@ -472,7 +446,7 @@ static double get_cpu_load(int which_logical_cpu, CPUPerfCounters* counters, dou
   return user_load;
 }
 
-static int SCANF_ARGS(1, 2) parse_stat(_SCANFMT_ const char* fmt, ...) {
+static int parse_stat(const char* fmt, ...) {
   FILE *f;
   va_list args;
 
@@ -609,7 +583,7 @@ bool CPUPerformanceInterface::CPUPerformance::initialize() {
 
 CPUPerformanceInterface::CPUPerformance::~CPUPerformance() {
   if (_counters.cpus != NULL) {
-    FREE_C_HEAP_ARRAY(char, _counters.cpus);
+    FREE_C_HEAP_ARRAY(char, _counters.cpus, mtInternal);
   }
 }
 
@@ -886,7 +860,7 @@ int SystemProcessInterface::SystemProcesses::ProcessIterator::current(SystemProc
   cmdline = get_cmdline();
   if (cmdline != NULL) {
     process_info->set_command_line(allocate_string(cmdline));
-    FREE_C_HEAP_ARRAY(char, cmdline);
+    FREE_C_HEAP_ARRAY(char, cmdline, mtInternal);
   }
 
   return OS_OK;
@@ -1011,12 +985,12 @@ CPUInformationInterface::~CPUInformationInterface() {
   if (_cpu_info != NULL) {
     if (_cpu_info->cpu_name() != NULL) {
       const char* cpu_name = _cpu_info->cpu_name();
-      FREE_C_HEAP_ARRAY(char, cpu_name);
+      FREE_C_HEAP_ARRAY(char, cpu_name, mtInternal);
       _cpu_info->set_cpu_name(NULL);
     }
     if (_cpu_info->cpu_description() != NULL) {
        const char* cpu_desc = _cpu_info->cpu_description();
-       FREE_C_HEAP_ARRAY(char, cpu_desc);
+       FREE_C_HEAP_ARRAY(char, cpu_desc, mtInternal);
       _cpu_info->set_cpu_description(NULL);
     }
     delete _cpu_info;
