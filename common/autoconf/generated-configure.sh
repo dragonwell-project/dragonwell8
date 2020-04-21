@@ -4394,7 +4394,7 @@ VS_SDK_PLATFORM_NAME_2017=
 #CUSTOM_AUTOCONF_INCLUDE
 
 # Do not change or remove the following line, it is needed for consistency checks:
-DATE_WHEN_GENERATED=1583241599
+DATE_WHEN_GENERATED=1585655585
 
 ###############################################################################
 #
@@ -19836,6 +19836,8 @@ fi
   elif test "x$enable_jfr" = "xyes" ; then
     if test "x$JVM_VARIANT_MINIMAL1" = "xtrue" -o "x$JVM_VARIANT_ZERO" = "xtrue"; then
       as_fn_error $? "cannot enable JFR on minimal1 VM or zero build" "$LINENO" 5
+    elif test "x$OPENJDK_TARGET_OS" = xaix; then
+      as_fn_error $? "AIX does not support JFR" "$LINENO" 5
     else
       ENABLE_JFR=true
     fi
