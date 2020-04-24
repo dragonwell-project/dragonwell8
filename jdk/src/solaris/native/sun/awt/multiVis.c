@@ -401,7 +401,7 @@ list_ptr regions;/* list of regions to read from */
     ximage = XCreateImage(disp,fakeVis,(uint32_t) depth,format,0,NULL,
                           (uint32_t)width,(uint32_t)height,8,0);
 
-    ximage->data = calloc(ximage->bytes_per_line*height*((format==ZPixmap)? 1 : depth), sizeof(char));
+    ximage->data = calloc((size_t) ximage->bytes_per_line*height*((format==ZPixmap)? 1 : depth), sizeof(char));
     ximage->bits_per_pixel = depth; /** Valid only if format is ZPixmap ***/
 
     for (reg = (image_region_type *) first_in_list( regions); reg;

@@ -610,7 +610,7 @@ final public class SSLSocketImpl extends BaseSSLSocketImpl {
      */
     private void init(SSLContextImpl context, boolean isServer) {
         sslContext = context;
-        sess = SSLSessionImpl.nullSession;
+        sess = new SSLSessionImpl();
         handshakeSession = null;
 
         /*

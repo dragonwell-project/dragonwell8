@@ -1337,7 +1337,7 @@ final class ClientHandshaker extends Handshaker {
     @Override
     HandshakeMessage getKickstartMessage() throws SSLException {
         // session ID of the ClientHello message
-        SessionId sessionId = SSLSessionImpl.nullSession.getSessionId();
+        SessionId sessionId = new SessionId(new byte[0]);
 
         // a list of cipher suites sent by the client
         CipherSuiteList cipherSuites = getActiveCipherSuites();
