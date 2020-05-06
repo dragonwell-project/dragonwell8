@@ -85,7 +85,7 @@ class JDK_Version VALUE_OBJ_CLASS_SPEC {
   uint8_t _major;
   uint8_t _minor;
   uint8_t _micro;
-  uint8_t _update;
+  uint16_t _update;
   uint8_t _special;
   uint8_t _build;
 
@@ -121,7 +121,7 @@ class JDK_Version VALUE_OBJ_CLASS_SPEC {
                   _pending_list_uses_discovered_field(false) {}
 
   JDK_Version(uint8_t major, uint8_t minor = 0, uint8_t micro = 0,
-              uint8_t update = 0, uint8_t special = 0, uint8_t build = 0,
+              uint16_t update = 0, uint8_t special = 0, uint8_t build = 0,
               bool thread_park_blocker = false, bool post_vm_init_hook_enabled = false,
               bool pending_list_uses_discovered_field = false) :
       _major(major), _minor(minor), _micro(micro), _update(update),
@@ -145,7 +145,7 @@ class JDK_Version VALUE_OBJ_CLASS_SPEC {
   uint8_t major_version() const          { return _major; }
   uint8_t minor_version() const          { return _minor; }
   uint8_t micro_version() const          { return _micro; }
-  uint8_t update_version() const         { return _update; }
+  uint16_t update_version() const        { return _update; }
   uint8_t special_update_version() const { return _special; }
   uint8_t build_number() const           { return _build; }
 
