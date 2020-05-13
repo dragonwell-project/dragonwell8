@@ -163,7 +163,7 @@ define SetupLauncher
           -DLAUNCHER_NAME='"$(LAUNCHER_NAME)"' \
           -DPROGNAME='"$1"' $(DPACKAGEPATH) \
           $2, \
-      CFLAGS_solaris := -KPIC -DHAVE_GETHRTIME, \
+      CFLAGS_solaris := -KPIC, \
       LDFLAGS := $(LDFLAGS_JDKEXE) \
           $(ORIGIN_ARG) \
           $$($1_LDFLAGS), \
