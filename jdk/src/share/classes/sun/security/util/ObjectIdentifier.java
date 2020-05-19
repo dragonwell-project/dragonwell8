@@ -28,6 +28,7 @@ package sun.security.util;
 import java.io.*;
 import java.math.BigInteger;
 import java.util.Arrays;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Represent an ISO Object Identifier.
@@ -354,6 +355,39 @@ class ObjectIdentifier implements Serializable
             throw new RuntimeException(ex);
             // Should not happen, internal calls always uses legal values.
         }
+    }
+
+    // oid cache index'ed by the oid string
+    private static ConcurrentHashMap<String,ObjectIdentifier> oidTable =
+            new ConcurrentHashMap<>();
+
+    public static ObjectIdentifier of(String oidStr) throws IOException {
+        // check cache first
+        ObjectIdentifier oid = oidTable.get(oidStr);
+        if (oid == null) {
+            oid = new ObjectIdentifier(oidStr);
+            oidTable.put(oidStr, oid);
+        }
+        return oid;
+    }
+
+    /**
+     * Returns an ObjectIdentifier instance for the specific KnownOIDs.
+     */
+    public static ObjectIdentifier of(KnownOIDs o) {
+        // check cache first
+        String oidStr = o.value();
+        ObjectIdentifier oid = oidTable.get(oidStr);
+        if (oid == null) {
+            try {
+                oid = new ObjectIdentifier(oidStr);
+            } catch (IOException ioe) {
+                // should not happen as oid string for KnownOIDs is internal
+                throw new RuntimeException(ioe);
+            }
+            oidTable.put(oidStr, oid);
+        }
+        return oid;
     }
 
     /*
