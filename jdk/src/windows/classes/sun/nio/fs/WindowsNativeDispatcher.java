@@ -1123,7 +1123,12 @@ class WindowsNativeDispatcher {
 
     private static final Unsafe unsafe = Unsafe.getUnsafe();
 
-    static NativeBuffer asNativeBuffer(String s) {
+    static NativeBuffer asNativeBuffer(String s) throws WindowsException {
+        if (s.length() > (Integer.MAX_VALUE - 2)/2) {
+            throw new WindowsException
+                ("String too long to convert to native buffer");
+        }
+
         int stringLengthInBytes = s.length() << 1;
         int sizeInBytes = stringLengthInBytes + 2;  // char terminator
 
