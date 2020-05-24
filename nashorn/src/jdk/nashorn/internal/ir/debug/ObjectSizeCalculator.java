@@ -396,7 +396,8 @@ public final class ObjectSizeCalculator {
      */
     public static MemoryLayoutSpecification getEffectiveMemoryLayoutSpecification() {
         final String vmName = System.getProperty("java.vm.name");
-        if (vmName == null || !vmName.startsWith("Java HotSpot(TM) ")) {
+        if (vmName == null
+            || (!vmName.startsWith("OpenJDK ") && !vmName.startsWith("Java HotSpot(TM) "))) {
             throw new UnsupportedOperationException(
                     "ObjectSizeCalculator only supported on HotSpot VM");
         }
