@@ -180,6 +180,7 @@ public:
   static void complete_monitor_locking_C(oopDesc* obj, BasicLock* lock, JavaThread* thread);
   static void complete_monitor_unlocking_C(oopDesc* obj, BasicLock* lock);
   static void complete_wisp_monitor_unlocking_C(oopDesc* obj, BasicLock* lock, JavaThread* thread);
+  static void complete_wisp_proxy_monitor_unlocking_C(oopDesc* obj, BasicLock* lock);
 
   // JFR support
   static void jfr_fast_object_alloc_C(oopDesc* obj, jint bci, JavaThread* thread);
@@ -282,6 +283,7 @@ private:
   static const TypeFunc* g1_wb_post_Type();
   static const TypeFunc* complete_monitor_enter_Type();
   static const TypeFunc* complete_monitor_exit_Type();
+  static const TypeFunc* complete_wisp_monitor_exit_Type();
   static const TypeFunc* uncommon_trap_Type();
   static const TypeFunc* athrow_Type();
   static const TypeFunc* rethrow_Type();

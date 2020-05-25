@@ -1521,19 +1521,23 @@ LEAF(MonitorEnter, AccessMonitor)
 
 
 LEAF(MonitorExit, AccessMonitor)
+ private:
+  bool _at_method_return;
  public:
   // creation
   MonitorExit(Value obj, int monitor_no)
-  : AccessMonitor(obj, monitor_no, NULL)
+  : AccessMonitor(obj, monitor_no, NULL), _at_method_return(false)
   {
     ASSERT_VALUES
   }
 
-  MonitorExit(Value obj, int monitor_no, ValueStack* state_before)
-  : AccessMonitor(obj, monitor_no, state_before)
+  MonitorExit(Value obj, int monitor_no, ValueStack* state_before, bool at_method_return)
+  : AccessMonitor(obj, monitor_no, state_before), _at_method_return(at_method_return)
   {
     ASSERT_VALUES
   }
+ public:
+  bool at_method_return() const { return _at_method_return; }
 };
 
 

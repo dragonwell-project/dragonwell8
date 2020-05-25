@@ -679,16 +679,16 @@ void LIRGenerator::monitor_enter(LIR_Opr object, LIR_Opr lock, LIR_Opr hdr, LIR_
 }
 
 
-void LIRGenerator::monitor_exit(LIR_Opr object, LIR_Opr lock, LIR_Opr new_hdr, LIR_Opr scratch, int monitor_no, CodeEmitInfo* info_for_exception, CodeEmitInfo* info) {
+void LIRGenerator::monitor_exit(LIR_Opr object, LIR_Opr lock, LIR_Opr new_hdr, LIR_Opr scratch, int monitor_no, CodeEmitInfo* info_for_exception, CodeEmitInfo* info, bool at_method_return) {
   if (!GenerateSynchronizationCode) return;
   // setup registers
   LIR_Opr hdr = lock;
   lock = new_hdr;
   CodeStub* slow_path;
   if (UseWispMonitor) {
-    slow_path = new MonitorExitStub(lock, UseFastLocking, monitor_no, info);
+    slow_path = new MonitorExitStub(lock, UseFastLocking, monitor_no, info, at_method_return);
     __ load_stack_address_monitor(monitor_no, lock);
-    __ unlock_object(hdr, object, lock, scratch, slow_path, info_for_exception);
+    __ unlock_object(hdr, object, lock, scratch, slow_path, info_for_exception, at_method_return);
   } else {
     slow_path = new MonitorExitStub(lock, UseFastLocking, monitor_no);
     __ load_stack_address_monitor(monitor_no, lock);

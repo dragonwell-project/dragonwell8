@@ -379,7 +379,7 @@ void LIRGenerator::do_MonitorExit(MonitorExit* x) {
     if (x->state()) {
       info = state_for(x, x->state(), true);
     }
-    monitor_exit(obj_temp, lock, syncTempOpr(), LIR_OprFact::illegalOpr, x->monitor_no(), NULL, info);
+    monitor_exit(obj_temp, lock, syncTempOpr(), LIR_OprFact::illegalOpr, x->monitor_no(), NULL, info, x->at_method_return());
   } else {
     monitor_exit(obj_temp, lock, syncTempOpr(), LIR_OprFact::illegalOpr, x->monitor_no());
   }

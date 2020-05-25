@@ -449,7 +449,7 @@ int LIR_Assembler::emit_unwind_handler() {
   MonitorExitStub* stub = NULL;
   if (method()->is_synchronized()) {
     monitor_address(0, FrameMap::rax_opr);
-    stub = new MonitorExitStub(FrameMap::rax_opr, true, 0, NULL);
+    stub = new MonitorExitStub(FrameMap::rax_opr, true, 0, NULL, true);
     __ unlock_object(rdi, rsi, rax, *stub->entry());
     __ bind(*stub->continuation());
   }

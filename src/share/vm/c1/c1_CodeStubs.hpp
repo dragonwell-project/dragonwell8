@@ -341,15 +341,16 @@ class MonitorExitStub: public MonitorAccessStub {
   bool _compute_lock;
   int  _monitor_ix;
   CodeEmitInfo* _info;
+  bool _at_method_return;
  public:
 
   MonitorExitStub(LIR_Opr lock_reg, bool compute_lock, int monitor_ix)
     : MonitorAccessStub(LIR_OprFact::illegalOpr, lock_reg),
-      _compute_lock(compute_lock), _monitor_ix(monitor_ix) { }
+      _compute_lock(compute_lock), _monitor_ix(monitor_ix), _at_method_return(false) { }
   // This constructor is used in Wisp only. Generating CodeEmitInfo for furter use.
-  MonitorExitStub(LIR_Opr lock_reg, bool compute_lock, int monitor_ix, CodeEmitInfo* info)
+  MonitorExitStub(LIR_Opr lock_reg, bool compute_lock, int monitor_ix, CodeEmitInfo* info, bool at_method_return)
     : MonitorAccessStub(LIR_OprFact::illegalOpr, lock_reg),
-      _compute_lock(compute_lock), _monitor_ix(monitor_ix) {
+      _compute_lock(compute_lock), _monitor_ix(monitor_ix), _at_method_return(at_method_return) {
       if (info) {
         assert(UseWispMonitor, "This path should be reached only when using WispMonitor");
         _info = new CodeEmitInfo(info);

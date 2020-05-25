@@ -1894,12 +1894,12 @@ JRT_END
 #ifndef PRODUCT
 int SharedRuntime::_monitor_exit_ctr=0;
 #endif
-JRT_ENTRY_NO_ASYNC(void, SharedRuntime::complete_wisp_monitor_unlocking_C(oopDesc* _obj, BasicLock* lock, JavaThread* thread))
-   oop obj(_obj);
+void complete_wisp_unlocking_common(oopDesc* _obj, BasicLock* lock, bool leaf, bool proxy_unpark, TRAPS) {
+  oop obj(_obj);
 #ifndef PRODUCT
-  _monitor_exit_ctr++;              // monitor exit slow
+  SharedRuntime::_monitor_exit_ctr++;              // monitor exit slow
 #endif
-  Thread* cur_thread = JavaThread::current();
+  assert(JavaThread::current() == THREAD, "invariant");
   // I'm not convinced we need the code contained by MIGHT_HAVE_PENDING anymore
   // testing was unable to ever fire the assert that guarded it so I have removed it.
   assert(!HAS_PENDING_EXCEPTION, "Do we need code below anymore?");
@@ -1913,24 +1913,52 @@ JRT_ENTRY_NO_ASYNC(void, SharedRuntime::complete_wisp_monitor_unlocking_C(oopDes
   int pending_line;
   if (HAS_PENDING_EXCEPTION) {
     pending_excep = PENDING_EXCEPTION;
-    pending_file  = cur_thread->exception_file();
-    pending_line  = cur_thread->exception_line();
+    pending_file  = THREAD->exception_file();
+    pending_line  = THREAD->exception_line();
     CLEAR_PENDING_EXCEPTION;
   }
 #endif /* MIGHT_HAVE_PENDING */
 
-  // Use handle to access objects since we will call java code
-  Handle h_obj(thread, obj);
+  assert(!UseWispMonitor || (!proxy_unpark || leaf), "if proxy unpark, must be a leaf");
+  assert(leaf || UseWispMonitor, "if not a leaf, must have wisp monitor");
+
+  WispThread *wisp_thread = WispThread::current((JavaThread *) THREAD);
+  if (proxy_unpark) {
+    wisp_thread->set_proxy_unpark_flag();
+  }
+
   {
-    EXCEPTION_MARK;
-    ObjectSynchronizer::fast_exit(h_obj, lock, cur_thread);
+    Thread *thread_tmp = NULL;
+    ExceptionMark __em(thread_tmp);
+    if (leaf) {
+      // Exit must be non-blocking, and therefore no exceptions can be thrown.
+      ObjectSynchronizer::slow_exit(obj, lock, THREAD);
+    } else {
+      HandleMarkCleaner __hm(THREAD);
+      Handle h_obj(THREAD, obj);
+      ObjectSynchronizer::fast_exit(h_obj, lock, THREAD);
+    }
+  }
+
+  if (proxy_unpark) {
+    wisp_thread->clear_proxy_unpark_flag();
   }
 
 #ifdef MIGHT_HAVE_PENDING
   if (pending_excep != NULL) {
-    cur_thread->set_pending_exception(pending_excep, pending_file, pending_line);
+    THREAD->set_pending_exception(pending_excep, pending_file, pending_line);
   }
 #endif /* MIGHT_HAVE_PENDING */
+}
+
+// Handles the uncommon cases of monitor unlocking in compiled code
+JRT_LEAF(void, SharedRuntime::complete_wisp_proxy_monitor_unlocking_C(oopDesc* _obj, BasicLock* lock))
+  No_Safepoint_Verifier nsv;
+  complete_wisp_unlocking_common(_obj, lock, true, true, Thread::current());
+JRT_END
+
+JRT_ENTRY_NO_ASYNC(void, SharedRuntime::complete_wisp_monitor_unlocking_C(oopDesc* _obj, BasicLock* lock, JavaThread* thread))
+  complete_wisp_unlocking_common(_obj, lock, false, false, THREAD);
 JRT_END
 
 // Handles the uncommon cases of monitor unlocking in compiled code
@@ -1959,16 +1987,12 @@ JRT_LEAF(void, SharedRuntime::complete_monitor_unlocking_C(oopDesc* _obj, BasicL
   }
 #endif /* MIGHT_HAVE_PENDING */
 
+  assert(!UseWispMonitor, "wisp monitor shouldn't go here");
+
   {
     // Exit must be non-blocking, and therefore no exceptions can be thrown.
     EXCEPTION_MARK;
-    if (UseWispMonitor) {
-      HandleMarkCleaner __hm(THREAD);
-      Handle h_obj(THREAD, obj);
-      ObjectSynchronizer::fast_exit(h_obj, lock, THREAD);
-    } else {
-      ObjectSynchronizer::fast_exit(obj, lock, THREAD);
-    }
+    ObjectSynchronizer::slow_exit(obj, lock, THREAD);
   }
 
 #ifdef MIGHT_HAVE_PENDING

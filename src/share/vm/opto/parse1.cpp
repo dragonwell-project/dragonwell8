@@ -1042,7 +1042,7 @@ void Parse::do_exits() {
         // Add on the synchronized-method box/object combo
         kit.map()->push_monitor(_synch_lock);
         // Unlock!
-        kit.shared_unlock(_synch_lock->box_node(), _synch_lock->obj_node());
+        kit.shared_unlock(_synch_lock->box_node(), _synch_lock->obj_node(), true);
       }
       if (C->env()->dtrace_method_probes()) {
         kit.make_dtrace_method_exit(method());
@@ -2104,7 +2104,7 @@ void Parse::return_current(Node* value) {
   // Do not set_parse_bci, so that return goo is credited to the return insn.
   set_bci(InvocationEntryBci);
   if (method()->is_synchronized() && GenerateSynchronizationCode) {
-    shared_unlock(_synch_lock->box_node(), _synch_lock->obj_node());
+    shared_unlock(_synch_lock->box_node(), _synch_lock->obj_node(), true);
   }
   if (C->env()->dtrace_method_probes()) {
     make_dtrace_method_exit(method());

@@ -304,7 +304,7 @@ void MonitorExitStub::emit_code(LIR_Assembler* ce) {
   // 3. There is no exception handler in this method, So it needs to unwind to its caller
   // 4. GC happened during unpark
   // if (_info == NULL) is true, the four conditions are all true.
-  if (UseWispMonitor && (_info == NULL)) {
+  if (UseWispMonitor && (_info == NULL || _at_method_return)) {
     if (exit_id == Runtime1::monitorexit_id) {
       exit_id = Runtime1::monitorexit_proxy_id;
     } else {

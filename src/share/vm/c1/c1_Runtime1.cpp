@@ -708,6 +708,7 @@ JRT_END
 // 4. GC happened during unpark
 // This path will not call Java, so JRT_LEAF is used.
 JRT_LEAF(void, Runtime1::monitorexit_wisp_proxy(JavaThread* thread, BasicObjectLock* lock))
+  No_Safepoint_Verifier nsv;
   NOT_PRODUCT(_monitorexit_slowcase_cnt++;)
   EXCEPTION_MARK;
   oop obj = lock->obj();
@@ -722,6 +723,9 @@ JRT_LEAF(void, Runtime1::monitorexit_wisp_proxy(JavaThread* thread, BasicObjectL
   } else {
     ObjectSynchronizer::fast_exit(obj, lock->lock(), THREAD);
   }
+  // proxy_unpark flag may get uncleared here. we need to force clear it
+  // to prevent disturbances from the monitorenter next time.
+  wisp_thread->clear_proxy_unpark_flag();
 JRT_END
 
 JRT_LEAF(void, Runtime1::monitorexit(JavaThread* thread, BasicObjectLock* lock))

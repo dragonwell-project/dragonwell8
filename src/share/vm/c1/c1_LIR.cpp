@@ -1465,7 +1465,7 @@ void LIR_List::lock_object(LIR_Opr hdr, LIR_Opr obj, LIR_Opr lock, LIR_Opr scrat
                     info));
 }
 
-void LIR_List::unlock_object(LIR_Opr hdr, LIR_Opr obj, LIR_Opr lock, LIR_Opr scratch, CodeStub* stub, CodeEmitInfo* info) {
+void LIR_List::unlock_object(LIR_Opr hdr, LIR_Opr obj, LIR_Opr lock, LIR_Opr scratch, CodeStub* stub, CodeEmitInfo* info, bool at_method_return) {
   append(new LIR_OpLock(
                     lir_unlock,
                     hdr,
@@ -1473,7 +1473,8 @@ void LIR_List::unlock_object(LIR_Opr hdr, LIR_Opr obj, LIR_Opr lock, LIR_Opr scr
                     lock,
                     scratch,
                     stub,
-                    info));
+                    info,
+                    at_method_return));
 }
 
 

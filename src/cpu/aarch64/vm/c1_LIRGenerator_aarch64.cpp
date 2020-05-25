@@ -440,7 +440,7 @@ void LIRGenerator::do_MonitorExit(MonitorExit* x) {
     }
     // add info_for_exception CodeInfo here.
     CodeEmitInfo *info_for_exception = state_for(x, x->state(), true);
-    monitor_exit(obj_temp, lock, syncTempOpr(), LIR_OprFact::illegalOpr, x->monitor_no(), info_for_exception, info);
+    monitor_exit(obj_temp, lock, syncTempOpr(), LIR_OprFact::illegalOpr, x->monitor_no(), info_for_exception, info, x->at_method_return());
   } else {
     monitor_exit(obj_temp, lock, syncTempOpr(), LIR_OprFact::illegalOpr, x->monitor_no());
   }

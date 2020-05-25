@@ -839,7 +839,7 @@ class GraphKit : public Phase {
   Node* insert_mem_bar_volatile(int opcode, int alias_idx, Node* precedent = NULL);
   // Optional 'precedent' is appended as an extra edge, to force ordering.
   FastLockNode* shared_lock(Node* obj);
-  void shared_unlock(Node* box, Node* obj);
+  void shared_unlock(Node* box, Node* obj, bool at_method_return = false);
 
   // helper functions for the fast path/slow path idioms
   Node* fast_and_slow(Node* in, const Type *result_type, Node* null_result, IfNode* fast_test, Node* fast_result, address slow_call, const TypeFunc *slow_call_type, Node* slow_arg, Klass* ex_klass, Node* slow_result);

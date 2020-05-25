@@ -1074,13 +1074,15 @@ private:
 #ifdef ASSERT
   JVMState* const _dbg_jvms;      // Pointer to list of JVM State objects
 #endif
+  bool _at_method_return;
 public:
   virtual int Opcode() const;
   virtual uint size_of() const; // Size is bigger
-  UnlockNode(Compile* C, const TypeFunc *tf) : AbstractLockNode( tf )
+  UnlockNode(Compile* C, const TypeFunc *tf, bool at_method_return) : AbstractLockNode( tf )
 #ifdef ASSERT
     , _dbg_jvms(NULL)
 #endif
+    , _at_method_return(at_method_return)
   {
     init_class_id(Class_Unlock);
     init_flags(Flag_is_macro);
@@ -1097,6 +1099,7 @@ public:
 #else
   JVMState* dbg_jvms() const { return NULL; }
 #endif
+  bool at_method_return() const { return _at_method_return; }
 };
 
 #endif // SHARE_VM_OPTO_CALLNODE_HPP

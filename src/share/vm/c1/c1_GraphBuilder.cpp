@@ -1570,7 +1570,7 @@ void GraphBuilder::method_return(Value x) {
     } else {
       receiver = append(new Constant(new ClassConstant(method()->holder())));
     }
-    append_split(new MonitorExit(receiver, state()->unlock(), NULL));
+    append_split(new MonitorExit(receiver, state()->unlock(), NULL, true));
   }
 
   if (need_mem_bar) {
@@ -2259,13 +2259,13 @@ void GraphBuilder::monitorexit(Value x, int bci, bool at_method_return) {
   if (UseWispMonitor) {
     if (at_method_return == false) {
       ValueStack* state_before = copy_state_for_exception_with_bci(bci);
-      Instruction* instr = new MonitorExit(x, state()->unlock(), state_before);
+      Instruction* instr = new MonitorExit(x, state()->unlock(), state_before, at_method_return);
       append_with_bci(instr, bci);
     } else {
-      append_with_bci(new MonitorExit(x, state()->unlock()), bci);
+      append_with_bci(new MonitorExit(x, state()->unlock(), NULL, at_method_return), bci);
     }
   } else {
-    append_with_bci(new MonitorExit(x, state()->unlock()), bci);
+    append_with_bci(new MonitorExit(x, state()->unlock(), NULL, at_method_return), bci);
   }
   kill_all();
 }
