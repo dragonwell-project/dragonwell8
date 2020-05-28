@@ -53,6 +53,8 @@ public:
 };
 
 class VM_G1CollectFull: public VM_GC_Operation {
+private:
+  AllocationContext_t _allocation_context;
 public:
   VM_G1CollectFull(uint gc_count_before,
                    uint full_gc_count_before,
@@ -63,6 +65,8 @@ public:
   virtual const char* name() const {
     return "full garbage-first collection";
   }
+  void set_allocation_context(AllocationContext_t context) { _allocation_context = context; }
+  AllocationContext_t  allocation_context() { return _allocation_context; }
 };
 
 class VM_G1CollectForAllocation: public VM_G1OperationWithAllocRequest {

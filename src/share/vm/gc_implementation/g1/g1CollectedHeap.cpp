@@ -1306,7 +1306,12 @@ bool G1CollectedHeap::do_collection(bool explicit_gc,
     TraceCPUTime tcpu(G1Log::finer(), true, gclog_or_tty);
 
     {
-      GCTraceTime t(GCCauseString("Full GC", gc_cause()), G1Log::fine(), true, NULL, gc_tracer->gc_id());
+      GCCauseString cause_string("Full GC", gc_cause());
+      if (TenantHeapIsolation && !gc_cause_context().is_system()) {
+        cause_string.append(FormatBuffer<>(" (tenant-%ld)",
+                                           com_alibaba_tenant_TenantContainer::get_tenant_id(gc_cause_context()->tenant_container())));
+      }
+      GCTraceTime t(cause_string, G1Log::fine(), true, NULL, gc_tracer->gc_id());
       TraceCollectorStats tcs(g1mm()->full_collection_counters());
       TraceMemoryManagerStats tms(true /* fullGC */, gc_cause());
 
@@ -2613,6 +2618,9 @@ void G1CollectedHeap::collect(GCCause::Cause cause) {
       } else {
         // Schedule a Full GC.
         VM_G1CollectFull op(gc_count_before, full_gc_count_before, cause);
+        if (TenantHeapIsolation) {
+          op.set_allocation_context(AllocationContext::current());
+        }
         VMThread::execute(&op);
       }
     }
@@ -3992,6 +4000,10 @@ void G1CollectedHeap::log_gc_header() {
   GCCauseString gc_cause_str = GCCauseString("GC pause", gc_cause())
     .append(g1_policy()->gcs_are_young() ? "(young)" : "(mixed)")
     .append(g1_policy()->during_initial_mark_pause() ? " (initial-mark)" : "");
+  if (TenantHeapIsolation && !gc_cause_context().is_system()) {
+    gc_cause_str.append(FormatBuffer<>(" (tenant-%ld)",
+                                       com_alibaba_tenant_TenantContainer::get_tenant_id(gc_cause_context()->tenant_container())));
+  }
 
   gclog_or_tty->print("[%s", (const char*)gc_cause_str);
 }

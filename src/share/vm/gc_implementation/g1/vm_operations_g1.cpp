@@ -44,6 +44,7 @@ VM_G1CollectForAllocation::VM_G1CollectForAllocation(uint gc_count_before,
 void VM_G1CollectForAllocation::doit() {
   G1CollectedHeap* g1h = G1CollectedHeap::heap();
   GCCauseSetter x(g1h, _gc_cause);
+  G1ContextCauseSetter set_ctxt(g1h, this->allocation_context());
 
   _result = g1h->satisfy_failed_allocation(_word_size, allocation_context(), &_pause_succeeded);
   assert(_result == NULL || _pause_succeeded,
@@ -53,6 +54,7 @@ void VM_G1CollectForAllocation::doit() {
 void VM_G1CollectFull::doit() {
   G1CollectedHeap* g1h = G1CollectedHeap::heap();
   GCCauseSetter x(g1h, _gc_cause);
+  G1ContextCauseSetter set_ctxt(g1h, this->allocation_context());
   g1h->do_full_collection(false /* clear_all_soft_refs */);
 }
 
@@ -108,6 +110,7 @@ void VM_G1IncCollectionPause::doit() {
   }
 
   GCCauseSetter x(g1h, _gc_cause);
+  G1ContextCauseSetter set_ctxt(g1h, this->allocation_context());
   if (_should_initiate_conc_mark) {
     // It's safer to read old_marking_cycles_completed() here, given
     // that noone else will be updating it concurrently. Since we'll
