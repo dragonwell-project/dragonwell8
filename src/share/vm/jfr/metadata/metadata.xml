@@ -725,19 +725,6 @@
     <Field type="ulong" contentType="address" name="topAddress" label="Top Address" description="Ending address of the module" />
   </Event>
 
-  <!-- XXX
-  <Event name="ModuleRequire" category="Java Virtual Machine, Runtime, Modules" label="Module Require" thread="false" period="everyChunk"
-    description="A directed edge representing a dependency">
-    <Field type="Module" name="source" label="Source Module" />
-    <Field type="Module" name="requiredModule" label="Required Module" />
-  </Event>
-
-  <Event name="ModuleExport" category="Java Virtual Machine, Runtime, Modules" label="Module Export" thread="false" period="everyChunk">
-    <Field type="Package" name="exportedPackage" label="Exported Package" />
-    <Field type="Module" name="targetModule" label="Target Module"
-      description="Module to which the package is qualifiedly exported. If null or N/A, the package is unqualifiedly exported" />
-  </Event>
-  -->
   <Event name="CompilerStatistics" category="Java Virtual Machine, Compiler" label="Compiler Statistics" thread="false" period="everyChunk" startTime="false">
     <Field type="int" name="compileCount" label="Compiled Methods" />
     <Field type="int" name="bailoutCount" label="Bailouts" />
@@ -1032,18 +1019,8 @@
     <Field type="string" name="cause" label="Cause" />
   </Type>
 
-  <!--
-  <Type name="Module" label="Module">
-    <Field type="Symbol" name="name" label="Name" />
-    <Field type="Symbol" name="version" label="Version" />
-    <Field type="Symbol" name="location" label="Location" />
-    <Field type="ClassLoader" name="classLoader" label="Class Loader" />
-  </Type>
-  -->
-
   <Type name="Package" label="Package">
     <Field type="Symbol" name="name" label="Name" />
-    <!-- <Field type="Module" name="module" label="Module" /> -->
     <Field type="boolean" name="exported" label="Exported" />
   </Type>
 
@@ -1107,7 +1084,6 @@
   <Relation name="CompileId" />
   <Relation name="SweepId"/>
  
-  <XmlType name="Package" parameterType="const PackageEntry*" fieldType="const PackageEntry*"/>
   <XmlType name="Class" javaType="java.lang.Class" parameterType="const Klass*" fieldType="const Klass*"/> 
   <XmlType name="ClassLoader" parameterType="const ClassLoaderData*" fieldType="const ClassLoaderData*"/> 
   <XmlType name="Method" parameterType="const Method*" fieldType="const Method*"/> 

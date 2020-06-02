@@ -33,7 +33,6 @@
 #include "memory/resourceArea.hpp"
 #include "oops/oop.hpp"
 #include "oops/symbol.hpp"
-//#include "oops/typeArrayOop.inline.hpp" - XXX
 
 inline bool compressed_integers() {
   static const bool comp_integers = JfrOptionSet::compressed_integers();
@@ -258,12 +257,6 @@ template <typename BE, typename IE, typename WriterPolicyImpl>
 void WriterHost<BE, IE, WriterPolicyImpl>::write(const Method* method) {
   tag_write(this, method);
 }
-
-// XXX
-// template <typename BE, typename IE, typename WriterPolicyImpl>
-// void WriterHost<BE, IE, WriterPolicyImpl>::write(const PackageEntry* package) {
-//   tag_write(this, package);
-// }
 
 template <typename BE, typename IE, typename WriterPolicyImpl>
 void WriterHost<BE, IE, WriterPolicyImpl>::write(const Symbol* symbol) {
