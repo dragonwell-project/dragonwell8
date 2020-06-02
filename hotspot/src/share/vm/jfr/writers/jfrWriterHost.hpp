@@ -32,7 +32,6 @@
 class ClassLoaderData;
 class Klass;
 class Method;
-// XXX class PackageEntry;
 class Symbol;
 class Thread;
 
@@ -80,7 +79,6 @@ class WriterHost : public WriterPolicyImpl {
   void write(const ClassLoaderData* cld);
   void write(const Klass* klass);
   void write(const Method* method);
-// XXX  void write(const PackageEntry* package);
   void write(const Symbol* symbol);
   void write(const Ticks& time);
   void write(const Tickspan& time);
