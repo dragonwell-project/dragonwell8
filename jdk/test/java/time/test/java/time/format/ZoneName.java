@@ -748,6 +748,7 @@ class ZoneName {
         "Asia/Tel_Aviv", "Asia/Jerusalem",
         "Hongkong", "Asia/Hong_Kong",
         "Asia/Rangoon", "Asia/Yangon",
+        "America/Godthab", "America/Nuuk",
     };
 
     private static final Map<String, String> zidToMzone = new HashMap<>();
