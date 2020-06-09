@@ -162,6 +162,64 @@ bool string_ends_with(const char* str, const char* str_to_find) {
   return (strncmp(str + (str_len - str_to_find_len), str_to_find, str_to_find_len) == 0);
 }
 
+// Used to obtain the package name from a fully qualified class name.
+// It is the responsibility of the caller to establish a ResourceMark.
+const char* ClassLoader::package_from_name(const char* const class_name, bool* bad_class_name) {
+  if (class_name == NULL) {
+    if (bad_class_name != NULL) {
+      *bad_class_name = true;
+    }
+    return NULL;
+  }
+
+  if (bad_class_name != NULL) {
+    *bad_class_name = false;
+  }
+
+  const char* const last_slash = strrchr(class_name, '/');
+  if (last_slash == NULL) {
+    // No package name
+    return NULL;
+  }
+
+  char* class_name_ptr = (char*) class_name;
+  // Skip over '['s
+  if (*class_name_ptr == '[') {
+    do {
+      class_name_ptr++;
+    } while (*class_name_ptr == '[');
+
+    // Fully qualified class names should not contain a 'L'.
+    // Set bad_class_name to true to indicate that the package name
+    // could not be obtained due to an error condition.
+    // In this situation, is_same_class_package returns false.
+    if (*class_name_ptr == 'L') {
+      if (bad_class_name != NULL) {
+        *bad_class_name = true;
+      }
+      return NULL;
+    }
+  }
+
+  int length = last_slash - class_name_ptr;
+
+  // A class name could have just the slash character in the name.
+  if (length <= 0) {
+    // No package name
+    if (bad_class_name != NULL) {
+      *bad_class_name = true;
+    }
+    return NULL;
+  }
+
+  // drop name after last slash (including slash)
+  // Ex., "java/lang/String.class" => "java/lang"
+  char* pkg_name = NEW_RESOURCE_ARRAY(char, length + 1);
+  strncpy(pkg_name, class_name_ptr, length);
+  *(pkg_name+length) = '\0';
+
+  return (const char *)pkg_name;
+}
 
 MetaIndex::MetaIndex(char** meta_package_names, int num_meta_package_names) {
   if (num_meta_package_names == 0) {

@@ -31,7 +31,7 @@
 # tz@iana.org for general use in the future).  For more, please see
 # the file CONTRIBUTING in the tz distribution.
 
-# From Paul Eggert (2018-06-19):
+# From Paul Eggert (2019-07-11):
 #
 # Unless otherwise specified, the source for data through 1990 is:
 # Thomas G. Shanks and Rique Pottenger, The International Atlas (6th edition),
@@ -70,13 +70,13 @@
 #	7:00 WIB	west Indonesia (Waktu Indonesia Barat)
 #	8:00 WITA	central Indonesia (Waktu Indonesia Tengah)
 #	8:00 CST	China
-#	8:00 PST  PDT*	Philippine Standard Time
+#	8:00 HKT  HKST	Hong Kong (HKWT* for Winter Time in late 1941)
+#	8:00 PST  PDT*	Philippines
 #	8:30 KST  KDT	Korea when at +0830
 #	9:00 WIT	east Indonesia (Waktu Indonesia Timur)
 #	9:00 JST  JDT	Japan
 #	9:00 KST  KDT	Korea when at +09
-#	9:30 ACST	Australian Central Standard Time
-# *I invented the abbreviation PDT; see "Philippines" below.
+# *I invented the abbreviations HKWT and PDT; see below.
 # Otherwise, these tables typically use numeric abbreviations like +03
 # and +0330 for integer hour and minute UT offsets.  Although earlier
 # editions invented alphabetic time zone abbreviations for every
@@ -107,7 +107,7 @@ Rule RussiaAsia	1985	2010	-	Mar	lastSun	 2:00s	1:00	-
 Rule RussiaAsia	1996	2010	-	Oct	lastSun	 2:00s	0	-
 
 # Afghanistan
-# Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
+# Zone	NAME		STDOFF	RULES	FORMAT	[UNTIL]
 Zone	Asia/Kabul	4:36:48 -	LMT	1890
 			4:00	-	+04	1945
 			4:30	-	+0430
@@ -140,7 +140,7 @@ Zone	Asia/Kabul	4:36:48 -	LMT	1890
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
 Rule Armenia	2011	only	-	Mar	lastSun	 2:00s	1:00	-
 Rule Armenia	2011	only	-	Oct	lastSun	 2:00s	0	-
-# Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
+# Zone	NAME		STDOFF	RULES	FORMAT	[UNTIL]
 Zone	Asia/Yerevan	2:58:00 -	LMT	1924 May  2
 			3:00	-	+03	1957 Mar
 			4:00 RussiaAsia +04/+05	1991 Mar 31  2:00s
@@ -166,7 +166,7 @@ Zone	Asia/Yerevan	2:58:00 -	LMT	1924 May  2
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
 Rule	Azer	1997	2015	-	Mar	lastSun	 4:00	1:00	-
 Rule	Azer	1997	2015	-	Oct	lastSun	 5:00	0	-
-# Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
+# Zone	NAME		STDOFF	RULES	FORMAT	[UNTIL]
 Zone	Asia/Baku	3:19:24 -	LMT	1924 May  2
 			3:00	-	+03	1957 Mar
 			4:00 RussiaAsia +04/+05	1991 Mar 31  2:00s
@@ -254,7 +254,7 @@ Zone	Asia/Baku	3:19:24 -	LMT	1924 May  2
 Rule	Dhaka	2009	only	-	Jun	19	23:00	1:00	-
 Rule	Dhaka	2009	only	-	Dec	31	24:00	0	-
 
-# Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
+# Zone	NAME		STDOFF	RULES	FORMAT	[UNTIL]
 Zone	Asia/Dhaka	6:01:40 -	LMT	1890
 			5:53:20	-	HMT	1941 Oct    # Howrah Mean Time?
 			6:30	-	+0630	1942 May 15
@@ -264,7 +264,7 @@ Zone	Asia/Dhaka	6:01:40 -	LMT	1890
 			6:00	Dhaka	+06/+07
 
 # Bhutan
-# Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
+# Zone	NAME		STDOFF	RULES	FORMAT	[UNTIL]
 Zone	Asia/Thimphu	5:58:36 -	LMT	1947 Aug 15 # or Thimbu
 			5:30	-	+0530	1987 Oct
 			6:00	-	+06
@@ -275,13 +275,13 @@ Zone	Asia/Thimphu	5:58:36 -	LMT	1947 Aug 15 # or Thimbu
 # We have no information as to when standard time was introduced;
 # assume it occurred in 1907, the same year as Mauritius (which
 # then contained the Chagos Archipelago).
-# Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
+# Zone	NAME		STDOFF	RULES	FORMAT	[UNTIL]
 Zone	Indian/Chagos	4:49:40	-	LMT	1907
 			5:00	-	+05	1996
 			6:00	-	+06
 
 # Brunei
-# Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
+# Zone	NAME		STDOFF	RULES	FORMAT	[UNTIL]
 Zone	Asia/Brunei	7:39:40 -	LMT	1926 Mar # Bandar Seri Begawan
 			7:30	-	+0730	1933
 			8:00	-	+08
@@ -296,7 +296,7 @@ Zone	Asia/Brunei	7:39:40 -	LMT	1926 Mar # Bandar Seri Begawan
 # of Greenwich."  This refers to the period before Burma's transition to +0630,
 # a transition for which Shanks is the only source.
 
-# Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
+# Zone	NAME		STDOFF	RULES	FORMAT	[UNTIL]
 Zone	Asia/Yangon	6:24:47 -	LMT	1880        # or Rangoon
 			6:24:47	-	RMT	1920        # Rangoon local time
 			6:30	-	+0630	1942 May
@@ -309,6 +309,27 @@ Zone	Asia/Yangon	6:24:47 -	LMT	1880        # or Rangoon
 
 # China
 
+# From Phake Nick (2020-04-15):
+# According to this news report:
+# http://news.sina.com.cn/c/2004-09-01/19524201403.shtml
+# on April 11, 1919, newspaper in Shanghai said clocks in Shanghai will spring
+# forward for an hour starting from midnight of that Saturday. The report did
+# not mention what happened in Shanghai thereafter, but it mentioned that a
+# similar trial in Tianjin which ended at October 1st as citizens are told to
+# recede the clock on September 30 from 12:00pm to 11:00pm. The trial at
+# Tianjin got terminated in 1920.
+#
+# From Paul Eggert (2020-04-15):
+# The Returns of Trade and Trade Reports, page 711, says "Daylight saving was
+# given a trial during the year, and from the 12th April to the 1st October
+# the clocks were all set one hour ahead of sun time.  Though the scheme was
+# generally esteemed a success, it was announced early in 1920 that it would
+# not be repeated."
+#
+# Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
+Rule	Shang	1919	only	-	Apr	12	24:00	1:00	D
+Rule	Shang	1919	only	-	Sep	30	24:00	0	S
+
 # From Paul Eggert (2018-10-02):
 # The following comes from Table 1 of:
 # Li Yu. Research on the daylight saving movement in 1940s Shanghai.
@@ -317,6 +338,89 @@ Zone	Asia/Yangon	6:24:47 -	LMT	1880        # or Rangoon
 # The table lists dates only; I am guessing 00:00 and 24:00 transition times.
 # Also, the table lists the planned end of DST in 1949, but the corresponding
 # zone line cuts this off on May 28, when the Communists took power.
+
+# From Phake Nick (2020-04-15):
+#
+# For the history of time in Shanghai between 1940-1942, the situation is
+# actually slightly more complex than the table [below]....  At the time,
+# there were three different authorities in Shanghai, including Shanghai
+# International Settlement, a settlement established by western countries with
+# its own westernized form of government, Shanghai French Concession, similar
+# to the international settlement but is controlled by French, and then the
+# rest of the city of Shanghai, which have already been controlled by Japanese
+# force through a puppet local government (Wang Jingwei regime).  It was
+# additionally complicated by the circumstances that, according to the 1940s
+# Shanghai summer time essay cited in the database, some
+# departments/businesses/people in the Shanghai city itself during that time
+# period, refused to change their clock and instead only changed their opening
+# hours.
+#
+# For example, as quoted in the article, in 1940, other than the authority
+# itself, power, tram, bus companies, cinema, department stores, and other
+# public service organizations have all decided to follow the summer time and
+# spring forward the clock.  On the other hand, the custom office refused to
+# spring forward the clock because of worry on mechanical wear to the physical
+# clock, postal office refused to spring forward because of disruption to
+# business and log-keeping, although they did changed their office hour to
+# match rest of the city.  So is travel agents, and also weather
+# observatory.  It is said both time standards had their own supporters in the
+# city at the time, those who prefer new time standard would have moved their
+# clock while those who prefer the old time standard would keep their clock
+# unchange, and there were different clocks that use different time standard
+# in the city at the time for people who use different time standard to adjust
+# their clock to their preferred time.
+#
+# a. For the 1940 May 31 spring forward, the essay claim that it was
+# coordinared between the international settlement authority and the French
+# concession authority and have gathered support from Hong Kong and Xiamen,
+# that it would spring forward an hour from May 31 "midnight", and the essay
+# claim "Hong Kong government implemented the spring forward in the same time
+# on the same date as Shanghai".
+#
+# b. For the 1940 fall back, it was said that they initially intended to do
+# so on September 30 00:59 at night, however they postponed it to October 12
+# after discussion with relevant parties. However schools restored to the
+# original schedule ten days earlier.
+#
+# c. For the 1941 spring forward, it is said to start from March 15
+# "following the previous year's method", and in addition to that the essay
+# cited an announcement in 1941 from the Wang regime which said the Special
+# City of Shanghai under Wang regime control will follow the DST rule set by
+# the Settlements, irrespective of the original DST plan announced by the Wang
+# regime for other area under its control(April 1 to September 30). (no idea
+# to situation before that announcement)
+#
+# d. For the 1941 fall back, it was said that the fall back would occurs at
+# the end of September (A newspaper headline cited by the essay, published on
+# October 1, 1941, have the headlines which said "French Concession would
+# rewind to the old clock this morning), but it ultimately didn't happen due
+# to disagreement between the international settlement authority and the
+# French concession authority, and the fall back ultimately occurred on
+# November 1.
+#
+# e. In 1941 December, Japan have officially started war with the United
+# States and the United Kingdom, and in Shanghai they have marched into the
+# international settlement, taken over its control
+#
+# f. For the 1942 spring forward, the essay said that the spring forward
+# started on January 31. It said this time the custom office and postal
+# department will also change their clocks, unlike before.
+#
+# g. The essay itself didn't cover any specific changes thereafter until the
+# end of the war, it quoted a November 1942 command from the government of the
+# Wang regime, which claim the daylight saving time applies year round during
+# the war. However, the essay ambiguously said the period is "February 1 to
+# September 30", which I don't really understand what is the meaning of such
+# period in the context of year round implementation here.. More researches
+# might be needed to show exactly what happened during that period of time.
+
+# From Phake Nick (2020-04-15):
+# According to a Japanese tour bus pamphlet in Nanjing area believed to be
+# from around year 1941: http://www.tt-museum.jp/tairiku_0280_nan1941.html ,
+# the schedule listed was in the format of Japanese time.  Which indicate some
+# use of the Japanese time (instead of syncing by DST) might have occurred in
+# the Yangtze river delta area during that period of time although the scope
+# of such use will need to be investigated to determine.
 #
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
 Rule	Shang	1940	only	-	Jun	 1	 0:00	1:00	D
@@ -584,7 +688,7 @@ Rule	PRC	1987	1991	-	Apr	Sun>=11	 2:00	1:00	D
 # that the sort of users who prefer Asia/Urumqi now typically ignored the
 # +08 mandate back then.
 
-# Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
+# Zone	NAME		STDOFF	RULES	FORMAT	[UNTIL]
 # Beijing time, used throughout China; represented by Shanghai.
 Zone	Asia/Shanghai	8:05:43	-	LMT	1901
 			8:00	Shang	C%sT	1949 May 28
@@ -595,7 +699,7 @@ Zone	Asia/Urumqi	5:50:20	-	LMT	1928
 			6:00	-	+06
 
 
-# Hong Kong (Xianggang)
+# Hong Kong
 
 # Milne gives 7:36:41.7; round this.
 
@@ -605,9 +709,7 @@ Zone	Asia/Urumqi	5:50:20	-	LMT	1928
 # it is not [an] observatory, but the official meteorological agency of HK,
 # and also serves as the official timing agency), there are some missing
 # and incorrect rules. Although the exact switch over time is missing, I
-# think 3:30 is correct. The official DST record for Hong Kong can be
-# obtained from
-# http://www.hko.gov.hk/gts/time/Summertime.htm
+# think 3:30 is correct.
 
 # From Phake Nick (2018-10-27):
 # According to Singaporean newspaper
@@ -675,14 +777,53 @@ Zone	Asia/Urumqi	5:50:20	-	LMT	1928
 #   https://i.imgur.com/05KkvtC.png
 # * 1941-09-30, Hong Kong Daily Press, Winter Time Warning.
 #   https://i.imgur.com/dge4kFJ.png
-# Also, the Liberation day of Hong Kong after WWII which British rule
-# over the territory resumed was August 30, 1945, which I think should
-# be the termination date for the use of JST in the territory....
 
-# From Paul Eggert (2018-11-17):
+# From Paul Eggert (2019-07-11):
+# "Hong Kong winter time" is considered to be daylight saving.
+# "Hong Kong had adopted daylight saving on June 15 as a wartime measure,
+# clocks moving forward one hour until October 1, when they would be put back
+# by just half an hour for 'Hong Kong Winter time', so that daylight saving
+# operated year round." -- Low Z. The longest day: when wartime Hong Kong
+# introduced daylight saving. South China Morning Post. 2019-06-28.
+# https://www.scmp.com/magazines/post-magazine/short-reads/article/3016281/longest-day-when-wartime-hong-kong-introduced
+
+# From P Chan (2018-12-31):
+# * According to the Hong Kong Daylight-Saving Regulations, 1941, the
+#   1941 spring-forward transition was at 03:00.
+#	http://sunzi.lib.hku.hk/hkgro/view/g1941/304271.pdf
+#	http://sunzi.lib.hku.hk/hkgro/view/g1941/305516.pdf
+# * According to some articles from South China Morning Post, +08 was
+#   resumed on 1945-11-18 at 02:00.
+#	https://i.imgur.com/M2IsZ3c.png
+#	https://i.imgur.com/iOPqrVo.png
+#	https://i.imgur.com/fffcGDs.png
+# * Some newspapers ... said the 1946 spring-forward transition was on
+#   04-21 at 00:00.  The Kung Sheung Evening News 1946-04-20 (Chinese)
+#	https://i.imgur.com/ZSzent0.png
+#	https://mmis.hkpl.gov.hk///c/portal/cover?c=QF757YsWv5%2FH7zGe%2FKF%2BFLYsuqGhRBfe p.4
+#   The Kung Sheung Daily News 1946-04-21 (Chinese)
+#	https://i.imgur.com/7ecmRlcm.png
+#	https://mmis.hkpl.gov.hk///c/portal/cover?c=QF757YsWv5%2BQBGt1%2BwUj5qG2GqtwR3Wh p.4
+# * According to the Summer Time Ordinance (1946), the fallback
+#   transitions between 1946 and 1952 were at 03:30 Standard Time (+08)
+#	http://oelawhk.lib.hku.hk/archive/files/bb74b06a74d5294620a15de560ab33c6.pdf
+# * Some other laws and regulations related to DST from 1953 to 1979
+#   Summer Time Ordinance 1953
+#	https://i.imgur.com/IOlJMav.jpg
+#   Summer Time (Amendment) Ordinance 1965
+#	https://i.imgur.com/8rofeLa.jpg
+#   Interpretation and General Clauses Ordinance (1966)
+#	https://i.imgur.com/joy3msj.jpg
+#   Emergency (Summer Time) Regulation 1973 <https://i.imgur.com/OpRWrKz.jpg>
+#   Interpretation and General Clauses (Amendment) Ordinance 1977
+#	https://i.imgur.com/RaNqnc4.jpg
+#   Resolution of the Legislative Council passed on 9 May 1979
+#	https://www.legco.gov.hk/yr78-79/english/lc_sitg/hansard/h790509.pdf#page=39
+
+# From Paul Eggert (2020-04-15):
 # Here are the dates given at
-# https://www.hko.gov.hk/gts/time/Summertime.htm
-# as of 2014-06-19:
+# https://www.hko.gov.hk/en/gts/time/Summertime.htm
+# as of 2020-02-10:
 # Year        Period
 # 1941        15 Jun to 30 Sep
 # 1942        Whole year
@@ -690,7 +831,7 @@ Zone	Asia/Urumqi	5:50:20	-	LMT	1928
 # 1944        Whole year
 # 1945        Whole year
 # 1946        20 Apr to 1 Dec
-# 1947        13 Apr to 30 Dec
+# 1947        13 Apr to 30 Nov
 # 1948        2 May to 31 Oct
 # 1949        3 Apr to 30 Oct
 # 1950        2 Apr to 29 Oct
@@ -727,36 +868,28 @@ Zone	Asia/Urumqi	5:50:20	-	LMT	1928
 # The page does not give times of day for transitions,
 # or dates for the 1942 and 1945 transitions.
 # The Japanese occupation of Hong Kong began 1941-12-25.
-# The Japanese surrender of Hong Kong was signed 1945-09-16; see:
-# Heaver S. The days after the Pacific war ended: unsettling times
-# in Hong Kong. Post Magazine. 2016-06-13.
-# https://www.scmp.com/magazines/post-magazine/article/1852990/days-after-pacific-war-ended-unsettling-times-hong-kong
-# For lack of anything better, use start of those days as the
-# transition times.
 
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
-Rule	HK	1946	only	-	Apr	20	3:30	1:00	S
-Rule	HK	1946	only	-	Dec	1	3:30	0	-
-Rule	HK	1947	only	-	Apr	13	3:30	1:00	S
-Rule	HK	1947	only	-	Dec	30	3:30	0	-
-Rule	HK	1948	only	-	May	2	3:30	1:00	S
-Rule	HK	1948	1951	-	Oct	lastSun	3:30	0	-
-Rule	HK	1952	1953	-	Nov	Sun>=1	3:30	0	-
+Rule	HK	1946	only	-	Apr	21	0:00	1:00	S
+Rule	HK	1946	only	-	Dec	1	3:30s	0	-
+Rule	HK	1947	only	-	Apr	13	3:30s	1:00	S
+Rule	HK	1947	only	-	Nov	30	3:30s	0	-
+Rule	HK	1948	only	-	May	2	3:30s	1:00	S
+Rule	HK	1948	1952	-	Oct	Sun>=28	3:30s	0	-
 Rule	HK	1949	1953	-	Apr	Sun>=1	3:30	1:00	S
+Rule	HK	1953	1964	-	Oct	Sun>=31	3:30	0	-
 Rule	HK	1954	1964	-	Mar	Sun>=18	3:30	1:00	S
-Rule	HK	1954	only	-	Oct	31	3:30	0	-
-Rule	HK	1955	1964	-	Nov	Sun>=1	3:30	0	-
 Rule	HK	1965	1976	-	Apr	Sun>=16	3:30	1:00	S
 Rule	HK	1965	1976	-	Oct	Sun>=16	3:30	0	-
 Rule	HK	1973	only	-	Dec	30	3:30	1:00	S
-Rule	HK	1979	only	-	May	Sun>=8	3:30	1:00	S
-Rule	HK	1979	only	-	Oct	Sun>=16	3:30	0	-
-# Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
+Rule	HK	1979	only	-	May	13	3:30	1:00	S
+Rule	HK	1979	only	-	Oct	21	3:30	0	-
+# Zone	NAME		STDOFF	RULES	FORMAT	[UNTIL]
 Zone	Asia/Hong_Kong	7:36:42 -	LMT	1904 Oct 30  0:36:42
-			8:00	-	HKT	1941 Jun 15  3:30
+			8:00	-	HKT	1941 Jun 15  3:00
 			8:00	1:00	HKST	1941 Oct  1  4:00
-			8:30	-	HKT	1941 Dec 25
-			9:00	-	JST	1945 Sep 16
+			8:00	0:30	HKWT	1941 Dec 25
+			9:00	-	JST	1945 Nov 18  2:00
 			8:00	HK	HK%sT
 
 ###############################################################################
@@ -880,7 +1013,7 @@ Rule	Taiwan	1974	1975	-	Oct	1	0:00	0	S
 Rule	Taiwan	1979	only	-	Jul	1	0:00	1:00	D
 Rule	Taiwan	1979	only	-	Oct	1	0:00	0	S
 
-# Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
+# Zone	NAME		STDOFF	RULES	FORMAT	[UNTIL]
 # Taipei or Taibei or T'ai-pei
 Zone	Asia/Taipei	8:06:00 -	LMT	1896 Jan  1
 			8:00	-	CST	1937 Oct  1
@@ -1018,7 +1151,7 @@ Rule	Macau	1975	1976	-	Apr	Sun>=16	03:30	1:00	D
 Rule	Macau	1979	only	-	May	13	03:30	1:00	D
 Rule	Macau	1979	only	-	Oct	Sun>=16	03:30	0	S
 
-# Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
+# Zone	NAME		STDOFF	RULES	FORMAT	[UNTIL]
 Zone	Asia/Macau	7:34:10 -	LMT	1904 Oct 30
 			8:00	-	CST	1941 Dec 21 23:00
 			9:00	Macau	+09/+10	1945 Sep 30 24:00
@@ -1057,7 +1190,7 @@ Rule	Cyprus	1977	only	-	Sep	25	0:00	0	-
 Rule	Cyprus	1978	only	-	Oct	2	0:00	0	-
 Rule	Cyprus	1979	1997	-	Sep	lastSun	0:00	0	-
 Rule	Cyprus	1981	1998	-	Mar	lastSun	0:00	1:00	S
-# Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
+# Zone	NAME		STDOFF	RULES	FORMAT	[UNTIL]
 Zone	Asia/Nicosia	2:13:28 -	LMT	1921 Nov 14
 			2:00	Cyprus	EE%sT	1998 Sep
 			2:00	EUAsia	EE%sT
@@ -1106,7 +1239,7 @@ Link	Asia/Nicosia	Europe/Nicosia
 # Byalokoz 1919 says Georgia was 2:59:11.
 # Go with Byalokoz.
 
-# Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
+# Zone	NAME		STDOFF	RULES	FORMAT	[UNTIL]
 Zone	Asia/Tbilisi	2:59:11 -	LMT	1880
 			2:59:11	-	TBMT	1924 May  2 # Tbilisi Mean Time
 			3:00	-	+03	1957 Mar
@@ -1143,7 +1276,7 @@ Zone	Asia/Tbilisi	2:59:11 -	LMT	1880
 # which will be permanent, with no seasonal adjustment, will happen at
 # midnight on Saturday, September 16.
 
-# Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
+# Zone	NAME		STDOFF	RULES	FORMAT	[UNTIL]
 Zone	Asia/Dili	8:22:20 -	LMT	1912 Jan  1
 			8:00	-	+08	1942 Feb 21 23:00
 			9:00	-	+09	1976 May  3
@@ -1209,7 +1342,7 @@ Zone	Asia/Dili	8:22:20 -	LMT	1912 Jan  1
 # time for 1870-1941.  Shanks is our only (and dubious) source for the
 # 1941-1945 data.
 
-# Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
+# Zone	NAME		STDOFF	RULES	FORMAT	[UNTIL]
 Zone	Asia/Kolkata	5:53:28 -	LMT	1854 Jun 28 # Kolkata
 			5:53:20	-	HMT	1870	    # Howrah Mean Time?
 			5:21:10	-	MMT	1906 Jan  1 # Madras local time
@@ -1261,7 +1394,7 @@ Zone	Asia/Kolkata	5:53:28 -	LMT	1854 Jun 28 # Kolkata
 # WITA - +08 - Waktu Indonesia Tengah (Indonesia central time)
 # WIT  - +09 - Waktu Indonesia Timur (Indonesia eastern time)
 #
-# Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
+# Zone	NAME		STDOFF	RULES	FORMAT	[UNTIL]
 # Java, Sumatra
 Zone Asia/Jakarta	7:07:12 -	LMT	1867 Aug 10
 # Shanks & Pottenger say the next transition was at 1924 Jan 1 0:13,
@@ -1337,9 +1470,9 @@ Zone Asia/Jayapura	9:22:48 -	LMT	1932 Nov
 # I used the following code in GNU Emacs 26.1 to generate the "Rule Iran"
 # lines from 2008 through 2087.  Emacs 26.1 uses Ed Reingold's
 # cal-persia implementation of Birashk's approximation, which in the
-# 2008-2087 range disagrees with the the astronomical Persian calendar
-# for Persian years 1404 (Gregorian 2025) and 1437 (Gregorian 2058),
-# so the following code special-case those years.  See Table 15.1, page 264, of:
+# 2008-2087 range disagrees with the astronomical Persian calendar
+# for Persian years 1404 (Gregorian 2025) and 1437 (Gregorian 2058), so
+# the following code special-cases those years.  See Table 15.1, page 264, of:
 # Edward M. Reingold and Nachum Dershowitz, Calendrical Calculations:
 # The Ultimate Edition, Cambridge University Press (2018).
 # https://www.cambridge.org/fr/academic/subjects/computer-science/computing-general-interest/calendrical-calculations-ultimate-edition-4th-edition
@@ -1533,7 +1666,7 @@ Rule	Iran	2087	only	-	Sep	21	24:00	0	-
 Rule	Iran	2088	max	-	Mar	20	24:00	1:00	-
 Rule	Iran	2088	max	-	Sep	20	24:00	0	-
 
-# Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
+# Zone	NAME		STDOFF	RULES	FORMAT	[UNTIL]
 Zone	Asia/Tehran	3:25:44	-	LMT	1916
 			3:25:44	-	TMT	1946     # Tehran Mean Time
 			3:30	-	+0330	1977 Nov
@@ -1578,7 +1711,7 @@ Rule	Iraq	1986	1990	-	Mar	lastSun	1:00s	1:00	-
 #
 Rule	Iraq	1991	2007	-	Apr	 1	3:00s	1:00	-
 Rule	Iraq	1991	2007	-	Oct	 1	3:00s	0	-
-# Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
+# Zone	NAME		STDOFF	RULES	FORMAT	[UNTIL]
 Zone	Asia/Baghdad	2:57:40	-	LMT	1890
 			2:57:36	-	BMT	1918     # Baghdad Mean Time?
 			3:00	-	+03	1982 May
@@ -1645,7 +1778,7 @@ Rule	Zion	1975	only	-	Apr	20	0:00	1:00	D
 Rule	Zion	1975	only	-	Aug	31	0:00	0	S
 
 # From Alois Treindl (2019-03-06):
-# http://www.moin.gov.il/Documents/שעון קיץ/clock-50-years-7-2014.pdf
+# http://www.moin.gov.il/Documents/שעון%20קיץ/clock-50-years-7-2014.pdf
 # From Isaac Starkman (2019-03-06):
 # Summer time was in that period in 1980 and 1984, see
 # https://www.ynet.co.il/articles/0,7340,L-3951073,00.html
@@ -1783,32 +1916,15 @@ Rule	Zion	2004	only	-	Sep	22	1:00	0	S
 #
 #	ftp://ftp.cs.huji.ac.il/pub/tz/announcements/2005+beyond.ps
 
-# From Paul Eggert (2012-10-26):
-# I used Ephraim Silverberg's dst-israel.el program
-# <ftp://ftp.cs.huji.ac.il/pub/tz/software/dst-israel.el> (2005-02-20)
-# along with Ed Reingold's cal-hebrew in GNU Emacs 21.4,
-# to generate the transitions from 2005 through 2012.
-# (I replaced "lastFri" with "Fri>=26" by hand.)
-# The spring transitions all correspond to the following Rule:
-#
-# Rule	Zion	2005	2012	-	Mar	Fri>=26	2:00	1:00	D
-#
-# but older zic implementations (e.g., Solaris 8) do not support
-# "Fri>=26" to mean April 1 in years like 2005, so for now we list the
-# springtime transitions explicitly.
-
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
-Rule	Zion	2005	only	-	Apr	 1	2:00	1:00	D
+Rule	Zion	2005	2012	-	Apr	Fri<=1	2:00	1:00	D
 Rule	Zion	2005	only	-	Oct	 9	2:00	0	S
-Rule	Zion	2006	2010	-	Mar	Fri>=26	2:00	1:00	D
 Rule	Zion	2006	only	-	Oct	 1	2:00	0	S
 Rule	Zion	2007	only	-	Sep	16	2:00	0	S
 Rule	Zion	2008	only	-	Oct	 5	2:00	0	S
 Rule	Zion	2009	only	-	Sep	27	2:00	0	S
 Rule	Zion	2010	only	-	Sep	12	2:00	0	S
-Rule	Zion	2011	only	-	Apr	 1	2:00	1:00	D
 Rule	Zion	2011	only	-	Oct	 2	2:00	0	S
-Rule	Zion	2012	only	-	Mar	Fri>=26	2:00	1:00	D
 Rule	Zion	2012	only	-	Sep	23	2:00	0	S
 
 # From Ephraim Silverberg (2013-06-27):
@@ -1824,7 +1940,7 @@ Rule	Zion	2012	only	-	Sep	23	2:00	0	S
 Rule	Zion	2013	max	-	Mar	Fri>=23	2:00	1:00	D
 Rule	Zion	2013	max	-	Oct	lastSun	2:00	0	S
 
-# Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
+# Zone	NAME		STDOFF	RULES	FORMAT	[UNTIL]
 Zone	Asia/Jerusalem	2:20:54 -	LMT	1880
 			2:20:40	-	JMT	1918 # Jerusalem Mean Time?
 			2:00	Zion	I%sT
@@ -1836,6 +1952,47 @@ Zone	Asia/Jerusalem	2:20:54 -	LMT	1880
 # Japan
 
 # '9:00' and 'JST' is from Guy Harris.
+
+# From Paul Eggert (2020-01-19):
+# Starting in the 7th century, Japan generally followed an ancient Chinese
+# timekeeping system that divided night and day into six hours each,
+# with hour length depending on season.  In 1873 the government
+# started requiring the use of a Western style 24-hour clock.  See:
+# Yulia Frumer, "Making Time: Astronomical Time Measurement in Tokugawa Japan"
+# <https://www.worldcat.org/oclc/1043907065>.  As the tzdb code and
+# data support only 24-hour clocks, its tables model timestamps before
+# 1873 using Western-style local mean time.
+
+# From Hideyuki Suzuki (1998-11-09):
+# 'Tokyo' usually stands for the former location of Tokyo Astronomical
+# Observatory: 139° 44' 40.90" E (9h 18m 58.727s), 35° 39' 16.0" N.
+# This data is from 'Rika Nenpyou (Chronological Scientific Tables) 1996'
+# edited by National Astronomical Observatory of Japan....
+# JST (Japan Standard Time) has been used since 1888-01-01 00:00 (JST).
+# The law is enacted on 1886-07-07.
+
+# From Hideyuki Suzuki (1998-11-16):
+# The ordinance No. 51 (1886) established "standard time" in Japan,
+# which stands for the time on 135° E.
+# In the ordinance No. 167 (1895), "standard time" was renamed to "central
+# standard time".  And the same ordinance also established "western standard
+# time", which stands for the time on 120° E....  But "western standard
+# time" was abolished in the ordinance No. 529 (1937).  In the ordinance No.
+# 167, there is no mention regarding for what place western standard time is
+# standard....
+#
+# I wrote "ordinance" above, but I don't know how to translate.
+# In Japanese it's "chokurei", which means ordinance from emperor.
+
+# From Yu-Cheng Chuang (2013-07-12):
+# ...the Meiji Emperor announced Ordinance No. 167 of Meiji Year 28 "The clause
+# about standard time" ... The adoption began from Jan 1, 1896.
+# https://ja.wikisource.org/wiki/標準時ニ關スル件_(公布時)
+#
+# ...the Showa Emperor announced Ordinance No. 529 of Showa Year 12 ... which
+# means the whole Japan territory, including later occupations, adopt Japan
+# Central Time (UT+9). The adoption began on Oct 1, 1937.
+# https://ja.wikisource.org/wiki/明治二十八年勅令第百六十七號標準時ニ關スル件中改正ノ件
 
 # From Paul Eggert (1995-03-06):
 # Today's _Asahi Evening News_ (page 4) reports that Japan had
@@ -1885,38 +2042,7 @@ Rule	Japan	1948	1951	-	Sep	Sun>=9	 1:00	0	S
 Rule	Japan	1949	only	-	Apr	Sat>=1	24:00	1:00	D
 Rule	Japan	1950	1951	-	May	Sat>=1	24:00	1:00	D
 
-# From Hideyuki Suzuki (1998-11-09):
-# 'Tokyo' usually stands for the former location of Tokyo Astronomical
-# Observatory: 139° 44' 40.90" E (9h 18m 58.727s), 35° 39' 16.0" N.
-# This data is from 'Rika Nenpyou (Chronological Scientific Tables) 1996'
-# edited by National Astronomical Observatory of Japan....
-# JST (Japan Standard Time) has been used since 1888-01-01 00:00 (JST).
-# The law is enacted on 1886-07-07.
-
-# From Hideyuki Suzuki (1998-11-16):
-# The ordinance No. 51 (1886) established "standard time" in Japan,
-# which stands for the time on 135° E.
-# In the ordinance No. 167 (1895), "standard time" was renamed to "central
-# standard time".  And the same ordinance also established "western standard
-# time", which stands for the time on 120° E....  But "western standard
-# time" was abolished in the ordinance No. 529 (1937).  In the ordinance No.
-# 167, there is no mention regarding for what place western standard time is
-# standard....
-#
-# I wrote "ordinance" above, but I don't know how to translate.
-# In Japanese it's "chokurei", which means ordinance from emperor.
-
-# From Yu-Cheng Chuang (2013-07-12):
-# ...the Meiji Emperor announced Ordinance No. 167 of Meiji Year 28 "The clause
-# about standard time" ... The adoption began from Jan 1, 1896.
-# https://ja.wikisource.org/wiki/標準時ニ關スル件_(公布時)
-#
-# ...the Showa Emperor announced Ordinance No. 529 of Showa Year 12 ... which
-# means the whole Japan territory, including later occupations, adopt Japan
-# Central Time (UT+9). The adoption began on Oct 1, 1937.
-# https://ja.wikisource.org/wiki/明治二十八年勅令第百六十七號標準時ニ關スル件中改正ノ件
-
-# Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
+# Zone	NAME		STDOFF	RULES	FORMAT	[UNTIL]
 Zone	Asia/Tokyo	9:18:59	-	LMT	1887 Dec 31 15:00u
 			9:00	Japan	J%sT
 # Since 1938, all Japanese possessions have been like Asia/Tokyo,
@@ -2019,7 +2145,7 @@ Rule	Jordan	2006	2011	-	Oct	lastFri	0:00s	0	-
 Rule	Jordan	2013	only	-	Dec	20	0:00	0	-
 Rule	Jordan	2014	max	-	Mar	lastThu	24:00	1:00	S
 Rule	Jordan	2014	max	-	Oct	lastFri	0:00s	0	-
-# Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
+# Zone	NAME		STDOFF	RULES	FORMAT	[UNTIL]
 Zone	Asia/Amman	2:23:44 -	LMT	1931
 			2:00	Jordan	EE%sT
 
@@ -2060,8 +2186,8 @@ Zone	Asia/Amman	2:23:44 -	LMT	1931
 # text.
 #
 # According to Izvestia newspaper No. 68 (23334) from 1991-03-20
-# (page 6; available at http://libinfo.org/newsr/newsr2574.djvu via
-# http://libinfo.org/index.php?id=58564) on 1991-03-31 at 2:00 during
+# -- page 6; available at http://libinfo.org/newsr/newsr2574.djvu via
+# http://libinfo.org/index.php?id=58564 -- on 1991-03-31 at 2:00 during
 # transition to "summer" time:
 # Republic of Georgia, Latvian SSR, Lithuanian SSR, SSR Moldova,
 # Estonian SSR; Komi ASSR; Kaliningrad oblast; Nenets autonomous okrug
@@ -2077,7 +2203,7 @@ Zone	Asia/Amman	2:23:44 -	LMT	1931
 # Apparently there were last minute changes. Apparently Kazakh act No. 170
 # was one of such changes.
 #
-# https://ru.wikipedia.org/wiki/Декретное время
+# https://ru.wikipedia.org/wiki/Декретное_время
 # claims that Sovetskaya Rossiya newspaper on 1991-03-29 published that
 # Nenets autonomous okrug, Komi and Kazakhstan (excluding Uralsk oblast)
 # were to not move clocks and Uralsk oblast was to move clocks
@@ -2216,7 +2342,7 @@ Zone	Asia/Amman	2:23:44 -	LMT	1931
 # UTC+6 to UTC+5 effective December 21st, 2018. The legal document is
 # located here: http://adilet.zan.kz/rus/docs/P1800000817 (russian language).
 
-# Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
+# Zone	NAME		STDOFF	RULES	FORMAT	[UNTIL]
 #
 # Almaty (formerly Alma-Ata), representing most locations in Kazakhstan
 # This includes KZ-AKM, KZ-ALA, KZ-ALM, KZ-AST, KZ-BAY, KZ-VOS, KZ-ZHA,
@@ -2318,7 +2444,7 @@ Rule	Kyrgyz	1992	1996	-	Apr	Sun>=7	0:00s	1:00	-
 Rule	Kyrgyz	1992	1996	-	Sep	lastSun	0:00	0	-
 Rule	Kyrgyz	1997	2005	-	Mar	lastSun	2:30	1:00	-
 Rule	Kyrgyz	1997	2004	-	Oct	lastSun	2:30	0	-
-# Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
+# Zone	NAME		STDOFF	RULES	FORMAT	[UNTIL]
 Zone	Asia/Bishkek	4:58:24 -	LMT	1924 May  2
 			5:00	-	+05	1930 Jun 21
 			6:00 RussiaAsia +06/+07	1991 Mar 31  2:00s
@@ -2433,11 +2559,11 @@ Rule	ROK	1987	1988	-	Oct	Sun>=8	 3:00	0	S
 # The BBC reported that the transition was from 23:30 to 24:00 today.
 # https://www.bbc.com/news/world-asia-44010705
 
-# Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
+# Zone	NAME		STDOFF	RULES	FORMAT	[UNTIL]
 Zone	Asia/Seoul	8:27:52	-	LMT	1908 Apr  1
 			8:30	-	KST	1912 Jan  1
 			9:00	-	JST	1945 Sep  8
-			9:00	-	KST	1954 Mar 21
+			9:00	ROK	K%sT	1954 Mar 21
 			8:30	ROK	K%sT	1961 Aug 10
 			9:00	ROK	K%sT
 Zone	Asia/Pyongyang	8:23:00 -	LMT	1908 Apr  1
@@ -2482,7 +2608,7 @@ Rule	Lebanon	1992	only	-	Oct	4	0:00	0	-
 Rule	Lebanon	1993	max	-	Mar	lastSun	0:00	1:00	S
 Rule	Lebanon	1993	1998	-	Sep	lastSun	0:00	0	-
 Rule	Lebanon	1999	max	-	Oct	lastSun	0:00	0	-
-# Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
+# Zone	NAME		STDOFF	RULES	FORMAT	[UNTIL]
 Zone	Asia/Beirut	2:22:00 -	LMT	1880
 			2:00	Lebanon	EE%sT
 
@@ -2494,7 +2620,7 @@ Rule	NBorneo	1935	1941	-	Dec	14	0:00	0	-
 # peninsular Malaysia
 # taken from Mok Ly Yng (2003-10-30)
 # http://www.math.nus.edu.sg/aslaksen/teaching/timezone.html
-# Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
+# Zone	NAME		STDOFF	RULES	FORMAT	[UNTIL]
 Zone Asia/Kuala_Lumpur	6:46:46 -	LMT	1901 Jan  1
 			6:55:25	-	SMT	1905 Jun  1 # Singapore M.T.
 			7:00	-	+07	1933 Jan  1
@@ -2508,7 +2634,7 @@ Zone Asia/Kuala_Lumpur	6:46:46 -	LMT	1901 Jan  1
 # From Paul Eggert (2014-08-12):
 # The data entries here are mostly from Shanks & Pottenger, but the 1942, 1945
 # and 1982 transition dates are from Mok Ly Yng.
-# Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
+# Zone	NAME		STDOFF	RULES	FORMAT	[UNTIL]
 Zone Asia/Kuching	7:21:20	-	LMT	1926 Mar
 			7:30	-	+0730	1933
 			8:00 NBorneo  +08/+0820	1942 Feb 16
@@ -2516,7 +2642,7 @@ Zone Asia/Kuching	7:21:20	-	LMT	1926 Mar
 			8:00	-	+08
 
 # Maldives
-# Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
+# Zone	NAME		STDOFF	RULES	FORMAT	[UNTIL]
 Zone	Indian/Maldives	4:54:00 -	LMT	1880 # Malé
 			4:54:00	-	MMT	1960 # Malé Mean Time
 			5:00	-	+05
@@ -2659,7 +2785,7 @@ Rule	Mongol	2002	2006	-	Mar	lastSat	2:00	1:00	-
 Rule	Mongol	2015	2016	-	Mar	lastSat	2:00	1:00	-
 Rule	Mongol	2015	2016	-	Sep	lastSat	0:00	0	-
 
-# Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
+# Zone	NAME		STDOFF	RULES	FORMAT	[UNTIL]
 # Hovd, a.k.a. Chovd, Dund-Us, Dzhargalant, Khovd, Jirgalanta
 Zone	Asia/Hovd	6:06:36 -	LMT	1905 Aug
 			6:00	-	+06	1978
@@ -2677,7 +2803,7 @@ Zone	Asia/Choibalsan	7:38:00 -	LMT	1905 Aug
 			8:00	Mongol	+08/+09
 
 # Nepal
-# Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
+# Zone	NAME		STDOFF	RULES	FORMAT	[UNTIL]
 Zone	Asia/Kathmandu	5:41:16 -	LMT	1920
 			5:30	-	+0530	1986
 			5:45	-	+0545
@@ -2827,7 +2953,7 @@ Rule Pakistan	2008	only	-	Jun	1	0:00	1:00	S
 Rule Pakistan	2008	2009	-	Nov	1	0:00	0	-
 Rule Pakistan	2009	only	-	Apr	15	0:00	1:00	S
 
-# Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
+# Zone	NAME		STDOFF	RULES	FORMAT	[UNTIL]
 Zone	Asia/Karachi	4:28:12 -	LMT	1907
 			5:30	-	+0530	1942 Sep
 			5:30	1:00	+0630	1945 Oct 15
@@ -3095,32 +3221,32 @@ Zone	Asia/Karachi	4:28:12 -	LMT	1907
 # [T]he Palestinian cabinet decision (Mar 8th 2016) published on
 # http://www.palestinecabinet.gov.ps/WebSite/Upload/Decree/GOV_17/16032016134830.pdf
 # states that summer time will end on Oct 29th at 01:00.
-#
-# From Tim Parenti (2016-10-19):
-# Predict fall transitions on October's last Saturday at 01:00 from now on.
-# This is consistent with the 2016 transition as well as our spring
-# predictions.
-#
-# From Paul Eggert (2016-10-19):
-# It's also consistent with predictions in the following URLs today:
-# https://www.timeanddate.com/time/change/gaza-strip/gaza
-# https://www.timeanddate.com/time/change/west-bank/hebron
 
 # From Sharef Mustafa (2018-03-16):
-# Palestine summer time will start on Mar 24th 2018 by advancing the
-# clock by 60 minutes as per Palestinian cabinet decision published on
-# the official website, though the decree did not specify the exact
-# time of the time shift.
+# Palestine summer time will start on Mar 24th 2018 ...
 # http://www.palestinecabinet.gov.ps/Website/AR/NDecrees/ViewFile.ashx?ID=e7a42ab7-ee23-435a-b9c8-a4f7e81f3817
 
 # From Even Scharning (2019-03-23):
-# DST in Palestine will start on 30 March this year, not 23 March as the time
-# zone database predicted.
-# https://ramallah.news/post/123610
+# http://pnn.ps/news/401130
+# http://palweather.ps/ar/node/50136.html
 #
-# From Tim Parenti (2019-03-23):
-# Combining this with the rules observed since 2016, adjust our spring
-# transition guess to Mar Sat>=24.
+# From Sharif Mustafa (2019-03-26):
+# The Palestinian cabinet announced today that the switch to DST will
+# be on Fri Mar 29th 2019 by advancing the clock by 60 minutes.
+# http://palestinecabinet.gov.ps/Website/AR/NDecrees/ViewFile.ashx?ID=e54e9ea1-50ee-4137-84df-0d6c78da259b
+#
+# From Even Scharning (2019-04-10):
+# Our source in Palestine said it happened Friday 29 at 00:00 local time....
+
+# From Sharef Mustafa (2019-10-18):
+# Palestine summer time will end on midnight Oct 26th 2019 ...
+# http://www.palestinecabinet.gov.ps/website/ar/ViewDetails?ID=43948
+#
+# From Paul Eggert (2019-04-10):
+# For now, guess spring-ahead transitions are March's last Friday at 00:00.
+#
+# From Tim Parenti (2016-10-19):
+# Predict fall transitions on October's last Saturday at 01:00 from now on.
 
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
 Rule EgyptAsia	1957	only	-	May	10	0:00	1:00	S
@@ -3151,10 +3277,11 @@ Rule Palestine	2012	only	-	Sep	21	1:00	0	-
 Rule Palestine	2013	only	-	Sep	Fri>=21	0:00	0	-
 Rule Palestine	2014	2015	-	Oct	Fri>=21	0:00	0	-
 Rule Palestine	2015	only	-	Mar	lastFri	24:00	1:00	S
-Rule Palestine	2016	max	-	Mar	Sat>=24	1:00	1:00	S
+Rule Palestine	2016	2018	-	Mar	Sat>=24	1:00	1:00	S
 Rule Palestine	2016	max	-	Oct	lastSat	1:00	0	-
+Rule Palestine	2019	max	-	Mar	lastFri	0:00	1:00	S
 
-# Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
+# Zone	NAME		STDOFF	RULES	FORMAT	[UNTIL]
 Zone	Asia/Gaza	2:17:52	-	LMT	1900 Oct
 			2:00	Zion	EET/EEST 1948 May 15
 			2:00 EgyptAsia	EE%sT	1967 Jun  5
@@ -3228,7 +3355,7 @@ Rule	Phil	1954	only	-	Apr	12	0:00	1:00	D
 Rule	Phil	1954	only	-	Jul	1	0:00	0	S
 Rule	Phil	1978	only	-	Mar	22	0:00	1:00	D
 Rule	Phil	1978	only	-	Sep	21	0:00	0	S
-# Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
+# Zone	NAME		STDOFF	RULES	FORMAT	[UNTIL]
 Zone	Asia/Manila	-15:56:00 -	LMT	1844 Dec 31
 			8:04:00 -	LMT	1899 May 11
 			8:00	Phil	P%sT	1942 May
@@ -3236,7 +3363,7 @@ Zone	Asia/Manila	-15:56:00 -	LMT	1844 Dec 31
 			8:00	Phil	P%sT
 
 # Qatar
-# Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
+# Zone	NAME		STDOFF	RULES	FORMAT	[UNTIL]
 Zone	Asia/Qatar	3:26:08 -	LMT	1920     # Al Dawhah / Doha
 			4:00	-	+04	1972 Jun
 			3:00	-	+03
@@ -3284,7 +3411,7 @@ Link Asia/Qatar Asia/Bahrain
 # the country.  Presumably this is documenting airline time.  Ignore this,
 # as it's before our 1970 cutoff.
 #
-# Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
+# Zone	NAME		STDOFF	RULES	FORMAT	[UNTIL]
 Zone	Asia/Riyadh	3:06:52 -	LMT	1947 Mar 14
 			3:00	-	+03
 Link Asia/Riyadh Asia/Aden	# Yemen
@@ -3293,7 +3420,7 @@ Link Asia/Riyadh Asia/Kuwait
 # Singapore
 # taken from Mok Ly Yng (2003-10-30)
 # http://www.math.nus.edu.sg/aslaksen/teaching/timezone.html
-# Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
+# Zone	NAME		STDOFF	RULES	FORMAT	[UNTIL]
 Zone	Asia/Singapore	6:55:25 -	LMT	1901 Jan  1
 			6:55:25	-	SMT	1905 Jun  1 # Singapore M.T.
 			7:00	-	+07	1933 Jan  1
@@ -3357,7 +3484,7 @@ Zone	Asia/Singapore	6:55:25 -	LMT	1901 Jan  1
 # even worse.  For now, let's use a numeric abbreviation; we can
 # switch to "SLST" if it catches on.
 
-# Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
+# Zone	NAME		STDOFF	RULES	FORMAT	[UNTIL]
 Zone	Asia/Colombo	5:19:24 -	LMT	1880
 			5:19:32	-	MMT	1906        # Moratuwa Mean Time
 			5:30	-	+0530	1942 Jan  5
@@ -3527,13 +3654,13 @@ Rule	Syria	2010	2011	-	Apr	Fri>=1	0:00	1:00	S
 Rule	Syria	2012	max	-	Mar	lastFri	0:00	1:00	S
 Rule	Syria	2009	max	-	Oct	lastFri	0:00	0	-
 
-# Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
+# Zone	NAME		STDOFF	RULES	FORMAT	[UNTIL]
 Zone	Asia/Damascus	2:25:12 -	LMT	1920 # Dimashq
 			2:00	Syria	EE%sT
 
 # Tajikistan
 # From Shanks & Pottenger.
-# Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
+# Zone	NAME		STDOFF	RULES	FORMAT	[UNTIL]
 Zone	Asia/Dushanbe	4:35:12 -	LMT	1924 May  2
 			5:00	-	+05	1930 Jun 21
 			6:00 RussiaAsia +06/+07	1991 Mar 31  2:00s
@@ -3541,7 +3668,7 @@ Zone	Asia/Dushanbe	4:35:12 -	LMT	1924 May  2
 			5:00	-	+05
 
 # Thailand
-# Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
+# Zone	NAME		STDOFF	RULES	FORMAT	[UNTIL]
 Zone	Asia/Bangkok	6:42:04	-	LMT	1880
 			6:42:04	-	BMT	1920 Apr # Bangkok Mean Time
 			7:00	-	+07
@@ -3550,7 +3677,7 @@ Link Asia/Bangkok Asia/Vientiane	# Laos
 
 # Turkmenistan
 # From Shanks & Pottenger.
-# Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
+# Zone	NAME		STDOFF	RULES	FORMAT	[UNTIL]
 Zone	Asia/Ashgabat	3:53:32 -	LMT	1924 May  2 # or Ashkhabad
 			4:00	-	+04	1930 Jun 21
 			5:00 RussiaAsia	+05/+06	1991 Mar 31  2:00
@@ -3558,14 +3685,14 @@ Zone	Asia/Ashgabat	3:53:32 -	LMT	1924 May  2 # or Ashkhabad
 			5:00	-	+05
 
 # United Arab Emirates
-# Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
+# Zone	NAME		STDOFF	RULES	FORMAT	[UNTIL]
 Zone	Asia/Dubai	3:41:12 -	LMT	1920
 			4:00	-	+04
 Link Asia/Dubai Asia/Muscat	# Oman
 
 # Uzbekistan
 # Byalokoz 1919 says Uzbekistan was 4:27:53.
-# Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
+# Zone	NAME		STDOFF	RULES	FORMAT	[UNTIL]
 Zone	Asia/Samarkand	4:27:53 -	LMT	1924 May  2
 			4:00	-	+04	1930 Jun 21
 			5:00	-	+05	1981 Apr  1
@@ -3613,7 +3740,7 @@ Zone	Asia/Tashkent	4:37:11 -	LMT	1924 May  2
 # and in South Vietnam in particular (after 1954):
 # To 07:00 on 1911-05-01.
 # To 08:00 on 1942-12-31 at 23:00.
-# To 09:00 in 1945-03-14 at 23:00.
+# To 09:00 on 1945-03-14 at 23:00.
 # To 07:00 on 1945-09-02 in Vietnam.
 # To 08:00 on 1947-04-01 in French-controlled Indochina.
 # To 07:00 on 1955-07-01 in South Vietnam.
@@ -3631,7 +3758,7 @@ Zone	Asia/Tashkent	4:37:11 -	LMT	1924 May  2
 # Lê Thành Lân: "Lịch hai thế kỷ (1802-2010) và các lịch vĩnh cửu",
 # NXB Thuận Hoá, Huế, 1995.
 
-# Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
+# Zone	NAME		STDOFF	RULES	FORMAT	[UNTIL]
 Zone Asia/Ho_Chi_Minh	7:06:40 -	LMT	1906 Jul  1
 			7:06:30	-	PLMT	1911 May  1 # Phù Liễn MT
 			7:00	-	+07	1942 Dec 31 23:00
