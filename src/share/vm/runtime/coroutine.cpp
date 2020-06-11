@@ -792,7 +792,11 @@ void WispThread::unpark(int task_id, bool using_wisp_park, bool proxy_unpark, Pa
 
     // due to the fact that we modify the priority of Wisp_lock from `non-leaf` to `special`,
     // so we'd use `MutexLockerEx` and `_no_safepoint_check_flag` to make our program run
-    MutexLockerEx mu(Wisp_lock, Mutex::_no_safepoint_check_flag);
+    // We don't want to yield a safepoint here, so we use the `special` rank to prevent it:
+    // In UnlockNode, we will call java in Wisp. We can't yield a safepoint that may cause
+    // deoptimization, which is very fatal for monitors.
+    No_Safepoint_Verifier nsv;
+    MutexLockerEx mu(Wisp_lock, Monitor::_no_safepoint_check_flag);
     wisp_thread->_unpark_status = WispThread::_proxy_unpark_begin;
     _proxy_unpark->append(task_id);
     Wisp_lock->notify(); // only one consumer
@@ -844,9 +848,18 @@ void WispThread::unpark(int task_id, bool using_wisp_park, bool proxy_unpark, Pa
 }
 
 int WispThread::get_proxy_unpark(jintArray res) {
+  // We need to hoist code of safepoint state out of MutexLocker to prevent safepoint deadlock problem
+  // See the same usage: SR_lock in `JavaThread::exit()`
+  ThreadBlockInVM tbivm(JavaThread::current());
+  // When wait()ing, GC may occur. So we shouldn't verify GC.
+  No_Safepoint_Verifier nsv(true, false);
   MutexLockerEx mu(Wisp_lock, Mutex::_no_safepoint_check_flag);
   while (_proxy_unpark == NULL || _proxy_unpark->is_empty()) {
-    Wisp_lock->wait();
+    // we need to use _no_safepoint_check_flag, which won't yield a safepoint.
+    // origin wait(false): first hold lock then do a safepoint.
+    //                     Other thread will stuck when grabbing the lock.
+    // current wait(true): first safepoint then hold lock to deal with the problem.
+    Wisp_lock->wait(Mutex::_no_safepoint_check_flag);
   }
   typeArrayOop a = typeArrayOop(JNIHandles::resolve_non_null(res));
   if (a == NULL) {
