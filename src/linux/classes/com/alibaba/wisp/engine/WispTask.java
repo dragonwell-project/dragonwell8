@@ -246,6 +246,7 @@ public class WispTask implements Comparable<WispTask> {
                     try {
                         runCommand();
                     } catch (Throwable t) {
+                        dispatchUncaughtException(t);
                         throwable = t;
                     } finally {
                         assert timeOut == null;
@@ -274,6 +275,20 @@ public class WispTask implements Comparable<WispTask> {
             rc.run(wrapRunOutsideWisp(runnable));
         } else {
             runOutsideWisp(runnable);
+        }
+    }
+
+    private void dispatchUncaughtException(Throwable t) {
+        try {
+            threadWrapper.getUncaughtExceptionHandler()
+                    .uncaughtException(threadWrapper, t);
+        } catch (Throwable e) {
+            // the default error log is generated with the format
+            // from hotspot JavaThread::exit
+            String defaultErrorLog = String.format(
+                    "\nException: %s thrown from the UncaughtExceptionHandler in thread \"%s\"",
+                    e.getClass().getName(), threadWrapper.getName());
+            System.err.println(defaultErrorLog);
         }
     }
 
