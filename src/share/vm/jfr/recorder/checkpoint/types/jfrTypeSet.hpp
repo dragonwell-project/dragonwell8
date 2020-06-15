@@ -58,7 +58,7 @@ class JfrTypeSet : AllStatic {
   static void do_class_loaders();
 
   static void write_klass_constants(JfrCheckpointWriter* writer, JfrCheckpointWriter* leakp_writer);
-// XXX  static void write_package_constants(JfrCheckpointWriter* writer, JfrCheckpointWriter* leakp_writer);
+  static void write_package_constants(JfrCheckpointWriter* writer, JfrCheckpointWriter* leakp_writer);
   static void write_class_loader_constants(JfrCheckpointWriter* writer, JfrCheckpointWriter* leakp_writer);
   static void write_method_constants(JfrCheckpointWriter* writer, JfrCheckpointWriter* leakp_writer);
   static void write_symbol_constants(JfrCheckpointWriter* writer, JfrCheckpointWriter* leakp_writer);
