@@ -366,6 +366,11 @@ class ClassLoader: AllStatic {
   // creates a class path zip entry (returns NULL if JAR file cannot be opened)
   static ClassPathZipEntry* create_class_path_zip_entry(const char *apath);
 
+  // obtain package name from a fully qualified class name
+  // *bad_class_name is set to true if there's a problem with parsing class_name, to
+  // distinguish from a class_name with no package name, as both cases have a NULL return value
+  static const char* package_from_name(const char* const class_name, bool* bad_class_name = NULL);
+
   // Debugging
   static void verify()              PRODUCT_RETURN;
 
