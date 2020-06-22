@@ -134,12 +134,13 @@ Java_java_net_SocketInputStream_socketRead0(JNIEnv *env, jobject this,
         (*env)->SetByteArrayRegion(env, data, off, nread, (jbyte *)bufP);
     } else {
         if (nread < 0) {
+            int err = WSAGetLastError();
             // Check if the socket has been closed since we last checked.
             // This could be a reason for recv failing.
             if ((*env)->GetIntField(env, fdObj, IO_fd_fdID) == -1) {
                 NET_ThrowSocketException(env, "Socket closed");
             } else {
-                switch (WSAGetLastError()) {
+                switch (err) {
                     case WSAEINTR:
                         JNU_ThrowByName(env, JNU_JAVANETPKG "SocketException",
                             "socket closed");
