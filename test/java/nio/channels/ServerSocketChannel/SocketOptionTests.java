@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2007, 2011, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2007, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -33,8 +33,13 @@ import java.net.*;
 import java.io.IOException;
 import java.util.*;
 import static java.net.StandardSocketOptions.*;
+import static jdk.net.ExtendedSocketOptions.*;
 
 public class SocketOptionTests {
+
+    private static final int DEFAULT_KEEP_ALIVE_PROBES = 7;
+    private static final int DEFAULT_KEEP_ALIVE_TIME = 1973;
+    private static final int DEFAULT_KEEP_ALIVE_INTVL = 53;
 
     static void checkOption(ServerSocketChannel ssc, SocketOption name, Object expectedValue)
         throws IOException
@@ -75,6 +80,17 @@ public class SocketOptionTests {
             ssc.getOption(null);
             throw new RuntimeException("NullPointerException not thrown");
         } catch (NullPointerException x) {
+        }
+        List<SocketOption<?>> keepAliveOpts = Arrays.asList(TCP_KEEPCOUNT, TCP_KEEPIDLE,
+                                                            TCP_KEEPINTERVAL);
+        if (ssc.supportedOptions().containsAll(keepAliveOpts)) {
+            ssc.setOption(TCP_KEEPCOUNT, DEFAULT_KEEP_ALIVE_PROBES);
+            checkOption(ssc, TCP_KEEPCOUNT, DEFAULT_KEEP_ALIVE_PROBES);
+            ssc.setOption(TCP_KEEPIDLE, DEFAULT_KEEP_ALIVE_TIME);
+            checkOption(ssc, TCP_KEEPIDLE, DEFAULT_KEEP_ALIVE_TIME);
+            ssc.setOption(TCP_KEEPINTERVAL, DEFAULT_KEEP_ALIVE_INTVL);
+            checkOption(ssc, TCP_KEEPINTERVAL, DEFAULT_KEEP_ALIVE_INTVL);
+
         }
 
         // ClosedChannelException
