@@ -89,4 +89,12 @@ public class ExtendedOptionsImpl {
     public static native void setFlowOption(FileDescriptor fd, SocketFlow f);
     public static native void getFlowOption(FileDescriptor fd, SocketFlow f);
     public static native boolean flowSupported();
+
+    public static native void setTcpKeepAliveProbes(FileDescriptor fd, int value) throws SocketException;
+    public static native void setTcpKeepAliveTime(FileDescriptor fd, int value) throws SocketException;
+    public static native void setTcpKeepAliveIntvl(FileDescriptor fd, int value) throws SocketException;
+    public static native int getTcpKeepAliveProbes(FileDescriptor fd) throws SocketException;
+    public static native int getTcpKeepAliveTime(FileDescriptor fd) throws SocketException;
+    public static native int getTcpKeepAliveIntvl(FileDescriptor fd) throws SocketException;
+    public static native boolean keepAliveOptionsSupported();
 }

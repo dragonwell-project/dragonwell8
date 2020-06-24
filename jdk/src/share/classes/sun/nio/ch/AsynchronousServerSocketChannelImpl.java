@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2008, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -39,6 +39,7 @@ import java.util.concurrent.Future;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import sun.net.NetHooks;
+import sun.net.ExtendedOptionsHelper;
 
 /**
  * Base implementation of AsynchronousServerSocketChannel.
@@ -231,6 +232,7 @@ abstract class AsynchronousServerSocketChannelImpl
             HashSet<SocketOption<?>> set = new HashSet<SocketOption<?>>(2);
             set.add(StandardSocketOptions.SO_RCVBUF);
             set.add(StandardSocketOptions.SO_REUSEADDR);
+            set.addAll(ExtendedOptionsHelper.keepAliveOptions());
             return Collections.unmodifiableSet(set);
         }
     }

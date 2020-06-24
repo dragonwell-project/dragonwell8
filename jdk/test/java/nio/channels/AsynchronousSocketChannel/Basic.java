@@ -29,13 +29,17 @@
 
 import java.nio.ByteBuffer;
 import java.nio.channels.*;
-import static java.net.StandardSocketOptions.*;
 import java.net.*;
+import java.util.Arrays;
 import java.util.Random;
+import java.util.Set;
+import java.util.List;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.*;
 import java.io.Closeable;
 import java.io.IOException;
+import static java.net.StandardSocketOptions.*;
+import static jdk.net.ExtendedSocketOptions.*;
 
 public class Basic {
     static final Random rand = new Random();
@@ -164,6 +168,25 @@ public class Basic {
             // read others (can't check as actual value is implementation dependent)
             ch.getOption(SO_RCVBUF);
             ch.getOption(SO_SNDBUF);
+            Set<SocketOption<?>> options = ch.supportedOptions();
+            List<SocketOption<?>> extOptions = Arrays.asList(TCP_KEEPCOUNT,
+                    TCP_KEEPIDLE, TCP_KEEPINTERVAL);
+            if (options.containsAll(extOptions)) {
+                ch.setOption(TCP_KEEPIDLE, 1234);
+                checkOption(ch, TCP_KEEPIDLE, 1234);
+                ch.setOption(TCP_KEEPINTERVAL, 123);
+                checkOption(ch, TCP_KEEPINTERVAL, 123);
+                ch.setOption(TCP_KEEPCOUNT, 7);
+                checkOption(ch, TCP_KEEPCOUNT, 7);
+            }
+        }
+    }
+
+    static void checkOption(AsynchronousSocketChannel sc, SocketOption name, Object expectedValue)
+            throws IOException {
+        Object value = sc.getOption(name);
+        if (!value.equals(expectedValue)) {
+            throw new RuntimeException("value not as expected");
         }
     }
 
