@@ -141,28 +141,17 @@ public abstract class SelectorImpl
         // Precondition: Synchronized on this, keys, and selectedKeys
         Set<SelectionKey> cks = cancelledKeys();
         synchronized (cks) {
-            if (cks.isEmpty()) {
-                return;
-            }
-            cks = new HashSet<>(cks);
-            cancelledKeys().clear();
-        }
-        try { // now cks is a thread local copy
-            Iterator<SelectionKey> i = cks.iterator();
-            while (i.hasNext()) {
-                SelectionKeyImpl ski = (SelectionKeyImpl)i.next();
-                try {
-                    implDereg(ski);
-                } catch (SocketException se) {
-                    throw new IOException("Error deregistering key", se);
-                } finally {
-                    i.remove();
-                }
-            }
-        } finally {
             if (!cks.isEmpty()) {
-                synchronized (cancelledKeys()) {
-                    cancelledKeys().addAll(cks);
+                Iterator<SelectionKey> i = cks.iterator();
+                while (i.hasNext()) {
+                    SelectionKeyImpl ski = (SelectionKeyImpl)i.next();
+                    try {
+                        implDereg(ski);
+                    } catch (SocketException se) {
+                        throw new IOException("Error deregistering key", se);
+                    } finally {
+                        i.remove();
+                    }
                 }
             }
         }
