@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -226,6 +226,9 @@ public final class KeychainStore extends KeyStoreSpi {
 
             // Get the Algorithm ID next
             DerValue[] value = in.getSequence(2);
+            if (value.length < 1 || value.length > 2) {
+                throw new IOException("Invalid length for AlgorithmIdentifier");
+            }
             AlgorithmId algId = new AlgorithmId(value[0].getOID());
             String algName = algId.getName();
 
