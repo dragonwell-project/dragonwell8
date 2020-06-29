@@ -3492,15 +3492,14 @@ jint Threads::create_vm(JavaVMInitArgs* args, bool* canTryAgain) {
   }
 
 #if !INCLUDE_JFR
-    // if JFR is not enabled at the build time keep the original JvmtiExport location
+  // if JFR is not enabled at the build time keep the original JvmtiExport location
 
-    // Always call even when there are not JVMTI environments yet, since environments
-    // may be attached late and JVMTI must track phases of VM execution
-    JvmtiExport::enter_start_phase();
+  // Always call even when there are not JVMTI environments yet, since environments
+  // may be attached late and JVMTI must track phases of VM execution
+  JvmtiExport::enter_start_phase();
 
-    // Notify JVMTI agents that VM has started (JNI is up) - nop if no agents.
-    JvmtiExport::post_vm_start();
-  }
+  // Notify JVMTI agents that VM has started (JNI is up) - nop if no agents.
+  JvmtiExport::post_vm_start();
 #endif
 
   {

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
  */
 /*
  * Licensed to the Apache Software Foundation (ASF) under one or more
@@ -61,6 +61,7 @@ import java.util.Map;
  * @author Neil Graham, IBM
  *
  * @version $Id: DTDGrammar.java,v 1.4 2010/08/11 07:18:37 joehw Exp $
+ * @LastModified: Feb 2020
  */
 public class DTDGrammar
     implements XMLDTDHandler, XMLDTDContentModelHandler, EntityState, Grammar {
@@ -445,9 +446,12 @@ public class DTDGrammar
      * @throws XNIException Thrown by handler to signal an error.
      */
     public void endParameterEntity(String name, Augmentations augs) throws XNIException {
-
-        fPEDepth--;
-        fReadingExternalDTD = fPEntityStack[fPEDepth];
+        // redundant check as this method can only be called after parsing a PE
+        // incomplete or truncated DTD get caught before reaching this method
+        if (fPEDepth > 0) {
+            fPEDepth--;
+            fReadingExternalDTD = fPEntityStack[fPEDepth];
+        }
 
     } // endParameterEntity(String,Augmentations)
 
