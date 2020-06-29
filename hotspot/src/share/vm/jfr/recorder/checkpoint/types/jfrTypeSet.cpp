@@ -52,6 +52,7 @@ static u8 checkpoint_id = 0;
 // creates a unique id by combining a checkpoint relative symbol id (2^24)
 // with the current checkpoint id (2^40)
 #define CREATE_SYMBOL_ID(sym_id) (((u8)((checkpoint_id << 24) | sym_id)))
+#define CREATE_PACKAGE_ID(pkg_id) (((u8)((checkpoint_id << 24) | pkg_id)))
 
 typedef const Klass* KlassPtr;
 // XXX typedef const PackageEntry* PkgPtr;
@@ -61,12 +62,23 @@ typedef const Symbol* SymbolPtr;
 typedef const JfrSymbolId::SymbolEntry* SymbolEntryPtr;
 typedef const JfrSymbolId::CStringEntry* CStringEntryPtr;
 
-// XXX
-// static traceid package_id(KlassPtr klass) {
-//   assert(klass != NULL, "invariant");
-//   PkgPtr pkg_entry = klass->package();
-//   return pkg_entry == NULL ? 0 : TRACE_ID(pkg_entry);
-// }
+inline uintptr_t package_name_hash(const char *s) {
+  uintptr_t val = 0;
+  while (*s != 0) {
+    val = *s++ + 31 * val;
+  }
+  return val;
+}
+
+static traceid package_id(KlassPtr klass, JfrArtifactSet* artifacts) {
+  assert(klass != NULL, "invariant");
+  char* klass_name = klass->name()->as_C_string(); // uses ResourceMark declared in JfrTypeSet::serialize()
+  const char* pkg_name = ClassLoader::package_from_name(klass_name, NULL);
+  if (pkg_name == NULL) {
+    return 0;
+  }
+  return CREATE_PACKAGE_ID(artifacts->markPackage(pkg_name, package_name_hash(pkg_name)));
+}
 
 static traceid cld_id(CldPtr cld) {
   assert(cld != NULL, "invariant");
@@ -125,7 +137,7 @@ int write__artifact__klass(JfrCheckpointWriter* writer, JfrArtifactSet* artifact
     theklass = obj_arr_klass->bottom_klass();
   }
   if (theklass->oop_is_instance()) {
-    pkg_id = 0; // XXX package_id(theklass);
+    pkg_id = package_id(theklass, artifacts);
   } else {
     assert(theklass->oop_is_typeArray(), "invariant");
   }
@@ -169,28 +181,19 @@ int write__artifact__method(JfrCheckpointWriter* writer, JfrArtifactSet* artifac
 typedef JfrArtifactWriterImplHost<MethodPtr, write__artifact__method> MethodWriterImplTarget;
 typedef JfrArtifactWriterHost<MethodWriterImplTarget, TYPE_METHOD> MethodWriterImpl;
 
-// XXX
-// int write__artifact__package(JfrCheckpointWriter* writer, JfrArtifactSet* artifacts, const void* p) {
-//   assert(writer != NULL, "invariant");
-//   assert(artifacts != NULL, "invariant");
-//   assert(p != NULL, "invariant");
-//   PkgPtr pkg = (PkgPtr)p;
-//   Symbol* const pkg_name = pkg->name();
-//   const traceid package_name_symbol_id = pkg_name != NULL ? artifacts->mark(pkg_name) : 0;
-//   assert(package_name_symbol_id > 0, "invariant");
-//   writer->write((traceid)TRACE_ID(pkg));
-//   writer->write((traceid)CREATE_SYMBOL_ID(package_name_symbol_id));
-//   writer->write((bool)pkg->is_exported());
-//   return 1;
-// }
+int write__artifact__package(JfrCheckpointWriter* writer, JfrArtifactSet* artifacts, const void* p) {
+  assert(writer != NULL, "invariant");
+  assert(artifacts != NULL, "invariant");
+  assert(p != NULL, "invariant");
 
-// typedef LeakPredicate<PkgPtr> LeakPackagePredicate;
-// int _compare_pkg_ptr_(PkgPtr const& lhs, PkgPtr const& rhs) { return lhs > rhs ? 1 : (lhs < rhs) ? -1 : 0; }
-// typedef UniquePredicate<PkgPtr, _compare_pkg_ptr_> PackagePredicate;
-// typedef JfrPredicatedArtifactWriterImplHost<PkgPtr, LeakPackagePredicate, write__artifact__package> LeakPackageWriterImpl;
-// typedef JfrPredicatedArtifactWriterImplHost<PkgPtr, PackagePredicate, write__artifact__package> PackageWriterImpl;
-// typedef JfrArtifactWriterHost<LeakPackageWriterImpl, TYPE_PACKAGE> LeakPackageWriter;
-// typedef JfrArtifactWriterHost<PackageWriterImpl, TYPE_PACKAGE> PackageWriter;
+  CStringEntryPtr entry = (CStringEntryPtr)p;
+  const traceid package_name_symbol_id = artifacts->mark(entry->value(), package_name_hash(entry->value()));
+  assert(package_name_symbol_id > 0, "invariant");
+  writer->write((traceid)CREATE_PACKAGE_ID(entry->id()));
+  writer->write((traceid)CREATE_SYMBOL_ID(package_name_symbol_id));
+  writer->write((bool)true); // exported
+  return 1;
+}
 
 int write__artifact__classloader(JfrCheckpointWriter* writer, JfrArtifactSet* artifacts, const void* c) {
   assert(c != NULL, "invariant");
@@ -525,99 +528,17 @@ void JfrTypeSet::write_klass_constants(JfrCheckpointWriter* writer, JfrCheckpoin
   do_klasses();
 }
 
-// XXX
-// typedef CompositeFunctor<PkgPtr,
-//                          PackageWriter,
-//                          ClearArtifact<PkgPtr> > PackageWriterWithClear;
+typedef JfrArtifactWriterImplHost<CStringEntryPtr, write__artifact__package> PackageEntryWriterImpl;
+typedef JfrArtifactWriterHost<PackageEntryWriterImpl, TYPE_PACKAGE> PackageEntryWriter;
 
-// typedef CompositeFunctor<PkgPtr,
-//                          LeakPackageWriter,
-//                          PackageWriter> CompositePackageWriter;
-
-// typedef CompositeFunctor<PkgPtr,
-//                          CompositePackageWriter,
-//                          ClearArtifact<PkgPtr> > CompositePackageWriterWithClear;
-
-// class PackageFieldSelector {
-//  public:
-//   typedef PkgPtr TypePtr;
-//   static TypePtr select(KlassPtr klass) {
-//     assert(klass != NULL, "invariant");
-//     return ((InstanceKlass*)klass)->package();
-//   }
-// };
-
-// typedef KlassToFieldEnvelope<PackageFieldSelector,
-//                              PackageWriterWithClear> KlassPackageWriterWithClear;
-
-// typedef KlassToFieldEnvelope<PackageFieldSelector,
-//                              CompositePackageWriterWithClear> KlassCompositePackageWriterWithClear;
-
-// typedef JfrArtifactCallbackHost<PkgPtr, PackageWriterWithClear> PackageCallback;
-// typedef JfrArtifactCallbackHost<PkgPtr, CompositePackageWriterWithClear> CompositePackageCallback;
-
-// /*
-//  * Composite operation
-//  *
-//  * LeakpPackageWriter ->
-//  *   PackageWriter ->
-//  *     ClearArtifact<PackageEntry>
-//  *
-//  */
-// void JfrTypeSet::write_package_constants(JfrCheckpointWriter* writer, JfrCheckpointWriter* leakp_writer) {
-//   assert(_artifacts->has_klass_entries(), "invariant");
-//   ClearArtifact<PkgPtr> clear(_class_unload);
-//   PackageWriter pw(writer, _artifacts, _class_unload);
-//   if (leakp_writer == NULL) {
-//     PackageWriterWithClear pwwc(&pw, &clear);
-//     KlassPackageWriterWithClear kpwwc(&pwwc);
-//     _artifacts->iterate_klasses(kpwwc);
-//     PackageCallback callback(&pwwc);
-//     _subsystem_callback = &callback;
-//     do_packages();
-//     return;
-//   }
-//   LeakPackageWriter lpw(leakp_writer, _artifacts, _class_unload);
-//   CompositePackageWriter cpw(&lpw, &pw);
-//   CompositePackageWriterWithClear cpwwc(&cpw, &clear);
-//   KlassCompositePackageWriterWithClear ckpw(&cpwwc);
-//   _artifacts->iterate_klasses(ckpw);
-//   CompositePackageCallback callback(&cpwwc);
-//   _subsystem_callback = &callback;
-//   do_packages();
-// }
-
-// typedef CompositeFunctor<ModPtr,
-//                          ModuleWriter,
-//                          ClearArtifact<ModPtr> > ModuleWriterWithClear;
-
-// typedef CompositeFunctor<ModPtr,
-//                          LeakModuleWriter,
-//                          ModuleWriter> CompositeModuleWriter;
-
-// typedef CompositeFunctor<ModPtr,
-//                          CompositeModuleWriter,
-//                          ClearArtifact<ModPtr> > CompositeModuleWriterWithClear;
-
-// typedef JfrArtifactCallbackHost<ModPtr, ModuleWriterWithClear> ModuleCallback;
-// typedef JfrArtifactCallbackHost<ModPtr, CompositeModuleWriterWithClear> CompositeModuleCallback;
-
-// XXX
-// class ModuleFieldSelector {
-//  public:
-//   typedef ModPtr TypePtr;
-//   static TypePtr select(KlassPtr klass) {
-//     assert(klass != NULL, "invariant");
-//     PkgPtr pkg = klass->package();
-//     return pkg != NULL ? pkg->module() : NULL;
-//   }
-// };
-
-// typedef KlassToFieldEnvelope<ModuleFieldSelector,
-//                              ModuleWriterWithClear> KlassModuleWriterWithClear;
-
-// typedef KlassToFieldEnvelope<ModuleFieldSelector,
-//                              CompositeModuleWriterWithClear> KlassCompositeModuleWriterWithClear;
+void JfrTypeSet::write_package_constants(JfrCheckpointWriter* writer, JfrCheckpointWriter* leakp_writer) {
+  assert(_artifacts->has_klass_entries(), "invariant");
+  assert(writer != NULL, "invariant");
+  // below jdk9 there is no oop for packages, so nothing to do with leakp_writer
+  // just write packages
+  PackageEntryWriter pw(writer, _artifacts, _class_unload);
+  _artifacts->iterate_packages(pw);
+}
 
 typedef CompositeFunctor<CldPtr, CldWriter, ClearArtifact<CldPtr> > CldWriterWithClear;
 typedef CompositeFunctor<CldPtr, LeakCldWriter, CldWriter> CompositeCldWriter;
@@ -892,7 +813,7 @@ void JfrTypeSet::serialize(JfrCheckpointWriter* writer, JfrCheckpointWriter* lea
   // might tag an artifact to be written in a subsequent step
   write_klass_constants(writer, leakp_writer);
   if (_artifacts->has_klass_entries()) {
-// XXX    write_package_constants(writer, leakp_writer);
+    write_package_constants(writer, leakp_writer);
     write_class_loader_constants(writer, leakp_writer);
     write_method_constants(writer, leakp_writer);
     write_symbol_constants(writer, leakp_writer);
