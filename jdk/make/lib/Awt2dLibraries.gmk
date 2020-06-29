@@ -658,6 +658,13 @@ endif
 
 ##########################################################################################
 
+ifeq ($(TOOLCHAIN_TYPE), clang)
+ ifeq ($(TOOLCHAIN_VERSION), 10.1)
+   # Work around an optimizer bug seen with Xcode 10.1, but fixed by 10.3
+   BUILD_LIBLCMS_cmsopt.c_CFLAGS := -O0
+ endif
+endif
+
 # TODO: Update awt lib path when awt is converted
 $(eval $(call SetupNativeCompilation,BUILD_LIBLCMS, \
     LIBRARY := lcms, \
