@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1996, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -433,6 +433,12 @@ public abstract class MessageDigest extends MessageDigestSpi {
     /**
      * Compares two digests for equality. Does a simple byte compare.
      *
+     * @implNote
+     * All bytes in {@code digesta} are examined to determine equality.
+     * The calculation time depends only on the length of {@code digesta}.
+     * It does not depend on the length of {@code digestb} or the contents
+     * of {@code digesta} and {@code digestb}.
+     *
      * @param digesta one of the digests to compare.
      *
      * @param digestb the other digest to compare.
@@ -444,14 +450,22 @@ public abstract class MessageDigest extends MessageDigestSpi {
         if (digesta == null || digestb == null) {
             return false;
         }
-        if (digesta.length != digestb.length) {
-            return false;
+
+        int lenA = digesta.length;
+        int lenB = digestb.length;
+
+        if (lenB == 0) {
+            return lenA == 0;
         }
 
         int result = 0;
+        result |= lenA - lenB;
+
         // time-constant comparison
-        for (int i = 0; i < digesta.length; i++) {
-            result |= digesta[i] ^ digestb[i];
+        for (int i = 0; i < lenA; i++) {
+            // If i >= lenB, indexB is 0; otherwise, i.
+            int indexB = ((i - lenB) >>> 31) * i;
+            result |= digesta[i] ^ digestb[indexB];
         }
         return result == 0;
     }
