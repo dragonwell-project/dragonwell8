@@ -28,9 +28,11 @@
 #include "oops/oop.inline.hpp"
 #include "oops/symbol.hpp"
 
-JfrSymbolId::JfrSymbolId() : _symbol_id_counter(0), _sym_table(new SymbolTable(this)), _cstring_table(new CStringTable(this)) {
+JfrSymbolId::JfrSymbolId() : _symbol_id_counter(0), _sym_table(new SymbolTable(this)),
+        _cstring_table(new CStringTable(this)), _pkg_table(new CStringTable(this)) {
   assert(_sym_table != NULL, "invariant");
   assert(_cstring_table != NULL, "invariant");
+  assert(_pkg_table != NULL, "invariant");
   initialize();
 }
 
@@ -52,6 +54,11 @@ void JfrSymbolId::clear() {
   }
   assert(!_cstring_table->has_entries(), "invariant");
   _symbol_id_counter = 0;
+  assert(_pkg_table != NULL, "invariant");
+  if (_pkg_table->has_entries()) {
+    _pkg_table->clear_entries();
+  }
+  assert(!_pkg_table->has_entries(), "invariant");
 }
 
 JfrSymbolId::~JfrSymbolId() {
@@ -148,6 +155,12 @@ traceid JfrSymbolId::mark(const char* str, uintptr_t hash) {
   return _cstring_table->id(str, hash);
 }
 
+traceid JfrSymbolId::markPackage(const char* name, uintptr_t hash) {
+  assert(name != NULL, "invariant");
+  assert(_pkg_table != NULL, "invariant");
+  return _pkg_table->id(name, hash);
+}
+
 bool JfrSymbolId::is_anonymous_klass(const Klass* k) {
   assert(k != NULL, "invariant");
   return k->oop_is_instance() && ((const InstanceKlass*)k)->is_anonymous();
@@ -241,6 +254,10 @@ traceid JfrArtifactSet::mark(const Symbol* symbol) {
 
 traceid JfrArtifactSet::mark(const char* const str, uintptr_t hash) {
   return _symbol_id->mark(str, hash);
+}
+
+traceid JfrArtifactSet::markPackage(const char* const name, uintptr_t hash) {
+  return _symbol_id->markPackage(name, hash);
 }
 
 const JfrSymbolId::SymbolEntry* JfrArtifactSet::map_symbol(const Symbol* symbol) const {

@@ -51,6 +51,7 @@ static u8 checkpoint_id = 0;
 // creates a unique id by combining a checkpoint relative symbol id (2^24)
 // with the current checkpoint id (2^40)
 #define CREATE_SYMBOL_ID(sym_id) (((u8)((checkpoint_id << 24) | sym_id)))
+#define CREATE_PACKAGE_ID(pkg_id) (((u8)((checkpoint_id << 24) | pkg_id)))
 
 typedef const Klass* KlassPtr;
 typedef const ClassLoaderData* CldPtr;
@@ -58,6 +59,24 @@ typedef const Method* MethodPtr;
 typedef const Symbol* SymbolPtr;
 typedef const JfrSymbolId::SymbolEntry* SymbolEntryPtr;
 typedef const JfrSymbolId::CStringEntry* CStringEntryPtr;
+
+inline uintptr_t package_name_hash(const char *s) {
+  uintptr_t val = 0;
+  while (*s != 0) {
+    val = *s++ + 31 * val;
+  }
+  return val;
+}
+
+static traceid package_id(KlassPtr klass, JfrArtifactSet* artifacts) {
+  assert(klass != NULL, "invariant");
+  char* klass_name = klass->name()->as_C_string(); // uses ResourceMark declared in JfrTypeSet::serialize()
+  const char* pkg_name = ClassLoader::package_from_name(klass_name, NULL);
+  if (pkg_name == NULL) {
+    return 0;
+  }
+  return CREATE_PACKAGE_ID(artifacts->markPackage(pkg_name, package_name_hash(pkg_name)));
+}
 
 static traceid cld_id(CldPtr cld) {
   assert(cld != NULL, "invariant");
@@ -111,7 +130,7 @@ int write__artifact__klass(JfrCheckpointWriter* writer, JfrArtifactSet* artifact
     theklass = obj_arr_klass->bottom_klass();
   }
   if (theklass->oop_is_instance()) {
-    pkg_id = 0;
+    pkg_id = package_id(theklass, artifacts);
   } else {
     assert(theklass->oop_is_typeArray(), "invariant");
   }
@@ -154,6 +173,20 @@ int write__artifact__method(JfrCheckpointWriter* writer, JfrArtifactSet* artifac
 
 typedef JfrArtifactWriterImplHost<MethodPtr, write__artifact__method> MethodWriterImplTarget;
 typedef JfrArtifactWriterHost<MethodWriterImplTarget, TYPE_METHOD> MethodWriterImpl;
+
+int write__artifact__package(JfrCheckpointWriter* writer, JfrArtifactSet* artifacts, const void* p) {
+  assert(writer != NULL, "invariant");
+  assert(artifacts != NULL, "invariant");
+  assert(p != NULL, "invariant");
+
+  CStringEntryPtr entry = (CStringEntryPtr)p;
+  const traceid package_name_symbol_id = artifacts->mark(entry->value(), package_name_hash(entry->value()));
+  assert(package_name_symbol_id > 0, "invariant");
+  writer->write((traceid)CREATE_PACKAGE_ID(entry->id()));
+  writer->write((traceid)CREATE_SYMBOL_ID(package_name_symbol_id));
+  writer->write((bool)true); // exported
+  return 1;
+}
 
 int write__artifact__classloader(JfrCheckpointWriter* writer, JfrArtifactSet* artifacts, const void* c) {
   assert(c != NULL, "invariant");
@@ -436,6 +469,18 @@ void JfrTypeSet::write_klass_constants(JfrCheckpointWriter* writer, JfrCheckpoin
   do_klasses();
 }
 
+typedef JfrArtifactWriterImplHost<CStringEntryPtr, write__artifact__package> PackageEntryWriterImpl;
+typedef JfrArtifactWriterHost<PackageEntryWriterImpl, TYPE_PACKAGE> PackageEntryWriter;
+
+void JfrTypeSet::write_package_constants(JfrCheckpointWriter* writer, JfrCheckpointWriter* leakp_writer) {
+  assert(_artifacts->has_klass_entries(), "invariant");
+  assert(writer != NULL, "invariant");
+  // below jdk9 there is no oop for packages, so nothing to do with leakp_writer
+  // just write packages
+  PackageEntryWriter pw(writer, _artifacts, _class_unload);
+  _artifacts->iterate_packages(pw);
+}
+
 typedef CompositeFunctor<CldPtr, CldWriter, ClearArtifact<CldPtr> > CldWriterWithClear;
 typedef CompositeFunctor<CldPtr, LeakCldWriter, CldWriter> CompositeCldWriter;
 typedef CompositeFunctor<CldPtr, CompositeCldWriter, ClearArtifact<CldPtr> > CompositeCldWriterWithClear;
@@ -685,6 +730,7 @@ void JfrTypeSet::serialize(JfrCheckpointWriter* writer, JfrCheckpointWriter* lea
   // might tag an artifact to be written in a subsequent step
   write_klass_constants(writer, leakp_writer);
   if (_artifacts->has_klass_entries()) {
+    write_package_constants(writer, leakp_writer);
     write_class_loader_constants(writer, leakp_writer);
     write_method_constants(writer, leakp_writer);
     write_symbol_constants(writer, leakp_writer);
