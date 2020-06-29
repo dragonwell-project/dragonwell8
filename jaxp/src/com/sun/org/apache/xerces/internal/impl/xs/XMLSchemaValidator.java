@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2006, 2020, Oracle and/or its affiliates. All rights reserved.
  */
 /*
  * Licensed to the Apache Software Foundation (ASF) under one or more
@@ -106,6 +106,7 @@ import jdk.xml.internal.JdkXmlUtils;
  * @author Andy Clark IBM
  * @author Neeraj Bajaj, Sun Microsystems, inc.
  * @version $Id: XMLSchemaValidator.java,v 1.16 2010-11-01 04:39:55 joehw Exp $
+ * @LastModified: Apr 2020
  */
 public class XMLSchemaValidator
     implements XMLComponent, XMLDocumentFilter, FieldActivator, RevalidationHandler {
@@ -1727,7 +1728,7 @@ public class XMLSchemaValidator
 
         // root element
         if (fElementDepth == -1 && fValidationManager.isGrammarFound()) {
-            if (fSchemaType == null) {
+            if (fSchemaType == null && !fUseGrammarPoolOnly) {
                 // schemaType is not specified
                 // if a DTD grammar is found, we do the same thing as Dynamic:
                 // if a schema grammar is found, validation is performed;
