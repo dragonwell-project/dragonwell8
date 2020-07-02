@@ -22,8 +22,12 @@
  *
  */
 
-/*
- * Micro-benchmark for Math.pow() and Math.exp()
+/**
+ * @test
+ * @bug 7177917
+ * @summary Micro-benchmark for Math.pow() and Math.exp()
+ *
+ * @run main Test7177917
  */
 
 import java.util.*;
