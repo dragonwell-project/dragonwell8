@@ -363,6 +363,13 @@ class Assembler : public AbstractAssembler  {
     return is_in_wdisp_range(a, b, 30);
   }
 
+  static bool is_simm5(intptr_t x) { return is_simm(x, 5); }
+  static bool is_simm11(intptr_t x) { return is_simm(x, 11); }
+  static bool is_simm12(intptr_t x) { return is_simm(x, 12); }
+  static bool is_simm13(intptr_t x) { return is_simm(x, 13); }
+
+  static int min_simm13() { return -4096; }
+
   enum ASIs { // page 72, v9
     ASI_PRIMARY            = 0x80,
     ASI_PRIMARY_NOFAULT    = 0x82,
