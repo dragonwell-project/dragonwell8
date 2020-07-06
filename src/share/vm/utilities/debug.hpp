@@ -156,6 +156,9 @@ do {                                                                         \
   #define assert_if_no_error(cond,msg)
 #endif // #ifdef ASSERT
 
+#define precond(p)   assert(p, "precond")
+#define postcond(p)  assert(p, "postcond")
+
 // guarantee is like assert except it's always executed -- use it for
 // cheap tests that catch errors that would otherwise be hard to find.
 // guarantee is also used for Verify options.
