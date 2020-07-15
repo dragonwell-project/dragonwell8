@@ -288,20 +288,6 @@ public final class JVM {
     public native void setSampleThreads(boolean sampleThreads) throws IllegalStateException;
 
     /**
-     * Turn on/off objects allocations sampling.
-     *
-     * @param sampleAllocations true if object allocations should be sampled, false otherwise.
-     */
-    public native void setSampleObjectAllocations(boolean sampleAllocations);
-
-    /**
-     * Set object allocations sampling interval.
-     *
-     * @param interval
-     */
-    public native void setObjectAllocationsSamplingInterval(long interval) throws IllegalArgumentException;
-
-    /**
      * Turn on/off compressed integers.
      *
      * @param compressed true if compressed integers should be used, false

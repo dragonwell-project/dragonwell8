@@ -49,8 +49,6 @@ public final class Options {
     private static final boolean DEFAULT_SAMPLE_THREADS = true;
     private static final long DEFAULT_MAX_CHUNK_SIZE = 12 * 1024 * 1024;
     private static final SafePath DEFAULT_DUMP_PATH = SecuritySupport.USER_HOME;
-    private static final boolean DEFAULT_SAMPLE_OBJECT_ALLOCATIONS = false;
-    private static final long DEFAULT_OBJECT_ALLOCATIONS_SAMPLING_INTERVAL = 1024;
 
     private static long memorySize;
     private static long globalBufferSize;
@@ -60,8 +58,6 @@ public final class Options {
     private static boolean sampleThreads;
     private static long maxChunkSize;
     private static SafePath dumpPath;
-    private static boolean sampleObjectAllocations;
-    private static long objectAllocationsSamplingInterval;
 
     static {
         final long pageSize = Unsafe.getUnsafe().pageSize();
@@ -143,31 +139,6 @@ public final class Options {
         return sampleThreads;
     }
 
-    public static synchronized void setSampleObjectAllocations(Boolean sample) {
-        jvm.setSampleObjectAllocations(sample);
-        sampleObjectAllocations = sample;
-    }
-
-    public static synchronized boolean getSampleObjectAllocations() {
-        return sampleObjectAllocations;
-    }
-
-    /**
-     * Set interval of sampling object allocation events
-     * @param interval the number of newly created objects between two sampling 
-     */
-    public static synchronized void setObjectAllocationsSamplingInterval(Long interval) {
-        if (interval <= 0) {
-            throw new IllegalArgumentException("interval should be greater than 0");
-        }
-        jvm.setObjectAllocationsSamplingInterval(interval);
-        objectAllocationsSamplingInterval = interval;
-    }
-
-    public static synchronized long getObjectAllocationsSamplingInterval() {
-        return objectAllocationsSamplingInterval;
-    }
-
     private static synchronized void reset() {
         setMaxChunkSize(DEFAULT_MAX_CHUNK_SIZE);
         setMemorySize(DEFAULT_MEMORY_SIZE);
@@ -177,8 +148,6 @@ public final class Options {
         setSampleThreads(DEFAULT_SAMPLE_THREADS);
         setStackDepth(DEFAULT_STACK_DEPTH);
         setThreadBufferSize(DEFAULT_THREAD_BUFFER_SIZE);
-        setSampleObjectAllocations(DEFAULT_SAMPLE_OBJECT_ALLOCATIONS);
-        setObjectAllocationsSamplingInterval(DEFAULT_OBJECT_ALLOCATIONS_SAMPLING_INTERVAL);
     }
 
     static synchronized long getWaitInterval() {

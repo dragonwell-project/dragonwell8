@@ -43,7 +43,6 @@ final class DCmdConfigure extends AbstractDCmd {
     /**
      * Execute JFR.configure.
      *
-     * @param onVMStart if cmd is invoked at the moment when vm is started
      * @param repositoryPath the path
      * @param dumpPath path to dump to on fatal error (oom)
      * @param stackDepth depth of stack traces
@@ -52,8 +51,6 @@ final class DCmdConfigure extends AbstractDCmd {
      * @param threadBufferSize size of thread buffer for events
      * @param maxChunkSize threshold at which a new chunk is created in the disk repository
      * @param sampleThreads if thread sampling should be enabled
-     * @param sampleObjectAllocations if object allocations sampling should be enbaled
-     * @param objectAllocationsSamplingInterval interval of object allocations samplings
      *
      * @return result
 
@@ -62,7 +59,6 @@ final class DCmdConfigure extends AbstractDCmd {
      */
     public String execute
     (
-            Boolean onVMStart,
             String repositoryPath,
             String dumpPath,
             Integer stackDepth,
@@ -71,18 +67,9 @@ final class DCmdConfigure extends AbstractDCmd {
             Long threadBufferSize,
             Long memorySize,
             Long maxChunkSize,
-            Boolean sampleThreads,
-            Boolean sampleObjectAllocations,
-            Long objectAllocationsSamplingInterval
-    ) throws DCmdException {
-        // Check parameters correctness
-        if (!onVMStart) {
-            if (sampleObjectAllocations != null || objectAllocationsSamplingInterval != null) {
-                Logger.log(LogTag.JFR, LogLevel.ERROR, "Could not change sampleObjectAllocations and objectAllocationsSamplingInterval during application's running");
-                return getResult();
-            }
-        }
+            Boolean sampleThreads
 
+    ) throws DCmdException {
         boolean updated = false;
         if (repositoryPath != null) {
             try {
@@ -152,20 +139,6 @@ final class DCmdConfigure extends AbstractDCmd {
             updated = true;
         }
 
-        if (objectAllocationsSamplingInterval != null) {
-            Options.setObjectAllocationsSamplingInterval(objectAllocationsSamplingInterval);
-            Logger.log(LogTag.JFR, LogLevel.INFO, "object allocations sampling interval set to " + objectAllocationsSamplingInterval);
-            printObjectAllocationsSamplingInterval();
-            updated = true;
-        }
-
-        if (sampleObjectAllocations != null) {
-            Options.setSampleObjectAllocations(sampleObjectAllocations); 
-            Logger.log(LogTag.JFR, LogLevel.INFO, "Sample object allocations set to " + sampleObjectAllocations);
-            printSampleObjectAllocations();
-            updated = true;
-        }
-
         if (!updated) {
             println("Current configuration:");
             println();
@@ -177,8 +150,6 @@ final class DCmdConfigure extends AbstractDCmd {
             printMemorySize();
             printMaxChunkSize();
             printSampleThreads();
-            printSampleObjectAllocations();
-            printObjectAllocationsSamplingInterval();
         }
         return getResult();
     }
@@ -229,13 +200,5 @@ final class DCmdConfigure extends AbstractDCmd {
         print("Max chunk size: ");
         printBytes(Options.getMaxChunkSize(), " ");
         println();
-    }
-
-    private void printSampleObjectAllocations() {
-        println("Sample object allocations: " + Options.getSampleObjectAllocations());
-    }
-
-    private void printObjectAllocationsSamplingInterval() {
-        println("objects allocations sampling interval: " + Options.getObjectAllocationsSamplingInterval());
     }
 }

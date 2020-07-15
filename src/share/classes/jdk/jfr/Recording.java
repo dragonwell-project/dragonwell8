@@ -668,7 +668,4 @@ public final class Recording implements Closeable {
         internal.setSetting(id, value);
     }
 
-    public boolean isRecorderEnabled(String eventName) {
-        return internal.isRecorderEnabled(eventName);
-    }
 }

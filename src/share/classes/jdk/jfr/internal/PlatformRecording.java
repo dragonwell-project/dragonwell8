@@ -693,8 +693,4 @@ public final class PlatformRecording implements AutoCloseable {
     boolean shouldWriteMetadataEvent() {
         return shuoldWriteActiveRecordingEvent;
     }
-
-    public boolean isRecorderEnabled(String eventName) {
-        return recorder.isEnabled(eventName);
-    }
 }
