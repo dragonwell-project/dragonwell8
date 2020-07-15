@@ -238,7 +238,7 @@ class LibraryCallKit : public GraphKit {
   bool inline_native_currentThread();
 #ifdef TRACE_HAVE_INTRINSICS
   bool inline_native_classID();
-  bool inline_native_getEventWriter();
+  bool inline_native_threadID();
 #endif
   bool inline_native_time_funcs(address method, const char* funcName);
   bool inline_native_isInterrupted();
@@ -885,9 +885,9 @@ bool LibraryCallKit::try_to_inline(int predicate) {
   case vmIntrinsics::_isInterrupted:            return inline_native_isInterrupted();
 
 #ifdef TRACE_HAVE_INTRINSICS
+  case vmIntrinsics::_classID:                  return inline_native_classID();
+  case vmIntrinsics::_threadID:                 return inline_native_threadID();
   case vmIntrinsics::_counterTime:              return inline_native_time_funcs(CAST_FROM_FN_PTR(address, TRACE_TIME_METHOD), "counterTime");
-  case vmIntrinsics::_getClassId:               return inline_native_classID();
-  case vmIntrinsics::_getEventWriter:           return inline_native_getEventWriter();
 #endif
   case vmIntrinsics::_currentTimeMillis:        return inline_native_time_funcs(CAST_FROM_FN_PTR(address, os::javaTimeMillis), "currentTimeMillis");
   case vmIntrinsics::_nanoTime:                 return inline_native_time_funcs(CAST_FROM_FN_PTR(address, os::javaTimeNanos), "nanoTime");
@@ -3258,75 +3258,42 @@ bool LibraryCallKit::inline_unsafe_allocate() {
  * return myklass->trace_id & ~0x3
  */
 bool LibraryCallKit::inline_native_classID() {
-  if (EnableJFR) {
-    Node* cls = null_check(argument(0), T_OBJECT);
-    Node* kls = load_klass_from_mirror(cls, false, NULL, 0);
-    kls = null_check(kls, T_OBJECT);
+  null_check_receiver();  // null-check, then ignore
+  Node* cls = null_check(argument(1), T_OBJECT);
+  Node* kls = load_klass_from_mirror(cls, false, NULL, 0);
+  kls = null_check(kls, T_OBJECT);
+  ByteSize offset = TRACE_ID_OFFSET;
+  Node* insp = basic_plus_adr(kls, in_bytes(offset));
+  Node* tvalue = make_load(NULL, insp, TypeLong::LONG, T_LONG, MemNode::unordered);
+  Node* bits = longcon(~0x03l); // ignore bit 0 & 1
+  Node* andl = _gvn.transform(new (C) AndLNode(tvalue, bits));
+  Node* clsused = longcon(0x01l); // set the class bit
+  Node* orl = _gvn.transform(new (C) OrLNode(tvalue, clsused));
 
-    ByteSize offset = TRACE_KLASS_TRACE_ID_OFFSET;
-    Node* insp = basic_plus_adr(kls, in_bytes(offset));
-    Node* tvalue = make_load(NULL, insp, TypeLong::LONG, T_LONG, MemNode::unordered);
-
-    Node* clsused = longcon(0x01l); // set the class bit
-    Node* orl = _gvn.transform(new (C) OrLNode(tvalue, clsused));
-    const TypePtr *adr_type = _gvn.type(insp)->isa_ptr();
-    store_to_memory(control(), insp, orl, T_LONG, adr_type, MemNode::unordered);
-
-#ifdef TRACE_ID_META_BITS
-    Node* mbits = longcon(~TRACE_ID_META_BITS);
-    tvalue = _gvn.transform(new (C) AndLNode(tvalue, mbits));
-#endif
-#ifdef TRACE_ID_SHIFT
-    Node* cbits = intcon(TRACE_ID_SHIFT);
-    tvalue = _gvn.transform(new (C) URShiftLNode(tvalue, cbits));
-#endif
-
-    set_result(tvalue);
-    return true;
-  } else {
-    return false;
-  }
+  const TypePtr *adr_type = _gvn.type(insp)->isa_ptr();
+  store_to_memory(control(), insp, orl, T_LONG, adr_type, MemNode::unordered);
+  set_result(andl);
+  return true;
 }
 
-bool LibraryCallKit::inline_native_getEventWriter() {
-  if (EnableJFR) {
-    Node* tls_ptr = _gvn.transform(new (C) ThreadLocalNode());
+bool LibraryCallKit::inline_native_threadID() {
+  Node* tls_ptr = NULL;
+  Node* cur_thr = generate_current_thread(tls_ptr);
+  Node* p = basic_plus_adr(top()/*!oop*/, tls_ptr, in_bytes(JavaThread::osthread_offset()));
+  Node* osthread = make_load(NULL, p, TypeRawPtr::NOTNULL, T_ADDRESS, MemNode::unordered);
+  p = basic_plus_adr(top()/*!oop*/, osthread, in_bytes(OSThread::thread_id_offset()));
 
-    Node* jobj_ptr = basic_plus_adr(top(), tls_ptr,
-                                  in_bytes(TRACE_THREAD_DATA_WRITER_OFFSET)
-                                  );
-
-    Node* jobj = make_load(control(), jobj_ptr, TypeRawPtr::BOTTOM, T_ADDRESS, MemNode::unordered);
-
-    Node* jobj_cmp_null = _gvn.transform( new (C) CmpPNode(jobj, null()) );
-    Node* test_jobj_eq_null  = _gvn.transform( new (C) BoolNode(jobj_cmp_null, BoolTest::eq) );
-
-    IfNode* iff_jobj_null =
-      create_and_map_if(control(), test_jobj_eq_null, PROB_MIN, COUNT_UNKNOWN);
-
-    enum { _normal_path = 1,
-           _null_path = 2,
-           PATH_LIMIT };
-
-    RegionNode* result_rgn = new (C) RegionNode(PATH_LIMIT);
-    PhiNode*    result_val = new (C) PhiNode(result_rgn, TypePtr::BOTTOM);
-
-    Node* jobj_is_null = _gvn.transform(new (C) IfTrueNode(iff_jobj_null));
-    result_rgn->init_req(_null_path, jobj_is_null);
-    result_val->init_req(_null_path, null());
-
-    Node* jobj_is_not_null = _gvn.transform(new (C) IfFalseNode(iff_jobj_null));
-    result_rgn->init_req(_normal_path, jobj_is_not_null);
-
-    Node* res = make_load(jobj_is_not_null, jobj, TypeInstPtr::NOTNULL, T_OBJECT, MemNode::unordered);
-    result_val->init_req(_normal_path, res);
-
-    set_result(result_rgn, result_val);
-
-    return true;
+  Node* threadid = NULL;
+  size_t thread_id_size = OSThread::thread_id_size();
+  if (thread_id_size == (size_t) BytesPerLong) {
+    threadid = ConvL2I(make_load(control(), p, TypeLong::LONG, T_LONG, MemNode::unordered));
+  } else if (thread_id_size == (size_t) BytesPerInt) {
+    threadid = make_load(control(), p, TypeInt::INT, T_INT, MemNode::unordered);
   } else {
-    return false;
+    ShouldNotReachHere();
   }
+  set_result(threadid);
+  return true;
 }
 #endif
 

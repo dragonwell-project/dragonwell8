@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2014, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,7 +25,6 @@
 #include "precompiled.hpp"
 #include "gc_implementation/shared/ageTable.hpp"
 #include "gc_implementation/shared/gcPolicyCounters.hpp"
-#include "gc_implementation/shared/ageTableTracer.hpp"
 #include "memory/collectorPolicy.hpp"
 #include "memory/resourceArea.hpp"
 #include "memory/sharedHeap.hpp"
@@ -93,7 +92,7 @@ uint ageTable::compute_tenuring_threshold(size_t survivor_capacity) {
   }
   uint result = age < MaxTenuringThreshold ? age : MaxTenuringThreshold;
 
-  if (PrintTenuringDistribution || UsePerfData || (EnableJFR && AgeTableTracer::is_tenuring_distribution_event_enabled())) {
+  if (PrintTenuringDistribution || UsePerfData) {
 
     if (PrintTenuringDistribution) {
       gclog_or_tty->cr();
@@ -111,11 +110,6 @@ uint ageTable::compute_tenuring_threshold(size_t survivor_capacity) {
                                         age,    sizes[age]*oopSize,          total*oopSize);
         }
       }
-
-      if (EnableJFR) {
-        AgeTableTracer::send_tenuring_distribution_event(age, sizes[age] * oopSize);
-      }
-
       if (UsePerfData) {
         _perf_sizes[age]->set_value(sizes[age]*oopSize);
       }

@@ -60,6 +60,19 @@
 
 #define log_is_enabled(level, ...) (LogImplWarmUp::is_level(LogLevel::level))
 
+class LogLevel : public AllStatic {
+ public:
+   enum type {
+     Off,
+     Trace,
+     Debug,
+     Info,
+     Warning,
+     Error
+   };
+};
+typedef LogLevel::type LogLevelType;
+
 class LogImplWarmUp {
  public:
   static bool is_level(LogLevelType level) {

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2014, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -30,7 +30,6 @@
 #include "gc_implementation/g1/g1_specialized_oop_closures.hpp"
 #include "gc_implementation/g1/heapRegionType.hpp"
 #include "gc_implementation/g1/survRateGroup.hpp"
-#include "gc_implementation/g1/g1HeapRegionTraceType.hpp"
 #include "gc_implementation/shared/ageTable.hpp"
 #include "gc_implementation/shared/spaceDecorator.hpp"
 #include "memory/space.inline.hpp"
@@ -211,8 +210,6 @@ class HeapRegion: public G1OffsetTableContigSpace {
   HeapRegionRemSet* _rem_set;
 
   G1BlockOffsetArrayContigSpace* offsets() { return &_offsets; }
-
-  void report_region_type_change(G1HeapRegionTraceType::Type to);
 
  protected:
   // The index of this region in the heap region sequence.
@@ -414,7 +411,6 @@ class HeapRegion: public G1OffsetTableContigSpace {
 
   const char* get_type_str() const { return _type.get_str(); }
   const char* get_short_type_str() const { return _type.get_short_str(); }
-  G1HeapRegionTraceType::Type get_trace_type() { return _type.get_trace_type(); }
 
   bool is_free() const { return _type.is_free(); }
 
@@ -675,40 +671,13 @@ class HeapRegion: public G1OffsetTableContigSpace {
     }
   }
 
-  void set_free() {
-    if (EnableJFR) {
-      report_region_type_change(G1HeapRegionTraceType::Free);
-    }
-    _type.set_free();
-  }
+  void set_free() { _type.set_free(); }
 
-  void set_eden() {
-    if (EnableJFR) {
-      report_region_type_change(G1HeapRegionTraceType::Eden);
-    }
-    _type.set_eden();
-  }
+  void set_eden()        { _type.set_eden();        }
+  void set_eden_pre_gc() { _type.set_eden_pre_gc(); }
+  void set_survivor()    { _type.set_survivor();    }
 
-  void set_old() {
-    if (EnableJFR) {
-      report_region_type_change(G1HeapRegionTraceType::Old);
-    }
-    _type.set_old();
-  }
-
-  void set_eden_pre_gc() {
-    if (EnableJFR) {
-      report_region_type_change(G1HeapRegionTraceType::Eden);
-    }
-    _type.set_eden_pre_gc();
-  }
-
-  void set_survivor() {
-    if (EnableJFR) {
-      report_region_type_change(G1HeapRegionTraceType::Survivor);
-    }
-    _type.set_survivor();
-  }
+  void set_old() { _type.set_old(); }
 
   // Determine if an object has been allocated since the last
   // mark performed by the collector. This returns true iff the object

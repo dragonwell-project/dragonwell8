@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -465,8 +465,8 @@ void ATTR ObjectMonitor::enter(TRAPS) {
   }
 
   if (event.should_commit()) {
-    event.set_monitorClass(((oop)this->object())->klass());
-    event.set_previousOwner((TYPE_THREAD)_previous_owner_tid);
+    event.set_klass(((oop)this->object())->klass());
+    event.set_previousOwner((TYPE_JAVALANGTHREAD)_previous_owner_tid);
     event.set_address((TYPE_ADDRESS)(uintptr_t)(this->object_addr()));
     event.commit();
   }
@@ -994,7 +994,7 @@ void ATTR ObjectMonitor::exit(bool not_suspended, TRAPS) {
    // get the owner's thread id for the MonitorEnter event
    // if it is enabled and the thread isn't suspended
    if (not_suspended && Tracing::is_event_enabled(TraceJavaMonitorEnterEvent)) {
-     _previous_owner_tid = THREAD_TRACE_ID(Self);
+     _previous_owner_tid = SharedRuntime::get_java_tid(Self);
    }
 #endif
 
@@ -1447,12 +1447,11 @@ void ObjectMonitor::post_monitor_wait_event(EventJavaMonitorWait* event,
                                                            jlong notifier_tid,
                                                            jlong timeout,
                                                            bool timedout) {
-  assert(event != NULL, "invariant");
-  event->set_monitorClass(((oop)this->object())->klass());
-  event->set_timeout(timeout);
-  event->set_address((TYPE_ADDRESS)this->object_addr());
-  event->set_notifier(notifier_tid);
-  event->set_timedOut(timedout);
+  event->set_klass(((oop)this->object())->klass());
+  event->set_timeout((TYPE_ULONG)timeout);
+  event->set_address((TYPE_ADDRESS)(uintptr_t)(this->object_addr()));
+  event->set_notifier((TYPE_OSTHREAD)notifier_tid);
+  event->set_timedOut((TYPE_BOOLEAN)timedout);
   event->commit();
 }
 
@@ -1717,7 +1716,7 @@ void ObjectMonitor::notify(TRAPS) {
      }
      iterator->_notified = 1 ;
      Thread * Self = THREAD;
-     iterator->_notifier_tid = THREAD_TRACE_ID(Self);
+     iterator->_notifier_tid = Self->osthread()->thread_id();
 
      ObjectWaiter * List = _EntryList ;
      if (List != NULL) {
@@ -1843,7 +1842,7 @@ void ObjectMonitor::notifyAll(TRAPS) {
      guarantee (iterator->_notified == 0, "invariant") ;
      iterator->_notified = 1 ;
      Thread * Self = THREAD;
-     iterator->_notifier_tid = THREAD_TRACE_ID(Self);
+     iterator->_notifier_tid = Self->osthread()->thread_id();
      if (Policy != 4) {
         iterator->TState = ObjectWaiter::TS_ENTER ;
      }

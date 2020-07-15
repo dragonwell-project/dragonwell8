@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2013, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -102,10 +102,6 @@ inline jint     Atomic::cmpxchg    (jint     exchange_value, volatile jint*     
 #ifdef AMD64
 inline void Atomic::store    (jlong    store_value, jlong*    dest) { *dest = store_value; }
 inline void Atomic::store    (jlong    store_value, volatile jlong*    dest) { *dest = store_value; }
-inline void Atomic::store    (julong   store_value, julong*   dest) {
-    assert(EnableJFR, "sanity check");
-    *dest = store_value;
-}
 
 inline intptr_t Atomic::add_ptr(intptr_t add_value, volatile intptr_t* dest) {
   intptr_t addend = add_value;

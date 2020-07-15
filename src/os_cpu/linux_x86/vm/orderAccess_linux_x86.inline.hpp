@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -73,21 +73,8 @@ inline juint    OrderAccess::load_acquire(volatile juint*   p) { return *p; }
 inline julong   OrderAccess::load_acquire(volatile julong*  p) { return Atomic::load((volatile jlong*)p); }
 inline jfloat   OrderAccess::load_acquire(volatile jfloat*  p) { return *p; }
 inline jdouble  OrderAccess::load_acquire(volatile jdouble* p) { return jdouble_cast(Atomic::load((volatile jlong*)p)); }
-inline bool     OrderAccess::load_acquire(const volatile bool*  p) {
-    assert(EnableJFR, "sanity check");
-    return *p;
-}
-inline julong   OrderAccess::load_acquire(const volatile julong*  p) {
-    assert(EnableJFR, "sanity check");
-    return Atomic::load((volatile jlong*)p);
-}
 
 inline intptr_t OrderAccess::load_ptr_acquire(volatile intptr_t*   p) { return *p; }
-inline uintptr_t OrderAccess::load_ptr_acquire(const volatile uintptr_t* p) {
-    assert(EnableJFR, "sanity check");
-    return *p;
-}
-
 inline void*    OrderAccess::load_ptr_acquire(volatile void*       p) { return *(void* volatile *)p; }
 inline void*    OrderAccess::load_ptr_acquire(const volatile void* p) { return *(void* const volatile *)p; }
 

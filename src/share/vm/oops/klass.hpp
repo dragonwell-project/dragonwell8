@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -40,7 +40,6 @@
 #include "gc_implementation/g1/g1OopClosures.hpp"
 #include "gc_implementation/parNew/parOopClosures.hpp"
 #endif // INCLUDE_ALL_GCS
-#include "jfr/utilities/jfrLog.hpp"
 
 //
 // A Klass provides:
@@ -171,7 +170,7 @@ class Klass : public Metadata {
   markOop  _prototype_header;   // Used when biased locking is both enabled and disabled for this type
   jint     _biased_lock_revocation_count;
 
-  TRACE_DEFINE_TRACE_ID_FIELD;
+  TRACE_DEFINE_KLASS_TRACE_ID;
 
   // Remembered sets support for the oops in the klasses.
   jbyte _modified_oops;             // Card Table Equivalent (YC/CMS support)
@@ -614,7 +613,7 @@ protected:
   jlong last_biased_lock_bulk_revocation_time() { return _last_biased_lock_bulk_revocation_time; }
   void  set_last_biased_lock_bulk_revocation_time(jlong cur_time) { _last_biased_lock_bulk_revocation_time = cur_time; }
 
-  TRACE_DEFINE_TRACE_ID_METHODS;
+  TRACE_DEFINE_KLASS_METHODS;
 
   // garbage collection support
   virtual void oops_do(OopClosure* cl);

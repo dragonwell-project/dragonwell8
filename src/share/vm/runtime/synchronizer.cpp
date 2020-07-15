@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2014, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -1193,27 +1193,12 @@ ObjectMonitor* ObjectSynchronizer::inflate_helper(oop obj) {
 // Note that we could encounter some performance loss through false-sharing as
 // multiple locks occupy the same $ line.  Padding might be appropriate.
 
-static void post_monitor_inflate_event(EventJavaMonitorInflate& event,
-                                       const oop obj,
-                                       //const ObjectSynchronizer::InflateCause cause) {
-                                       // unsupport cause
-                                       const u1 cause) {
-#if INCLUDE_TRACE
-  assert(event.should_commit(), "check outside");
-  event.set_monitorClass(obj->klass());
-  event.set_address((TYPE_ADDRESS)(uintptr_t)(void*)obj);
-  event.set_cause((u1)cause);
-  event.commit();
-#endif
-}
 
 ObjectMonitor * ATTR ObjectSynchronizer::inflate (Thread * Self, oop object) {
   // Inflate mutates the heap ...
   // Relaxing assertion for bug 6320749.
   assert (Universe::verify_in_progress() ||
           !SafepointSynchronize::is_at_safepoint(), "invariant") ;
-
-  EventJavaMonitorInflate event;
 
   for (;;) {
       const markOop mark = object->mark() ;
@@ -1345,9 +1330,6 @@ ObjectMonitor * ATTR ObjectSynchronizer::inflate (Thread * Self, oop object) {
                 object->klass()->external_name());
             }
           }
-          if (event.should_commit()) {
-            post_monitor_inflate_event(event, object, (u1)0);
-          }
           return m ;
       }
 
@@ -1397,9 +1379,6 @@ ObjectMonitor * ATTR ObjectSynchronizer::inflate (Thread * Self, oop object) {
             (void *) object, (intptr_t) object->mark(),
             object->klass()->external_name());
         }
-      }
-      if (event.should_commit()) {
-        post_monitor_inflate_event(event, object, (u1)0);
       }
       return m ;
   }

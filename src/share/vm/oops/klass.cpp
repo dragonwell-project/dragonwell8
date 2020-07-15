@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -197,6 +197,7 @@ Klass::Klass() {
   set_subklass(NULL);
   set_next_sibling(NULL);
   set_next_link(NULL);
+  TRACE_INIT_ID(this);
 
   set_prototype_header(markOopDesc::prototype());
   set_biased_lock_revocation_count(0);
@@ -523,7 +524,6 @@ void Klass::oops_do(OopClosure* cl) {
 }
 
 void Klass::remove_unshareable_info() {
-  TRACE_REMOVE_ID(this);
   assert (DumpSharedSpaces, "only called for DumpSharedSpaces");
 
   set_subklass(NULL);
@@ -537,7 +537,7 @@ void Klass::remove_unshareable_info() {
 }
 
 void Klass::restore_unshareable_info(ClassLoaderData* loader_data, Handle protection_domain, TRAPS) {
-  TRACE_RESTORE_ID(this);
+  TRACE_INIT_ID(this);
   // If an exception happened during CDS restore, some of these fields may already be
   // set.  We leave the class on the CLD list, even if incomplete so that we don't
   // modify the CLD list outside a safepoint.

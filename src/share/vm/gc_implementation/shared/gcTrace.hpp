@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2013, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -157,39 +157,9 @@ class YoungGCTracer : public GCTracer {
   void report_promotion_failed(const PromotionFailedInfo& pf_info);
   void report_tenuring_threshold(const uint tenuring_threshold);
 
-  /*
-   * Methods for reporting Promotion in new or outside PLAB Events.
-   *
-   * The object age is always required as it is not certain that the mark word
-   * of the oop can be trusted at this stage.
-   *
-   * obj_size is the size of the promoted object in bytes.
-   *
-   * tenured should be true if the object has been promoted to the old
-   * space during this GC, if the object is copied to survivor space
-   * from young space or survivor space (aging) tenured should be false.
-   *
-   * plab_size is the size of the newly allocated PLAB in bytes.
-   */
-  bool should_report_promotion_events() const;
-  bool should_report_promotion_in_new_plab_event() const;
-  bool should_report_promotion_outside_plab_event() const;
-  void report_promotion_in_new_plab_event(Klass* klass, size_t obj_size,
-                                          uint age, bool tenured,
-                                          size_t plab_size) const;
-  void report_promotion_outside_plab_event(Klass* klass, size_t obj_size,
-                                           uint age, bool tenured) const;
-
  private:
   void send_young_gc_event() const;
   void send_promotion_failed_event(const PromotionFailedInfo& pf_info) const;
-  bool should_send_promotion_in_new_plab_event() const;
-  bool should_send_promotion_outside_plab_event() const;
-  void send_promotion_in_new_plab_event(Klass* klass, size_t obj_size,
-                                        uint age, bool tenured,
-                                        size_t plab_size) const;
-  void send_promotion_outside_plab_event(Klass* klass, size_t obj_size,
-                                         uint age, bool tenured) const;
 };
 
 class OldGCTracer : public GCTracer {
@@ -240,13 +210,6 @@ class ParNewTracer : public YoungGCTracer {
 };
 
 #if INCLUDE_ALL_GCS
-class G1MMUTracer : public AllStatic {
-  static void send_g1_mmu_event(double time_slice_ms, double gc_time_ms, double max_time_ms, bool gc_thread);
-
- public:
-  static void report_mmu(double time_slice_sec, double gc_time_sec, double max_time_sec, bool gc_thread);
-};
-
 class G1NewTracer : public YoungGCTracer {
   G1YoungGCInfo _g1_young_gc_info;
 
@@ -258,25 +221,10 @@ class G1NewTracer : public YoungGCTracer {
   void report_evacuation_info(EvacuationInfo* info);
   void report_evacuation_failed(EvacuationFailedInfo& ef_info);
 
-  void report_basic_ihop_statistics(size_t threshold,
-                                    size_t target_occupancy,
-                                    size_t current_occupancy,
-                                    size_t last_allocation_size,
-                                    double last_allocation_duration,
-                                    double last_marking_length);
-
  private:
   void send_g1_young_gc_event();
   void send_evacuation_info_event(EvacuationInfo* info);
   void send_evacuation_failed_event(const EvacuationFailedInfo& ef_info) const;
-
-  void send_basic_ihop_statistics(size_t threshold,
-                                  size_t target_occupancy,
-                                  size_t current_occupancy,
-                                  size_t last_allocation_size,
-                                  double last_allocation_duration,
-                                  double last_marking_length);
-
 };
 #endif
 

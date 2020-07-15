@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -1044,16 +1044,15 @@ Klass* SystemDictionary::parse_stream(Symbol* class_name,
   //
   // Note: "name" is updated.
 
-  ClassFileParser parser(st);
-  instanceKlassHandle k = parser.parseClassFile(class_name,
-                                                loader_data,
-                                                protection_domain,
-                                                host_klass,
-                                                cp_patches,
-                                                parsed_name,
-                                                true,
-                                                THREAD);
-  TRACE_KLASS_CREATION(k, parser, THREAD);
+  instanceKlassHandle k = ClassFileParser(st).parseClassFile(class_name,
+                                                             loader_data,
+                                                             protection_domain,
+                                                             host_klass,
+                                                             cp_patches,
+                                                             parsed_name,
+                                                             true,
+                                                             THREAD);
+
 
   if (host_klass.not_null() && k.not_null()) {
     assert(EnableInvokeDynamic, "");
@@ -1127,14 +1126,12 @@ Klass* SystemDictionary::resolve_from_stream(Symbol* class_name,
   //
   // Note: "name" is updated.
 
-  ClassFileParser parser(st);
-  instanceKlassHandle k = parser.parseClassFile(class_name,
-                                                loader_data,
-                                                protection_domain,
-                                                parsed_name,
-                                                verify,
-                                                THREAD);
-  TRACE_KLASS_CREATION(k, parser, THREAD);
+  instanceKlassHandle k = ClassFileParser(st).parseClassFile(class_name,
+                                                             loader_data,
+                                                             protection_domain,
+                                                             parsed_name,
+                                                             verify,
+                                                             THREAD);
 
   const char* pkg = "java/";
   size_t pkglen = strlen(pkg);
@@ -1435,19 +1432,6 @@ instanceKlassHandle SystemDictionary::load_instance_class(Symbol* class_name, Ha
   }
 }
 
-static void class_define_event(InstanceKlass* k,
-                               const ClassLoaderData* def_cld) {
-#if INCLUDE_TRACE
-  EventClassDefine event;
-  if (event.should_commit()) {
-    ResourceMark m;
-    event.set_definedClass(k);
-    event.set_definingClassLoader(def_cld);
-    event.commit();
-  }
-#endif // INCLUDE_TRACE
-}
-
 void SystemDictionary::define_instance_class(instanceKlassHandle k, TRAPS) {
 
   ClassLoaderData* loader_data = k->class_loader_data();
@@ -1518,7 +1502,6 @@ void SystemDictionary::define_instance_class(instanceKlassHandle k, TRAPS) {
 
   }
 
-  class_define_event(k(), loader_data);
 }
 
 // Support parallel classloading
@@ -2767,11 +2750,16 @@ void SystemDictionary::post_class_load_event(const Ticks& start_time,
                                              instanceKlassHandle k,
                                              Handle initiating_loader) {
 #if INCLUDE_TRACE
-  EventClassLoad event;
+  EventClassLoad event(UNTIMED);
   if (event.should_commit()) {
+    event.set_starttime(start_time);
     event.set_loadedClass(k());
-    event.set_definingClassLoader(k->class_loader_data());
-    event.set_initiatingClassLoader(ClassLoaderData::class_loader_data_or_null(initiating_loader()));
+    oop defining_class_loader = k->class_loader();
+    event.set_definingClassLoader(defining_class_loader !=  NULL ?
+                                    defining_class_loader->klass() : (Klass*)NULL);
+    oop class_loader = initiating_loader.is_null() ? (oop)NULL : initiating_loader();
+    event.set_initiatingClassLoader(class_loader != NULL ?
+                                      class_loader->klass() : (Klass*)NULL);
     event.commit();
   }
 #endif // INCLUDE_TRACE

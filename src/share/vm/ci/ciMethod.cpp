@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -1473,13 +1473,3 @@ void ciMethod::print_impl(outputStream* st) {
     st->print(" loaded=false");
   }
 }
-
-#if INCLUDE_TRACE
-TraceStructCalleeMethod ciMethod::to_trace_struct() const {
-  TraceStructCalleeMethod result;
-  result.set_type(holder()->name()->as_utf8());
-  result.set_name(name()->as_utf8());
-  result.set_descriptor(signature()->as_symbol()->as_utf8());
-  return result;
-}
-#endif

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -213,10 +213,6 @@ class G1ParScanThreadState : public StackObj {
                                   AllocationContext_t const context);
 
   inline InCSetState next_state(InCSetState const state, markOop const m, uint& age);
-  inline InCSetState next_state(InCSetState const state, markOop const m, uint& age, AllocationContext_t context);
-  void report_promotion_event(InCSetState const dest_state,
-                              oop const old, size_t word_sz, uint age,
-                              HeapWord * const obj_ptr, AllocationContext_t context) const;
  public:
 
   oop copy_to_survivor_space(InCSetState const state, oop const obj, markOop const old_mark);

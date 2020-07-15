@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2013, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -72,8 +72,7 @@ GCTraceTime::~GCTraceTime() {
 
   if (_doit) {
     const Tickspan duration = stop_counter - _start_counter;
-    double duration_in_seconds = TimeHelper::counter_to_seconds(duration.value());
-
+    double duration_in_seconds = TicksToTimeHelper::seconds(duration);
     if (_print_cr) {
       gclog_or_tty->print_cr(", %3.7f secs]", duration_in_seconds);
     } else {

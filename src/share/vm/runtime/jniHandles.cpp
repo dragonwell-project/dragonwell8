@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2017, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -434,7 +434,6 @@ void JNIHandleBlock::weak_oops_do(BoolObjectClosure* is_alive,
    * is placed here so that we don't need to add it to each of the collectors.
    */
   JvmtiExport::weak_oops_do(is_alive, f);
-  TRACE_WEAK_OOPS_DO(is_alive, f);
 }
 
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -521,13 +521,12 @@ void before_exit(JavaThread * thread) {
     JvmtiExport::post_thread_end(thread);
   }
 
+
   EventThreadEnd event;
   if (event.should_commit()) {
-      event.set_thread(THREAD_TRACE_ID(thread));
+      event.set_javalangthread(java_lang_Thread::thread_id(thread->threadObj()));
       event.commit();
   }
-
-  TRACE_VM_EXIT();
 
   // Always call even when there are not JVMTI environments yet, since environments
   // may be attached late and JVMTI must track phases of VM execution

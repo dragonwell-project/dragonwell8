@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -29,15 +29,6 @@
 #include "compiler/oopMap.hpp"
 #include "runtime/frame.hpp"
 #include "runtime/handles.hpp"
-
-// CodeBlob Types, used for jfr
-// Used in the CodeCache to assign CodeBlobs to different CodeHeaps
-struct CodeBlobType {
-  enum {
-    All                 = 0,    // All types (No code cache segmentation)
-    NumTypes            = 1     // Number of CodeBlobTypes
-  };
-};
 
 // CodeBlob - superclass for all entries in the CodeCache.
 //
@@ -80,7 +71,6 @@ class CodeBlob VALUE_OBJ_CLASS_SPEC {
  public:
   // Returns the space needed for CodeBlob
   static unsigned int allocation_size(CodeBuffer* cb, int header_size);
-  static unsigned int align_code_offset(int offset);
 
   // Creation
   // a) simple CodeBlob
@@ -215,7 +205,6 @@ class BufferBlob: public CodeBlob {
   friend class AdapterBlob;
   friend class VtableBlob;
   friend class MethodHandlesAdapterBlob;
-  friend class WhiteBox;
 
  private:
   // Creation support

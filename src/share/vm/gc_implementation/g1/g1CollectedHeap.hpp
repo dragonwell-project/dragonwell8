@@ -1,5 +1,5 @@
   /*
- * Copyright (c) 2001, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -1088,7 +1088,6 @@ public:
 
   ConcurrentGCTimer* gc_timer_cm() const { return _gc_timer_cm; }
   G1OldTracer* gc_tracer_cm() const { return _gc_tracer_cm; }
-  G1NewTracer* gc_tracer_stw() const { return _gc_tracer_stw; }
 
   virtual size_t capacity() const;
   virtual size_t used() const;

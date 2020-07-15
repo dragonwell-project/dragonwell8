@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2013, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -123,7 +123,6 @@ class TraceCPUTime: public StackObj {
 class TimeHelper {
  public:
   static double counter_to_seconds(jlong counter);
-  static double counter_to_milliseconds(jlong counter);
 };
 
 #endif // SHARE_VM_RUNTIME_TIMER_HPP

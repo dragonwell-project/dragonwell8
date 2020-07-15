@@ -2040,7 +2040,7 @@ void CompileBroker::invoke_compiler_on_method(CompileTask* task) {
     assert(task->compile_id() != CICrashAt, "just as planned");
     if (event.should_commit()) {
       event.set_method(target->get_Method());
-      event.set_compileId(compile_id);
+      event.set_compileID(compile_id);
       event.set_compileLevel(task->comp_level());
       event.set_succeded(task->is_success());
       event.set_isOsr(is_osr);

@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
- Copyright (c) 2012, 2019, Oracle and/or its affiliates. All rights reserved.
+ Copyright (c) 2012, 2013, Oracle and/or its affiliates. All rights reserved.
  DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 
  This code is free software; you can redistribute it and/or modify it
@@ -23,7 +23,7 @@
   
 -->
 
-<!ELEMENT trace (xi:include*)>
+<!ELEMENT trace (xi:include, relation_decls, events*, xi:include, xi:include)>
 <!ELEMENT types (content_types, primary_types)>
 <!ELEMENT content_types (content_type|struct_type)*>
 <!ELEMENT content_type (value|structvalue|structarray|array)*>
@@ -64,29 +64,23 @@
                         has_stacktrace CDATA "false"
                         is_instant     CDATA "false"
                         is_constant    CDATA "false"
-                        is_requestable CDATA "false"
-                        experimental   CDATA "false"
-                        cutoff         CDATA "false">
+                        is_requestable CDATA "false">
 <!ATTLIST struct        id             CDATA #REQUIRED>
 <!ATTLIST value         type           CDATA #REQUIRED
                         field          CDATA #REQUIRED
                         label          CDATA #REQUIRED
                         description    CDATA #IMPLIED
                         relation       CDATA "NOT_AVAILABLE"
-                        transition     CDATA "NONE"
-                        experimental   CDATA "false">
+                        transition     CDATA "NONE">
 <!ATTLIST array         type           CDATA #REQUIRED
                         field          CDATA #REQUIRED
                         label          CDATA #REQUIRED
-                        description    CDATA #IMPLIED
-                        experimental   CDATA "false">
+                        description    CDATA #IMPLIED>
 <!ATTLIST structarray   type           CDATA #REQUIRED
                         field          CDATA #REQUIRED
                         label          CDATA #REQUIRED
-                        description    CDATA #IMPLIED
-                        experimental   CDATA "false">
+                        description    CDATA #IMPLIED>
 <!ATTLIST structvalue   type           CDATA #REQUIRED
                         field          CDATA #REQUIRED
                         label          CDATA #REQUIRED
-                        description    CDATA #IMPLIED
-                        experimental   CDATA "false">
+                        description    CDATA #IMPLIED>

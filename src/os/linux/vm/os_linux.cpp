@@ -2141,44 +2141,9 @@ void os::print_dll_info(outputStream *st) {
 
    jio_snprintf(fname, sizeof(fname), "/proc/%d/maps", pid);
 
-  if (!_print_ascii_file(fname, st)) {
-    st->print("Can not get library information for pid = %d\n", pid);
-  }
-}
-
-int os::get_loaded_modules_info(os::LoadedModulesCallbackFunc callback, void *param) {
-  FILE *procmapsFile = NULL;
-
-  // Open the procfs maps file for the current process
-  if ((procmapsFile = fopen("/proc/self/maps", "r")) != NULL) {
-    // Allocate PATH_MAX for file name plus a reasonable size for other fields.
-    char line[PATH_MAX + 100];
-
-    // Read line by line from 'file'
-    while (fgets(line, sizeof(line), procmapsFile) != NULL) {
-      u8 base, top, offset, inode;
-      char permissions[5];
-      char device[6];
-      char name[PATH_MAX + 1];
-
-      // Parse fields from line
-      sscanf(line, UINT64_FORMAT_X "-" UINT64_FORMAT_X " %4s " UINT64_FORMAT_X " %5s " INT64_FORMAT " %s",
-             &base, &top, permissions, &offset, device, &inode, name);
-
-      // Filter by device id '00:00' so that we only get file system mapped files.
-      if (strcmp(device, "00:00") != 0) {
-
-        // Call callback with the fields of interest
-        if(callback(name, (address)base, (address)top, param)) {
-          // Oops abort, callback aborted
-          fclose(procmapsFile);
-          return 1;
-        }
-      }
-    }
-    fclose(procmapsFile);
-  }
-  return 0;
+   if (!_print_ascii_file(fname, st)) {
+     st->print("Can not get library information for pid = %d\n", pid);
+   }
 }
 
 void os::print_os_info_brief(outputStream* st) {
@@ -4063,10 +4028,6 @@ char* os::pd_attempt_reserve_memory_at(size_t bytes, char* requested_addr) {
 
 size_t os::read(int fd, void *buf, unsigned int nBytes) {
   return ::read(fd, buf, nBytes);
-}
-
-size_t os::read_at(int fd, void *buf, unsigned int nBytes, jlong offset) {
-  return ::pread(fd, buf, nBytes, offset);
 }
 
 // TODO-FIXME: reconcile Solaris' os::sleep with the linux variation.

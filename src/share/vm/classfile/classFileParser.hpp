@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2014, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -47,7 +47,6 @@ class ClassFileParser VALUE_OBJ_CLASS_SPEC {
   bool _relax_verify;
   u2   _major_version;
   u2   _minor_version;
-  u2   _this_class_index;
   Symbol* _class_name;
   ClassLoaderData* _loader_data;
   KlassHandle _host_klass;
@@ -91,7 +90,6 @@ class ClassFileParser VALUE_OBJ_CLASS_SPEC {
   void create_combined_annotations(TRAPS);
 
   void init_parsed_class_attributes(ClassLoaderData* loader_data) {
-    _this_class_index = 0;
     _loader_data = loader_data;
     _synthetic_flag = false;
     _sourcefile_index = 0;
@@ -487,10 +485,6 @@ PRAGMA_DIAG_POP
                                      TempNewSymbol& parsed_name,
                                      bool verify,
                                      TRAPS);
-
-  u2 this_class_index() const { return _this_class_index; }
-  const ClassFileStream* clone_stream() const;
-  void set_klass_to_deallocate(InstanceKlass* klass);
 
   // Verifier checks
   static void check_super_class_access(instanceKlassHandle this_klass, TRAPS);

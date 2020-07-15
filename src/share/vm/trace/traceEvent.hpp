@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2013, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,7 +25,6 @@
 #ifndef SHARE_VM_TRACE_TRACEEVENT_HPP
 #define SHARE_VM_TRACE_TRACEEVENT_HPP
 
-#include "jfr/utilities/jfrTraceTime.hpp"
 #include "utilities/macros.hpp"
 
 enum EventStartTime {
@@ -35,42 +34,80 @@ enum EventStartTime {
 
 #if INCLUDE_TRACE
 #include "trace/traceBackend.hpp"
+#include "trace/tracing.hpp"
 #include "tracefiles/traceEventIds.hpp"
+#include "tracefiles/traceTypes.hpp"
 #include "utilities/ticks.hpp"
 
 template<typename T>
-class TraceEvent {
+class TraceEvent : public StackObj {
  private:
   bool _started;
+#ifdef ASSERT
+  bool _committed;
+  bool _cancelled;
+ protected:
+  bool _ignore_check;
+#endif
 
  protected:
   jlong _startTime;
   jlong _endTime;
-  DEBUG_ONLY(bool _committed;)
-  void set_starttime(const JfrTraceTime& time) {
+
+  void set_starttime(const TracingTime& time) {
     _startTime = time;
   }
 
-  void set_endtime(const JfrTraceTime& time) {
+  void set_endtime(const TracingTime& time) {
     _endTime = time;
   }
 
+ public:
   TraceEvent(EventStartTime timing=TIMED) :
     _startTime(0),
     _endTime(0),
     _started(false)
 #ifdef ASSERT
-    , _committed(false)
+    ,
+    _committed(false),
+    _cancelled(false),
+    _ignore_check(false)
 #endif
   {
     if (T::is_enabled()) {
       _started = true;
-      if (TIMED == timing && !T::isInstant) {
-        static_cast<T*>(this)->set_starttime(Tracing::time());
+      if (timing == TIMED && !T::isInstant) {
+        static_cast<T *>(this)->set_starttime(Tracing::time());
       }
     }
   }
- public:
+
+  static bool is_enabled() {
+    return Tracing::is_event_enabled(T::eventId);
+  }
+
+  bool should_commit() {
+    return _started;
+  }
+
+  void ignoreCheck() {
+    DEBUG_ONLY(_ignore_check = true);
+  }
+
+  void commit() {
+    if (!should_commit()) {
+        cancel();
+        return;
+    }
+    if (_endTime == 0) {
+      static_cast<T*>(this)->set_endtime(Tracing::time());
+    }
+    if (static_cast<T*>(this)->should_write()) {
+      static_cast<T*>(this)->writeEvent();
+    }
+    set_commited();
+  }
+
   void set_starttime(const Ticks& time) {
     _startTime = time.value();
   }
@@ -79,48 +116,40 @@ class TraceEvent {
     _endTime = time.value();
   }
 
-  static bool is_enabled() {
-    return EnableJFR && Tracing::is_event_enabled(T::eventId);
-  }
-
-  bool should_commit() {
-    return _started;
-  }
-
-  void commit() {
-    if (!should_commit()) {
-      return;
-    }
-    assert(!_committed, "event already committed");
-    if (_startTime == 0) {
-      static_cast<T*>(this)->set_starttime(Tracing::time());
-    } else if (_endTime == 0) {
-      static_cast<T*>(this)->set_endtime(Tracing::time());
-    }
-    if (static_cast<T*>(this)->should_write()) {
-      static_cast<T*>(this)->writeEvent();
-      DEBUG_ONLY(_committed = true;)
-    }
-  }
-
-  static TraceEventId id() {
+  TraceEventId id() const {
     return T::eventId;
   }
 
-  static bool is_instant() {
+  bool is_instant() const {
     return T::isInstant;
   }
 
-  static bool is_requestable() {
+  bool is_requestable() const {
     return T::isRequestable;
   }
 
-  static bool has_thread() {
+  bool has_thread() const {
     return T::hasThread;
   }
 
-  static bool has_stacktrace() {
+  bool has_stacktrace() const {
     return T::hasStackTrace;
+  }
+
+  void cancel() {
+    assert(!_committed && !_cancelled, "event was already committed/cancelled");
+    DEBUG_ONLY(_cancelled = true);
+  }
+
+  void set_commited() {
+    assert(!_committed, "event has already been committed");
+    DEBUG_ONLY(_committed = true);
+  }
+
+  ~TraceEvent() {
+    if (_started) {
+      assert(_ignore_check || _committed || _cancelled, "event was not committed/cancelled");
+    }
   }
 };
 

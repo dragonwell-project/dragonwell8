@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -35,7 +35,6 @@
 #if INCLUDE_TRACE
 #include "utilities/ticks.hpp"
 #endif
-#include "jfr/utilities/jfrLog.hpp"
 
 //
 // A class loader represents a linkset. Conceptually, a linkset identifies
@@ -83,7 +82,6 @@ class ClassLoaderDataGraph : public AllStatic {
   static void always_strong_oops_do(OopClosure* blk, KlassClosure* klass_closure, bool must_claim);
   // cld do
   static void cld_do(CLDClosure* cl);
-  static void cld_unloading_do(CLDClosure* cl);
   static void roots_cld_do(CLDClosure* strong, CLDClosure* weak);
   static void keep_alive_cld_do(CLDClosure* cl);
   static void always_strong_cld_do(CLDClosure* cl);
@@ -130,8 +128,6 @@ class ClassLoaderDataGraph : public AllStatic {
 
 class ClassLoaderData : public CHeapObj<mtClass> {
   friend class VMStructs;
-  friend class CLDClaimContext;
-  friend class CLDClaimStateClosure;
  private:
   class Dependencies VALUE_OBJ_CLASS_SPEC {
     objArrayOop _list_head;
@@ -216,8 +212,6 @@ class ClassLoaderData : public CHeapObj<mtClass> {
   // class loader for now).
   static Metaspace* _ro_metaspace;
   static Metaspace* _rw_metaspace;
-
-  TRACE_DEFINE_TRACE_ID_FIELD;
 
   void set_next(ClassLoaderData* next) { _next = next; }
   ClassLoaderData* next() const        { return _next; }
@@ -331,8 +325,6 @@ class ClassLoaderData : public CHeapObj<mtClass> {
   Metaspace* ro_metaspace();
   Metaspace* rw_metaspace();
   void initialize_shared_metaspaces();
-
-  TRACE_DEFINE_TRACE_ID_METHODS;
 };
 
 // An iterator that distributes Klasses to parallel worker threads.

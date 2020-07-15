@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2014, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -88,12 +88,10 @@ MetaspaceSummary CollectedHeap::create_metaspace_summary() {
       MetaspaceAux::committed_bytes(),
       MetaspaceAux::used_bytes(),
       MetaspaceAux::reserved_bytes());
-
   const MetaspaceSizes data_space(
       MetaspaceAux::committed_bytes(Metaspace::NonClassType),
       MetaspaceAux::used_bytes(Metaspace::NonClassType),
       MetaspaceAux::reserved_bytes(Metaspace::NonClassType));
-
   const MetaspaceSizes class_space(
       MetaspaceAux::committed_bytes(Metaspace::ClassType),
       MetaspaceAux::used_bytes(Metaspace::ClassType),
@@ -288,7 +286,7 @@ HeapWord* CollectedHeap::allocate_from_tlab_slow(KlassHandle klass, Thread* thre
     return NULL;
   }
 
-  AllocTracer::send_allocation_in_new_tlab_event(klass, obj, new_tlab_size * HeapWordSize, size * HeapWordSize, thread);
+  AllocTracer::send_allocation_in_new_tlab_event(klass, new_tlab_size * HeapWordSize, size * HeapWordSize);
 
   if (ZeroTLAB) {
     // ..and clear it.

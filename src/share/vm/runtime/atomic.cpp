@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2013, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -74,29 +74,9 @@ unsigned Atomic::cmpxchg(unsigned int exchange_value,
                                        (jint)compare_value);
 }
 
-julong Atomic::cmpxchg(julong exchange_value,
-                         volatile julong* dest, julong compare_value) {
-  return (julong)Atomic::cmpxchg((jlong)exchange_value, (volatile jlong*)dest,
-                                       (jlong)compare_value);
-}
-
-julong Atomic::load(volatile julong* src) {
-  return (julong)load((volatile jlong*)src);
-}
-
 jlong Atomic::add(jlong    add_value, volatile jlong*    dest) {
   jlong old = load(dest);
   jlong new_value = old + add_value;
-  while (old != cmpxchg(new_value, dest, old)) {
-    old = load(dest);
-    new_value = old + add_value;
-  }
-  return old;
-}
-
-julong Atomic::add(julong    add_value, volatile julong*    dest) {
-  julong old = load(dest);
-  julong new_value = old + add_value;
   while (old != cmpxchg(new_value, dest, old)) {
     old = load(dest);
     new_value = old + add_value;

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -94,7 +94,6 @@ ArrayKlass::ArrayKlass(Symbol* name) {
   int vtable_size = Universe::base_vtable_size();
   set_vtable_length(vtable_size);
   set_is_cloneable(); // All arrays are considered to be cloneable (See JLS 20.1.5)
-  TRACE_INIT_ID(this);
 }
 
 

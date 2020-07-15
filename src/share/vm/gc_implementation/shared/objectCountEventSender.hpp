@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -32,25 +32,10 @@
 #if INCLUDE_SERVICES
 
 class KlassInfoEntry;
+class Ticks;
 
 class ObjectCountEventSender : public AllStatic {
-  static bool _should_send_requestable_event;
-
-  template <typename T>
-  static void send_event_if_enabled(Klass* klass, jlong count, julong size, GCId gc_id, const Ticks& timestamp);
-
  public:
-  static void enable_requestable_event();
-  static void disable_requestable_event();
-
-
- public:
-  // The following two functions have the exact same signature as
-  // hotspot/src/share/vm/gc_implementation/shared/objectCountEventSender.hpp
-  //
-  // This file will replace the open file if a closed build is performed.
-  // These function signatures can therefore not be changed if the open
-  // signatures aren't changed as well.
   static void send(const KlassInfoEntry* entry, GCId gc_id, const Ticks& timestamp);
   static bool should_send_event();
 };

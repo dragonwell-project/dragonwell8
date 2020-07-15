@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2013, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,13 +28,42 @@
 #include <stddef.h>
 
 #include "utilities/globalDefinitions.hpp"
-#include "utilities/ticks.hpp"
 
-typedef u8 traceid;
+enum {
+  CONTENT_TYPE_NONE             = 0,
+  CONTENT_TYPE_BYTES            = 1,
+  CONTENT_TYPE_EPOCHMILLIS      = 2,
+  CONTENT_TYPE_MILLIS           = 3,
+  CONTENT_TYPE_NANOS            = 4,
+  CONTENT_TYPE_TICKS            = 5,
+  CONTENT_TYPE_ADDRESS          = 6,
 
-class ClassLoaderData;
-class Klass;
-class Method;
-class Symbol;
+  CONTENT_TYPE_OSTHREAD,
+  CONTENT_TYPE_JAVALANGTHREAD,
+  CONTENT_TYPE_STACKTRACE,
+  CONTENT_TYPE_CLASS,
+  CONTENT_TYPE_PERCENTAGE,
+
+  JVM_CONTENT_TYPES_START       = 30,
+  JVM_CONTENT_TYPES_END         = 100
+};
+
+enum ReservedEvent {
+  EVENT_PRODUCERS,
+  EVENT_CHECKPOINT,
+  EVENT_BUFFERLOST,
+
+  NUM_RESERVED_EVENTS
+};
+
+typedef enum ReservedEvent ReservedEvent;
+
+typedef u8 classid;
+typedef u8 stacktraceid;
+typedef u8 methodid;
+typedef u8 fieldid;
+
+class TraceUnicodeString;
 
 #endif // SHARE_VM_TRACE_TRACEDATATYPES_HPP
+

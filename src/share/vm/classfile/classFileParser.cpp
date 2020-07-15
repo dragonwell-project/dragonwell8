@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -61,7 +61,6 @@
 #include "runtime/timer.hpp"
 #include "services/classLoadingService.hpp"
 #include "services/threadService.hpp"
-#include "trace/traceMacros.hpp"
 #include "utilities/array.hpp"
 #include "utilities/globalDefinitions.hpp"
 #include "utilities/ostream.hpp"
@@ -3886,7 +3885,6 @@ instanceKlassHandle ClassFileParser::parseClassFile(Symbol* name,
 
   // This class and superclass
   u2 this_class_index = cfs->get_u2_fast();
-  _this_class_index = this_class_index; //used by jfr
   check_property(
     valid_cp_range(this_class_index, cp_size) &&
       cp->tag_at(this_class_index).is_unresolved_klass(),
@@ -4222,7 +4220,6 @@ instanceKlassHandle ClassFileParser::parseClassFile(Symbol* name,
 
     ClassLoadingService::notify_class_loaded(InstanceKlass::cast(this_klass()),
                                              false /* not shared class */);
-    TRACE_INIT_ID(InstanceKlass::cast(this_klass()));
 
     if (TraceClassLoading) {
       ResourceMark rm;
@@ -5290,20 +5287,4 @@ char* ClassFileParser::skip_over_field_signature(char* signature,
     }
   }
   return NULL;
-}
-
-const ClassFileStream* ClassFileParser::clone_stream() const {
-  assert(_stream != NULL, "invariant");
-  return _stream->clone();
-}
-
-void ClassFileParser::set_klass_to_deallocate(InstanceKlass* klass) {
-
-#ifdef ASSERT
-  if (klass != NULL) {
-    assert(NULL == _klass, "leaking?");
-  }
-#endif
-
-  _klass = klass;
 }

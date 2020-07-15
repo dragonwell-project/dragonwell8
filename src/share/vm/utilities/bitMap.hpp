@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2013, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -276,15 +276,6 @@ class BitMap VALUE_OBJ_CLASS_SPEC {
   // Printing
   void print_on(outputStream* st) const;
 #endif
-};
-
-// A concrete implementation of the the "abstract" BitMap class.
-//
-// The BitMapView is used when the backing storage is managed externally.
-class BitMapView : public BitMap {
- public:
-  BitMapView() : BitMap((bm_word_t*)NULL, (idx_t)0) {}
-  BitMapView(bm_word_t* map, idx_t size_in_bits) : BitMap(map, size_in_bits) {}
 };
 
 // Convenience class wrapping BitMap which provides multiple bits per slot.

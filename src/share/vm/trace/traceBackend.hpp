@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2013, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,18 +23,39 @@
  */
 #ifndef SHARE_VM_TRACE_TRACEBACKEND_HPP
 #define SHARE_VM_TRACE_TRACEBACKEND_HPP
+
 #include "utilities/macros.hpp"
 #if INCLUDE_TRACE
-#include "jfr/jfr.hpp"
-#include "jfr/instrumentation/jfrEventClassTransformer.hpp"
-#include "jfr/leakprofiler/leakProfiler.hpp"
-#include "jfr/leakprofiler/utilities/objectSampleAssistance.hpp"
-#include "jfr/recorder/access/jfrbackend.hpp"
-#include "jfr/recorder/access/jfrFlush.hpp"
-#include "jfr/recorder/access/jfrStackTraceMark.hpp"
-#include "jfr/recorder/access/jfrThreadData.hpp"
-#include "jfr/recorder/checkpoint/constant/traceid/jfrTraceId.hpp"
-typedef JfrBackend Tracing;
+#include "runtime/globals.hpp"
+#include "runtime/os.hpp"
+#include "trace/traceTime.hpp"
+#include "tracefiles/traceEventIds.hpp"
+
+class TraceBackend {
+public:
+  static bool enabled(void) {
+    return EnableTracing;
+  }
+
+  static bool is_event_enabled(TraceEventId id) {
+    return enabled();
+  }
+
+  static TracingTime time() {
+    return os::elapsed_counter();
+  }
+
+  static void on_unloading_classes(void) {
+  }
+};
+
+class TraceThreadData {
+public:
+    TraceThreadData() {}
+};
+
+typedef TraceBackend Tracing;
+
 #else // !INCLUDE_TRACE
 #include "trace/noTraceBackend.hpp"
 #endif // INCLUDE_TRACE

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,14 +28,12 @@ import java.util.regex.Pattern;
 import com.oracle.java.testlibrary.Utils;
 
 public class Platform {
-    public  static final String vmInfo      = System.getProperty("java.vm.info");
-    private static final String osName        = System.getProperty("os.name");
-    private static final String dataModel     = System.getProperty("sun.arch.data.model");
-    private static final String vmVersion     = System.getProperty("java.vm.version");
-    private static final String osArch        = System.getProperty("os.arch");
-    public static final String vmName         = System.getProperty("java.vm.name");
-    private static final String userName      = System.getProperty("user.name");
-    private static final String vmContributor = System.getProperty("java.vm.contributor");
+    private static final String osName      = System.getProperty("os.name");
+    private static final String dataModel   = System.getProperty("sun.arch.data.model");
+    private static final String vmVersion   = System.getProperty("java.vm.version");
+    private static final String osArch      = System.getProperty("os.arch");
+    public static final String vmName      = System.getProperty("java.vm.name");
+    private static final String userName    = System.getProperty("user.name");
 
     public static boolean isClient() {
         return vmName.endsWith(" Client VM");
@@ -55,10 +53,6 @@ public class Platform {
 
     public static boolean isEmbedded() {
         return vmName.contains("Embedded");
-    }
-
-    public static boolean isEmulatedClient() {
-        return vmInfo.contains(" emulated-client");
     }
 
     public static boolean is32bit() {
