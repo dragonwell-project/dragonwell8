@@ -667,18 +667,7 @@ Declares a structure type that can be used in other events.
     <value type="CLASS" field="objectClass" label="Object Class" description="Class of allocated object"/>
     <value type="BYTES64" field="allocationSize" label="Allocation Size"/>
   </event>
-
-  <event id="OptoInstanceObjectAllocation" path="java/opto_instance_object_alloc" label="Opto instance object allocation" description="Allocation by Opto jitted method" has_thread="true" has_stacktrace="true" is_instant="true">
-    <value type="CLASS" field="objectClass" label="Object Class" description="Class of allocated instance object"/>
-    <value type="ADDRESS" field="address" label="Opto Instance Object Allocation Address" description="Address of allocated instance object"/>
-  </event>
-
-  <event id="OptoArrayObjectAllocation" path="java/opto_array_object_alloc" label="Opto array object allocation" description="Array Allocation by Opto jitted method" has_thread="true" has_stacktrace="true" is_instant="true">
-    <value type="CLASS" field="objectClass" label="Object Class" description="Class of allocated array object"/>
-    <value type="ADDRESS" field="address" label="Opto Array Object Allocation Address" description="Address of allocated instance object"/>
-    <value type="BYTES64" field="allocationSize" label="Object Size" description="The Array Object Size" />
-  </event>
-
+  
    <event id="OldObjectSample" path="java/old_object" label="Old Object Sample"
        description="A potential memory leak" has_stacktrace="true" has_thread="true" is_instant="true" cutoff="true">
     <value type="TICKS" field="allocationTime" label="Allocation Time"/>

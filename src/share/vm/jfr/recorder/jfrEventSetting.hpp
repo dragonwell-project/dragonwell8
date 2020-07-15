@@ -27,7 +27,6 @@
 
 #include "jni.h"
 #include "jfr/utilities/jfrAllocation.hpp"
-#include "jfr/recorder/stacktrace/jfrStackTraceRepository.hpp"
 #include "tracefiles/traceEventControl.hpp"
 #include "tracefiles/traceEventIds.hpp"
 
@@ -48,7 +47,6 @@ class JfrEventSetting : AllStatic {
   static jlong threshold(TraceEventId event_id);
   static bool set_cutoff(jlong event_id, jlong cutoff_ticks);
   static jlong cutoff(TraceEventId event_id);
-  static StackWalkMode stack_walk_mode(TraceEventId event_id);
   DEBUG_ONLY(static bool bounds_check_event(jlong id);)
 };
 

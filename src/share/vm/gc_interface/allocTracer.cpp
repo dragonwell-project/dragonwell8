@@ -22,6 +22,7 @@
  *
  */
 
+#include "precompiled.hpp"
 #include "gc_implementation/shared/gcId.hpp"
 #include "gc_interface/allocTracer.hpp"
 #include "trace/tracing.hpp"

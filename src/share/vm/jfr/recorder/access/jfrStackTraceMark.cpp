@@ -24,7 +24,6 @@
 
 #include "precompiled.hpp"
 #include "jfr/recorder/jfrEventSetting.inline.hpp"
-#include "jfr/recorder/jfrEventSetting.hpp"
 #include "jfr/recorder/access/jfrStackTraceMark.hpp"
 #include "jfr/recorder/access/jfrThreadData.hpp"
 #include "jfr/recorder/stacktrace/jfrStackTraceRepository.hpp"
@@ -36,7 +35,7 @@ JfrStackTraceMark::JfrStackTraceMark() : _t(Thread::current()), _previous_id(0),
     _previous_id = trace_data->cached_stack_trace_id();
     _previous_hash = trace_data->cached_stack_trace_hash();
   }
-  trace_data->set_cached_stack_trace_id(JfrStackTraceRepository::record(Thread::current(), 0, WALK_BY_DEFAULT));
+  trace_data->set_cached_stack_trace_id(JfrStackTraceRepository::record(Thread::current()));
 }
 
 JfrStackTraceMark::JfrStackTraceMark(Thread* t) : _t(t), _previous_id(0), _previous_hash(0) {
@@ -45,7 +44,7 @@ JfrStackTraceMark::JfrStackTraceMark(Thread* t) : _t(t), _previous_id(0), _previ
     _previous_id = trace_data->cached_stack_trace_id();
     _previous_hash = trace_data->cached_stack_trace_hash();
   }
-  trace_data->set_cached_stack_trace_id(JfrStackTraceRepository::record(t, 0, WALK_BY_DEFAULT));
+  trace_data->set_cached_stack_trace_id(JfrStackTraceRepository::record(t));
 }
 
 JfrStackTraceMark::JfrStackTraceMark(TraceEventId eventId) : _t(NULL), _previous_id(0), _previous_hash(0) {
@@ -56,8 +55,7 @@ JfrStackTraceMark::JfrStackTraceMark(TraceEventId eventId) : _t(NULL), _previous
       _previous_id = trace_data->cached_stack_trace_id();
       _previous_hash = trace_data->cached_stack_trace_hash();
     }
-    StackWalkMode mode = JfrEventSetting::stack_walk_mode(eventId);
-    trace_data->set_cached_stack_trace_id(JfrStackTraceRepository::record(_t, 0, mode));
+    trace_data->set_cached_stack_trace_id(JfrStackTraceRepository::record(_t));
   }
 }
 
@@ -69,8 +67,7 @@ JfrStackTraceMark::JfrStackTraceMark(TraceEventId eventId, Thread* t) : _t(NULL)
       _previous_id = trace_data->cached_stack_trace_id();
       _previous_hash = trace_data->cached_stack_trace_hash();
     }
-    StackWalkMode mode = JfrEventSetting::stack_walk_mode(eventId);
-    trace_data->set_cached_stack_trace_id(JfrStackTraceRepository::record(_t, 0, mode));
+    trace_data->set_cached_stack_trace_id(JfrStackTraceRepository::record(_t));
   }
 }
 
