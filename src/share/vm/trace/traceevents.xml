@@ -891,6 +891,8 @@ Declares a structure type that can be used in other events.
   <event id="ThreadAllocationStatistics" path="java/statistics/thread_allocation" label="Thread Allocation Statistics"
          is_requestable="true">
     <value type="BYTES64" field="allocated" label="Allocated" description="Approximate number of bytes allocated since thread start"/>
+    <value type="BYTES64" field="stackUsed" label="StackUsed" description="The number of bytes used(Virtual Memory) by thread stack"/>
+    <value type="BYTES64" field="stackPhysicalUsed" label="StackPhysicalUsed" description="The number of bytes used(Physical Memory) by thread stack"/>
     <value type="THREAD" field="thread" label="Thread"/>
   </event>
 
