@@ -324,12 +324,10 @@ class CollectedHeap : public CHeapObj<mtInternal> {
   inline static void check_array_size(int size, int length, TRAPS);
 
  public:
-#if INCLUDE_TRACE
   // Implicit Jfr inline methods.
   static void trace_slow_allocation(KlassHandle klass, oop obj, size_t alloc_size, Thread* thread) {
     AllocTracer::send_slow_allocation_event(klass, obj, alloc_size, thread);
   }
-#endif
 
   static void trace_allocation_outside_tlab(KlassHandle klass, HeapWord* obj, size_t alloc_size, Thread* thread) {
     AllocTracer::send_allocation_outside_tlab_event(klass, obj, alloc_size, thread);

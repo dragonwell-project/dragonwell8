@@ -85,10 +85,8 @@ inline void post_allocation_notify(KlassHandle klass, oop obj, int size) {
     }
   }
 
-#if INCLUDE_TRACE
   // support for jfr
   CollectedHeap::trace_slow_allocation(klass, obj, size * HeapWordSize, Thread::current());
-#endif
 }
 
 void CollectedHeap::post_allocation_setup_obj(KlassHandle klass,

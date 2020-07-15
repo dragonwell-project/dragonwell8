@@ -123,11 +123,9 @@ private:
                             Node* old_eden_top, Node* new_eden_top,
                             Node* length);
 
-#if INCLUDE_TRACE
   //JFR tracing
   void jfr_sample_fast_object_allocation(AllocateNode* alloc, Node* fast_oop, 
                                          Node*& fast_oop_ctrl, Node*& fast_oop_rawmem);
-#endif
 
 public:
   PhaseMacroExpand(PhaseIterGVN &igvn) : Phase(Macro_Expand), _igvn(igvn), _has_locks(false) {
