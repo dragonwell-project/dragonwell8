@@ -539,11 +539,11 @@ void LIRGenerator::arithmetic_op(Bytecodes::Code code, LIR_Opr result, LIR_Opr l
 
     case Bytecodes::_imul:
       {
-        bool    did_strength_reduce = false;
+        bool did_strength_reduce = false;
 
         if (right->is_constant()) {
-          int c = right->as_jint();
-          if (is_power_of_2(c)) {
+          jint c = right->as_jint();
+          if (c > 0 && is_power_of_2(c)) {
             // do not need tmp here
             __ shift_left(left_op, exact_log2(c), result_op);
             did_strength_reduce = true;
@@ -2334,7 +2334,7 @@ void LIRGenerator::do_UnsafeGetObject(UnsafeGetObject* x) {
         __ cmp(lir_cond_equal, src_reg, LIR_OprFact::oopConst(NULL));
         __ branch(lir_cond_equal, T_OBJECT, Lcont->label());
       }
-      LIR_Opr src_klass = new_register(T_OBJECT);
+      LIR_Opr src_klass = new_register(T_METADATA);
       if (gen_type_check) {
         // We have determined that offset == referent_offset && src != null.
         // if (src->_klass->_reference_type == REF_NONE) -> continue
@@ -3059,6 +3059,51 @@ void LIRGenerator::do_IfOp(IfOp* x) {
   __ cmove(lir_cond(x->cond()), t_val.result(), f_val.result(), reg, as_BasicType(x->x()->type()));
 }
 
+#ifdef JFR_HAVE_INTRINSICS
+void LIRGenerator::do_ClassIDIntrinsic(Intrinsic* x) {
+  CodeEmitInfo* info = state_for(x);
+  CodeEmitInfo* info2 = new CodeEmitInfo(info); // Clone for the second null check
+
+  assert(info != NULL, "must have info");
+  LIRItem arg(x->argument_at(0), this);
+
+  arg.load_item();
+  LIR_Opr klass = new_register(T_METADATA);
+  __ move(new LIR_Address(arg.result(), java_lang_Class::klass_offset_in_bytes(), T_ADDRESS), klass, info);
+  LIR_Opr id = new_register(T_LONG);
+  ByteSize offset = KLASS_TRACE_ID_OFFSET;
+  LIR_Address* trace_id_addr = new LIR_Address(klass, in_bytes(offset), T_LONG);
+
+  __ move(trace_id_addr, id);
+  __ logical_or(id, LIR_OprFact::longConst(0x01l), id);
+  __ store(id, trace_id_addr);
+
+#ifdef TRACE_ID_META_BITS
+  __ logical_and(id, LIR_OprFact::longConst(~TRACE_ID_META_BITS), id);
+#endif
+#ifdef TRACE_ID_SHIFT
+  __ unsigned_shift_right(id, TRACE_ID_SHIFT, id);
+#endif
+
+  __ move(id, rlock_result(x));
+}
+
+void LIRGenerator::do_getEventWriter(Intrinsic* x) {
+  LabelObj* L_end = new LabelObj();
+
+  LIR_Address* jobj_addr = new LIR_Address(getThreadPointer(),
+                                           in_bytes(THREAD_LOCAL_WRITER_OFFSET_JFR),
+                                           T_OBJECT);
+  LIR_Opr result = rlock_result(x);
+  __ move_wide(jobj_addr, result);
+  __ cmp(lir_cond_equal, result, LIR_OprFact::oopConst(NULL));
+  __ branch(lir_cond_equal, T_OBJECT, L_end->label());
+  __ move_wide(new LIR_Address(result, T_OBJECT), result);
+
+  __ branch_destination(L_end->label());
+}
+#endif
+
 void LIRGenerator::do_RuntimeCall(address routine, int expected_arguments, Intrinsic* x) {
     assert(x->number_of_arguments() == expected_arguments, "wrong type");
     LIR_Opr reg = result_register_for(x->type());
@@ -3115,11 +3160,15 @@ void LIRGenerator::do_Intrinsic(Intrinsic* x) {
     break;
   }
 
-#ifdef TRACE_HAVE_INTRINSICS
-  case vmIntrinsics::_threadID: do_ThreadIDIntrinsic(x); break;
-  case vmIntrinsics::_classID: do_ClassIDIntrinsic(x); break;
+#ifdef JFR_HAVE_INTRINSICS
+  case vmIntrinsics::_getClassId:
+    do_ClassIDIntrinsic(x);
+    break;
+  case vmIntrinsics::_getEventWriter:
+    do_getEventWriter(x);
+    break;
   case vmIntrinsics::_counterTime:
-    do_RuntimeCall(CAST_FROM_FN_PTR(address, TRACE_TIME_METHOD), 0, x);
+    do_RuntimeCall(CAST_FROM_FN_PTR(address, JFR_TIME_FUNCTION), 0, x);
     break;
 #endif
 
@@ -3299,7 +3348,7 @@ void LIRGenerator::profile_parameters_at_call(ProfileCall* x) {
 void LIRGenerator::do_ProfileCall(ProfileCall* x) {
   // Need recv in a temporary register so it interferes with the other temporaries
   LIR_Opr recv = LIR_OprFact::illegalOpr;
-  LIR_Opr mdo = new_register(T_OBJECT);
+  LIR_Opr mdo = new_register(T_METADATA);
   // tmp is used to hold the counters on SPARC
   LIR_Opr tmp = new_pointer_register();
 

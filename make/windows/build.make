@@ -280,7 +280,7 @@ $(variantDir)\local.make: checks
 	@ echo HS_COMPANY=$(COMPANY_NAME)			>> $@
 	@ echo HS_FILEDESC=$(HS_FILEDESC)			>> $@
 	@ echo HOTSPOT_VM_DISTRO=$(HOTSPOT_VM_DISTRO)		>> $@
-	@ echo VENDOR=$(VENDOR)					>> $@
+	@ echo VENDOR=$(COMPANY_NAME)				>> $@
 	@ echo VENDOR_URL=$(VENDOR_URL)				>> $@
 	@ echo VENDOR_URL_BUG=$(VENDOR_URL_BUG)			>> $@
 	@ echo VENDOR_URL_VM_BUG=$(VENDOR_URL_VM_BUG)		>> $@
@@ -302,6 +302,7 @@ $(variantDir)\local.make: checks
 	@ echo LD=$(LD)						>> $@
 	@ echo MT=$(MT)						>> $@
 	@ echo RC=$(RC)						>> $@
+	@ echo ENABLE_JFR=$(ENABLE_JFR)				>> $@
 	@ sh $(WorkSpace)/make/windows/get_msc_ver.sh		>> $@
 	@ if "$(ENABLE_FULL_DEBUG_SYMBOLS)" NEQ "" echo ENABLE_FULL_DEBUG_SYMBOLS=$(ENABLE_FULL_DEBUG_SYMBOLS) >> $@
 	@ if "$(ZIP_DEBUGINFO_FILES)" NEQ "" echo ZIP_DEBUGINFO_FILES=$(ZIP_DEBUGINFO_FILES) >> $@

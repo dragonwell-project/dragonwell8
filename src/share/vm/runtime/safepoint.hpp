@@ -145,6 +145,7 @@ public:
   // Query
   inline static bool is_at_safepoint()   { return _state == _synchronized;  }
   inline static bool is_synchronizing()  { return _state == _synchronizing;  }
+  inline static int safepoint_counter()  { return _safepoint_counter; }
 
   inline static bool do_call_back() {
     return (_state != _not_synchronized);
@@ -190,7 +191,7 @@ public:
 };
 
 // State class for a thread suspended at a safepoint
-class ThreadSafepointState: public CHeapObj<mtInternal> {
+class ThreadSafepointState: public CHeapObj<mtThread> {
  public:
   // These states are maintained by VM thread while threads are being brought
   // to a safepoint.  After SafepointSynchronize::end(), they are reset to

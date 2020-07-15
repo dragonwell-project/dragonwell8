@@ -42,6 +42,14 @@
 # include "utilities/globalDefinitions_xlc.hpp"
 #endif
 
+// Defaults for macros that might be defined per compiler.
+#ifndef NOINLINE
+#define NOINLINE
+#endif
+#ifndef ALWAYSINLINE
+#define ALWAYSINLINE inline
+#endif
+
 #ifndef PRAGMA_DIAG_PUSH
 #define PRAGMA_DIAG_PUSH
 #endif
@@ -642,6 +650,10 @@ inline bool is_subword_type(BasicType t) {
 
 inline bool is_signed_subword_type(BasicType t) {
   return (t == T_BYTE || t == T_SHORT);
+}
+
+inline bool is_reference_type(BasicType t) {
+  return (t == T_OBJECT || t == T_ARRAY);
 }
 
 // Convert a char from a classfile signature to a BasicType

@@ -39,6 +39,7 @@
 #include "gc_interface/collectedHeap.inline.hpp"
 #include "interpreter/bytecode.hpp"
 #include "jwarmup/jitWarmUp.hpp"
+#include "jfr/jfrEvents.hpp"
 #include "memory/oopFactory.hpp"
 #include "memory/referenceType.hpp"
 #include "memory/universe.inline.hpp"
@@ -70,7 +71,6 @@
 #include "services/attachListener.hpp"
 #include "services/management.hpp"
 #include "services/threadService.hpp"
-#include "trace/tracing.hpp"
 #include "utilities/copy.hpp"
 #include "utilities/defaultStream.hpp"
 #include "utilities/dtrace.hpp"
@@ -457,6 +457,16 @@ JVM_ENTRY_NO_ENV(void, JVM_Exit(jint code))
   }
   before_exit(thread);
   vm_exit(code);
+JVM_END
+
+
+JVM_ENTRY_NO_ENV(void, JVM_BeforeHalt())
+  JVMWrapper("JVM_BeforeHalt");
+  EventShutdown event;
+  if (event.should_commit()) {
+    event.set_reason("Shutdown requested from Java");
+    event.commit();
+  }
 JVM_END
 
 
@@ -3318,6 +3328,12 @@ JVM_ENTRY(void, JVM_Yield(JNIEnv *env, jclass threadClass))
   }
 JVM_END
 
+static void post_thread_sleep_event(EventThreadSleep* event, jlong millis) {
+  assert(event != NULL, "invariant");
+  assert(event->should_commit(), "invariant");
+  event->set_time(millis);
+  event->commit();
+}
 
 JVM_ENTRY(void, JVM_Sleep(JNIEnv* env, jclass threadClass, jlong millis))
   JVMWrapper("JVM_Sleep");
@@ -3364,8 +3380,7 @@ JVM_ENTRY(void, JVM_Sleep(JNIEnv* env, jclass threadClass, jlong millis))
       // us while we were sleeping. We do not overwrite those.
       if (!HAS_PENDING_EXCEPTION) {
         if (event.should_commit()) {
-          event.set_time(millis);
-          event.commit();
+          post_thread_sleep_event(&event, millis);
         }
 #ifndef USDT2
         HS_DTRACE_PROBE1(hotspot, thread__sleep__end,1);
@@ -3381,8 +3396,7 @@ JVM_ENTRY(void, JVM_Sleep(JNIEnv* env, jclass threadClass, jlong millis))
     thread->osthread()->set_state(old_state);
   }
   if (event.should_commit()) {
-    event.set_time(millis);
-    event.commit();
+    post_thread_sleep_event(&event, millis);
   }
 #ifndef USDT2
   HS_DTRACE_PROBE1(hotspot, thread__sleep__end,0);

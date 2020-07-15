@@ -99,6 +99,7 @@
   template(WhiteBoxOperation)                     \
   template(ClassLoaderStatsOperation)             \
   template(DestroyG1TenantAllocationContext)      \
+  template(JFROldObject)                          \
 
 class VM_Operation: public CHeapObj<mtInternal> {
  public:
