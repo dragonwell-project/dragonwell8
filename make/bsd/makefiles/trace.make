@@ -51,9 +51,7 @@ VPATH += $(Src_Dirs_V:%=%:)
 TraceGeneratedNames =     \
     traceEventClasses.hpp \
 	traceEventIds.hpp     \
-	traceTypes.hpp \
-	traceEventControl.hpp \
-	tracePeriodic.hpp
+	traceTypes.hpp
 
 ifeq ($(HAS_ALT_SRC), true)
 TraceGeneratedNames +=  \
@@ -92,12 +90,6 @@ $(TraceOutDir)/traceEventIds.hpp: $(TraceSrcDir)/trace.xml $(TraceSrcDir)/traceE
 	$(GENERATE_CODE)
 
 $(TraceOutDir)/traceTypes.hpp: $(TraceSrcDir)/trace.xml $(TraceSrcDir)/traceTypes.xsl $(XML_DEPS)
-	$(GENERATE_CODE)
-
-$(TraceOutDir)/traceEventControl.hpp: $(TraceSrcDir)/trace.xml $(TraceSrcDir)/traceEventControl.xsl $(XML_DEPS)
-	$(GENERATE_CODE)
-
-$(TraceOutDir)/tracePeriodic.hpp: $(TraceSrcDir)/trace.xml $(TraceSrcDir)/tracePeriodic.xsl $(XML_DEPS)
 	$(GENERATE_CODE)
 
 ifeq ($(HAS_ALT_SRC), false)

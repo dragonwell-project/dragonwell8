@@ -116,7 +116,12 @@ class TraceElapsedCounterStamped : public TraceElapsedCounter {
   TraceElapsedCounterStamped();
 };
 
+#if INCLUDE_TRACE
 typedef TraceElapsedCounter  Ticks;
 typedef TraceElapsedInterval Tickspan;
+#else
+typedef ElapsedCounter       Ticks;
+typedef TicksInterval<Ticks> Tickspan;
+#endif
 
 #endif // SHARE_VM_UTILITIES_TICKS_HPP

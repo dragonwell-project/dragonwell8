@@ -32,14 +32,6 @@
 #include "os_linux_x86.inline.hpp"
 #endif
 
-#ifdef TARGET_OS_ARCH_windows_x86
-#include "os_windows_x86.inline.hpp"
-#endif
-
-#ifdef TARGET_OS_ARCH_bsd_x86
-#include "os_bsd_x86.inline.hpp"
-#endif
-
 static jlong baseline_counter = 0;
 static bool rdtsc_elapsed_counter_enabled = false;
 static jlong tsc_frequency = 0;

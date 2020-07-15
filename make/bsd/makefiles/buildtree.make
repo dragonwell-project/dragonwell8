@@ -102,8 +102,6 @@ endif
 
 ALWAYS_EXCLUDE_DIRS     = $(SCM_DIRS)
 
-ALWAYS_EXCLUDE_DIRS += -o -name jfr
-
 ifeq		($(VARIANT),tiered)
 TOPLEVEL_EXCLUDE_DIRS	= $(ALWAYS_EXCLUDE_DIRS) -o -name adlc -o -name agent
 else

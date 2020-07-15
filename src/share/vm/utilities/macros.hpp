@@ -161,11 +161,7 @@
 #endif // INCLUDE_NMT
 
 #ifndef INCLUDE_TRACE
-#ifdef LINUX
 #define INCLUDE_TRACE 1
-#else
-#define INCLUDE_TRACE 0
-#endif
 #endif // INCLUDE_TRACE
 
 // COMPILER1 variant

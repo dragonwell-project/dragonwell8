@@ -58,7 +58,7 @@ COMMONSRC=${WorkSpace}/${COMMONSRC_REL}
 ALTSRC=${WorkSpace}/${ALTSRC_REL}
 
 BASE_PATHS="`if [ -d ${ALTSRC}/share/vm ]; then $FIND ${ALTSRC}/share/vm ! -name vm -prune -type d \! \( -name adlc -o -name c1 -o -name gc_implementation -o -name opto -o -name shark -o -name libadt \); fi`"
-BASE_PATHS="${BASE_PATHS} ` $FIND ${COMMONSRC}/share/vm ! -name vm -prune -type d \! \( -name adlc -o -name c1 -o -name gc_implementation -o -name opto -o -name shark -o -name libadt -o -name jfr \)`"
+BASE_PATHS="${BASE_PATHS} ` $FIND ${COMMONSRC}/share/vm ! -name vm -prune -type d \! \( -name adlc -o -name c1 -o -name gc_implementation -o -name opto -o -name shark -o -name libadt \)`"
 
 for sd in \
     share/vm/gc_implementation/shared \
