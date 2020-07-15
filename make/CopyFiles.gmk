@@ -595,7 +595,6 @@ COPY_FILES += $(JDK_OUTPUTDIR)/lib/sound.properties
 
 ##########################################################################################
 
-ifeq ($(OPENJDK_TARGET_OS), linux)
 # copy hotspot trace files
 
 HOTSPOT_TRACE_SRC_DIR := $(TOPDIR)/hotspot/src/share/vm/trace
@@ -624,7 +623,6 @@ COPY_FILES += $(JFR_CONFIGURATION_DIR_DST)/default.jfc \
 $(JFR_CONFIGURATION_DIR_DST)/%.jfc: $(JFR_CONFIGURATION_DIR_SRC)/%.jfc
 	$(call install-file)
 
-endif # linux
 ##########################################################################################
 
 -include $(CUSTOM_MAKE_DIR)/CopyFiles.gmk
