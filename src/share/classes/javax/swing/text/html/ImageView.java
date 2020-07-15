@@ -734,6 +734,22 @@ public class ImageView extends View {
                 newState |= HEIGHT_FLAG;
             }
 
+            Image img;
+            synchronized(this) {
+                img = image;
+            }
+            if (newWidth <= 0) {
+                newWidth = img.getWidth(imageObserver);
+                if (newWidth <= 0) {
+                    newWidth = DEFAULT_WIDTH;
+                }
+            }
+            if (newHeight <= 0) {
+                newHeight = img.getHeight(imageObserver);
+                if (newHeight <= 0) {
+                    newHeight = DEFAULT_HEIGHT;
+                }
+            }
             /*
             If synchronous loading flag is set, then make sure that the image is
             scaled appropriately.
@@ -741,8 +757,7 @@ public class ImageView extends View {
             appropriately.
             */
             if (getLoadsSynchronously()) {
-                Dimension d = adjustWidthHeight(image.getWidth(imageObserver),
-                                                image.getHeight(imageObserver));
+                Dimension d = adjustWidthHeight(newWidth, newHeight);
                 newWidth = d.width;
                 newHeight = d.height;
                 newState |= (WIDTH_FLAG | HEIGHT_FLAG);

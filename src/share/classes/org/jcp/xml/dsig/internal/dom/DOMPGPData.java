@@ -21,7 +21,7 @@
  * under the License.
  */
 /*
- * Copyright (c) 2005, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2014, Oracle and/or its affiliates. All rights reserved.
  */
 /*
  * $Id: DOMPGPData.java 1203846 2011-11-18 21:18:17Z mullan $
@@ -57,7 +57,7 @@ public final class DOMPGPData extends DOMStructure implements PGPData {
      * and optional list of external elements.
      *
      * @param keyPacket a PGP Key Material Packet as defined in section 5.5 of
-     *    <a href="http://www.ietf.org/rfc/rfc2440.txt"/>RFC 2440</a>. The
+     *    <a href="http://www.ietf.org/rfc/rfc2440.txt">RFC 2440</a>. The
      *    array is cloned to prevent subsequent modification.
      * @param other a list of {@link XMLStructure}s representing elements from
      *    an external namespace. The list is defensively copied to prevent
@@ -95,10 +95,10 @@ public final class DOMPGPData extends DOMStructure implements PGPData {
      * optional key packet and list of external elements.
      *
      * @param keyId a PGP public key id as defined in section 11.2 of
-     *    <a href="http://www.ietf.org/rfc/rfc2440.txt"/>RFC 2440</a>. The
+     *    <a href="http://www.ietf.org/rfc/rfc2440.txt">RFC 2440</a>. The
      *    array is cloned to prevent subsequent modification.
      * @param keyPacket a PGP Key Material Packet as defined in section 5.5 of
-     *    <a href="http://www.ietf.org/rfc/rfc2440.txt"/>RFC 2440</a> (may
+     *    <a href="http://www.ietf.org/rfc/rfc2440.txt">RFC 2440</a> (may
      *    be <code>null</code>). The array is cloned to prevent subsequent
      *    modification.
      * @param other a list of {@link XMLStructure}s representing elements from
@@ -184,7 +184,7 @@ public final class DOMPGPData extends DOMStructure implements PGPData {
         return (keyPacket == null ? null : (byte[])keyPacket.clone());
     }
 
-    public List getExternalElements() {
+    public List<XMLStructure> getExternalElements() {
         return externalElements;
     }
 

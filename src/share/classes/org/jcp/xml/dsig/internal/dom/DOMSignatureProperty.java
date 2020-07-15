@@ -21,7 +21,7 @@
  * under the License.
  */
 /*
- * Copyright (c) 2005, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2014, Oracle and/or its affiliates. All rights reserved.
  */
 /*
  * $Id: DOMSignatureProperty.java 1333415 2012-05-03 12:03:51Z coheigea $
@@ -59,7 +59,6 @@ public final class DOMSignatureProperty extends DOMStructure
      *    is defensively copied to protect against subsequent modification.
      * @param target the target URI
      * @param id the Id (may be <code>null</code>)
-     * @return a <code>SignatureProperty</code>
      * @throws ClassCastException if <code>content</code> contains any
      *    entries that are not of type {@link XMLStructure}
      * @throws IllegalArgumentException if <code>content</code> is empty
@@ -123,7 +122,7 @@ public final class DOMSignatureProperty extends DOMStructure
         }
     }
 
-    public List getContent() {
+    public List<XMLStructure> getContent() {
         return content;
     }
 

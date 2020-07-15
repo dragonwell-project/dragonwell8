@@ -1,3 +1,9 @@
+# note: the last class is the default Rendering Engine
+# Pisces in JDK8u, Marlin in JDK9+
+
+#  Marlin Rendering Engine module
+sun.java2d.marlin.MarlinRenderingEngine
+
 # Jules Rendering Engine module
 sun.java2d.jules.JulesRenderingEngine
 

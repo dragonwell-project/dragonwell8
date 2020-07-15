@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2012, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -101,6 +101,8 @@ public final class KeychainStore extends KeyStoreSpi {
      */
     private static final int iterationCount = 1024;
     private static final int SALT_LEN = 20;
+
+    private static final Debug debug = Debug.getInstance("keystore");
 
     static {
         AccessController.doPrivileged(
@@ -224,6 +226,9 @@ public final class KeychainStore extends KeyStoreSpi {
 
             // Get the Algorithm ID next
             DerValue[] value = in.getSequence(2);
+            if (value.length < 1 || value.length > 2) {
+                throw new IOException("Invalid length for AlgorithmIdentifier");
+            }
             AlgorithmId algId = new AlgorithmId(value[0].getOID());
             String algName = algId.getName();
 
@@ -771,6 +776,10 @@ public final class KeychainStore extends KeyStoreSpi {
 
             entries.clear();
             _scanKeychain();
+            if (debug != null) {
+                debug.println("KeychainStore load entry count: " +
+                        entries.size());
+            }
         }
     }
 

@@ -21,7 +21,7 @@
  * under the License.
  */
 /*
- * Copyright (c) 2005, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2014, Oracle and/or its affiliates. All rights reserved.
  */
 /*
  * $Id: DOMX509Data.java 1333415 2012-05-03 12:03:51Z coheigea $
@@ -65,7 +65,6 @@ public final class DOMX509Data extends DOMStructure implements X509Data {
      *    or {@link javax.xml.dsig.XMLStructure} ({@link X509IssuerSerial}
      *    objects or elements from an external namespace). The list is
      *    defensively copied to protect against subsequent modification.
-     * @return a <code>X509Data</code>
      * @throws NullPointerException if <code>content</code> is <code>null</code>
      * @throws IllegalArgumentException if <code>content</code> is empty
      * @throws ClassCastException if <code>content</code> contains any entries
@@ -135,7 +134,7 @@ public final class DOMX509Data extends DOMStructure implements X509Data {
         this.content = Collections.unmodifiableList(content);
     }
 
-    public List getContent() {
+    public List<Object> getContent() {
         return content;
     }
 

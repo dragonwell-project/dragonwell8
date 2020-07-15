@@ -112,7 +112,6 @@ public final class DOMReference extends DOMStructure
      *    is defensively copied to protect against subsequent modification.
      *    May be <code>null</code> or empty.
      * @param id the reference ID (may be <code>null</code>)
-     * @return a <code>Reference</code>
      * @throws NullPointerException if <code>dm</code> is <code>null</code>
      * @throws ClassCastException if any of the <code>transforms</code> are
      *    not of type <code>Transform</code>
@@ -288,7 +287,7 @@ public final class DOMReference extends DOMStructure
         return type;
     }
 
-    public List getTransforms() {
+    public List<Transform> getTransforms() {
         return Collections.unmodifiableList(allTransforms);
     }
 
@@ -638,7 +637,7 @@ public final class DOMReference extends DOMStructure
                 try {
                     final Set<Node> s = xsi.getNodeSet();
                     return new NodeSetData() {
-                        public Iterator iterator() { return s.iterator(); }
+                        public Iterator<Node> iterator() { return s.iterator(); }
                     };
                 } catch (Exception e) {
                     // log a warning

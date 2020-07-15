@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -1111,3 +1111,24 @@ ProcessPlatformOption(const char *arg)
 {
     return JNI_FALSE;
 }
+
+#ifndef __solaris__
+
+/*
+ * Provide a CounterGet() implementation based on gettimeofday() which
+ * is universally available, even though it may not be 'high resolution'
+ * compared to platforms that provide gethrtime() (like Solaris). It is
+ * also subject to time-of-day changes, but alternatives may not be
+ * known to be available at either build time or run time.
+ */
+uint64_t CounterGet() {
+    uint64_t result = 0;
+    struct timeval tv;
+    if (gettimeofday(&tv, NULL) != -1) {
+        result = 1000000LL * (uint64_t)tv.tv_sec;
+        result += (uint64_t)tv.tv_usec;
+    }
+    return result;
+}
+
+#endif // !__solaris__

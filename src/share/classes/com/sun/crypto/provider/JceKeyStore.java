@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,6 +24,8 @@
  */
 
 package com.sun.crypto.provider;
+
+import sun.security.util.Debug;
 
 import java.io.*;
 import java.util.*;
@@ -62,6 +64,7 @@ import sun.misc.ObjectInputFilter;
 
 public final class JceKeyStore extends KeyStoreSpi {
 
+    private static final Debug debug = Debug.getInstance("keystore");
     private static final int JCEKS_MAGIC = 0xcececece;
     private static final int JKS_MAGIC = 0xfeedfeed;
     private static final int VERSION_1 = 0x01;
@@ -78,6 +81,12 @@ public final class JceKeyStore extends KeyStoreSpi {
     private static final class SecretKeyEntry {
         Date date; // the creation date of this entry
         SealedObject sealedKey;
+
+        // Maximum possible length of sealedKey. Used to detect malicious
+        // input data. This field is set to the file length of the keystore
+        // at loading. It is useless when creating a new SecretKeyEntry
+        // to be store in a keystore.
+        int maxLength;
     }
 
     // Trusted certificate
@@ -133,8 +142,8 @@ public final class JceKeyStore extends KeyStoreSpi {
             }
             key = keyProtector.recover(encrInfo);
         } else {
-            key =
-                keyProtector.unseal(((SecretKeyEntry)entry).sealedKey);
+            SecretKeyEntry ske = ((SecretKeyEntry)entry);
+            key = keyProtector.unseal(ske.sealedKey, ske.maxLength);
         }
 
         return key;
@@ -279,6 +288,7 @@ public final class JceKeyStore extends KeyStoreSpi {
 
                     // seal and store the key
                     entry.sealedKey = keyProtector.seal(key);
+                    entry.maxLength = Integer.MAX_VALUE;
                     entries.put(alias.toLowerCase(Locale.ENGLISH), entry);
                 }
 
@@ -683,10 +693,15 @@ public final class JceKeyStore extends KeyStoreSpi {
             Hashtable<String, CertificateFactory> cfs = null;
             ByteArrayInputStream bais = null;
             byte[] encoded = null;
+            int trustedKeyCount = 0, privateKeyCount = 0, secretKeyCount = 0;
 
             if (stream == null)
                 return;
 
+            byte[] allData = IOUtils.readAllBytes(stream);
+            int fullLength = allData.length;
+
+            stream = new ByteArrayInputStream(allData);
             if (password != null) {
                 md = getPreKeyedHash(password);
                 dis = new DataInputStream(new DigestInputStream(stream, md));
@@ -729,7 +744,7 @@ public final class JceKeyStore extends KeyStoreSpi {
                     tag = dis.readInt();
 
                     if (tag == 1) { // private-key entry
-
+                        privateKeyCount++;
                         PrivateKeyEntry entry = new PrivateKeyEntry();
 
                         // read the alias
@@ -774,7 +789,7 @@ public final class JceKeyStore extends KeyStoreSpi {
                         entries.put(alias, entry);
 
                     } else if (tag == 2) { // trusted certificate entry
-
+                        trustedKeyCount++;
                         TrustedCertEntry entry = new TrustedCertEntry();
 
                         // read the alias
@@ -808,7 +823,7 @@ public final class JceKeyStore extends KeyStoreSpi {
                         entries.put(alias, entry);
 
                     } else if (tag == 3) { // secret-key entry
-
+                        secretKeyCount++;
                         SecretKeyEntry entry = new SecretKeyEntry();
 
                         // read the alias
@@ -825,10 +840,11 @@ public final class JceKeyStore extends KeyStoreSpi {
                             AccessController.doPrivileged(
                                 (PrivilegedAction<Void>)() -> {
                                     ObjectInputFilter.Config.setObjectInputFilter(
-                                        ois2, new DeserializationChecker());
+                                        ois2, new DeserializationChecker(fullLength));
                                     return null;
                             });
                             entry.sealedKey = (SealedObject)ois.readObject();
+                            entry.maxLength = fullLength;
                             // NOTE: don't close ois here since we are still
                             // using dis!!!
                         } catch (ClassNotFoundException cnfe) {
@@ -841,8 +857,16 @@ public final class JceKeyStore extends KeyStoreSpi {
                         entries.put(alias, entry);
 
                     } else {
-                        throw new IOException("Unrecognized keystore entry");
+                        throw new IOException("Unrecognized keystore entry: " +
+                                tag);
                     }
+                }
+
+                if (debug != null) {
+                    debug.println("JceKeyStore load: private key count: " +
+                        privateKeyCount + ". trusted key count: " +
+                        trustedKeyCount + ". secret key count: " +
+                        secretKeyCount);
                 }
 
                 /*
@@ -897,20 +921,41 @@ public final class JceKeyStore extends KeyStoreSpi {
      * deserialized.
      */
     private static class DeserializationChecker implements ObjectInputFilter {
-        private static final int MAX_NESTED_DEPTH = 2;
+
+        // Full length of keystore, anything inside a SecretKeyEntry should not
+        // be bigger. Otherwise, must be illegal.
+        private final int fullLength;
+
+        public DeserializationChecker(int fullLength) {
+            this.fullLength = fullLength;
+        }
 
         @Override
         public ObjectInputFilter.Status
             checkInput(ObjectInputFilter.FilterInfo info) {
 
-            // First run a custom filter
-            long nestedDepth = info.depth();
-            if ((nestedDepth == 1 &&
-                        info.serialClass() != SealedObjectForKeyProtector.class) ||
-                    (nestedDepth > MAX_NESTED_DEPTH &&
-                        info.serialClass() != null &&
-                        info.serialClass() != Object.class)) {
+            if (info.arrayLength() > fullLength) {
                 return Status.REJECTED;
+            }
+            // First run a custom filter
+            Class<?> clazz = info.serialClass();
+            switch((int)info.depth()) {
+                case 1:
+                    if (clazz != SealedObjectForKeyProtector.class) {
+                        return Status.REJECTED;
+                    }
+                    break;
+                case 2:
+                    if (clazz != null && clazz != SealedObject.class
+                            && clazz != byte[].class) {
+                        return Status.REJECTED;
+                    }
+                    break;
+                default:
+                    if (clazz != null && clazz != Object.class) {
+                        return Status.REJECTED;
+                    }
+                    break;
             }
 
             // Next run the default filter, if available

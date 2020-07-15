@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -48,6 +48,7 @@ import javax.security.auth.DestroyFailedException;
 
 import sun.security.x509.AlgorithmId;
 import sun.security.util.ObjectIdentifier;
+import sun.security.util.SecurityProperties;
 
 /**
  * This class implements a protection mechanism for private keys. In JCE, we
@@ -75,13 +76,38 @@ final class KeyProtector {
     private static final String KEY_PROTECTOR_OID = "1.3.6.1.4.1.42.2.17.1.1";
 
     private static final int MAX_ITERATION_COUNT = 5000000;
-    private static final int ITERATION_COUNT = 200000;
+    private static final int MIN_ITERATION_COUNT = 10000;
+    private static final int DEFAULT_ITERATION_COUNT = 200000;
     private static final int SALT_LEN = 20; // the salt length
     private static final int DIGEST_LEN = 20;
+    private static final int ITERATION_COUNT;
 
     // the password used for protecting/recovering keys passed through this
     // key protector
     private char[] password;
+
+    /**
+     * {@systemProperty jdk.jceks.iterationCount} property indicating the
+     * number of iterations for password-based encryption (PBE) in JCEKS
+     * keystores. Values in the range 10000 to 5000000 are considered valid.
+     * If the value is out of this range, or is not a number, or is
+     * unspecified; a default of 200000 is used.
+     */
+    static {
+        int iterationCount = DEFAULT_ITERATION_COUNT;
+        String ic = SecurityProperties.privilegedGetOverridable(
+                "jdk.jceks.iterationCount");
+        if (ic != null && !ic.isEmpty()) {
+            try {
+                iterationCount = Integer.parseInt(ic);
+                if (iterationCount < MIN_ITERATION_COUNT ||
+                        iterationCount > MAX_ITERATION_COUNT) {
+                    iterationCount = DEFAULT_ITERATION_COUNT;
+                }
+            } catch (NumberFormatException e) {}
+        }
+        ITERATION_COUNT = iterationCount;
+    }
 
     KeyProtector(char[] password) {
         if (password == null) {
@@ -326,8 +352,11 @@ final class KeyProtector {
 
     /**
      * Unseals the sealed key.
+     *
+     * @param maxLength Maximum possible length of so.
+     *                  If bigger, must be illegal.
      */
-    Key unseal(SealedObject so)
+    Key unseal(SealedObject so, int maxLength)
         throws NoSuchAlgorithmException, UnrecoverableKeyException {
         SecretKey sKey = null;
         try {
@@ -362,7 +391,7 @@ final class KeyProtector {
                                                       SunJCE.getInstance(),
                                                       "PBEWithMD5AndTripleDES");
             cipher.init(Cipher.DECRYPT_MODE, sKey, params);
-            return soForKeyProtector.getKey(cipher);
+            return soForKeyProtector.getKey(cipher, maxLength);
         } catch (NoSuchAlgorithmException ex) {
             // Note: this catch needed to be here because of the
             // later catch of GeneralSecurityException
