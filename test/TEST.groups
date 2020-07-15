@@ -219,9 +219,6 @@ jdk_tools = \
     :core_tools \
     :svc_tools
 
-jdk_jfr = \
-    jdk/jfr
-
 #
 # Catch-all for other areas with a small number of tests
 #
@@ -273,7 +270,6 @@ jdk_svc = \
     :jdk_instrument \
     :jdk_jmx \
     :jdk_jdi \
-    :jdk_jfr \
     :svc_tools
 
 #############################

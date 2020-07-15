@@ -1,6 +1,6 @@
 ###########################################################################
 #
-# Copyright (c) 2009, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2009, 2017, Oracle and/or its affiliates. All rights reserved.
 # DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 #
 # This code is free software; you can redistribute it and/or modify it
@@ -368,10 +368,3 @@ sun/tools/jps/TestJpsJarRelative.java				generic-all
 
 # 8141370
 com/sun/jndi/ldap/DeadSSLLdapTimeoutTest.java			linux-i586,macosx-all
-
-############################################################################
-
-# jdk_jfr
-
-jdk/jfr/event/io/TestInstrumentation.java                       8199712    generic-all
-jdk/jfr/event/sampling/TestNative.java                          8199712    generic-all

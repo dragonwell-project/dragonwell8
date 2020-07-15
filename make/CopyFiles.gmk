@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
 # DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 #
 # This code is free software; you can redistribute it and/or modify it
@@ -592,36 +592,6 @@ $(JDK_OUTPUTDIR)/lib/sound.properties: $(JDK_TOPDIR)/src/share/lib/sound.propert
 	$(call install-file)
 
 COPY_FILES += $(JDK_OUTPUTDIR)/lib/sound.properties
-
-##########################################################################################
-
-# copy hotspot trace files
-
-HOTSPOT_TRACE_SRC_DIR := $(TOPDIR)/hotspot/src/share/vm/trace
-HOTSPOT_TRACE_DST_DIR := $(JDK_OUTPUTDIR)/classes/jdk/jfr/internal/types
-
-COPY_FILES += $(HOTSPOT_TRACE_DST_DIR)/trace.dtd \
-    $(HOTSPOT_TRACE_DST_DIR)/tracerelationdecls.xml \
-    $(HOTSPOT_TRACE_DST_DIR)/trace.xml \
-    $(HOTSPOT_TRACE_DST_DIR)/traceevents.xml \
-    $(HOTSPOT_TRACE_DST_DIR)/tracetypes.xml
-
-$(HOTSPOT_TRACE_DST_DIR)/%.xml: $(HOTSPOT_TRACE_SRC_DIR)/%.xml
-	$(call install-file)
-
-$(HOTSPOT_TRACE_DST_DIR)/trace.dtd: $(HOTSPOT_TRACE_SRC_DIR)/trace.dtd
-	$(call install-file)
-
-# copy jfr configuration files
-
-JFR_CONFIGURATION_DIR_SRC := $(JDK_TOPDIR)/src/share/lib/jfr
-JFR_CONFIGURATION_DIR_DST := $(JDK_OUTPUTDIR)/lib/jfr
-
-COPY_FILES += $(JFR_CONFIGURATION_DIR_DST)/default.jfc \
-    $(JFR_CONFIGURATION_DIR_DST)/profile.jfc
-
-$(JFR_CONFIGURATION_DIR_DST)/%.jfc: $(JFR_CONFIGURATION_DIR_SRC)/%.jfc
-	$(call install-file)
 
 ##########################################################################################
 

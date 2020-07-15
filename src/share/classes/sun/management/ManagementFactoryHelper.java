@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -52,9 +52,6 @@ import java.util.List;
 import com.sun.management.DiagnosticCommandMBean;
 import com.sun.management.HotSpotDiagnosticMXBean;
 
-import jdk.management.jfr.FlightRecorderMXBean;
-import jdk.management.jfr.FlightRecorderMXBeanImpl;
-
 import static java.lang.management.ManagementFactory.*;
 
 /**
@@ -73,7 +70,6 @@ public class ManagementFactoryHelper {
     private static CompilationImpl     compileMBean = null;
     private static OperatingSystemImpl osMBean = null;
     private static TenantContainerMXBeanImpl tenantContainerMBean = null;
-    private static FlightRecorderMXBeanImpl  flightRecorderMBean = null;
     private static ElasticHeapMXBeanImpl     elasticHeapMXBean = null;
 
     public static synchronized ClassLoadingMXBean getClassLoadingMXBean() {
@@ -123,13 +119,6 @@ public class ManagementFactoryHelper {
             tenantContainerMBean = new TenantContainerMXBeanImpl();
         }
         return tenantContainerMBean;
-    }
-
-    public static synchronized FlightRecorderMXBean getFlightRecorderMXBean() {
-        if (flightRecorderMBean == null) {
-            flightRecorderMBean = new FlightRecorderMXBeanImpl();
-        }
-        return flightRecorderMBean;
     }
 
     public static synchronized ElasticHeapMXBean getElasticHeapMXBean() {
