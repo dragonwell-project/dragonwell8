@@ -275,7 +275,7 @@ public class Config {
      * value does not look like a boolean value.
      * @throws IllegalArgumentException see {@link #get(String...)}
      */
-    private Boolean getBooleanObject(String... keys) {
+    public Boolean getBooleanObject(String... keys) {
         String s = get(keys);
         if (s == null) {
             return null;
