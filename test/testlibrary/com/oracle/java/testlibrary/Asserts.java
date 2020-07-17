@@ -436,6 +436,24 @@ public class Asserts {
         }
     }
 
+    /**
+     * Fail the test directly
+     * @throws RuntimeException anyway.
+     */
+    public static void fail() {
+        error("Failed");
+    }
+
+    /**
+     * Fails a test with the given message.
+     *
+     * @param msg A description of the failure.
+     *
+     */
+    public static void fail(String msg) {
+        error(msg);
+    }
+
     private static <T extends Comparable<T>> int compare(T lhs, T rhs, String msg) {
         assertNotNull(lhs, msg);
         assertNotNull(rhs, msg);
