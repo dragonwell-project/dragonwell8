@@ -435,16 +435,13 @@ AC_DEFUN_ONCE([FLAGS_SETUP_COMPILER_FLAGS_FOR_JDK],
   AC_ARG_WITH(extra-asflags, [AS_HELP_STRING([--with-extra-asflags],
       [extra flags to be passed to the assembler])])
 
-  DRAGONWELL_EXTRA_CFLAGS="-DVENDOR='\"Alibaba\"'     \
-                           -DVENDOR_URL='\"http://www.alibabagroup.com\"'    \
-                           -DVENDOR_URL_BUG='\"mailto:dragonwell_use@googlegroups.com\"'"
   DRAGONWELL_EXTRA_LDFLAGS="-Wl,--build-id=sha"
-  CFLAGS_JDK="${CFLAGS_JDK} $with_extra_cflags $DRAGONWELL_EXTRA_CFLAGS"
+  CFLAGS_JDK="${CFLAGS_JDK} $with_extra_cflags"
   CXXFLAGS_JDK="${CXXFLAGS_JDK} $with_extra_cxxflags"
   LDFLAGS_JDK="${LDFLAGS_JDK} $with_extra_ldflags $DRAGONWELL_EXTRA_LDFLAGS"
 
   # Hotspot needs these set in their legacy form
-  LEGACY_EXTRA_CFLAGS="$LEGACY_EXTRA_CFLAGS $with_extra_cflags $DRAGONWELL_EXTRA_CFLAGS"
+  LEGACY_EXTRA_CFLAGS="$LEGACY_EXTRA_CFLAGS $with_extra_cflags"
   LEGACY_EXTRA_CXXFLAGS="$LEGACY_EXTRA_CXXFLAGS $with_extra_cxxflags"
   LEGACY_EXTRA_LDFLAGS="$LEGACY_EXTRA_LDFLAGS $with_extra_ldflags $DRAGONWELL_EXTRA_LDFLAGS"
   LEGACY_EXTRA_ASFLAGS="$with_extra_asflags"

@@ -19953,6 +19953,8 @@ fi
     # Only set COMPANY_NAME if '--with-vendor-name' was used and is not empty.
     # Otherwise we will use the value from "version-numbers" included above.
     COMPANY_NAME="$with_vendor_name"
+  else
+    COMPANY_NAME="Alibaba"
   fi
 
 
@@ -19967,8 +19969,10 @@ fi
     as_fn_error $? "--with-vendor-url must have a value" "$LINENO" 5
   elif  ! [[ $with_vendor_url =~ ^[[:print:]]*$ ]] ; then
     as_fn_error $? "--with-vendor-url contains non-printing characters: $with_vendor_url" "$LINENO" 5
-  else
+  elif test "x$with_vendor_url" != x; then
     VENDOR_URL="$with_vendor_url"
+  else
+    VENDOR_URL="http://www.alibabagroup.com"
   fi
 
 
@@ -19983,8 +19987,10 @@ fi
     as_fn_error $? "--with-vendor-bug-url must have a value" "$LINENO" 5
   elif  ! [[ $with_vendor_bug_url =~ ^[[:print:]]*$ ]] ; then
     as_fn_error $? "--with-vendor-bug-url contains non-printing characters: $with_vendor_bug_url" "$LINENO" 5
-  else
+  elif test "x$with_vendor_bug_url" != x; then
     VENDOR_URL_BUG="$with_vendor_bug_url"
+  else
+    VENDOR_URL_BUG="mailto:dragonwell_use@googlegroups.com"
   fi
 
 
@@ -41585,16 +41591,13 @@ if test "${with_extra_asflags+set}" = set; then :
 fi
 
 
-  DRAGONWELL_EXTRA_CFLAGS="-DVENDOR='\"Alibaba\"'     \
-                           -DVENDOR_URL='\"http://www.alibabagroup.com\"'    \
-                           -DVENDOR_URL_BUG='\"mailto:dragonwell_use@googlegroups.com\"'"
   DRAGONWELL_EXTRA_LDFLAGS="-Wl,--build-id=sha"
-  CFLAGS_JDK="${CFLAGS_JDK} $with_extra_cflags $DRAGONWELL_EXTRA_CFLAGS"
+  CFLAGS_JDK="${CFLAGS_JDK} $with_extra_cflags"
   CXXFLAGS_JDK="${CXXFLAGS_JDK} $with_extra_cxxflags"
   LDFLAGS_JDK="${LDFLAGS_JDK} $with_extra_ldflags $DRAGONWELL_EXTRA_LDFLAGS"
 
   # Hotspot needs these set in their legacy form
-  LEGACY_EXTRA_CFLAGS="$LEGACY_EXTRA_CFLAGS $with_extra_cflags $DRAGONWELL_EXTRA_CFLAGS"
+  LEGACY_EXTRA_CFLAGS="$LEGACY_EXTRA_CFLAGS $with_extra_cflags"
   LEGACY_EXTRA_CXXFLAGS="$LEGACY_EXTRA_CXXFLAGS $with_extra_cxxflags"
   LEGACY_EXTRA_LDFLAGS="$LEGACY_EXTRA_LDFLAGS $with_extra_ldflags $DRAGONWELL_EXTRA_LDFLAGS"
   LEGACY_EXTRA_ASFLAGS="$with_extra_asflags"
