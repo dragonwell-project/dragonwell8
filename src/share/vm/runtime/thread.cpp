@@ -1500,6 +1500,7 @@ void JavaThread::initialize() {
   _coroutine_stack_cache_size = 0;
   _coroutine_stack_list = NULL;
   _coroutine_list = NULL;
+  _current_coroutine = NULL;
 
   _thread_stat = NULL;
   _thread_stat = new ThreadStatistics();
@@ -1641,6 +1642,11 @@ JavaThread::~JavaThread() {
     CoroutineStack* stack = coroutine_stack_cache();
     stack->remove_from_list(coroutine_stack_cache());
     CoroutineStack::free_stack(stack, this);
+  }
+
+  while (EnableCoroutine && coroutine_list() != NULL) {
+     CoroutineStack::free_stack(coroutine_list()->stack(), this);
+     delete coroutine_list();
   }
 
   if (TraceThreadEvents) {

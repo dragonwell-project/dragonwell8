@@ -3636,6 +3636,10 @@ void create_switchTo_contents(MacroAssembler *masm, int start, OopMapSet* oop_ma
     __ movptr(Address(old_coroutine, Coroutine::resource_area_offset()), temp);
     __ movptr(temp, Address(thread, Thread::last_handle_mark_offset()));
     __ movptr(Address(old_coroutine, Coroutine::last_handle_mark_offset()), temp);
+    __ movptr(temp, Address(thread, Thread::active_handles_offset()));
+    __ movptr(Address(old_coroutine, Coroutine::active_handles_offset()), temp);
+    __ movptr(temp, Address(thread, Thread::metadata_handles_offset()));
+    __ movptr(Address(old_coroutine, Coroutine::metadata_handles_offset()), temp);
 
     // push the current IP and frame pointer onto the stack
     __ push(rbp);
@@ -3658,7 +3662,8 @@ void create_switchTo_contents(MacroAssembler *masm, int start, OopMapSet* oop_ma
     Register temp2 = rdi;
     {
       Register thread = rax;
-      __ get_thread(rax);
+      __ get_thread(thread);
+      __ movptr(Address(thread, JavaThread::current_coroutine_offset()), target_coroutine);
       // set new handle and resource areas
       __ movptr(temp, Address(target_coroutine, Coroutine::handle_area_offset()));
       __ movptr(Address(target_coroutine, Coroutine::handle_area_offset()), (intptr_t)NULL_WORD);                // TODO is this really needed?
@@ -3669,6 +3674,12 @@ void create_switchTo_contents(MacroAssembler *masm, int start, OopMapSet* oop_ma
       __ movptr(temp, Address(target_coroutine, Coroutine::last_handle_mark_offset()));
       __ movptr(Address(target_coroutine, Coroutine::last_handle_mark_offset()), (intptr_t)NULL_WORD);              // TODO is this really needed?
       __ movptr(Address(thread, Thread::last_handle_mark_offset()), temp);
+      __ movptr(temp, Address(target_coroutine, Coroutine::active_handles_offset()));
+      __ movptr(Address(target_coroutine, Coroutine::active_handles_offset()), (intptr_t)NULL_WORD);
+      __ movptr(Address(thread, Thread::active_handles_offset()), temp);
+      __ movptr(temp, Address(target_coroutine, Coroutine::metadata_handles_offset()));
+      __ movptr(Address(target_coroutine, Coroutine::metadata_handles_offset()), (intptr_t)NULL_WORD);
+      __ movptr(Address(thread, Thread::metadata_handles_offset()), temp);
 
       // update the thread's stack base and size
       __ movptr(temp, Address(target_stack, CoroutineStack::stack_base_offset()));

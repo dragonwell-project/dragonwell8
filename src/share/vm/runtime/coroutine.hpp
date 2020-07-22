@@ -79,6 +79,7 @@ public:
 class Coroutine: public CHeapObj<mtThread>, public DoublyLinkedList<Coroutine> {
 public:
   enum CoroutineState {
+    _created    = 0x00000000,      // not inited
     _onstack    = 0x00000001,
     _current    = 0x00000002,
     _dead       = 0x00000003,      // TODO is this really needed?
@@ -96,6 +97,8 @@ private:
   ResourceArea*   _resource_area;
   HandleArea*     _handle_area;
   HandleMark*     _last_handle_mark;
+  JNIHandleBlock* _active_handles;
+  GrowableArray<Metadata*>* _metadata_handles;
 #ifdef ASSERT
   int             _java_call_counter;
 #endif
@@ -106,16 +109,16 @@ private:
 
   // objects of this type can only be created via static functions
   Coroutine() { }
-  virtual ~Coroutine() { }
 
   void frames_do(FrameClosure* fc);
 
 public:
+  virtual ~Coroutine();
+
   void run(jobject coroutine);
 
   static Coroutine* create_thread_coroutine(JavaThread* thread, CoroutineStack* stack);
   static Coroutine* create_coroutine(JavaThread* thread, CoroutineStack* stack, oop coroutineObj);
-  static void free_coroutine(Coroutine* coroutine, JavaThread* thread);
 
   CoroutineState state() const      { return _state; }
   void set_state(CoroutineState x)  { _state = x; }
@@ -136,6 +139,12 @@ public:
   HandleMark* last_handle_mark() const    { return _last_handle_mark; }
   void set_last_handle_mark(HandleMark* x){ _last_handle_mark = x; }
 
+  JNIHandleBlock* active_handles() const         { return _active_handles; }
+  void set_active_handles(JNIHandleBlock* block) { _active_handles = block; }
+
+  GrowableArray<Metadata*>* metadata_handles() const          { return _metadata_handles; }
+  void set_metadata_handles(GrowableArray<Metadata*>* handles){ _metadata_handles = handles; }
+
 #ifdef ASSERT
   int java_call_counter() const           { return _java_call_counter; }
   void set_java_call_counter(int x)       { _java_call_counter = x; }
@@ -155,6 +164,8 @@ public:
   static ByteSize resource_area_offset()      { return byte_offset_of(Coroutine, _resource_area); }
   static ByteSize handle_area_offset()        { return byte_offset_of(Coroutine, _handle_area); }
   static ByteSize last_handle_mark_offset()   { return byte_offset_of(Coroutine, _last_handle_mark); }
+  static ByteSize active_handles_offset()     { return byte_offset_of(Coroutine, _active_handles); }
+  static ByteSize metadata_handles_offset()   { return byte_offset_of(Coroutine, _metadata_handles); }
 #ifdef ASSERT
   static ByteSize java_call_counter_offset()  { return byte_offset_of(Coroutine, _java_call_counter); }
 #endif

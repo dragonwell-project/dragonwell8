@@ -639,6 +639,7 @@ protected:
   static ByteSize exception_file_offset()        { return byte_offset_of(Thread, _exception_file   ); }
   static ByteSize exception_line_offset()        { return byte_offset_of(Thread, _exception_line   ); }
   static ByteSize active_handles_offset()        { return byte_offset_of(Thread, _active_handles   ); }
+  static ByteSize metadata_handles_offset()      { return byte_offset_of(Thread, _metadata_handles); }
 
   static ByteSize stack_base_offset()            { return byte_offset_of(Thread, _stack_base ); }
   static ByteSize stack_size_offset()            { return byte_offset_of(Thread, _stack_size ); }
@@ -980,6 +981,7 @@ class JavaThread: public Thread {
   uintx             _coroutine_stack_cache_size;
   CoroutineStack*   _coroutine_stack_list;
   Coroutine*        _coroutine_list;
+  Coroutine*        _current_coroutine;
 
   intptr_t          _coroutine_temp;
 
@@ -988,8 +990,11 @@ class JavaThread: public Thread {
   uintx& coroutine_stack_cache_size()            { return _coroutine_stack_cache_size; }
   CoroutineStack*& coroutine_stack_list()        { return _coroutine_stack_list; }
   Coroutine*& coroutine_list()                   { return _coroutine_list; }
+  Coroutine* current_coroutine()                 { return _current_coroutine; }
 
   static ByteSize coroutine_temp_offset()        { return byte_offset_of(JavaThread, _coroutine_temp); }
+
+  static ByteSize current_coroutine_offset()     { return byte_offset_of(JavaThread, _current_coroutine); }
 
   void initialize_coroutine_support();
 

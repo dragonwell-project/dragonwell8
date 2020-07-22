@@ -77,6 +77,7 @@ void Coroutine::run(jobject coroutine) {
 
   _thread->set_resource_area(new (mtThread) ResourceArea(32));
   _thread->set_handle_area(new (mtThread) HandleArea(NULL, 32));
+  _thread->set_metadata_handles(new (ResourceObj::C_HEAP, mtClass) GrowableArray<Metadata*>(30, true));
 
   {
     HandleMark hm(_thread);
@@ -105,6 +106,8 @@ Coroutine* Coroutine::create_thread_coroutine(JavaThread* thread, CoroutineStack
   coro->_resource_area = NULL;
   coro->_handle_area = NULL;
   coro->_last_handle_mark = NULL;
+  coro->_active_handles = thread->active_handles();
+  coro->_metadata_handles = NULL;
 #ifdef ASSERT
   coro->_java_call_counter = 0;
 #endif
@@ -114,6 +117,12 @@ Coroutine* Coroutine::create_thread_coroutine(JavaThread* thread, CoroutineStack
   return coro;
 }
 
+/**
+ * The initial value for corountine' active handles, which will be replaced with a real one
+ * when the coroutine invokes call_virtual (before running any real logic).
+ */
+static JNIHandleBlock* shared_empty_JNIHandleBlock = JNIHandleBlock::allocate_block();
+
 Coroutine* Coroutine::create_coroutine(JavaThread* thread, CoroutineStack* stack, oop coroutineObj) {
   Coroutine* coro = new Coroutine();
   if (coro == NULL) {
@@ -121,6 +130,8 @@ Coroutine* Coroutine::create_coroutine(JavaThread* thread, CoroutineStack* stack
   }
 
   intptr_t** d = (intptr_t**)stack->stack_base();
+  // Make the 16 bytes(original is 8*5=40 bytes) alignation which is required by some instructions like movaps otherwise we will incur a crash.
+  *(--d) = NULL;
   *(--d) = NULL;
   jobject obj = JNIHandles::make_global(coroutineObj);
   *(--d) = (intptr_t*)obj;
@@ -131,13 +142,15 @@ Coroutine* Coroutine::create_coroutine(JavaThread* thread, CoroutineStack* stack
 
   stack->set_last_sp((address) d);
 
-  coro->_state = _onstack;
+  coro->_state = _created;
   coro->_is_thread_coroutine = false;
   coro->_thread = thread;
   coro->_stack = stack;
   coro->_resource_area = NULL;
   coro->_handle_area = NULL;
   coro->_last_handle_mark = NULL;
+  coro->_active_handles = shared_empty_JNIHandleBlock;
+  coro->_metadata_handles = NULL;
 #ifdef ASSERT
   coro->_java_call_counter = 0;
 #endif
@@ -147,13 +160,25 @@ Coroutine* Coroutine::create_coroutine(JavaThread* thread, CoroutineStack* stack
   return coro;
 }
 
-void Coroutine::free_coroutine(Coroutine* coroutine, JavaThread* thread) {
-  coroutine->remove_from_list(thread->coroutine_list());
-  delete coroutine;
+Coroutine::~Coroutine() {
+  remove_from_list(_thread->coroutine_list());
+  if (!_is_thread_coroutine && _state != Coroutine::_created) {
+    assert(_resource_area != NULL, "_resource_area is NULL");
+    assert(_handle_area != NULL, "_handle_area is NULL");
+    assert(_metadata_handles != NULL, "_metadata_handles is NULL");
+    delete _resource_area;
+    delete _handle_area;
+    delete _metadata_handles;
+    JNIHandleBlock::release_block(active_handles(), _thread);
+    //allocated from JavaCalls::call_virtual during coroutine's first running
+  }
 }
 
 void Coroutine::frames_do(FrameClosure* fc) {
   switch (_state) {
+    case Coroutine::_created:
+      // the coroutine has never been run
+      break;
     case Coroutine::_current:
       // the contents of this coroutine have already been visited
       break;
@@ -182,6 +207,7 @@ void Coroutine::oops_do(OopClosure* f, CLDClosure* cld_f, CodeBlobClosure* cf) {
   if (_state == _onstack &&_handle_area != NULL) {
     DEBUG_CORO_ONLY(tty->print_cr("collecting handle area %08x", _handle_area));
     _handle_area->oops_do(f);
+    _active_handles->oops_do(f);
   }
 }
 
@@ -207,6 +233,11 @@ public:
 };
 
 void Coroutine::metadata_do(void f(Metadata*)) {
+  if (metadata_handles() != NULL) {
+    for (int i = 0; i< metadata_handles()->length(); i++) {
+      f(metadata_handles()->at(i));
+    }
+  }
   metadata_do_Closure fc(f);
   frames_do(&fc);
 }
@@ -225,7 +256,9 @@ void Coroutine::frames_do(void f(frame*, const RegisterMap* map)) {
 }
 
 bool Coroutine::is_disposable() {
-  return false;
+  //_handle_area == NULL indicates this coroutine has not been initialized,
+  //we should delete it directly.
+  return _handle_area == NULL;
 }
 
 
@@ -290,7 +323,10 @@ CoroutineStack* CoroutineStack::create_stack(JavaThread* thread, intptr_t size/*
 }
 
 void CoroutineStack::free_stack(CoroutineStack* stack, JavaThread* thread) {
-  guarantee(!stack->is_thread_stack(), "cannot free thread stack");
+  if (stack->is_thread_stack()) {
+    delete stack;
+    return;
+  }
   ThreadLocalStorage::remove_coroutine_stack(thread, stack->stack_base(), stack->stack_size());
 
   if (stack->_reserved_space.size() > 0) {

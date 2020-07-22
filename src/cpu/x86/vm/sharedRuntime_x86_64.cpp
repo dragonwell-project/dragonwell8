@@ -4470,6 +4470,10 @@ void create_switchTo_contents(MacroAssembler *masm, int start, OopMapSet* oop_ma
     __ movptr(Address(old_coroutine, Coroutine::resource_area_offset()), temp);
     __ movptr(temp, Address(thread, Thread::last_handle_mark_offset()));
     __ movptr(Address(old_coroutine, Coroutine::last_handle_mark_offset()), temp);
+    __ movptr(temp, Address(thread, Thread::active_handles_offset()));
+    __ movptr(Address(old_coroutine, Coroutine::active_handles_offset()), temp);
+    __ movptr(temp, Address(thread, Thread::metadata_handles_offset()));
+    __ movptr(Address(old_coroutine, Coroutine::metadata_handles_offset()), temp);
 #ifdef ASSERT
     __ movl(temp, Address(thread, JavaThread::java_call_counter_offset()));
     __ movl(Address(old_coroutine, Coroutine::java_call_counter_offset()), temp);
@@ -4492,6 +4496,7 @@ void create_switchTo_contents(MacroAssembler *masm, int start, OopMapSet* oop_ma
     Register temp2 = r9;
     {
       Register thread = r15;
+      __ movptr(Address(thread, JavaThread::current_coroutine_offset()), target_coroutine);
       // set new handle and resource areas
       __ movptr(temp, Address(target_coroutine, Coroutine::handle_area_offset()));
       __ movptr(Address(thread, Thread::handle_area_offset()), temp);
@@ -4499,6 +4504,10 @@ void create_switchTo_contents(MacroAssembler *masm, int start, OopMapSet* oop_ma
       __ movptr(Address(thread, Thread::resource_area_offset()), temp);
       __ movptr(temp, Address(target_coroutine, Coroutine::last_handle_mark_offset()));
       __ movptr(Address(thread, Thread::last_handle_mark_offset()), temp);
+      __ movptr(temp, Address(target_coroutine, Coroutine::active_handles_offset()));
+      __ movptr(Address(thread, Thread::active_handles_offset()), temp);
+      __ movptr(temp, Address(target_coroutine, Coroutine::metadata_handles_offset()));
+      __ movptr(Address(thread, Thread::metadata_handles_offset()), temp);
 
 #ifdef ASSERT
       __ movl(temp, Address(target_coroutine, Coroutine::java_call_counter_offset()));

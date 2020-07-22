@@ -1394,7 +1394,7 @@ void CoroutineSupport_switchToAndTerminate(JNIEnv* env, jclass klass, jobject ol
   } else {
     CoroutineStack::free_stack(stack, THREAD);
   }
-  Coroutine::free_coroutine(coro, THREAD);
+  delete coro;
 }
 
 void CoroutineSupport_switchToAndExit(JNIEnv* env, jclass klass, jobject old_coroutine, jobject target_coroutine) {
@@ -1450,7 +1450,14 @@ jboolean CoroutineSupport_isDisposable(JNIEnv* env, jclass klass, jlong coroutin
   assert(coro != NULL, "cannot free NULL coroutine");
   assert(!coro->is_thread_coroutine(), "cannot free thread coroutine");
 
-  return coro->is_disposable();
+  jboolean is_disposable = coro->is_disposable();
+  if (is_disposable) {
+    CoroutineStack* stack = coro->stack();
+    stack->remove_from_list(THREAD->coroutine_stack_list());
+    CoroutineStack::free_stack(stack, THREAD);
+    delete coro;
+  }
+  return is_disposable;
 }
 
 jobject CoroutineSupport_cleanupCoroutine(JNIEnv* env, jclass klass) {

@@ -288,6 +288,9 @@ int JvmtiThreadState::cur_stack_depth() {
   if (!is_interp_only_mode() || _cur_stack_depth == UNKNOWN_STACK_DEPTH) {
     _cur_stack_depth = count_frames();
   } else {
+    if (EnableCoroutine) {
+      _cur_stack_depth = count_frames();  // update debug stack depth, for switchToAndExit
+    }
     // heavy weight assert
     assert(_cur_stack_depth == count_frames(),
            "cur_stack_depth out of sync");

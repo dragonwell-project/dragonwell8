@@ -233,6 +233,7 @@ class HandleArea: public Arena {
     _prev = prev;
   }
 
+  // Only coroutine uses this constructor
   HandleArea(HandleArea* prev, size_t init_size) : Arena(mtThread, init_size) {
     assert(EnableCoroutine, "EnableCoroutine is off");
     debug_only(_handle_mark_nesting    = 0);
