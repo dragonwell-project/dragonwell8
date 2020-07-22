@@ -25,6 +25,7 @@
 
 package java.lang;
 
+import java.dyn.CoroutineSupport;
 import java.lang.ref.Reference;
 import java.lang.ref.ReferenceQueue;
 import java.lang.ref.WeakReference;
@@ -273,6 +274,18 @@ class Thread implements Runnable {
      * The maximum priority that a thread can have.
      */
     public final static int MAX_PRIORITY = 10;
+
+    private CoroutineSupport coroutineSupport;
+
+    public CoroutineSupport getCoroutineSupport() {
+        return coroutineSupport;
+    }
+
+    private void initializeCoroutineSupport() {
+        if (sun.misc.VM.isEnableCoroutine()) {
+            coroutineSupport = new CoroutineSupport(this);
+        }
+    }
 
     /**
      * Returns a reference to the currently executing thread object.
@@ -781,6 +794,10 @@ class Thread implements Runnable {
      * a chance to clean up before it actually exits.
      */
     private void exit() {
+        if (sun.misc.VM.isEnableCoroutine() && (coroutineSupport != null)) {
+            coroutineSupport.drain();
+        }
+
         if (group != null) {
             group.threadTerminated(this);
             group = null;
