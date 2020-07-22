@@ -176,6 +176,9 @@ public class EventNames {
     public final static String ActiveRecording = PREFIX + "ActiveRecording";
     public final static String ActiveSetting = PREFIX + "ActiveSetting";
 
+    public final static String OptoInstanceObjectAllocation = PREFIX + "OptoInstanceObjectAllocation";
+    public final static String OptoArrayObjectAllocation = PREFIX + "OptoArrayObjectAllocation";
+
     public static boolean isGcEvent(EventType et) {
         return et.getCategoryNames().contains(GC_CATEGORY);
     }

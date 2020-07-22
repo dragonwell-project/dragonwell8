@@ -629,6 +629,16 @@
       <setting name="threshold">10 ms</setting>
     </event>
 
+    <event name="jdk.OptoInstanceObjectAllocation">
+      <setting name="enabled">false</setting>
+      <setting name="stackTrace">true</setting>
+    </event>
+
+    <event name="jdk.OptoArrayObjectAllocation">
+      <setting name="enabled">false</setting>
+      <setting name="stackTrace">true</setting>
+    </event>
+
 
 
 
