@@ -124,6 +124,23 @@ void HandleMark::initialize(Thread* thread) {
   thread->set_last_handle_mark(this);
 }
 
+HandleMark::HandleMark(Thread* thread, HandleArea* area, HandleMark* last_handle_mark) {
+  _thread = thread;
+  // Save area
+  _area  = area;
+  // Save current top
+  _chunk = _area->_chunk;
+  _hwm   = _area->_hwm;
+  _max   = _area->_max;
+  NOT_PRODUCT(_size_in_bytes = _area->_size_in_bytes;)
+  debug_only(_area->_handle_mark_nesting++);
+  assert(_area->_handle_mark_nesting > 0, "must stack allocate HandleMarks");
+  debug_only(Atomic::inc(&_nof_handlemarks);)
+
+  // Link this in the thread
+  set_previous_handle_mark(last_handle_mark);
+}
+
 
 HandleMark::~HandleMark() {
   HandleArea* area = _area;   // help compilers with poor alias analysis

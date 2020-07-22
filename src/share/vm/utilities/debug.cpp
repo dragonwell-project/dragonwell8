@@ -112,6 +112,16 @@ void warning(const char* format, ...) {
   if (BreakAtWarning) BREAKPOINT;
 }
 
+void warning_fixed_args(const char* message) {
+  // In case error happens before init or during shutdown
+  if (tty == NULL) ostream_init();
+
+  tty->print("%s warning: ", VM_Version::vm_name());
+  tty->print_cr("%s", message);
+  if (BreakAtWarning) BREAKPOINT;
+}
+
+
 #ifndef PRODUCT
 
 #define is_token_break(ch) (isspace(ch) || (ch) == ',')

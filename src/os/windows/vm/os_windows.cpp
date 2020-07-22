@@ -2589,7 +2589,8 @@ LONG WINAPI topLevelExceptionFilter(struct _EXCEPTION_POINTERS* exceptionInfo) {
     bool in_java = thread->thread_state() == _thread_in_Java;
 
     // Handle potential stack overflows up front.
-    if (exception_code == EXCEPTION_STACK_OVERFLOW) {
+    if (exception_code == EXCEPTION_STACK_OVERFLOW ||
+        (EnableCoroutine && exception_code == EXCEPTION_GUARD_PAGE)) {
       if (os::uses_stack_guard_pages()) {
 #ifdef _M_IA64
         // Use guard page for register stack.

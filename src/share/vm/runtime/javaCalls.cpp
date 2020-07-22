@@ -107,6 +107,15 @@ JavaCallWrapper::JavaCallWrapper(methodHandle callee_method, Handle receiver, Ja
   }
 }
 
+void JavaCallWrapper::initialize(JavaThread* thread, JNIHandleBlock* handles, Method* callee_method, oop receiver, JavaValue* result) {
+  _thread = thread;
+  _handles = handles;
+  _callee_method = callee_method;
+  _receiver = receiver;
+  _result = result;
+  _anchor.clear();
+}
+
 
 JavaCallWrapper::~JavaCallWrapper() {
   assert(_thread == JavaThread::current(), "must still be the same thread");

@@ -94,6 +94,10 @@ DEBUG_ONLY(class ResourceMark;)
 
 class WorkerThread;
 
+
+class Coroutine;
+class CoroutineStack;
+
 // Class hierarchy
 // - Thread
 //   - NamedThread
@@ -627,6 +631,10 @@ protected:
   void leaving_jvmti_env_iteration()             { --_jvmti_env_iteration_count; }
   bool is_inside_jvmti_env_iteration()           { return _jvmti_env_iteration_count > 0; }
 
+  static ByteSize resource_area_offset()         { return byte_offset_of(Thread, _resource_area); }
+  static ByteSize handle_area_offset()           { return byte_offset_of(Thread, _handle_area); }
+  static ByteSize last_handle_mark_offset()      { return byte_offset_of(Thread, _last_handle_mark); }
+
   // Code generation
   static ByteSize exception_file_offset()        { return byte_offset_of(Thread, _exception_file   ); }
   static ByteSize exception_line_offset()        { return byte_offset_of(Thread, _exception_line   ); }
@@ -966,6 +974,26 @@ class JavaThread: public Thread {
   // _frames_to_pop_failed_realloc frames, the ones that reference
   // failed reallocations.
   int _frames_to_pop_failed_realloc;
+
+  // coroutine support
+  CoroutineStack*   _coroutine_stack_cache;
+  uintx             _coroutine_stack_cache_size;
+  CoroutineStack*   _coroutine_stack_list;
+  Coroutine*        _coroutine_list;
+
+  intptr_t          _coroutine_temp;
+
+ public:
+  CoroutineStack*& coroutine_stack_cache()       { return _coroutine_stack_cache; }
+  uintx& coroutine_stack_cache_size()            { return _coroutine_stack_cache_size; }
+  CoroutineStack*& coroutine_stack_list()        { return _coroutine_stack_list; }
+  Coroutine*& coroutine_list()                   { return _coroutine_list; }
+
+  static ByteSize coroutine_temp_offset()        { return byte_offset_of(JavaThread, _coroutine_temp); }
+
+  void initialize_coroutine_support();
+
+ private:
 
 #ifndef PRODUCT
   int _jmp_ring_index;
@@ -1411,6 +1439,9 @@ class JavaThread: public Thread {
   static ByteSize is_method_handle_return_offset() { return byte_offset_of(JavaThread, _is_method_handle_return); }
   static ByteSize stack_guard_state_offset()     { return byte_offset_of(JavaThread, _stack_guard_state   ); }
   static ByteSize suspend_flags_offset()         { return byte_offset_of(JavaThread, _suspend_flags       ); }
+#ifdef ASSERT
+  static ByteSize java_call_counter_offset()     { return byte_offset_of(JavaThread, _java_call_counter); }
+#endif
 
   static ByteSize do_not_unlock_if_synchronized_offset() { return byte_offset_of(JavaThread, _do_not_unlock_if_synchronized); }
   static ByteSize should_post_on_exceptions_flag_offset() {

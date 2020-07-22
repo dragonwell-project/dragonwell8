@@ -114,7 +114,15 @@
                                                                             \
   product(bool, TenantDataIsolation, false,                                 \
           "Enable data isolation(e.g static vairable) per tenant")          \
-
+                                                                            \
+  product(bool, EnableCoroutine, false,                                     \
+          "Enable coroutine support")                                       \
+                                                                            \
+  product(uintx, DefaultCoroutineStackSize, 128*K,                          \
+          "Default size of stack that is associated with new coroutine")    \
+                                                                            \
+  product(uintx, MaxFreeCoroutinesCacheSize, 20,                            \
+          "The max number of free coroutine stacks a thread can keep")      \
   //add new AJVM specific flags here
 
 

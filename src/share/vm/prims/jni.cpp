@@ -5268,6 +5268,28 @@ _JNI_IMPORT_OR_EXPORT_ jint JNICALL JNI_CreateJavaVM(JavaVM **vm, void **penv, v
     CALL_TEST_FUNC_WITH_WRAPPER_IF_NEEDED(test_error_handler);
     CALL_TEST_FUNC_WITH_WRAPPER_IF_NEEDED(execute_internal_vm_tests);
 #endif
+    if (EnableCoroutine) {
+      JavaThread* __the_thread__ = thread;
+      HandleMark hm(THREAD);
+      Handle obj(THREAD, thread->threadObj());
+      JavaValue result(T_VOID);
+
+      if (SystemDictionary::java_dyn_CoroutineSupport_klass() != NULL) {
+        InstanceKlass::cast(SystemDictionary::Class_klass())->initialize(CHECK_0);
+        InstanceKlass::cast(SystemDictionary::java_dyn_CoroutineSupport_klass())->initialize(CHECK_0);
+        JavaCalls::call_virtual(&result,
+                                obj,
+                                KlassHandle(THREAD, SystemDictionary::Thread_klass()),
+                                vmSymbols::initializeCoroutineSupport_method_name(),
+                                vmSymbols::void_method_signature(),
+                                THREAD);
+        if (THREAD->has_pending_exception()) {
+          java_lang_Throwable::print_stack_trace(THREAD->pending_exception(), tty);
+          THREAD->clear_pending_exception();
+          vm_abort(false);
+        }
+      }
+    }
 
     // Since this is not a JVM_ENTRY we have to set the thread state manually before leaving.
     ThreadStateTransition::transition_and_fence(thread, _thread_in_vm, _thread_in_native);
@@ -5397,7 +5419,9 @@ static jint attach_current_thread(JavaVM *vm, void **penv, void *_args, bool dae
   thread->set_thread_state(_thread_in_vm);
   // Must do this before initialize_thread_local_storage
   thread->record_stack_base_and_size();
-
+  if (EnableCoroutine) {
+    thread->initialize_coroutine_support();
+  }
   thread->initialize_thread_local_storage();
 
   if (!os::create_attached_thread(thread)) {

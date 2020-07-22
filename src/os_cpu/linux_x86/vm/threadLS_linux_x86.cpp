@@ -96,4 +96,27 @@ void ThreadLocalStorage::pd_init() {
 void ThreadLocalStorage::pd_set_thread(Thread* thread) {
   os::thread_local_storage_at_put(ThreadLocalStorage::thread_index(), thread);
 }
+
+void ThreadLocalStorage::pd_add_coroutine_stack(Thread* thread, address stack_base, size_t stack_size) {
+#ifndef AMD64
+  for (address p = stack_base - stack_size; p < stack_base; p += PAGE_SIZE) {
+    assert(thread == NULL || _sp_map[(uintptr_t)p >> PAGE_SHIFT] == NULL ||
+           thread == _sp_map[(uintptr_t)p >> PAGE_SHIFT],
+           "coroutine exited without detaching from VM??");
+    _sp_map[(uintptr_t)p >> PAGE_SHIFT] = thread;
+  }
+#endif // !AMD64
+}
+
+
+void ThreadLocalStorage::pd_remove_coroutine_stack(Thread* thread, address stack_base, size_t stack_size) {
+#ifndef AMD64
+  for (address p = stack_base - stack_size; p < stack_base; p += PAGE_SIZE) {
+    assert(thread == _sp_map[(uintptr_t)p >> PAGE_SHIFT],
+           "coroutine exited without detaching from VM??");
+    _sp_map[(uintptr_t)p >> PAGE_SHIFT] = NULL;
+  }
+#endif // !AMD64
+}
+
 #endif // !AMD64 && !MINIMIZE_RAM_USAGE
