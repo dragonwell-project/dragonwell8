@@ -544,6 +544,7 @@ void JfrStopFlightRecordingDCmd::execute(DCmdSource source, TRAPS) {
 
 JfrConfigureFlightRecorderDCmd::JfrConfigureFlightRecorderDCmd(outputStream* output,
                                                                bool heap) : DCmdWithParser(output, heap),
+  _on_vm_start(false),
   _repository_path("repositorypath", "Path to repository,.e.g \\\"My Repository\\\"", "STRING", false, NULL),
   _dump_path("dumppath", "Path to dump,.e.g \\\"My Dump path\\\"", "STRING", false, NULL),
   _stack_depth("stackdepth", "Stack Depth", "JULONG", false, "64"),
@@ -552,7 +553,9 @@ JfrConfigureFlightRecorderDCmd::JfrConfigureFlightRecorderDCmd(outputStream* out
   _thread_buffer_size("thread_buffer_size", "Size of a thread buffer", "MEMORY SIZE", false, "8k"),
   _memory_size("memorysize", "Overall memory size, ", "MEMORY SIZE", false, "10m"),
   _max_chunk_size("maxchunksize", "Size of an individual disk chunk", "MEMORY SIZE", false, "12m"),
-  _sample_threads("samplethreads", "Activate Thread sampling", "BOOLEAN", false, "true") {
+  _sample_threads("samplethreads", "Activate Thread sampling", "BOOLEAN", false, "true"),
+  _sample_object_allocations("sampleobjectallocations","object allocations sampling enable / disable", "BOOLEAN", false, "false"),
+  _object_allocations_sampling_interval("objectallocationssamplinginterval", "object allocations sampling interval", "JLONG", false, "1024") {
   _dcmdparser.add_dcmd_option(&_repository_path);
   _dcmdparser.add_dcmd_option(&_dump_path);
   _dcmdparser.add_dcmd_option(&_stack_depth);
@@ -562,6 +565,8 @@ JfrConfigureFlightRecorderDCmd::JfrConfigureFlightRecorderDCmd(outputStream* out
   _dcmdparser.add_dcmd_option(&_memory_size);
   _dcmdparser.add_dcmd_option(&_max_chunk_size);
   _dcmdparser.add_dcmd_option(&_sample_threads);
+  _dcmdparser.add_dcmd_option(&_sample_object_allocations);
+  _dcmdparser.add_dcmd_option(&_object_allocations_sampling_interval);
 };
 
 int JfrConfigureFlightRecorderDCmd::num_arguments() {
@@ -591,6 +596,8 @@ void JfrConfigureFlightRecorderDCmd::execute(DCmdSource source, TRAPS) {
   const oop dcmd = construct_dcmd_instance(&constructor_args, CHECK);
   Handle h_dcmd_instance(THREAD, dcmd);
   assert(h_dcmd_instance.not_null(), "invariant");
+
+  jobject on_vm_start = JfrJavaSupport::new_java_lang_Boolean(_on_vm_start, CHECK);
 
   jstring repository_path = NULL;
   if (_repository_path.is_set() && _repository_path.value() != NULL) {
@@ -637,16 +644,27 @@ void JfrConfigureFlightRecorderDCmd::execute(DCmdSource source, TRAPS) {
     sample_threads = JfrJavaSupport::new_java_lang_Boolean(_sample_threads.value(), CHECK);
   }
 
+  jobject sample_object_allocations = NULL;
+  if (_sample_object_allocations.is_set()) {
+    sample_object_allocations = JfrJavaSupport::new_java_lang_Boolean(_sample_object_allocations.value(), CHECK);
+  }
+
+  jobject object_allocations_sampling_interval = NULL;
+  if (_object_allocations_sampling_interval.is_set()) {
+    object_allocations_sampling_interval = JfrJavaSupport::new_java_lang_Long(_object_allocations_sampling_interval.value(), CHECK);
+  }
+
   static const char klass[] = "jdk/jfr/internal/dcmd/DCmdConfigure";
   static const char method[] = "execute";
-  static const char signature[] = "(Ljava/lang/String;Ljava/lang/String;Ljava/lang/Integer;"
+  static const char signature[] = "(Ljava/lang/Boolean;Ljava/lang/String;Ljava/lang/String;Ljava/lang/Integer;"
     "Ljava/lang/Long;Ljava/lang/Long;Ljava/lang/Long;Ljava/lang/Long;"
-    "Ljava/lang/Long;Ljava/lang/Boolean;)Ljava/lang/String;";
+    "Ljava/lang/Long;Ljava/lang/Boolean;Ljava/lang/Boolean;Ljava/lang/Long;)Ljava/lang/String;";
 
   JfrJavaArguments execute_args(&result, klass, method, signature, CHECK);
   execute_args.set_receiver(h_dcmd_instance);
 
   // params
+  execute_args.push_jobject(on_vm_start);
   execute_args.push_jobject(repository_path);
   execute_args.push_jobject(dump_path);
   execute_args.push_jobject(stack_depth);
@@ -656,6 +674,8 @@ void JfrConfigureFlightRecorderDCmd::execute(DCmdSource source, TRAPS) {
   execute_args.push_jobject(memory_size);
   execute_args.push_jobject(max_chunk_size);
   execute_args.push_jobject(sample_threads);
+  execute_args.push_jobject(sample_object_allocations);
+  execute_args.push_jobject(object_allocations_sampling_interval);
 
   JfrJavaSupport::call_virtual(&execute_args, THREAD);
   handle_dcmd_result(output(), (oop)result.get_jobject(), source, THREAD);

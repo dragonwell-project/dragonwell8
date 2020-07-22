@@ -25,14 +25,23 @@
 #ifndef SHARE_VM_GC_INTERFACE_ALLOCTRACER_HPP
 #define SHARE_VM_GC_INTERFACE_ALLOCTRACER_HPP
 
-#include "memory/allocation.hpp"
+#include "gc_implementation/shared/gcId.hpp"
 #include "runtime/handles.hpp"
+#include "utilities/globalDefinitions.hpp"
 
 class AllocTracer : AllStatic {
+  private:
+    static void send_opto_array_allocation_event(KlassHandle klass, oop obj,size_t alloc_size, Thread* thread);
+    static void send_opto_instance_allocation_event(KlassHandle klass, oop obj, Thread* thread);
+
   public:
     static void send_allocation_outside_tlab_event(KlassHandle klass, HeapWord* obj, size_t alloc_size, Thread* thread);
     static void send_allocation_in_new_tlab_event(KlassHandle klass, HeapWord* obj, size_t tlab_size, size_t alloc_size, Thread* thread);
     static void send_allocation_requiring_gc_event(size_t size, const GCId& gcId);
+    static void opto_slow_allocation_enter(bool is_array, Thread* thread);
+    static void opto_slow_allocation_leave(bool is_array, Thread* thread);
+    static void send_slow_allocation_event(KlassHandle klass, oop obj,size_t alloc_size, Thread* thread);
+    static void send_opto_fast_allocation_event(KlassHandle klass, oop obj, size_t alloc_size, Thread* thread);
 };
 
 #endif /* SHARE_VM_GC_INTERFACE_ALLOCTRACER_HPP */

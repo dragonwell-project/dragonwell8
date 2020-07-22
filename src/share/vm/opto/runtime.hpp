@@ -179,6 +179,8 @@ public:
   static void complete_monitor_locking_C(oopDesc* obj, BasicLock* lock, JavaThread* thread);
   static void complete_monitor_unlocking_C(oopDesc* obj, BasicLock* lock);
 
+  // JFR support
+  static void jfr_fast_object_alloc_C(oopDesc* obj, jint bci, JavaThread* thread);
 private:
 
   // Implicit exception support
@@ -338,6 +340,9 @@ private:
 # ifdef ENABLE_ZAP_DEAD_LOCALS
   static const TypeFunc* zap_dead_locals_Type();
 # endif
+
+  // JFR support
+  static const TypeFunc* jfr_fast_object_alloc_Type();
 
  private:
  static NamedCounter * volatile _named_counters;

@@ -78,4 +78,24 @@ class JfrTraceFlag {
     return _trace_flags.flags_addr();              \
   }
 
+#define ARRAY_OBJECT_SIZE_PLACE_HOLDER 0x1111baba
+
+#define TRACE_OPTO_SLOW_ALLOCATION_ENTER(is_array, thread) \
+  AllocTracer::opto_slow_allocation_enter(is_array, thread)
+
+#define TRACE_OPTO_SLOW_ALLOCATION_LEAVE(is_array, thread) \
+  AllocTracer::opto_slow_allocation_leave(is_array, thread)
+
+#define TRACE_SLOW_ALLOCATION(klass, obj, alloc_size, thread) \
+  AllocTracer::send_slow_allocation_event(klass, obj, alloc_size, thread)
+
+#define TRACE_DEFINE_THREAD_ALLOC_COUNT_OFFSET \
+  static ByteSize alloc_count_offset() { return in_ByteSize(offset_of(JfrThreadLocal, _alloc_count)); }
+#define TRACE_THREAD_ALLOC_COUNT_OFFSET \
+  (JfrThreadLocal::alloc_count_offset() + Thread::jfr_thread_local_offset())
+#define TRACE_DEFINE_THREAD_ALLOC_COUNT_UNTIL_SAMPLE_OFFSET \
+  static ByteSize alloc_count_until_sample_offset() { return in_ByteSize(offset_of(JfrThreadLocal, _alloc_count_until_sample)); }
+#define TRACE_THREAD_ALLOC_COUNT_UNTIL_SAMPLE_OFFSET \
+  (JfrThreadLocal::alloc_count_until_sample_offset() + Thread::jfr_thread_local_offset())
+
 #endif // SHARE_VM_JFR_SUPPORT_JFRTRACEIDEXTENSION_HPP

@@ -62,6 +62,8 @@ JfrJniMethodRegistration::JfrJniMethodRegistration(JNIEnv* env) {
       (char*)"setThreadBufferSize", (char*)"(J)V", (void*)jfr_set_thread_buffer_size,
       (char*)"setMemorySize", (char*)"(J)V", (void*)jfr_set_memory_size,
       (char*)"setThreshold", (char*)"(JJ)Z", (void*)jfr_set_threshold,
+      (char*)"setSampleObjectAllocations", (char*)"(Z)V",(void*)jfr_set_sample_object_allocations,
+      (char*)"setObjectAllocationsSamplingInterval", (char*)"(J)V",(void*)jfr_set_object_allocations_sampling_interval,
       (char*)"storeMetadataDescriptor", (char*)"([B)V", (void*)jfr_store_metadata_descriptor,
       (char*)"getAllowedToDoEventRetransforms", (char*)"()Z", (void*)jfr_allow_event_retransforms,
       (char*)"isAvailable", (char*)"()Z", (void*)jfr_is_available,

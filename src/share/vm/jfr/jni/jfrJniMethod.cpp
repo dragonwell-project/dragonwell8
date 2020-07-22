@@ -44,6 +44,7 @@
 #include "jfr/instrumentation/jfrEventClassTransformer.hpp"
 #include "jfr/instrumentation/jfrJvmtiAgent.hpp"
 #include "jfr/leakprofiler/leakProfiler.hpp"
+#include "jfr/objectprofiler/objectProfiler.hpp"
 #include "jfr/utilities/jfrJavaLog.hpp"
 #include "jfr/utilities/jfrTimeConverter.hpp"
 #include "jfr/utilities/jfrTime.hpp"
@@ -110,6 +111,15 @@ NO_TRANSITION(void, jfr_set_enabled(JNIEnv* env, jobject jvm, jlong event_type_i
       LeakProfiler::stop();
     }
   }
+  if (EventOptoInstanceObjectAllocation::eventId == event_type_id ||
+      EventOptoArrayObjectAllocation::eventId == event_type_id) {
+    ThreadInVMfromNative transition(JavaThread::thread_from_jni_environment(env));
+    if (JNI_TRUE == enabled) {
+      ObjectProfiler::start(event_type_id);
+    } else {
+      ObjectProfiler::stop(event_type_id);
+    }
+  }
 NO_TRANSITION_END
 
 NO_TRANSITION(void, jfr_set_file_notification(JNIEnv* env, jobject jvm, jlong threshold))
@@ -142,6 +152,14 @@ NO_TRANSITION_END
 
 NO_TRANSITION(void, jfr_set_memory_size(JNIEnv* env, jobject jvm, jlong size))
   JfrOptionSet::set_memory_size(size);
+NO_TRANSITION_END
+
+NO_TRANSITION(void, jfr_set_sample_object_allocations(JNIEnv* env, jobject jvm, jboolean sampleAllocations))
+  JfrOptionSet::set_sample_object_allocations(sampleAllocations);
+NO_TRANSITION_END
+
+NO_TRANSITION(void, jfr_set_object_allocations_sampling_interval(JNIEnv* env, jobject jvm, jlong interval))
+  JfrOptionSet::set_object_allocations_sampling_interval(interval);
 NO_TRANSITION_END
 
 NO_TRANSITION(jboolean, jfr_set_threshold(JNIEnv* env, jobject jvm, jlong event_type_id, jlong thresholdTicks))
@@ -233,7 +251,7 @@ JVM_ENTRY_NO_ENV(jlong, jfr_class_id(JNIEnv* env, jclass jvm, jclass jc))
 JVM_END
 
 JVM_ENTRY_NO_ENV(jlong, jfr_stacktrace_id(JNIEnv* env, jobject jvm, jint skip))
-  return JfrStackTraceRepository::record(thread, skip);
+  return JfrStackTraceRepository::record(thread, skip, WALK_BY_DEFAULT);
 JVM_END
 
 JVM_ENTRY_NO_ENV(void, jfr_log(JNIEnv* env, jobject jvm, jint tag_set, jint level, jstring message))

@@ -35,6 +35,7 @@
 #include "services/diagnosticFramework.hpp"
 #include "utilities/growableArray.hpp"
 #include "utilities/ostream.hpp"
+#include "utilities/debug.hpp"
 
 struct ObsoleteOption {
   const char* name;
@@ -162,6 +163,22 @@ bool JfrOptionSet::allow_event_retransforms() {
   return allow_retransforms() && (DumpSharedSpaces || can_retransform());
 }
 
+bool JfrOptionSet::sample_object_allocations() {
+  return _sample_object_allocations == JNI_TRUE;
+}
+
+void JfrOptionSet::set_sample_object_allocations(jboolean value) {
+  _sample_object_allocations = value;
+}
+
+jlong JfrOptionSet::object_allocations_sampling_interval() {
+  return _object_allocations_sampling_interval;
+}
+
+void JfrOptionSet::set_object_allocations_sampling_interval(jlong value) {
+  _object_allocations_sampling_interval = value;
+}
+
 // default options for the dcmd parser
 const char* const default_repository = NULL;
 const char* const default_global_buffer_size = "512k";
@@ -174,6 +191,9 @@ const char* const default_stack_depth = "64";
 const char* const default_retransform = "true";
 const char* const default_old_object_queue_size = "256";
 DEBUG_ONLY(const char* const default_sample_protection = "false";)
+const char* const default_sample_object_allocations = "false";
+// the unit of this value is not time but quantity
+const char* const default_object_allocations_sampling_interval = "1024";
 
 // statics
 static DCmdArgument<char*> _dcmd_repository(
@@ -255,6 +275,20 @@ static DCmdArgument<bool> _dcmd_retransform(
   true,
   default_retransform);
 
+static DCmdArgument<bool> _dcmd_sampleobjectallocations(
+  "sampleobjectallocations",
+  "If object allocations should be sampled (by default false)",
+  "BOOLEAN",
+  false,
+  default_sample_object_allocations);
+
+static DCmdArgument<jlong> _dcmd_objectallocationssamplinginterval(
+  "objectallocationssamplinginterval",
+  "object allocations sampling interval (by default 1024)",
+  "JLONG",
+  false,
+  default_object_allocations_sampling_interval);
+
 static DCmdParser _parser;
 
 static void register_parser_options() {
@@ -269,6 +303,8 @@ static void register_parser_options() {
   _parser.add_dcmd_option(&_dcmd_retransform);
   _parser.add_dcmd_option(&_dcmd_old_object_queue_size);
   DEBUG_ONLY(_parser.add_dcmd_option(&_dcmd_sample_protection);)
+  _parser.add_dcmd_option(&_dcmd_sampleobjectallocations);
+  _parser.add_dcmd_option(&_dcmd_objectallocationssamplinginterval);
 }
 
 static bool parse_flight_recorder_options_internal(TRAPS) {
@@ -314,6 +350,9 @@ jboolean JfrOptionSet::_sample_protection = JNI_FALSE;
 #else
 jboolean JfrOptionSet::_sample_protection = JNI_TRUE;
 #endif
+volatile jboolean JfrOptionSet::_sample_object_allocations = JNI_FALSE;
+// the unit of this value is not time but quantity
+volatile jlong JfrOptionSet::_object_allocations_sampling_interval = 1024;
 
 bool JfrOptionSet::initialize(Thread* thread) {
   register_parser_options();
@@ -335,6 +374,7 @@ bool JfrOptionSet::configure(TRAPS) {
   bufferedStream st;
   // delegate to DCmd execution
   JfrConfigureFlightRecorderDCmd configure(&st, false);
+  configure.set_on_vm_start(true);
   configure._repository_path.set_is_set(_dcmd_repository.is_set());
   char* repo = _dcmd_repository.value();
   if (repo != NULL) {
@@ -367,6 +407,12 @@ bool JfrOptionSet::configure(TRAPS) {
 
   configure._sample_threads.set_is_set(_dcmd_sample_threads.is_set());
   configure._sample_threads.set_value(_dcmd_sample_threads.value());
+
+  configure._sample_object_allocations.set_is_set(_dcmd_sampleobjectallocations.is_set());
+  configure._sample_object_allocations.set_value(_dcmd_sampleobjectallocations.value());
+
+  configure._object_allocations_sampling_interval.set_is_set(_dcmd_objectallocationssamplinginterval.is_set());
+  configure._object_allocations_sampling_interval.set_value(_dcmd_objectallocationssamplinginterval.value());
 
   configure.execute(DCmd_Source_Internal, THREAD);
 

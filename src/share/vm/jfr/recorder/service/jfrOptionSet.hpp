@@ -48,6 +48,8 @@ class JfrOptionSet : public AllStatic {
   static jboolean _sample_threads;
   static jboolean _retransform;
   static jboolean _sample_protection;
+  static volatile jboolean _sample_object_allocations;
+  static volatile jlong _object_allocations_sampling_interval;
 
   static bool initialize(Thread* thread);
   static bool configure(TRAPS);
@@ -77,6 +79,10 @@ class JfrOptionSet : public AllStatic {
   static bool allow_event_retransforms();
   static bool sample_protection();
   DEBUG_ONLY(static void set_sample_protection(jboolean protection);)
+  static bool sample_object_allocations();
+  static void set_sample_object_allocations(jboolean value);
+  static jlong object_allocations_sampling_interval();
+  static void set_object_allocations_sampling_interval(jlong value);
 
   static bool parse_flight_recorder_option(const JavaVMOption** option, char* delimiter);
   static bool parse_start_flight_recording_option(const JavaVMOption** option, char* delimiter);

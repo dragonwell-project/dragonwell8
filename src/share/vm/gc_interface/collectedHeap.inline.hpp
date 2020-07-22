@@ -25,7 +25,6 @@
 #ifndef SHARE_VM_GC_INTERFACE_COLLECTEDHEAP_INLINE_HPP
 #define SHARE_VM_GC_INTERFACE_COLLECTEDHEAP_INLINE_HPP
 
-#include "gc_interface/allocTracer.hpp"
 #include "gc_interface/collectedHeap.hpp"
 #include "memory/threadLocalAllocBuffer.inline.hpp"
 #include "memory/universe.hpp"
@@ -69,7 +68,7 @@ void CollectedHeap::post_allocation_install_obj_klass(KlassHandle klass,
          "missing klass");
 }
 
-// Support for jvmti and dtrace
+// Support for jvmti, jfr and dtrace
 inline void post_allocation_notify(KlassHandle klass, oop obj, int size) {
   // support low memory notifications (no-op if not enabled)
   LowMemoryDetector::detect_low_memory_for_collected_pools();
@@ -83,6 +82,9 @@ inline void post_allocation_notify(KlassHandle klass, oop obj, int size) {
       SharedRuntime::dtrace_object_alloc(obj, size);
     }
   }
+
+  // support for jfr
+  CollectedHeap::trace_slow_allocation(klass, obj, size * HeapWordSize, Thread::current());
 }
 
 void CollectedHeap::post_allocation_setup_obj(KlassHandle klass,
@@ -91,7 +93,7 @@ void CollectedHeap::post_allocation_setup_obj(KlassHandle klass,
   post_allocation_setup_common(klass, obj);
   assert(Universe::is_bootstrapping() ||
          !((oop)obj)->is_array(), "must not be an array");
-  // notify jvmti and dtrace
+  // notify jvmti, jfr and dtrace
   post_allocation_notify(klass, (oop)obj, size);
 }
 
@@ -106,7 +108,7 @@ void CollectedHeap::post_allocation_setup_array(KlassHandle klass,
   post_allocation_setup_common(klass, obj);
   oop new_obj = (oop)obj;
   assert(new_obj->is_array(), "must be an array");
-  // notify jvmti and dtrace (must be after length is set for dtrace)
+  // notify jvmti, jfr and dtrace (must be after length is set for dtrace)
   post_allocation_notify(klass, new_obj, new_obj->size());
 }
 
@@ -140,7 +142,7 @@ HeapWord* CollectedHeap::common_mem_allocate_noinit(KlassHandle klass, size_t si
            "Unexpected exception, will result in uninitialized storage");
     THREAD->incr_allocated_bytes(size * HeapWordSize);
 
-    AllocTracer::send_allocation_outside_tlab_event(klass, result, size * HeapWordSize, Thread::current());
+    CollectedHeap::trace_allocation_outside_tlab(klass, result, size * HeapWordSize, THREAD);
 
     return result;
   }

@@ -122,7 +122,7 @@ void ObjectSampler::fill_stacktrace(JfrStackTrace* stacktrace, JavaThread* threa
   assert(stacktrace != NULL, "invariant");
   assert(thread != NULL, "invariant");
   if (JfrEventSetting::has_stacktrace(EventOldObjectSample::eventId)) {
-    JfrStackTraceRepository::fill_stacktrace_for(thread, stacktrace, 0);
+    JfrStackTraceRepository::fill_stacktrace_for(thread, stacktrace, 0, WALK_BY_DEFAULT);
   }
 }
 

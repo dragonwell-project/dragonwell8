@@ -27,6 +27,8 @@
 
 #include "jfr/recorder/storage/jfrBuffer.hpp"
 #include "jfr/utilities/jfrTypes.hpp"
+#include "jfr/recorder/jfrEventSetting.hpp"
+#include "jfr/recorder/stacktrace/jfrStackTraceRepository.hpp"
 #include "memory/allocation.hpp"
 
 class Thread;
@@ -43,7 +45,7 @@ class JfrFlush : public StackObj {
 void jfr_conditional_flush(JfrEventId id, size_t size, Thread* t);
 bool jfr_is_event_enabled(JfrEventId id);
 bool jfr_has_stacktrace_enabled(JfrEventId id);
-bool jfr_save_stacktrace(Thread* t);
+bool jfr_save_stacktrace(Thread* t, StackWalkMode mode);
 void jfr_clear_stacktrace(Thread* t);
 
 template <typename Event>
@@ -66,7 +68,7 @@ class JfrConditionalFlushWithStacktrace : public JfrConditionalFlush<Event> {
  public:
   JfrConditionalFlushWithStacktrace(Thread* t) : JfrConditionalFlush<Event>(t), _t(t), _owner(false) {
     if (this->_enabled && Event::has_stacktrace() && jfr_has_stacktrace_enabled(Event::eventId)) {
-      _owner = jfr_save_stacktrace(t);
+      _owner = jfr_save_stacktrace(t, JfrEventSetting::stack_walk_mode(Event::eventId));
     }
   }
   ~JfrConditionalFlushWithStacktrace() {

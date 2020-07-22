@@ -468,6 +468,9 @@ arguments.obj: $(WorkSpace)\src\share\vm\runtime\arguments.cpp
 {$(COMMONSRC)\share\vm\jfr\writers}.cpp.obj::
         $(CXX) $(CXX_FLAGS) $(CXX_USE_PCH) /c $<
 
+{$(COMMONSRC)\share\vm\jfr\objectprofiler}.cpp.obj::
+        $(CXX) $(CXX_FLAGS) $(CXX_USE_PCH) /c $<
+
 default::
 
 _build_pch_file.obj:

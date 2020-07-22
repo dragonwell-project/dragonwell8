@@ -55,7 +55,11 @@ JfrThreadLocal::JfrThreadLocal() :
   _stack_trace_hash(0),
   _stackdepth(0),
   _entering_suspend_flag(0),
-  _dead(false) {}
+  _dead(false),
+  _cached_top_frame_bci(max_jint),
+  _alloc_count(0),
+  _alloc_count_until_sample(1),
+  _cached_event_id(MaxJfrEventId) {}
 
 u8 JfrThreadLocal::add_data_lost(u8 value) {
   _data_lost += value;

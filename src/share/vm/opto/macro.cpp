@@ -27,6 +27,7 @@
 #include "libadt/vectset.hpp"
 #include "opto/addnode.hpp"
 #include "opto/callnode.hpp"
+#include "opto/divnode.hpp"
 #include "opto/cfgnode.hpp"
 #include "opto/compile.hpp"
 #include "opto/connode.hpp"
@@ -41,6 +42,7 @@
 #include "opto/subnode.hpp"
 #include "opto/type.hpp"
 #include "runtime/sharedRuntime.hpp"
+#include "jfr/objectprofiler/objectProfiler.hpp"
 
 
 //
@@ -1087,15 +1089,21 @@ void PhaseMacroExpand::set_eden_pointers(Node* &eden_top_adr, Node* &eden_end_ad
   }
 }
 
-
-Node* PhaseMacroExpand::make_load(Node* ctl, Node* mem, Node* base, int offset, const Type* value_type, BasicType bt) {
+Node* PhaseMacroExpand::load(Node* ctl, Node* mem, Node* base, int offset, const Type* value_type, BasicType bt, MemNode::MemOrd mo) {
   Node* adr = basic_plus_adr(base, offset);
   const TypePtr* adr_type = adr->bottom_type()->is_ptr();
-  Node* value = LoadNode::make(_igvn, ctl, mem, adr, adr_type, value_type, bt, MemNode::unordered);
+  Node* value = LoadNode::make(_igvn, ctl, mem, adr, adr_type, value_type, bt, mo);
   transform_later(value);
   return value;
 }
 
+Node* PhaseMacroExpand::make_load(Node* ctl, Node* mem, Node* base, int offset, const Type* value_type, BasicType bt) {
+  return load(ctl, mem, base, offset, value_type, bt, MemNode::unordered);
+}
+
+Node* PhaseMacroExpand::make_load_acquire(Node* ctl, Node* mem, Node* base, int offset, const Type* value_type, BasicType bt) {
+  return load(ctl, mem, base, offset, value_type, bt, MemNode::acquire);
+}
 
 Node* PhaseMacroExpand::make_store(Node* ctl, Node* mem, Node* base, int offset, Node* value, BasicType bt) {
   Node* adr = basic_plus_adr(base, offset);
@@ -1434,6 +1442,12 @@ void PhaseMacroExpand::expand_allocate_common(
       }
     }
 
+#if INCLUDE_JFR
+    if (JfrOptionSet::sample_object_allocations()) {
+      jfr_sample_fast_object_allocation(alloc, fast_oop, fast_oop_ctrl, fast_oop_rawmem);
+    }
+#endif // INCLUDE_JFR
+
     if (C->env()->dtrace_extended_probes()) {
       // Slow-path call
       int size = TypeFunc::Parms + 2;
@@ -1619,6 +1633,116 @@ void PhaseMacroExpand::expand_allocate_common(
   // This completes all paths into the result merge point
 }
 
+#if INCLUDE_JFR
+static jint bottom_java_frame_bci(JVMState* state) {
+  assert(state != NULL, "Invariant");
+
+  JVMState* last = NULL;
+  JVMState* current = state;
+  while (current != NULL) {
+    last = current;
+    current = current->caller();
+  }
+  return last->bci();
+}
+
+//
+// Pseudo code:
+//
+// int alloc_sample_enabled = *(int *)ObjectProfiler::enabled_flag_address();
+// if (alloc_sample_enabled) {
+//   long alloc_count = thread->jfr_thread_local()->alloc_count();
+//   long alloc_count_new = alloc_count + 1;
+//   thread->jfr_thread_local()->set_alloc_count(alloc_count_new);
+//   long alloc_count_until_sample = thread->jfr_thread_local()->alloc_count_until_sample();
+//   if (alloc_count_until_sample == alloc_count_new) {
+//      jfr_fast_object_alloc_C(obj, thread);
+//   }
+// }
+void PhaseMacroExpand::jfr_sample_fast_object_allocation(
+    AllocateNode* alloc, Node* fast_oop,
+    Node*& fast_oop_ctrl, Node*& fast_oop_rawmem) {
+  Node* tls = transform_later(new (C) ThreadLocalNode());
+
+  Node* alloc_sample_enabled_addr = transform_later(ConPNode::make(C, (address) ObjectProfiler::enabled_flag_address()));
+  Node* alloc_sample_enabled = make_load_acquire(fast_oop_ctrl, fast_oop_rawmem, alloc_sample_enabled_addr, 0, TypeInt::INT, T_INT);
+  Node* alloc_sample_enabled_cmp = transform_later(new (C) CmpINode(alloc_sample_enabled, intcon(1)));
+  Node* alloc_sample_enabled_bool = transform_later(new (C) BoolNode(alloc_sample_enabled_cmp, BoolTest::eq));
+  IfNode* alloc_sample_enabled_if = (IfNode*)transform_later(new (C) IfNode(fast_oop_ctrl, alloc_sample_enabled_bool, PROB_MIN, COUNT_UNKNOWN));
+  Node* alloc_sample_enabled_ctrl = transform_later(new (C) IfTrueNode(alloc_sample_enabled_if));
+  Node* alloc_sample_enabled_mem = fast_oop_rawmem;
+  Node* alloc_sample_disabled_ctrl = transform_later(new (C) IfFalseNode(alloc_sample_enabled_if));
+  Node* alloc_sample_disabled_mem = fast_oop_rawmem;
+  Node* alloc_sample_enabled_region = transform_later(new (C) RegionNode(3));
+  Node* alloc_sample_enabled_region_phi_mem = transform_later(new (C) PhiNode(alloc_sample_enabled_region, Type::MEMORY, TypeRawPtr::BOTTOM));
+  enum { enabled_idx = 1,  disabled_idx = 2 };
+
+  // if _enabled then
+  {
+    const int alloc_count_offset = in_bytes(TRACE_THREAD_ALLOC_COUNT_OFFSET);
+    Node* alloc_count = make_load(alloc_sample_enabled_ctrl, alloc_sample_enabled_mem, tls, alloc_count_offset, TypeLong::LONG, T_LONG);
+    Node* alloc_count_new = transform_later(new (C) AddLNode(alloc_count, longcon(1)));
+    alloc_sample_enabled_mem = make_store(alloc_sample_enabled_ctrl, alloc_sample_enabled_mem, tls, alloc_count_offset, alloc_count_new, T_LONG);
+    const int alloc_count_until_sample_offset = in_bytes(TRACE_THREAD_ALLOC_COUNT_UNTIL_SAMPLE_OFFSET);
+    Node* alloc_count_until_sample = make_load(alloc_sample_enabled_ctrl, alloc_sample_enabled_mem, tls, alloc_count_until_sample_offset, TypeLong::LONG, T_LONG);
+    Node* alloc_count_until_sample_cmp = transform_later(new (C) CmpLNode(alloc_count_until_sample, alloc_count_new));
+    Node* alloc_sample_hit_bool = transform_later(new (C) BoolNode(alloc_count_until_sample_cmp, BoolTest::eq));
+    IfNode* alloc_sample_hit_if = (IfNode*)transform_later(new (C) IfNode(alloc_sample_enabled_ctrl, alloc_sample_hit_bool, PROB_MIN, COUNT_UNKNOWN));
+    Node* alloc_sample_hit_ctrl = transform_later(new (C) IfTrueNode(alloc_sample_hit_if));
+    Node* alloc_sample_hit_mem = alloc_sample_enabled_mem;
+    Node* alloc_sample_miss_ctrl = transform_later(new (C) IfFalseNode(alloc_sample_hit_if));
+    Node* alloc_sample_miss_mem = alloc_sample_enabled_mem;
+    Node* alloc_sample_hit_region = transform_later(new (C) RegionNode(3));
+    Node* alloc_sample_hit_region_phi_mem = transform_later(new (C) PhiNode(alloc_sample_hit_region, Type::MEMORY, TypeRawPtr::BOTTOM));
+
+    // if sample_hit then
+    {
+      CallLeafNode *call = new (C) CallLeafNode(OptoRuntime::jfr_fast_object_alloc_Type(),
+                                                CAST_FROM_FN_PTR(address, OptoRuntime::jfr_fast_object_alloc_C),
+                                                "jfr_fast_object_alloc_C",
+                                                TypeRawPtr::BOTTOM);
+      call->init_req(TypeFunc::Parms+0, fast_oop);
+      call->init_req(TypeFunc::Parms+1, intcon(bottom_java_frame_bci(alloc->jvms())));
+      call->init_req(TypeFunc::Parms+2, tls);
+      call->init_req(TypeFunc::Control, alloc_sample_hit_ctrl);
+      call->init_req(TypeFunc::I_O    , top());
+      call->init_req(TypeFunc::Memory , alloc_sample_hit_mem);
+      call->init_req(TypeFunc::ReturnAdr, alloc->in(TypeFunc::ReturnAdr));
+      call->init_req(TypeFunc::FramePtr, alloc->in(TypeFunc::FramePtr));
+      transform_later(call);
+      alloc_sample_hit_ctrl = new (C) ProjNode(call,TypeFunc::Control);
+      transform_later(alloc_sample_hit_ctrl);
+      alloc_sample_hit_mem = new (C) ProjNode(call,TypeFunc::Memory);
+      transform_later(alloc_sample_hit_mem);
+
+      alloc_sample_hit_region->init_req(enabled_idx, alloc_sample_hit_ctrl);
+      alloc_sample_hit_region_phi_mem->init_req(enabled_idx, alloc_sample_hit_mem);
+    }
+
+    {
+      alloc_sample_hit_region->init_req(disabled_idx, alloc_sample_miss_ctrl);
+      alloc_sample_hit_region_phi_mem->init_req(disabled_idx, alloc_sample_miss_mem);
+    }
+
+    {
+      alloc_sample_enabled_ctrl = alloc_sample_hit_region;
+      alloc_sample_enabled_mem = alloc_sample_hit_region_phi_mem;
+    }
+    alloc_sample_enabled_region->init_req(enabled_idx, alloc_sample_enabled_ctrl);
+    alloc_sample_enabled_region_phi_mem->init_req(enabled_idx, alloc_sample_enabled_mem);
+  }
+
+  {
+    alloc_sample_enabled_region->init_req(disabled_idx, alloc_sample_disabled_ctrl);
+    alloc_sample_enabled_region_phi_mem->init_req(disabled_idx, alloc_sample_disabled_mem);
+  }
+
+  {
+    fast_oop_ctrl = alloc_sample_enabled_region;
+    fast_oop_rawmem = alloc_sample_enabled_region_phi_mem;
+  }
+}
+#endif // INCLUDE_JFR
 
 // Helper for PhaseMacroExpand::expand_allocate_common.
 // Initializes the newly-allocated storage.

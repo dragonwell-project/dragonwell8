@@ -68,6 +68,7 @@
 #include "runtime/vframe_hp.hpp"
 #include "utilities/copy.hpp"
 #include "utilities/preserveException.hpp"
+#include "gc_interface/allocTracer.inline.hpp"
 #if defined AD_MD_HPP
 # include AD_MD_HPP
 #elif defined TARGET_ARCH_MODEL_x86_32
@@ -260,8 +261,10 @@ JRT_BLOCK_ENTRY(void, OptoRuntime::new_instance_C(Klass* klass, JavaThread* thre
   if (!HAS_PENDING_EXCEPTION) {
     // Scavenge and allocate an instance.
     Handle holder(THREAD, klass->klass_holder()); // keep the klass alive
+    JFR_ONLY(TRACE_OPTO_SLOW_ALLOCATION_ENTER(false, THREAD);)
     oop result = InstanceKlass::cast(klass)->allocate_instance(THREAD);
     thread->set_vm_result(result);
+    JFR_ONLY(TRACE_OPTO_SLOW_ALLOCATION_LEAVE(false, THREAD);)
 
     // Pass oops back through thread local storage.  Our apparent type to Java
     // is that we return an oop, but we can block on exit from this routine and
@@ -290,6 +293,7 @@ JRT_BLOCK_ENTRY(void, OptoRuntime::new_array_C(Klass* array_type, int len, JavaT
   // Scavenge and allocate an instance.
   oop result;
 
+  JFR_ONLY(TRACE_OPTO_SLOW_ALLOCATION_ENTER(true, THREAD);)
   if (array_type->oop_is_typeArray()) {
     // The oopFactory likes to work with the element type.
     // (We could bypass the oopFactory, since it doesn't add much value.)
@@ -303,6 +307,7 @@ JRT_BLOCK_ENTRY(void, OptoRuntime::new_array_C(Klass* array_type, int len, JavaT
     Klass* elem_type = ObjArrayKlass::cast(array_type)->element_klass();
     result = oopFactory::new_objArray(elem_type, len, THREAD);
   }
+  JFR_ONLY(TRACE_OPTO_SLOW_ALLOCATION_LEAVE(true, THREAD);)
 
   // Pass oops back through thread local storage.  Our apparent type to Java
   // is that we return an oop, but we can block on exit from this routine and
@@ -329,10 +334,12 @@ JRT_BLOCK_ENTRY(void, OptoRuntime::new_array_nozero_C(Klass* array_type, int len
   // Scavenge and allocate an instance.
   oop result;
 
+  JFR_ONLY(TRACE_OPTO_SLOW_ALLOCATION_ENTER(true, THREAD);)
   assert(array_type->oop_is_typeArray(), "should be called only for type array");
   // The oopFactory likes to work with the element type.
   BasicType elem_type = TypeArrayKlass::cast(array_type)->element_type();
   result = oopFactory::new_typeArray_nozero(elem_type, len, THREAD);
+  JFR_ONLY(TRACE_OPTO_SLOW_ALLOCATION_LEAVE(true, THREAD);)
 
   // Pass oops back through thread local storage.  Our apparent type to Java
   // is that we return an oop, but we can block on exit from this routine and
@@ -379,7 +386,9 @@ JRT_ENTRY(void, OptoRuntime::multianewarray2_C(Klass* elem_type, int len1, int l
   dims[0] = len1;
   dims[1] = len2;
   Handle holder(THREAD, elem_type->klass_holder()); // keep the klass alive
+  JFR_ONLY(TRACE_OPTO_SLOW_ALLOCATION_ENTER(true, THREAD);)
   oop obj = ArrayKlass::cast(elem_type)->multi_allocate(2, dims, THREAD);
+  JFR_ONLY(TRACE_OPTO_SLOW_ALLOCATION_LEAVE(true, THREAD);)
   deoptimize_caller_frame(thread, HAS_PENDING_EXCEPTION);
   thread->set_vm_result(obj);
 JRT_END
@@ -396,7 +405,9 @@ JRT_ENTRY(void, OptoRuntime::multianewarray3_C(Klass* elem_type, int len1, int l
   dims[1] = len2;
   dims[2] = len3;
   Handle holder(THREAD, elem_type->klass_holder()); // keep the klass alive
+  JFR_ONLY(TRACE_OPTO_SLOW_ALLOCATION_ENTER(true, THREAD);)
   oop obj = ArrayKlass::cast(elem_type)->multi_allocate(3, dims, THREAD);
+  JFR_ONLY(TRACE_OPTO_SLOW_ALLOCATION_LEAVE(true, THREAD);)
   deoptimize_caller_frame(thread, HAS_PENDING_EXCEPTION);
   thread->set_vm_result(obj);
 JRT_END
@@ -414,7 +425,9 @@ JRT_ENTRY(void, OptoRuntime::multianewarray4_C(Klass* elem_type, int len1, int l
   dims[2] = len3;
   dims[3] = len4;
   Handle holder(THREAD, elem_type->klass_holder()); // keep the klass alive
+  JFR_ONLY(TRACE_OPTO_SLOW_ALLOCATION_ENTER(true, THREAD);)
   oop obj = ArrayKlass::cast(elem_type)->multi_allocate(4, dims, THREAD);
+  JFR_ONLY(TRACE_OPTO_SLOW_ALLOCATION_LEAVE(true, THREAD);)
   deoptimize_caller_frame(thread, HAS_PENDING_EXCEPTION);
   thread->set_vm_result(obj);
 JRT_END
@@ -451,7 +464,9 @@ JRT_ENTRY(void, OptoRuntime::multianewarrayN_C(Klass* elem_type, arrayOopDesc* d
   Copy::conjoint_jints_atomic(j_dims, c_dims, len);
 
   Handle holder(THREAD, elem_type->klass_holder()); // keep the klass alive
+  JFR_ONLY(TRACE_OPTO_SLOW_ALLOCATION_ENTER(true, THREAD);)
   oop obj = ArrayKlass::cast(elem_type)->multi_allocate(len, c_dims, THREAD);
+  JFR_ONLY(TRACE_OPTO_SLOW_ALLOCATION_LEAVE(true, THREAD);)
   deoptimize_caller_frame(thread, HAS_PENDING_EXCEPTION);
   thread->set_vm_result(obj);
 JRT_END
@@ -1677,3 +1692,34 @@ JRT_LEAF(void, OptoRuntime::zap_dead_native_locals_C(JavaThread* thread))
 JRT_END
 
 # endif
+
+#if INCLUDE_JFR
+//-----------------------------------------------------------------------------
+// JFR support.
+const TypeFunc *OptoRuntime::jfr_fast_object_alloc_Type() {
+  const Type **fields = TypeTuple::fields(3);
+  fields[TypeFunc::Parms+0] = TypeRawPtr::BOTTOM;   // newly allocated object
+  fields[TypeFunc::Parms+1] = TypeInt::INT;         // bci
+  fields[TypeFunc::Parms+2] = TypeRawPtr::BOTTOM;   // tls
+
+  const TypeTuple *domain = TypeTuple::make(TypeFunc::Parms+3, fields);
+
+  // create result type (range)
+  fields = TypeTuple::fields(1);
+  fields[TypeFunc::Parms+0] = TypeRawPtr::BOTTOM;   // returned oop
+
+  const TypeTuple *range = TypeTuple::make(TypeFunc::Parms+1, fields);
+
+  return TypeFunc::make(domain, range);
+}
+
+void OptoRuntime::jfr_fast_object_alloc_C(oopDesc* obj, jint top_frame_bci, JavaThread* thread) {
+  KlassHandle kh(thread, obj->klass());
+  assert(obj != NULL, "invariant");
+  assert(obj->klass() != NULL, "invariant");
+  thread->jfr_thread_local()->set_cached_top_frame_bci(top_frame_bci);
+  AllocTracer::send_opto_fast_allocation_event(kh, obj, obj->size() * HeapWordSize, thread);
+  thread->jfr_thread_local()->clear_cached_top_frame_bci();
+  thread->set_vm_result(obj);
+}
+#endif // INCLUDE_JFR

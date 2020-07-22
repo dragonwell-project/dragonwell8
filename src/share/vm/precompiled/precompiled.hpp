@@ -97,6 +97,8 @@
 # include "gc_interface/collectedHeap.hpp"
 # include "gc_interface/collectedHeap.inline.hpp"
 # include "gc_interface/gcCause.hpp"
+# include "gc_interface/allocTracer.hpp"
+# include "gc_interface/allocTracer.inline.hpp"
 # include "interpreter/abstractInterpreter.hpp"
 # include "interpreter/bytecode.hpp"
 # include "interpreter/bytecodeHistogram.hpp"

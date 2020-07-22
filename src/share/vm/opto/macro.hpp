@@ -61,7 +61,11 @@ private:
     return n;
   }
   void set_eden_pointers(Node* &eden_top_adr, Node* &eden_end_adr);
+  Node* load( Node* ctl, Node* mem, Node* base, int offset,
+                   const Type* value_type, BasicType bt, MemNode::MemOrd mo);
   Node* make_load( Node* ctl, Node* mem, Node* base, int offset,
+                   const Type* value_type, BasicType bt);
+  Node* make_load_acquire( Node* ctl, Node* mem, Node* base, int offset,
                    const Type* value_type, BasicType bt);
   Node* make_store(Node* ctl, Node* mem, Node* base, int offset,
                    Node* value, BasicType bt);
@@ -118,6 +122,10 @@ private:
                             Node*& needgc_false, Node*& contended_phi_rawmem,
                             Node* old_eden_top, Node* new_eden_top,
                             Node* length);
+
+  //JFR tracing
+  void jfr_sample_fast_object_allocation(AllocateNode* alloc, Node* fast_oop, 
+                                         Node*& fast_oop_ctrl, Node*& fast_oop_rawmem);
 
 public:
   PhaseMacroExpand(PhaseIterGVN &igvn) : Phase(Macro_Expand), _igvn(igvn), _has_locks(false) {

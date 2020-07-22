@@ -33,6 +33,7 @@ class JavaThread;
 class JfrCheckpointWriter;
 class JfrChunkWriter;
 class Method;
+class vframeStream;
 
 class JfrStackFrame {
  private:
@@ -61,6 +62,15 @@ class JfrStackFrame {
   void resolve_lineno() const;
 };
 
+enum StackWalkMode {
+  // walk stack by vframeStream vfs(thread).
+  WALK_BY_DEFAULT = 0,
+  // walk stack by vframeStream vfs(thread, os::current_frame()).
+  // It is only used in JIT runtime leaf call. In JIT runtime leaf call,
+  // last_java_sp is not maintained and WALK_BY_DEFAULT can not walk stack.
+  WALK_BY_CURRENT_FRAME
+};
+
 class JfrStackTrace : public StackObj {
   friend class JfrStackTraceRepository;
  private:
@@ -72,6 +82,7 @@ class JfrStackTrace : public StackObj {
   bool _reached_root;
   mutable bool _lineno;
 
+  bool fill_in(vframeStream& vfs, int skip, bool leakp, StackWalkMode mode);
  public:
   JfrStackTrace(JfrStackFrame* frames, u4 max_frames) : _frames(frames),
                                                         _id(0),
@@ -81,7 +92,7 @@ class JfrStackTrace : public StackObj {
                                                         _max_frames(max_frames),
                                                         _lineno(false) {}
   bool record_thread(JavaThread& thread, frame& frame);
-  bool record_safe(JavaThread* thread, int skip, bool leakp = false);
+  bool record_safe(JavaThread* thread, int skip, bool leakp, StackWalkMode stack_walk_mode);
   void resolve_linenos() const;
   void set_nr_of_frames(u4 nr_of_frames) { _nr_of_frames = nr_of_frames; }
   void set_hash(unsigned int hash) { _hash = hash; }
@@ -131,13 +142,13 @@ class JfrStackTraceRepository : public JfrCHeapObj {
 
   traceid add_trace(const JfrStackTrace& stacktrace);
   static traceid add(const JfrStackTrace* stacktrace, JavaThread* thread);
-  traceid record_for(JavaThread* thread, int skip, JfrStackFrame* frames, u4 max_frames);
+  traceid record_for(JavaThread* thread, int skip, StackWalkMode mode, JfrStackFrame* frames, u4 max_frames);
 
   size_t write_impl(JfrChunkWriter& cw, bool clear);
   const StackTrace* resolve_entry(unsigned int hash, traceid id) const;
   static void write_metadata(JfrCheckpointWriter& cpw);
 
-  static bool fill_stacktrace_for(JavaThread* thread, JfrStackTrace* stacktrace, int skip);
+  static bool fill_stacktrace_for(JavaThread* thread, JfrStackTrace* stacktrace, int skip, StackWalkMode mode);
 
   JfrStackTraceRepository();
   static JfrStackTraceRepository* create();
@@ -148,7 +159,7 @@ class JfrStackTraceRepository : public JfrCHeapObj {
 
  public:
   static traceid add(const JfrStackTrace& stacktrace);
-  static traceid record(Thread* thread, int skip = 0);
+  static traceid record(Thread* thread, int skip, StackWalkMode mode);
   traceid write(JfrCheckpointWriter& cpw, traceid id, unsigned int hash);
   size_t write(JfrChunkWriter& cw, bool clear);
   size_t clear();
