@@ -26,6 +26,9 @@
 #define SHARE_VM_RUNTIME_OBJECTMONITOR_INLINE_HPP
 
 inline intptr_t ObjectMonitor::is_entered(TRAPS) const {
+  if (UseWispMonitor) {
+    THREAD = WispThread::current(THREAD);
+  }
   if (THREAD == _owner || THREAD->is_lock_owned((address) _owner)) {
     return 1;
   }
@@ -82,6 +85,9 @@ inline void ObjectMonitor::set_object(void* obj) {
 }
 
 inline bool ObjectMonitor::check(TRAPS) {
+  if (UseWispMonitor) {
+    THREAD = WispThread::current(THREAD);
+  }
   if (THREAD != _owner) {
     if (THREAD->is_lock_owned((address) _owner)) {
       _owner = THREAD;  // regain ownership of inflated monitor

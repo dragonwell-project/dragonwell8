@@ -38,7 +38,7 @@
 // Consider using GCC's __read_mostly.
 
 Mutex*   Patching_lock                = NULL;
-Monitor* SystemDictionary_lock        = NULL;
+Monitor* SystemDictionary_monitor_lock= NULL;
 Mutex*   ProfileRecorder_lock         = NULL;
 Mutex*   PreloadClassChain_lock       = NULL;
 Mutex*   JitWarmUpPrint_lock          = NULL;
@@ -146,6 +146,10 @@ Mutex*   JfrCounters_lock             = NULL;
 Mutex*   UnsafeJlong_lock             = NULL;
 #endif
 
+SystemDictMonitor* SystemDictionary_lock = NULL;
+
+Monitor* Wisp_lock                    = NULL;
+
 #define MAX_NUM_MUTEX 128
 static Monitor * _mutex_array[MAX_NUM_MUTEX];
 static int _num_mutex;
@@ -171,6 +175,40 @@ void assert_lock_strong(const Monitor * lock) {
   if (lock->owned_by_self()) return;
   fatal(err_msg("must own lock %s", lock->name()));
 }
+
+static bool is_owner(const SystemDictMonitor* lock, Thread* THREAD) {
+  if (lock->is_obj_lock()) {
+    assert(UseWispMonitor, "should UseWispMonitor");
+    WispThread* wt = WispThread::current(Thread::current());
+    if (ObjectSynchronizer::current_thread_holds_lock(wt, Handle(lock->obj()))) {
+      return true;
+    }
+  } else if (lock->monitor()->owner() == THREAD) {
+    return true;
+  }
+  return false;
+}
+
+void assert_lock_strong(const SystemDictMonitor* lock) {
+  if (IgnoreLockingAssertions) return;
+  assert(lock != NULL, "Need non-NULL lock");
+  if (is_owner(lock, Thread::current())) return;
+  fatal(err_msg("must own lock %s", lock->monitor()->name()));
+}
+
+void assert_locked_or_safepoint(const SystemDictMonitor* lock) {
+  // check if this thread owns the lock (common case)
+  if (IgnoreLockingAssertions) return;
+  assert(lock != NULL, "Need non-NULL lock");
+  if (SafepointSynchronize::is_at_safepoint()) return;
+  if (is_owner(lock, Thread::current())) return;
+  if (!Universe::is_fully_initialized()) return;
+  // see if invoker of VM operation owns it
+  VM_Operation* op = VMThread::vm_operation();
+  if (op != NULL && is_owner(lock, op->calling_thread())) return;
+  fatal(err_msg("must own lock %s", lock->monitor()->name()));
+}
+
 #endif
 
 #define def(var, type, pri, vm_block) {                           \
@@ -224,7 +262,7 @@ void mutex_init() {
   def(Service_lock                 , Monitor, special,     true ); // used for service thread operations
   def(JmethodIdCreation_lock       , Mutex  , leaf,        true ); // used for creating jmethodIDs.
 
-  def(SystemDictionary_lock        , Monitor, leaf,        true ); // lookups done by VM thread
+  def(SystemDictionary_monitor_lock, Monitor, leaf,        true ); // lookups done by VM thread
   def(ProfileRecorder_lock         , Mutex  , nonleaf+2,   true ); // used for JitWarmUp
   def(PreloadClassChain_lock       , Mutex  , max_nonleaf, true ); // used for JitWarmUp
   def(JitWarmUpPrint_lock          , Mutex  , max_nonleaf, true ); // used for JitWarmUp
@@ -307,6 +345,12 @@ void mutex_init() {
 #ifndef SUPPORTS_NATIVE_CX8
   def(UnsafeJlong_lock             , Mutex,   special,     false);
 #endif
+
+  def(Wisp_lock                    , Monitor, special,      true);
+
+  SystemDictionary_lock = UseWispMonitor ?
+    new SystemDictObjMonitor(SystemDictionary_monitor_lock):
+    new SystemDictMonitor(SystemDictionary_monitor_lock);
 }
 
 GCMutexLocker::GCMutexLocker(Monitor * mutex) {
@@ -318,6 +362,9 @@ GCMutexLocker::GCMutexLocker(Monitor * mutex) {
     _mutex->lock();
   }
 }
+
+GCSystemDictLocker::GCSystemDictLocker(SystemDictMonitor* mutex)
+  : SystemDictLocker(mutex, Thread::current(), !SafepointSynchronize::is_at_safepoint()) {}
 
 // Print all mutexes/monitors that are currently owned by a thread; called
 // by fatal error handler.

@@ -47,9 +47,6 @@ class ThreadLocalStorage : AllStatic {
   static void    init();
   static bool    is_initialized();
 
-  static void    add_coroutine_stack(Thread* thread, address stack_base, size_t stack_size);
-  static void    remove_coroutine_stack(Thread* thread, address stack_base, size_t stack_size);
-
   // Machine dependent stuff
 #ifdef TARGET_OS_ARCH_linux_x86
 # include "threadLS_linux_x86.hpp"
@@ -99,9 +96,6 @@ class ThreadLocalStorage : AllStatic {
   // Processor dependent parts of set_thread and initialization
   static void pd_set_thread(Thread* thread);
   static void pd_init();
-
-  static void pd_add_coroutine_stack(Thread* thread, address stack_base, size_t stack_size);
-  static void pd_remove_coroutine_stack(Thread* thread, address stack_base, size_t stack_size);
 
 #endif // SOLARIS
 

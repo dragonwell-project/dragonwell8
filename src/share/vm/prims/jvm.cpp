@@ -389,6 +389,32 @@ JVM_ENTRY(jobject, JVM_InitProperties(JNIEnv *env, jobject properties))
     }
   }
 
+  //Convert the -XX:+EnableCoroutine command line flag
+  //to the com.alibaba.coroutine.enableCoroutine property in case that
+  //the java code can determine if the coroutine feature is enabled.
+  {
+    PUTPROP(props, "com.alibaba.coroutine.enableCoroutine",
+        EnableCoroutine ? "true" : "false");
+  }
+
+  //Convert the -XX:+UseWisp2 command line flag
+  //to the below properties in case that the java code can determine
+  //if the wisp2 feature is enabled:
+  //com.alibaba.wisp.transparentWispSwitch
+  //com.alibaba.wisp.enableThreadAsWisp
+  //com.alibaba.wisp.version
+  //com.alibaba.wisp.allThreadAsWisp
+  //com.alibaba.wisp.enableHandOff
+  {
+    if (UseWisp2) {
+      PUTPROP(props, "com.alibaba.wisp.transparentWispSwitch", "true");
+      if (Arguments::get_property("com.alibaba.wisp.allThreadAsWisp") == NULL) {
+        PUTPROP(props, "com.alibaba.wisp.enableThreadAsWisp", "true");
+        PUTPROP(props, "com.alibaba.wisp.allThreadAsWisp", "true");
+      }
+    }
+  }
+
   // JVM monitoring and management support
   // Add the sun.management.compiler property for the compiler's name
   {
@@ -583,6 +609,12 @@ JVM_ENTRY(void, JVM_MonitorWait(JNIEnv* env, jobject handle, jlong ms))
   JVMWrapper("JVM_MonitorWait");
   Handle obj(THREAD, JNIHandles::resolve_non_null(handle));
   JavaThreadInObjectWaitState jtiows(thread, ms != 0);
+
+  WispPostStealHandleUpdateMark w(thread, THREAD, env, __tiv, __hm, &jtiows);
+
+  // Coroutine work steal support
+  EnableStealMark p(THREAD);
+
   if (JvmtiExport::should_post_monitor_wait()) {
     JvmtiExport::post_monitor_wait((JavaThread *)THREAD, (oop)obj(), ms);
 
@@ -1504,7 +1536,12 @@ JVM_ENTRY(jobject, JVM_DoPrivileged(JNIEnv *env, jclass cls, jobject action, job
   Handle pending_exception;
   JavaValue result(T_OBJECT);
   JavaCallArguments args(object);
-  JavaCalls::call(&result, m, &args, THREAD);
+
+  {
+    WispPostStealHandleUpdateMark w(thread, THREAD, env, __tiv, __hm, NULL, &vfst, &m);
+    EnableStealMark p(THREAD);
+    JavaCalls::call(&result, m, &args, THREAD);
+  }
 
   // done with action, remove ourselves from the list
   if (!vfst.at_end()) {
@@ -3092,22 +3129,6 @@ static void thread_entry(JavaThread* thread, TRAPS) {
   Handle obj(THREAD, thread->threadObj());
   JavaValue result(T_VOID);
 
-  if (EnableCoroutine && SystemDictionary::java_dyn_CoroutineSupport_klass() != NULL) {
-    InstanceKlass::cast(SystemDictionary::Class_klass())->initialize(CHECK);
-    InstanceKlass::cast(SystemDictionary::java_dyn_CoroutineSupport_klass())->initialize(CHECK);
-    JavaCalls::call_virtual(&result,
-                            obj,
-                            KlassHandle(THREAD, SystemDictionary::Thread_klass()),
-                            vmSymbols::initializeCoroutineSupport_method_name(),
-                            vmSymbols::void_method_signature(),
-                            THREAD);
-    if (THREAD->has_pending_exception()) {
-        java_lang_Throwable::print_stack_trace(THREAD->pending_exception(), tty);
-        THREAD->clear_pending_exception();
-        vm_abort(false);
-      }
-  }
-
   if(MultiTenant) {
     oop tenantContainer =
              java_lang_Thread::inherited_tenant_container(thread->threadObj());
@@ -3513,6 +3534,41 @@ JVM_QUICK_ENTRY(jboolean, JVM_IsInterrupted(JNIEnv* env, jobject jthread, jboole
     return (jboolean) Thread::is_interrupted(thr, clear_interrupted != 0);
   }
 JVM_END
+
+JVM_QUICK_ENTRY(jboolean, JVM_IsInSameNative(JNIEnv* env, jobject jthread))
+  JVMWrapper("JVM_IsInSameNative");
+  assert(EnableCoroutine, "coroutine not enabled");
+  oop java_thread = JNIHandles::resolve_non_null(jthread);
+  MutexLockerEx ml(thread->threadObj() == java_thread ? NULL : Threads_lock);
+  // We need to re-resolve the java_thread, since a GC might have happened during the
+  // acquire of the lock
+  JavaThread* thr = java_lang_Thread::thread(JNIHandles::resolve_non_null(jthread));
+  // the thread is in native status and the native call counter isn't changed during two calls
+  // then return true
+  if (thr != NULL && thr->thread_state() == _thread_in_native) {
+    Coroutine* coro = thr->coroutine_list();
+    assert(coro != NULL, "coroutine list");
+    if (coro->last_native_call_counter() == coro->native_call_counter()) {
+      return JNI_TRUE;
+    } else {
+      coro->set_last_native_call_counter(coro->native_call_counter());
+    }
+  }
+  return JNI_FALSE;
+JVM_END
+
+JVM_ENTRY(jboolean, JVM_CheckAndClearNativeInterruptForWisp(JNIEnv* env, jobject task, jobject jthread))
+  JVMWrapper("JVM_CheckAndClearNativeInterruptForWisp");
+  // here, maybe the thread is in `Thread.start()`, the eetop is not settled, so we should also block the
+  // condition with `th` is null.
+  JavaThread *th = java_lang_Thread::thread(JNIHandles::resolve_non_null(jthread));
+  if (th != NULL) {
+    return (jboolean)clear_interrupt_for_wisp(th);
+  } else {
+    return (jboolean)false;
+  }
+JVM_END
+
 
 
 // Return true iff the current thread has locked the object passed in
@@ -4401,6 +4457,10 @@ JVM_END
 
 JVM_ENTRY(jobject, JVM_InvokeMethod(JNIEnv *env, jobject method, jobject obj, jobjectArray args0))
   JVMWrapper("JVM_InvokeMethod");
+
+  // Coroutine work steal support
+  WispPostStealHandleUpdateMark w(thread, THREAD, env, __tiv, __hm);
+
   Handle method_handle;
   if (thread->stack_available((address) &method_handle) >= JVMInvokeMethodSlack) {
     method_handle = Handle(THREAD, JNIHandles::resolve(method));
@@ -4426,6 +4486,10 @@ JVM_END
 
 JVM_ENTRY(jobject, JVM_NewInstanceFromConstructor(JNIEnv *env, jobject c, jobjectArray args0))
   JVMWrapper("JVM_NewInstanceFromConstructor");
+
+  // Coroutine work steal support
+  WispPostStealHandleUpdateMark w(thread, THREAD, env, __tiv, __hm);
+
   oop constructor_mirror = JNIHandles::resolve(c);
   objArrayHandle args(THREAD, objArrayOop(JNIHandles::resolve(args0)));
   oop result = Reflection::invoke_constructor(constructor_mirror, args, CHECK_NULL);
@@ -4956,4 +5020,38 @@ JVM_ENTRY(jlong, JVM_ElasticHeapGetTotalUncommittedBytes(JNIEnv *env, jclass kla
   assert(G1ElasticHeap, "Precondition");
 
   return G1CollectedHeap::heap()->elastic_heap()->uncommitted_bytes();
+JVM_END
+
+JVM_ENTRY(void, JVM_SetWispTask(JNIEnv* env, jclass klass, jlong coroutinePtr, jint task_id, jobject task, jobject engine))
+  JVMWrapper("JVM_SetWispTask");
+  Coroutine* coro = (Coroutine*)coroutinePtr;
+  coro->set_wisp_task_id(task_id);
+  coro->set_wisp_engine(JNIHandles::resolve_non_null(engine));
+  coro->set_wisp_task(JNIHandles::resolve_non_null(task));
+JVM_END
+
+JVM_ENTRY(jint, JVM_GetProxyUnpark(JNIEnv* env, jclass klass, jintArray res))
+  JVMWrapper("JVM_GetProxyUnpark");
+  return WispThread::get_proxy_unpark(res);
+JVM_END
+
+JVM_ENTRY(void, JVM_MarkPreempted(JNIEnv* env, jclass klass, jobject threadObj, jboolean force))
+  JVMWrapper("JVM_MarkPreempted");
+  JavaThread* thr = NULL;
+  {
+    //Use lock to prevent deleting thr when we do the update on it.
+    MutexLockerEx mu(Threads_lock);
+    thr = java_lang_Thread::thread(JNIHandles::resolve_non_null(threadObj));
+
+    if (thr == NULL || thr->is_terminated() ||
+        thr->wisp_preempted()) { // already mark preempted, do not fire safepoint again
+      return;
+    }
+    thr->set_wisp_preempted(true);
+  }
+  // fire an empty safepoint to let the thread go check flag
+  if (force) {
+    VM_ForceSafepoint force_safepoint_op;
+    VMThread::execute(&force_safepoint_op);
+  }
 JVM_END

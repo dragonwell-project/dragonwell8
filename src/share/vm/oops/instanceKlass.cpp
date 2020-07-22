@@ -54,6 +54,7 @@
 #include "prims/jvmtiRedefineClasses.hpp"
 #include "prims/jvmtiThreadState.hpp"
 #include "prims/methodComparator.hpp"
+#include "runtime/coroutine.hpp"
 #include "runtime/fieldDescriptor.hpp"
 #include "runtime/handles.inline.hpp"
 #include "runtime/javaCalls.hpp"
@@ -1229,6 +1230,7 @@ Klass* InstanceKlass::array_klass_impl(bool or_null, TRAPS) {
 }
 
 void InstanceKlass::call_class_initializer(TRAPS) {
+  WispClinitCounterMark wcm(THREAD);
   instanceKlassHandle ik (THREAD, this);
   call_class_initializer_impl(ik, THREAD);
 }
@@ -3913,4 +3915,21 @@ jint InstanceKlass::get_cached_class_file_len() {
 
 unsigned char * InstanceKlass::get_cached_class_file_bytes() {
   return VM_RedefineClasses::get_cached_class_file_bytes(_cached_class_file);
+}
+
+bool InstanceKlass::is_reentrant_initialization(Thread *thread)  {
+  if (UseWispMonitor) {
+    assert(thread != NULL, "sanity check");
+    thread = WispThread::current(thread);
+  }
+  return thread == _init_thread;
+}
+
+void InstanceKlass::set_init_thread(Thread *thread)  {
+  if (UseWispMonitor && thread != NULL) {
+    assert(thread->is_Java_thread(), "sanity check");
+    assert(((JavaThread*) thread)->current_coroutine() != NULL, "sanity check");
+    thread = WispThread::current(thread);
+  }
+  _init_thread = thread;
 }

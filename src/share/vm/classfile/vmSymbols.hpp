@@ -345,6 +345,8 @@
   template(uncaughtException_name,                    "uncaughtException")                        \
   template(dispatchUncaughtException_name,            "dispatchUncaughtException")                \
   template(initializeSystemClass_name,                "initializeSystemClass")                    \
+  template(initializeWispClass_name,                  "initializeWispClass")                      \
+  template(startWispDaemons_name,                     "startWispDaemons")                         \
   template(loadClass_name,                            "loadClass")                                \
   template(loadClassInternal_name,                    "loadClassInternal")                        \
   template(get_name,                                  "get")                                      \
@@ -485,6 +487,7 @@
   template(object_boolean_signature,                  "(Ljava/lang/Object;)Z")                    \
   template(string_void_signature,                     "(Ljava/lang/String;)V")                    \
   template(string_int_signature,                      "(Ljava/lang/String;)I")                    \
+  template(runnable_void_signature,                   "(Ljava/lang/Runnable;)V")                  \
   template(throwable_void_signature,                  "(Ljava/lang/Throwable;)V")                 \
   template(void_throwable_signature,                  "()Ljava/lang/Throwable;")                  \
   template(throwable_throwable_signature,             "(Ljava/lang/Throwable;)Ljava/lang/Throwable;")             \
@@ -631,13 +634,34 @@
   template(java_dyn_CoroutineSupport,                  "java/dyn/CoroutineSupport")                               \
   template(java_dyn_CoroutineBase,                     "java/dyn/CoroutineBase")                                  \
   template(java_dyn_CoroutineExitException,            "java/dyn/CoroutineExitException")                         \
-  template(data_name,                                  "data")                                                    \
+  template(com_alibaba_wisp_engine_WispTask,           "com/alibaba/wisp/engine/WispTask")                        \
+  template(com_alibaba_wisp_engine_WispTask_CacheableCoroutine,                                                   \
+                                                       "com/alibaba/wisp/engine/WispTask$CacheableCoroutine")     \
+  template(com_alibaba_wisp_engine_WispEngine,         "com/alibaba/wisp/engine/WispEngine")                      \
+  template(com_alibaba_wisp_engine_WispCarrier,        "com/alibaba/wisp/engine/WispCarrier")                     \
+  template(com_alibaba_wisp_engine_WispEventPump,      "com/alibaba/wisp/engine/WispEventPump")                   \
+  template(isInCritical_name,                          "isInCritical")                                            \
+  template(jdkParkStatus_name,                         "jdkParkStatus")                                           \
+  template(jvmParkStatus_name,                         "jvmParkStatus")                                           \
+  template(id_name,                                    "id")                                                      \
+  template(threadWrapper_name,                         "threadWrapper")                                           \
+  template(activeCount_name,                           "activeCount")                                             \
+  template(stealCount_name,                            "stealCount")                                              \
+  template(stealFailureCount_name,                     "stealFailureCount")                                       \
+  template(preemptCount_name,                          "preemptCount")                                            \
+  template(unparkById_name,                            "unparkById")                                              \
+  template(interruptById_name,                         "interruptById")                                           \
+  template(interrupted_name,                           "interrupted")                                             \
+  template(yield_name,                                 "yield")                                                   \
+  template(runOutsideWisp_name,                        "runOutsideWisp")                                          \
+  template(nativeCoroutine_name,                       "nativeCoroutine")                                         \
   template(stack_name,                                 "stack")                                                   \
   template(current_name,                               "current")                                                 \
   template(java_dyn_CoroutineBase_signature,           "Ljava/dyn/CoroutineBase;")                                \
   template(reflect_method_signature,                   "Ljava/lang/reflect/Method;")                              \
   template(startInternal_method_name,                  "startInternal")                                           \
   template(initializeCoroutineSupport_method_name,     "initializeCoroutineSupport")                              \
+  template(destroyCoroutineSupport_method_name,        "destroyCoroutineSupport")                                 \
   template(method_name,                                "method")                                                  \
   template(bci_name,                                   "bci")                                                     \
   template(localCount_name,                            "localCount")                                              \
@@ -646,6 +670,19 @@
   template(objectValues_name,                          "objectValues")                                            \
   template(long_array_signature,                       "[J")                                                      \
   template(object_array_signature,                     "[Ljava/lang/Object;")                                     \
+                                                                                                                  \
+  /* coroutine work steal support */                                                                              \
+  template(java_security_AccessController,             "java/security/AccessController")                          \
+  template(doPrivileged_name,                          "doPrivileged")                                            \
+  template(doPrivileged_signature_1,                   "(Ljava/security/PrivilegedAction;)Ljava/lang/Object;")    \
+  template(doPrivileged_signature_2,                   "(Ljava/security/PrivilegedAction;Ljava/security/AccessControlContext;)Ljava/lang/Object;")    \
+  template(doPrivileged_signature_3,                   "(Ljava/security/PrivilegedExceptionAction;)Ljava/lang/Object;")    \
+  template(doPrivileged_signature_4,                   "(Ljava/security/PrivilegedExceptionAction;Ljava/security/AccessControlContext;)Ljava/lang/Object;")    \
+  template(sun_reflect_NativeMethodAccessorImpl,       "sun/reflect/NativeMethodAccessorImpl")                    \
+  template(invoke0_name,                               "invoke0")                                                 \
+  template(invoke0_signature,                          "(Ljava/lang/reflect/Method;Ljava/lang/Object;[Ljava/lang/Object;)Ljava/lang/Object;")  \
+  template(sun_reflect_NativeConstructorAccessorImpl,  "sun/reflect/NativeConstructorAccessorImpl")               \
+  template(newInstance0_signature,                     "(Ljava/lang/reflect/Constructor;[Ljava/lang/Object;)Ljava/lang/Object;")  \
                                                                                                                   \
   /*end*/
 
@@ -783,7 +820,7 @@
    do_name(     isInterrupted_name,                              "isInterrupted")                                       \
    do_signature(isInterrupted_signature,                         "(Z)Z")                                                \
   do_intrinsic(_currentThread,            java_lang_Thread,       currentThread_name, currentThread_signature,   F_S)   \
-   do_name(     currentThread_name,                              "currentThread")                                       \
+   do_name(     currentThread_name,                              "currentThread0")                                      \
    do_signature(currentThread_signature,                         "()Ljava/lang/Thread;")                                \
                                                                                                                         \
   /* reflective intrinsics, for java/lang/Class, etc. */                                                                \

@@ -121,8 +121,17 @@
   product(uintx, DefaultCoroutineStackSize, 128*K,                          \
           "Default size of stack that is associated with new coroutine")    \
                                                                             \
-  product(uintx, MaxFreeCoroutinesCacheSize, 20,                            \
-          "The max number of free coroutine stacks a thread can keep")      \
+  product(bool, UseWispMonitor, false,                                      \
+          "yields to next coroutine when ObjectMonitor is contended")       \
+                                                                            \
+  product(bool, UseWisp2, false,                                            \
+          "Enable Wisp2")                                                   \
+                                                                            \
+  diagnostic(bool, VerboseWisp, false,                                      \
+          "Print verbose Wisp information")                                 \
+                                                                            \
+  manageable(bool, PrintThreadCoroutineInfo, false,                         \
+          "print the park/unpark information for thread coroutine")         \
   //add new AJVM specific flags here
 
 

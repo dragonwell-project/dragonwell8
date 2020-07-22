@@ -155,8 +155,9 @@ enum MemoryType {
   mtTest              = 0x0D,  // Test type for verifying NMT
   mtTracing           = 0x0E,  // memory used for Tracing
   mtTenant            = 0x0F,  // memory used by MultiTenant code
-  mtNone              = 0x10,  // undefined
-  mt_number_of_types  = 0x11   // number of memory types (mtDontTrack
+  mtWisp              = 0x10,  // memory used by Wisp code
+  mtNone              = 0x11,  // undefined
+  mt_number_of_types  = 0x12   // number of memory types (mtDontTrack
                                  // is not included as validate type)
 };
 
@@ -363,6 +364,8 @@ class Chunk: CHeapObj<mtChunk> {
   static void clean_chunk_pool();
 };
 
+class WispPostStealHandleUpdateMark;
+
 //------------------------------Arena------------------------------------------
 // Fast allocation of memory
 class Arena : public CHeapObj<mtNone> {
@@ -371,6 +374,7 @@ protected:
   friend class HandleMark;
   friend class NoHandleMark;
   friend class VMStructs;
+  friend class WispPostStealHandleUpdateMark;
 
   MEMFLAGS    _flags;           // Memory tracking flags
 

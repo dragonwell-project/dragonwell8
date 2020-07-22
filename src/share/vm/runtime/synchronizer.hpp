@@ -54,7 +54,7 @@ class ObjectSynchronizer : AllStatic {
   // attempt_rebias flag is used by UseBiasedLocking implementation
   static void fast_enter  (Handle obj, BasicLock* lock, bool attempt_rebias, TRAPS);
   static void fast_exit   (oop obj,    BasicLock* lock, Thread* THREAD);
-
+  static void fast_exit   (Handle obj, BasicLock* lock, Thread* THREAD);
   // WARNING: They are ONLY used to handle the slow cases. They should
   // only be used when the fast cases failed. Use of these functions
   // without previous fast case check may cause fatal error.
@@ -163,6 +163,43 @@ class ObjectLocker : public StackObj {
   // reenter reclaims lock with original recursion count
   intptr_t complete_exit(TRAPS) { return  ObjectSynchronizer::complete_exit(_obj, THREAD); }
   void reenter(intptr_t recursion, TRAPS) { ObjectSynchronizer::reenter(_obj, recursion, CHECK); }
+};
+
+class SystemDictMonitor : public CHeapObj<mtWisp> {
+  protected:
+    Monitor*  _monitor;
+  public:
+    SystemDictMonitor(Monitor* monitor): _monitor(monitor) { }
+    virtual void lock(BasicLock* lock, TRAPS)    { _monitor->lock();   }
+    virtual void unlock(BasicLock* lock, TRAPS)  { _monitor->unlock(); }
+    virtual void wait(BasicLock* lock, TRAPS)    { _monitor->wait();   }
+    virtual void notify_all(TRAPS)               { _monitor->notify_all(); }
+    virtual void set_obj_lock(oop obj, TRAPS) { ShouldNotReachHere(); }
+    Monitor* monitor()         const    { return _monitor;               }
+    virtual oop obj()          const    { return NULL;                   }
+    virtual bool is_obj_lock() const    { return false;                  }
+    virtual void oops_do(OopClosure* f) { }
+};
+
+class SystemDictObjMonitor : public SystemDictMonitor {
+  private:
+    oop       _obj;
+  public:
+    SystemDictObjMonitor(Monitor* monitor): SystemDictMonitor(monitor), _obj(NULL) {
+      assert(UseWispMonitor, "SystemDictObjMonitor if only for UseWispMonitor");
+    }
+    virtual void lock(BasicLock* lock, TRAPS);
+    virtual void unlock(BasicLock* lock, TRAPS);
+    virtual void wait(BasicLock* lock, TRAPS);
+    virtual void notify_all(TRAPS);
+    virtual void set_obj_lock(oop obj, TRAPS);
+    virtual oop obj()          const    { return _obj;                   }
+    virtual bool is_obj_lock() const    { return _obj != NULL;           }
+    virtual void oops_do(OopClosure* f) {
+      if (_obj != NULL) {
+        f->do_oop(&_obj);
+      }
+    }
 };
 
 #endif // SHARE_VM_RUNTIME_SYNCHRONIZER_HPP

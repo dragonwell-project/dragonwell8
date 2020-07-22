@@ -266,7 +266,27 @@ void MonitorExitStub::emit_code(LIR_Assembler* ce) {
   } else {
     exit_id = Runtime1::monitorexit_nofpu_id;
   }
+  // Handle spcecial case for wisp unpark.
+  // The code stub is entered only when the following four conditions are all satisfied
+  // 1. A synchronized method is compiled by C1
+  // 2. An exception happened in this method
+  // 3. There is no exception handler in this method, So it needs to unwind to its caller
+  // 4. GC happened during unpark
+  // if (_info == NULL) is true, the four condistions are all true.
+  if (UseWispMonitor && (_info == NULL)) {
+    if (exit_id == Runtime1::monitorexit_id) {
+      exit_id = Runtime1::monitorexit_proxy_id;
+    } else {
+      assert (exit_id == Runtime1::monitorexit_nofpu_id, "must be monitorexit_nofpu_id");
+      exit_id = Runtime1::monitorexit_nofpu_proxy_id;
+    }
+  }
   __ call(RuntimeAddress(Runtime1::entry_for(exit_id)));
+  // For direct unpark in Wisp, _info must be recorded to generate oopmap.
+  if (UseWispMonitor && _info) {
+    ce->add_call_info_here(_info);
+    ce->verify_oop_map(_info);
+  }
   __ jmp(_continuation);
 }
 
@@ -360,6 +380,10 @@ void PatchingStub::emit_code(LIR_Assembler* ce) {
     // begin_initialized_entry_offset has to fit in a byte. Also, we know it's not null.
     __ movptr(tmp2, Address(_obj, java_lang_Class::klass_offset_in_bytes()));
     __ get_thread(tmp);
+    if (UseWispMonitor) {
+      __ movptr(tmp, Address(tmp, JavaThread::current_coroutine_offset()));
+      __ movptr(tmp, Address(tmp, Coroutine::wisp_thread_offset()));
+    }
     __ cmpptr(tmp, Address(tmp2, InstanceKlass::init_thread_offset()));
     __ pop(tmp2);
     __ pop(tmp);

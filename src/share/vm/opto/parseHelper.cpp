@@ -241,6 +241,15 @@ void Parse::emit_guard_for_new(ciInstanceKlass* klass) {
   //       klass->_init_state != being_initialized)
   //      uncommon_trap
   Node* cur_thread = _gvn.transform( new (C) ThreadLocalNode() );
+  Node* cur_wisp;
+  if (UseWispMonitor) {
+    Node* coroutine_offset = _gvn.MakeConX(in_bytes(JavaThread::current_coroutine_offset()));
+    Node* coroutine_adr = basic_plus_adr(cur_thread, cur_thread, coroutine_offset);
+    Node* coroutine = make_load(control(), coroutine_adr, TypeRawPtr::BOTTOM, T_ADDRESS, MemNode::unordered);
+    Node* wisp_thread_offset = _gvn.MakeConX(in_bytes(Coroutine::wisp_thread_offset()));
+    Node* wisp_thread_adr = basic_plus_adr(coroutine, coroutine, wisp_thread_offset);
+    cur_wisp = make_load(control(), wisp_thread_adr, TypeRawPtr::BOTTOM, T_ADDRESS, MemNode::unordered);
+  }
   Node* merge = new (C) RegionNode(3);
   _gvn.set_type(merge, Type::CONTROL);
   Node* kls = makecon(TypeKlassPtr::make(klass));
@@ -248,7 +257,7 @@ void Parse::emit_guard_for_new(ciInstanceKlass* klass) {
   Node* init_thread_offset = _gvn.MakeConX(in_bytes(InstanceKlass::init_thread_offset()));
   Node* adr_node = basic_plus_adr(kls, kls, init_thread_offset);
   Node* init_thread = make_load(NULL, adr_node, TypeRawPtr::BOTTOM, T_ADDRESS, MemNode::unordered);
-  Node *tst   = Bool( CmpP( init_thread, cur_thread), BoolTest::eq);
+  Node *tst   = Bool( CmpP( init_thread, UseWispMonitor ? cur_wisp : cur_thread), BoolTest::eq);
   IfNode* iff = create_and_map_if(control(), tst, PROB_ALWAYS, COUNT_UNKNOWN);
   set_control(IfTrue(iff));
   merge->set_req(1, IfFalse(iff));

@@ -22,13 +22,13 @@
 /*
  * @test
  * @summary test of memory leak while creating and destroying coroutine/thread
- * @run main/othervm -XX:+EnableCoroutine  -Xmx10m  -Xms10m TestMemLeak
+ * @run main/othervm -XX:+EnableCoroutine  -Xmx10m  -Xms10m MemLeakTest
  */
 
 import java.dyn.Coroutine;
 import java.io.*;
 
-public class TestMemLeak {
+public class MemLeakTest {
     private final static Runnable r = () -> {};
 
     public static void main(String[] args) throws Exception {
@@ -61,7 +61,7 @@ public class TestMemLeak {
         int rss1 = getRssInKb();
         System.out.println(rss1);
 
-        if (rss1 - rss0 > 1024) { // 1M
+        if (rss1 - rss0 > 2048) { // 1M
             throw new Error("thread coroutine mem leak");
         }
     }
@@ -71,23 +71,24 @@ public class TestMemLeak {
      * After fix :  25436kB -> 25572kB
      */
     private static void testUserCreatedCoroutineLeak() throws Exception {
+        Coroutine threadCoro = Thread.currentThread().getCoroutineSupport().threadCoroutine();
         // occupy rss
         for (int i = 0; i < 200000; i++) {
-            new Coroutine(r);
-            Coroutine.yield(); // switch to new created coroutine and let it die
+            Coroutine target =  new Coroutine(r);
+            Coroutine.yieldTo(target); // switch to new created coroutine and let it die
         }
 
         int rss0 = getRssInKb();
         System.out.println(rss0);
 
         for (int i = 0; i < 200000; i++) {
-            new Coroutine(r);
-            Coroutine.yield();
+            Coroutine target =  new Coroutine(r);
+            Coroutine.yieldTo(target);
         }
 
         int rss1 = getRssInKb();
         System.out.println(rss1);
-        if (rss1 - rss0 > 1024) { // 1M
+        if (rss1 - rss0 > 2048) { // 1M
             throw new Error("user created coroutine mem leak");
         }
     }

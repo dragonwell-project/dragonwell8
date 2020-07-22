@@ -138,6 +138,7 @@ class OptoRuntime : public AllStatic {
   static address _g1_wb_post_Java;
   static address _vtable_must_compile_Java;
   static address _complete_monitor_locking_Java;
+  static address _complete_wisp_monitor_unlocking_Java;
   static address _rethrow_Java;
 
   static address _slow_arraycopy_Java;
@@ -178,6 +179,7 @@ public:
   // Slow-path Locking and Unlocking
   static void complete_monitor_locking_C(oopDesc* obj, BasicLock* lock, JavaThread* thread);
   static void complete_monitor_unlocking_C(oopDesc* obj, BasicLock* lock);
+  static void complete_wisp_monitor_unlocking_C(oopDesc* obj, BasicLock* lock, JavaThread* thread);
 
   // JFR support
   static void jfr_fast_object_alloc_C(oopDesc* obj, jint bci, JavaThread* thread);
@@ -240,7 +242,7 @@ private:
   static address g1_wb_post_Java()                       { return _g1_wb_post_Java; }
   static address vtable_must_compile_stub()              { return _vtable_must_compile_Java; }
   static address complete_monitor_locking_Java()         { return _complete_monitor_locking_Java;   }
-
+  static address complete_wisp_monitor_unlocking_Java()  { return _complete_wisp_monitor_unlocking_Java;   }
   static address slow_arraycopy_Java()                   { return _slow_arraycopy_Java; }
   static address register_finalizer_Java()               { return _register_finalizer_Java; }
 

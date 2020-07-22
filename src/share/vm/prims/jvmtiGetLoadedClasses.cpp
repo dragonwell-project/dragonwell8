@@ -315,7 +315,7 @@ JvmtiGetLoadedClasses::getClassLoaderClasses(JvmtiEnv *env, jobject initiatingLo
     // array classes aren't created, and SystemDictionary_lock to ensure that
     // classes aren't added to the system dictionary,
     MutexLocker ma(MultiArray_lock);
-    MutexLocker sd(SystemDictionary_lock);
+    SystemDictLocker sd(SystemDictionary_lock, Thread::current());
     // First, count the classes in the system dictionary which have this loader recorded
     // as an initiating loader. For basic type arrays this information is not recorded
     // so GetClassLoaderClasses will return all of the basic type arrays. This is okay

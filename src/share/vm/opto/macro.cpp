@@ -2102,9 +2102,15 @@ void PhaseMacroExpand::mark_eliminated_locking_nodes(AbstractLockNode *alock) {
        assert(alock->box_node()->as_BoxLock()->is_eliminated(), "sanity");
        return;
     } else if (!alock->is_non_esc_obj()) { // Not eliminated or coarsened
-      // Only Lock node has JVMState needed here.
-      // Not that preceding claim is documented anywhere else.
-      if (alock->jvms() != NULL) {
+      // Lock node and Unlock node (when using wisp) have JVMState needed here.
+      // This piece of code is for lock node only.
+      // But when using wisp, lock node and unlock node both have jvm state.
+      // The following conditions are used to differentiate lock and unlock.
+      // 1. alock->jvms() is not NULL.
+      // 2. alock is_lock() is true.
+      // 3. option UseWispMonitor is false.
+      // AbstractLockNode is a lock node if 1 is true and 2 or 3 is ture.
+      if ((alock->jvms() != NULL) && (alock->is_Lock() || !UseWispMonitor)) {
         if (alock->as_Lock()->is_nested_lock_region()) {
           // Mark eliminated related nested locks and unlocks.
           Node* obj = alock->obj_node();
@@ -2523,8 +2529,13 @@ void PhaseMacroExpand::expand_unlock_node(UnlockNode *unlock) {
   // Optimize test; set region slot 2
   Node *slow_path = opt_bits_test(ctrl, region, 2, funlock, 0, 0);
 
-  CallNode *call = make_slow_call( (CallNode *) unlock, OptoRuntime::complete_monitor_exit_Type(), CAST_FROM_FN_PTR(address, SharedRuntime::complete_monitor_unlocking_C), "complete_monitor_unlocking_C", slow_path, obj, box );
-
+  CallNode *call;
+  if (UseWispMonitor &&
+      ((CallNode *)unlock->jvms() != NULL) && ((CallNode *)unlock->jvms()->has_method())) {
+    call = make_slow_call( (CallNode *) unlock, OptoRuntime::complete_monitor_exit_Type(), OptoRuntime::complete_wisp_monitor_unlocking_Java(), NULL, slow_path, obj, box );
+  } else {
+    call = make_slow_call( (CallNode *) unlock, OptoRuntime::complete_monitor_exit_Type(), CAST_FROM_FN_PTR(address, SharedRuntime::complete_monitor_unlocking_C), "complete_monitor_unlocking_C", slow_path, obj, box );
+  }
   extract_call_projections(call);
 
   assert ( _ioproj_fallthrough == NULL && _ioproj_catchall == NULL &&

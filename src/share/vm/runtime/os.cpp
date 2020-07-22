@@ -338,6 +338,10 @@ static void signal_thread_entry(JavaThread* thread, TRAPS) {
   }
 }
 
+bool os::is_signal_dispatcher_thread(JavaThread* thread) {
+  return thread->is_expected_thread_entry(&signal_thread_entry);
+}
+
 void os::init_before_ergo() {
   initialize_initial_active_processor_count();
   // We need to initialize large page support here because ergonomics takes some

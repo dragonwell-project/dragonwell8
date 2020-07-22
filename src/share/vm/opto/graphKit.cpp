@@ -829,13 +829,13 @@ static bool should_reexecute_implied_by_bytecode(JVMState *jvms, bool is_anewarr
 }
 
 // Helper function for adding JVMState and debug information to node
-void GraphKit::add_safepoint_edges(SafePointNode* call, bool must_throw) {
+void GraphKit::add_safepoint_edges(SafePointNode* call, bool must_throw, bool is_wisp) {
   // Add the safepoint edges to the call (or other safepoint).
 
   // Make sure dead locals are set to top.  This
   // should help register allocation time and cut down on the size
   // of the deoptimization information.
-  assert(dead_locals_are_killed(), "garbage in debug info before safepoint");
+  assert(is_wisp || dead_locals_are_killed(), "garbage in debug info before safepoint");
 
   // Walk the inline list to fill in the correct set of JVMState's
   // Also fill in the associated edges for each JVMState.
@@ -877,7 +877,7 @@ void GraphKit::add_safepoint_edges(SafePointNode* call, bool must_throw) {
 
   // For a known set of bytecodes, the interpreter should reexecute them if
   // deoptimization happens. We set the reexecute state for them here
-  if (out_jvms->is_reexecute_undefined() && //don't change if already specified
+  if (!is_wisp && out_jvms->is_reexecute_undefined() && //don't change if already specified
       should_reexecute_implied_by_bytecode(out_jvms, call->is_AllocateArray())) {
     out_jvms->set_should_reexecute(true); //NOTE: youngest_jvms not changed
   }
@@ -3165,6 +3165,8 @@ Node* GraphKit::insert_mem_bar_volatile(int opcode, int alias_idx, Node* precede
   return membar;
 }
 
+#define __ ideal.
+
 //------------------------------shared_lock------------------------------------
 // Emit locking code.
 FastLockNode* GraphKit::shared_lock(Node* obj) {
@@ -3266,6 +3268,9 @@ void GraphKit::shared_unlock(Node* box, Node* obj) {
   unlock->init_req(TypeFunc::Parms + 1, box);
   unlock = _gvn.transform(unlock)->as_Unlock();
 
+  if (UseWispMonitor && jvms()->has_method()) {
+    add_safepoint_edges(unlock, false, true);
+  }
   Node* mem = reset_memory();
 
   // unlock has no side-effects, sets few values

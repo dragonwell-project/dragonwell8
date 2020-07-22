@@ -3393,7 +3393,7 @@ int java_dyn_CoroutineBase::_data_offset = 0;
 void java_dyn_CoroutineBase::compute_offsets() {
   Klass* k = SystemDictionary::java_dyn_CoroutineBase_klass();
   if (k != NULL) {
-    compute_offset(_data_offset,    k, vmSymbols::data_name(),    vmSymbols::long_signature());
+    compute_offset(_data_offset,    k, vmSymbols::nativeCoroutine_name(),    vmSymbols::long_signature());
   }
 }
 
@@ -3403,6 +3403,90 @@ jlong java_dyn_CoroutineBase::data(oop obj) {
 
 void java_dyn_CoroutineBase::set_data(oop obj, jlong value) {
   obj->long_field_put(_data_offset, value);
+}
+
+int com_alibaba_wisp_engine_WispCarrier::_isInCritical_offset = 0;
+
+void com_alibaba_wisp_engine_WispCarrier::compute_offsets() {
+  Klass* k = SystemDictionary::com_alibaba_wisp_engine_WispCarrier_klass();
+  assert(k != NULL, "WispEngine_klass is null");
+  compute_offset(_isInCritical_offset,        k, vmSymbols::isInCritical_name(),         vmSymbols::bool_signature());
+}
+
+bool com_alibaba_wisp_engine_WispCarrier::in_critical(oop obj) {
+  return obj->bool_field(_isInCritical_offset);
+}
+
+int com_alibaba_wisp_engine_WispTask::_jvmParkStatus_offset = 0;
+int com_alibaba_wisp_engine_WispTask::_jdkParkStatus_offset = 0;
+int com_alibaba_wisp_engine_WispTask::_id_offset = 0;
+int com_alibaba_wisp_engine_WispTask::_threadWrapper_offset = 0;
+int com_alibaba_wisp_engine_WispTask::_interrupted_offset = 0;
+int com_alibaba_wisp_engine_WispTask::_activeCount_offset = 0;
+int com_alibaba_wisp_engine_WispTask::_stealCount_offset = 0;
+int com_alibaba_wisp_engine_WispTask::_stealFailureCount_offset = 0;
+int com_alibaba_wisp_engine_WispTask::_preemptCount_offset = 0;
+
+void com_alibaba_wisp_engine_WispTask::compute_offsets() {
+  Klass* k = SystemDictionary::com_alibaba_wisp_engine_WispTask_klass();
+  assert(k != NULL, "WispTask_klass is null");
+  compute_offset(_jvmParkStatus_offset, k, vmSymbols::jvmParkStatus_name(),   vmSymbols::int_signature());
+  compute_offset(_jdkParkStatus_offset, k, vmSymbols::jdkParkStatus_name(),   vmSymbols::int_signature());
+  compute_offset(_id_offset,            k, vmSymbols::id_name(),              vmSymbols::int_signature());
+  compute_offset(_threadWrapper_offset, k, vmSymbols::threadWrapper_name(),   vmSymbols::thread_signature());
+  compute_offset(_interrupted_offset,   k, vmSymbols::interrupted_name(),     vmSymbols::int_signature());
+  compute_offset(_activeCount_offset,   k, vmSymbols::activeCount_name(),     vmSymbols::int_signature());
+  compute_offset(_stealCount_offset,    k, vmSymbols::stealCount_name(),      vmSymbols::int_signature());
+  compute_offset(_stealFailureCount_offset, k, vmSymbols::stealFailureCount_name(), vmSymbols::int_signature());
+  compute_offset(_preemptCount_offset,  k, vmSymbols::preemptCount_name(),    vmSymbols::int_signature());
+}
+
+void com_alibaba_wisp_engine_WispTask::set_jvmParkStatus(oop obj, jint status) {
+  obj->int_field_put(_jvmParkStatus_offset, status);
+}
+
+int com_alibaba_wisp_engine_WispTask::get_jvmParkStatus(oop obj) {
+  return obj->int_field(_jvmParkStatus_offset);
+}
+
+int com_alibaba_wisp_engine_WispTask::get_jdkParkStatus(oop obj) {
+  return obj->int_field(_jdkParkStatus_offset);
+}
+
+int com_alibaba_wisp_engine_WispTask::get_id(oop obj) {
+  return obj->int_field(_id_offset);
+}
+
+oop com_alibaba_wisp_engine_WispTask::get_threadWrapper(oop obj) {
+  return obj->obj_field(_threadWrapper_offset);
+}
+
+int com_alibaba_wisp_engine_WispTask::get_interrupted(oop obj) {
+  return obj->int_field(_interrupted_offset);
+}
+
+void com_alibaba_wisp_engine_WispTask::set_interrupted(oop obj, jint interrupted) {
+  obj->int_field_put(_interrupted_offset, interrupted);
+}
+
+int com_alibaba_wisp_engine_WispTask::get_activeCount(oop obj) {
+  return obj->int_field(_activeCount_offset);
+}
+
+int com_alibaba_wisp_engine_WispTask::get_stealCount(oop obj) {
+  return obj->int_field(_stealCount_offset);
+}
+
+int com_alibaba_wisp_engine_WispTask::get_stealFailureCount(oop obj) {
+  return obj->int_field(_stealFailureCount_offset);
+}
+
+int com_alibaba_wisp_engine_WispTask::get_preemptCount(oop obj) {
+  return obj->int_field(_preemptCount_offset);
+}
+
+void com_alibaba_wisp_engine_WispTask::set_preemptCount(oop obj, jint count) {
+  obj->int_field_put(_preemptCount_offset, count);
 }
 
 void java_util_concurrent_locks_AbstractOwnableSynchronizer::initialize(TRAPS) {
@@ -3517,6 +3601,8 @@ void JavaClasses::compute_offsets() {
 
   if (EnableCoroutine) {
     java_dyn_CoroutineBase::compute_offsets();
+    com_alibaba_wisp_engine_WispCarrier::compute_offsets();
+    com_alibaba_wisp_engine_WispTask::compute_offsets();
   }
 
   if(MultiTenant) {

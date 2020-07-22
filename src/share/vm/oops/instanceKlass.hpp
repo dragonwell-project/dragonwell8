@@ -474,7 +474,7 @@ class InstanceKlass: public Klass {
   bool is_not_initialized() const          { return _init_state <  being_initialized; }
   bool is_being_initialized() const        { return _init_state == being_initialized; }
   bool is_in_error_state() const           { return _init_state == initialization_error; }
-  bool is_reentrant_initialization(Thread *thread)  { return thread == _init_thread; }
+  bool is_reentrant_initialization(Thread *thread);
   ClassState  init_state()                 { return (ClassState)_init_state; }
   bool is_rewritten() const                { return (_misc_flags & _misc_rewritten) != 0; }
 
@@ -1117,7 +1117,7 @@ private:
   void set_init_state(ClassState state) { _init_state = (u1)state; }
 #endif
   void set_rewritten()                  { _misc_flags |= _misc_rewritten; }
-  void set_init_thread(Thread *thread)  { _init_thread = thread; }
+  void set_init_thread(Thread *thread);
 
   // The RedefineClasses() API can cause new method idnums to be needed
   // which will cause the caches to grow. Safety requires different

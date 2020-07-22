@@ -28,6 +28,7 @@
 #include "memory/gcLocker.hpp"
 #include "runtime/handles.inline.hpp"
 #include "runtime/mutexLocker.hpp"
+#include "runtime/coroutine.hpp"
 #include "runtime/orderAccess.hpp"
 #include "runtime/os.hpp"
 #include "runtime/safepoint.hpp"
@@ -51,6 +52,9 @@ class HandleMarkCleaner: public StackObj {
     _thread = thread;
     _thread->last_handle_mark()->push();
   }
+
+  Thread *& thread_ref() { return _thread; }
+
   ~HandleMarkCleaner() {
     _thread->last_handle_mark()->pop_and_restore();
   }
@@ -164,6 +168,9 @@ class ThreadStateTransition : public StackObj {
   // fault and we can't recover from it on Windows without a SEH in
   // place.
   static inline void transition_and_fence(JavaThread *thread, JavaThreadState from, JavaThreadState to) {
+    if (UseWispMonitor && thread->is_Wisp_thread()) {
+      thread = ((WispThread*)thread)->thread();
+    }
     assert(thread->thread_state() == from, "coming from wrong thread state");
     assert((from & 1) == 0 && (to & 1) == 0, "odd numbers are transitions states");
     // Change to transition state (assumes total store ordering!  -Urs)
@@ -225,6 +232,9 @@ class ThreadStateTransition : public StackObj {
 
     thread->set_thread_state(to);
   }
+
+  Thread *& thread_ref()   { return (Thread *&)_thread; }
+
  protected:
    void trans(JavaThreadState from, JavaThreadState to)  { transition(_thread, from, to); }
    void trans_from_java(JavaThreadState to)              { transition_from_java(_thread, to); }

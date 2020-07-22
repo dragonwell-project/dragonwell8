@@ -1528,6 +1528,12 @@ LEAF(MonitorExit, AccessMonitor)
   {
     ASSERT_VALUES
   }
+
+  MonitorExit(Value obj, int monitor_no, ValueStack* state_before)
+  : AccessMonitor(obj, monitor_no, state_before)
+  {
+    ASSERT_VALUES
+  }
 };
 
 

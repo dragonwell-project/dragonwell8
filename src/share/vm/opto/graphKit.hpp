@@ -287,7 +287,7 @@ class GraphKit : public Phase {
   // The call may deoptimize.  Supply required JVM state as debug info.
   // If must_throw is true, the call is guaranteed not to return normally.
   void add_safepoint_edges(SafePointNode* call,
-                           bool must_throw = false);
+                           bool must_throw = false, bool is_wisp = false);
 
   // How many stack inputs does the current BC consume?
   // And, how does the stack change after the bytecode?
@@ -697,10 +697,10 @@ class GraphKit : public Phase {
   void  set_predefined_output_for_runtime_call(Node* call) {
     set_predefined_output_for_runtime_call(call, NULL, NULL);
   }
+  Node* set_predefined_input_for_runtime_call(SafePointNode* call, Node* narrow_mem = NULL);
   void  set_predefined_output_for_runtime_call(Node* call,
                                                Node* keep_mem,
                                                const TypePtr* hook_mem);
-  Node* set_predefined_input_for_runtime_call(SafePointNode* call, Node* narrow_mem = NULL);
 
   // Replace the call with the current state of the kit.  Requires
   // that the call was generated with separate io_projs so that

@@ -35,17 +35,17 @@ import java.io.*;
 public class TestAvoidDeoptCoroutineMethod {
     public static void main(String[] args) throws Exception {
         WhiteBox whiteBox = WhiteBox.getWhiteBox();
-        runSomeCoroutines();
+        Coroutine threadCoro = Thread.currentThread().getCoroutineSupport().threadCoroutine();
+        runSomeCoroutines(threadCoro);
         // deoptimize all
         whiteBox.deoptimizeAll();
         // if intrinsic methods of coroutine have been deoptimized, it will crash here
-        runSomeCoroutines();
+        runSomeCoroutines(threadCoro);
     }
 
-    private static void runSomeCoroutines() throws Exception {
+    private static void runSomeCoroutines(Coroutine threadCoro) throws Exception {
         for (int i = 0; i < 10000; i++) {
-            new Coroutine(() -> {});
-            Coroutine.yield(); // switch to new created coroutine and let it die
+            Coroutine.yieldTo(new Coroutine(() -> {})); // switch to new created coroutine and let it die
         }
         System.out.println("end of run");
     }

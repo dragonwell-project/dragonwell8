@@ -604,6 +604,8 @@ IRT_END
 // be shared by method invocation and synchronized blocks.
 //%note synchronization_3
 
+address monitorenter_address_interp = (address)InterpreterRuntime::monitorenter;
+
 //%note monitor_1
 IRT_ENTRY_NO_ASYNC(void, InterpreterRuntime::monitorenter(JavaThread* thread, BasicObjectLock* elem))
 #ifdef ASSERT
@@ -612,6 +614,13 @@ IRT_ENTRY_NO_ASYNC(void, InterpreterRuntime::monitorenter(JavaThread* thread, Ba
   if (PrintBiasedLockingStatistics) {
     Atomic::inc(BiasedLocking::slow_path_entry_count_addr());
   }
+
+  // thread steal support
+  WispPostStealHandleUpdateMark w(thread, THREAD, __tiv, __hm);
+
+  // Coroutine work steal support
+  EnableStealMark p(THREAD);
+
   Handle h_obj(thread, elem->obj());
   assert(Universe::heap()->is_in_reserved_or_null(h_obj()),
          "must be NULL or an object");
@@ -662,15 +671,24 @@ IRT_ENTRY(void, InterpreterRuntime::new_illegal_monitor_state_exception(JavaThre
   // method will be called during an exception unwind.
 
   assert(!HAS_PENDING_EXCEPTION, "no pending exception");
-  Handle exception(thread, thread->vm_result());
+  // this path will also use vm_result, so we'd hook it again.
+  Handle exception(thread, (EnableCoroutine && UseWispMonitor) ? thread->vm_result_for_wisp() : thread->vm_result());
   assert(exception() != NULL, "vm result should be set");
-  thread->set_vm_result(NULL); // clear vm result before continuing (may cause memory leaks and assert failures)
+  if (EnableCoroutine && UseWispMonitor) {
+    thread->set_vm_result_for_wisp(NULL);
+  } else {
+    thread->set_vm_result(NULL); // clear vm result before continuing (may cause memory leaks and assert failures)
+  }
   if (!exception->is_a(SystemDictionary::ThreadDeath_klass())) {
     exception = get_preinitialized_exception(
                        SystemDictionary::IllegalMonitorStateException_klass(),
                        CATCH);
   }
-  thread->set_vm_result(exception());
+  if (EnableCoroutine && UseWispMonitor) {
+    thread->set_vm_result_for_wisp(exception());
+  } else {
+    thread->set_vm_result(exception());
+  }
 IRT_END
 
 

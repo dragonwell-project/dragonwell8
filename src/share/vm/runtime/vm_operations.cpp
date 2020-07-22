@@ -363,6 +363,34 @@ ThreadSnapshot* VM_ThreadDump::snapshot_thread(JavaThread* java_thread, ThreadCo
   return snapshot;
 }
 
+ThreadSnapshot* VM_CoroutineDump::snapshot_thread(JavaThread* java_thread, ThreadConcurrentLocks* tcl) {
+  ThreadSnapshot* snapshot = new ThreadSnapshot(java_thread);
+  snapshot->dump_stack_at_safepoint_for_coroutine(_target);
+  snapshot->set_concurrent_locks(tcl);
+  return snapshot;
+}
+
+VM_CoroutineDump::VM_CoroutineDump(ThreadDumpResult* result, Coroutine *target) {
+  assert(EnableCoroutine, "coroutine enabled");
+  _result = result;
+  _target = target;
+}
+
+bool VM_CoroutineDump::doit_prologue() {
+  assert(EnableCoroutine && Thread::current()->is_Java_thread(), "just checking");
+
+  return true;
+}
+
+void VM_CoroutineDump::doit_epilogue() {}
+
+void VM_CoroutineDump::doit() {
+  ResourceMark rm;
+
+  ThreadSnapshot* ts = snapshot_thread(_target->thread(), NULL);
+  _result->add_thread_snapshot(ts);
+}
+
 volatile bool VM_Exit::_vm_exited = false;
 Thread * VM_Exit::_shutdown_thread = NULL;
 

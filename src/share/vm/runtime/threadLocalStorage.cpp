@@ -59,14 +59,6 @@ void ThreadLocalStorage::set_thread(Thread* thread) {
   guarantee(get_thread_slow() == thread, "must be the same thread, slowly");
 }
 
-void ThreadLocalStorage::add_coroutine_stack(Thread* thread, address stack_base, size_t stack_size) {
-  pd_add_coroutine_stack(thread, stack_base, stack_size);
-}
-
-void ThreadLocalStorage::remove_coroutine_stack(Thread* thread, address stack_base, size_t stack_size) {
-  pd_remove_coroutine_stack(thread, stack_base, stack_size);
-}
-
 void ThreadLocalStorage::init() {
   assert(!is_initialized(),
          "More than one attempt to initialize threadLocalStorage");

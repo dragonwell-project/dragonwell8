@@ -146,4 +146,15 @@ inline void HandleMark::pop_and_restore() {
   debug_only(area->_handle_mark_nesting--);
 }
 
+inline void HandleMark::change_thread_for_wisp(Thread *thread) {
+  if (_thread == thread)  return;
+  HandleMark *hm = this;
+  // change thread for the whole list
+  while (hm != NULL) {
+    hm->_thread = thread;
+    hm = hm->_previous_handle_mark;
+  }
+}
+
+
 #endif // SHARE_VM_RUNTIME_HANDLES_INLINE_HPP

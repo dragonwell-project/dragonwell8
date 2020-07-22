@@ -28,7 +28,9 @@
 #include "memory/resourceArea.hpp"
 #include "oops/markOop.hpp"
 #include "oops/oop.inline.hpp"
+#include "runtime/basicLock.hpp"
 #include "runtime/biasedLocking.hpp"
+#include "runtime/coroutine.hpp"
 #include "runtime/handles.inline.hpp"
 #include "runtime/interfaceSupport.hpp"
 #include "runtime/mutexLocker.hpp"
@@ -218,7 +220,41 @@ void ObjectSynchronizer::fast_exit(oop object, BasicLock* lock, TRAPS) {
 
   ObjectSynchronizer::inflate(THREAD, object)->exit (true, THREAD) ;
 }
+void ObjectSynchronizer::fast_exit(Handle object, BasicLock* lock, TRAPS) {
+  assert(!object->mark()->has_bias_pattern(), "should not see bias pattern here");
+  // if displaced header is null, the previous enter is recursive enter, no-op
+  markOop dhw = lock->displaced_header();
+  markOop mark ;
+  if (dhw == NULL) {
+     // Recursive stack-lock.
+     // Diagnostics -- Could be: stack-locked, inflating, inflated.
+     mark = object->mark() ;
+     assert (!mark->is_neutral(), "invariant") ;
+     if (mark->has_locker() && mark != markOopDesc::INFLATING()) {
+        assert(THREAD->is_lock_owned((address)mark->locker()), "invariant") ;
+     }
+     if (mark->has_monitor()) {
+        ObjectMonitor * m = mark->monitor() ;
+        assert(((oop)(m->object()))->mark() == mark, "invariant") ;
+        assert(m->is_entered(THREAD), "invariant") ;
+     }
+     return ;
+  }
 
+  mark = object->mark() ;
+
+  // If the object is stack-locked by the current thread, try to
+  // swing the displaced header from the box back to the mark.
+  if (mark == (markOop) lock) {
+     assert (dhw->is_neutral(), "invariant") ;
+     if ((markOop) Atomic::cmpxchg_ptr (dhw, object->mark_addr(), mark) == mark) {
+        TEVENT (fast_exit: release stacklock) ;
+        return;
+     }
+  }
+
+  ObjectSynchronizer::inflate(THREAD, object())->exit (true, THREAD) ;
+}
 // -----------------------------------------------------------------------------
 // Interpreter/Compiler Slow Case
 // This routine is used to handle interpreter/compiler slow case
@@ -363,6 +399,8 @@ ObjectLocker::ObjectLocker(Handle obj, Thread* thread, bool doLock) {
     TEVENT (ObjectLocker) ;
 
     ObjectSynchronizer::fast_enter(_obj, &_lock, false, _thread);
+
+    assert(!EnableCoroutine || thread == Thread::current(), "must not be stealed");
   }
 }
 
@@ -723,7 +761,9 @@ bool ObjectSynchronizer::current_thread_holds_lock(JavaThread* thread,
     assert(!h_obj->mark()->has_bias_pattern(), "biases should be revoked by now");
   }
 
-  assert(thread == JavaThread::current(), "Can only be called on current thread");
+  assert(thread == JavaThread::current() ||
+      UseWispMonitor && thread == WispThread::current(JavaThread::current()),
+      "Can only be called on current thread");
   oop obj = h_obj();
 
   markOop mark = ReadStableMark (obj) ;
@@ -1657,7 +1697,7 @@ public:
 void ObjectSynchronizer::release_monitors_owned_by_thread(TRAPS) {
   assert(THREAD == JavaThread::current(), "must be current Java thread");
   No_Safepoint_Verifier nsv ;
-  ReleaseJavaMonitorsClosure rjmc(THREAD);
+  ReleaseJavaMonitorsClosure rjmc(UseWispMonitor ? WispThread::current(THREAD) : THREAD);
   Thread::muxAcquire(&ListLock, "release_monitors_owned_by_thread");
   ObjectSynchronizer::monitors_iterate(&rjmc);
   Thread::muxRelease(&ListLock);
@@ -1756,3 +1796,63 @@ int ObjectSynchronizer::verify_objmon_isinpool(ObjectMonitor *monitor) {
 }
 
 #endif
+
+void SystemDictObjMonitor::lock(BasicLock* lock, TRAPS) {
+  assert(UseWispMonitor, "SystemDictObjMonitor is only for UseWispMonitor");
+  if (!is_obj_lock()) {
+    _monitor->lock();
+    if (is_obj_lock()) {
+      // set_obj_lock has been called before we fetch the lock.
+      // now _monitor is Pointless. re-fetch the objectMonitor to
+      // satisfy the critical section semantics.
+      _monitor->unlock();
+      ObjectSynchronizer::fast_enter(Handle(THREAD, _obj), lock, false, THREAD);
+      assert(ObjectSynchronizer::inflate(THREAD, _obj)->recursions() == 0, "Monitor should not recursive");
+    }
+  } else {
+    ObjectSynchronizer::fast_enter(Handle(THREAD, _obj), lock, false, THREAD);
+    assert(ObjectSynchronizer::inflate(THREAD, _obj)->recursions() == 0, "Monitor should not recursive");
+  }
+}
+
+void SystemDictObjMonitor::unlock(BasicLock* lock, TRAPS) {
+  assert(UseWispMonitor, "SystemDictObjMonitor is only for UseWispMonitor");
+  if (!is_obj_lock()) {
+    _monitor->unlock();
+  } else {
+    ObjectSynchronizer::fast_exit(_obj, lock, THREAD);
+  }
+}
+
+void SystemDictObjMonitor::wait(BasicLock* lock, TRAPS) {
+  assert(UseWispMonitor, "SystemDictObjMonitor is only for UseWispMonitor");
+  if (!is_obj_lock()) {
+    _monitor->wait();
+    if (is_obj_lock()) {
+      _monitor->unlock();
+      ObjectSynchronizer::fast_enter(Handle(THREAD, _obj), lock, false, THREAD);
+    }
+  } else {
+    // The purpose of using waitUninterruptibly is to keep
+    // the behavior consistent with Monitor::wait
+    ObjectSynchronizer::waitUninterruptibly(Handle(THREAD, _obj), 0, THREAD);
+  }
+}
+
+void SystemDictObjMonitor::notify_all(TRAPS) {
+  assert(UseWispMonitor, "SystemDictObjMonitor is only for UseWispMonitor");
+  if (!is_obj_lock()) {
+    _monitor->notify_all();
+  } else {
+    ObjectSynchronizer::notifyall(Handle(THREAD, _obj), THREAD);
+  }
+}
+
+void SystemDictObjMonitor::set_obj_lock(oop obj, TRAPS) {
+  Handle h_obj(THREAD, obj);
+  MutexLocker mu(_monitor, THREAD);
+  assert(UseWispMonitor, "UseWispMonitor if off");
+  assert(_obj == NULL, "_obj already been set");
+  _obj = h_obj();
+  _monitor->notify_all();
+}

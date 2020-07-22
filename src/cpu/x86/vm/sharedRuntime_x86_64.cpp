@@ -1727,6 +1727,18 @@ static void gen_special_dispatch(MacroAssembler* masm,
 
 void create_switchTo_contents(MacroAssembler *masm, int start, OopMapSet* oop_maps, int &stack_slots, int total_in_args, BasicType *in_sig_bt, VMRegPair *in_regs, BasicType ret_type, bool terminate);
 
+void generate_thread_fix(MacroAssembler *masm, Method *method) {
+  // we can have a check here at the codegen time, so no cost in runtime.
+  if (EnableCoroutine) {
+    if (WispStealCandidate(method->method_holder()->name(), method->name(), method->signature()).is_steal_candidate()) {
+      // as X86 calling conventions, the thread register r15 is one of the callee saved registers.
+      // see: https://www.cs.cmu.edu/~aplatzer/course/Compilers11/calling_conventions.pdf, callee saved registers
+      // the r15 register will be saved at method entry, and restored implicitly at method exit
+      // so we have to fix it manually here after the method returns.
+      WISP_CALLING_CONVENTION_V2J_UPDATE;
+    }
+  }
+}
 
 // ---------------------------------------------------------------------------
 // Generate a native wrapper for a given method.  The method takes arguments
@@ -2351,10 +2363,20 @@ nmethod* SharedRuntime::generate_native_wrapper(MacroAssembler* masm,
     __ lea(c_rarg0, Address(r15_thread, in_bytes(JavaThread::jni_environment_offset())));
   }
 
+  if (EnableCoroutine) {
+    __ movptr(r11, Address(r15_thread, JavaThread::coroutine_list_offset()));
+    __ incrementl(Address(r11, Coroutine::native_call_counter_offset()));
+  }
+
   // Now set thread in native
   __ movl(Address(r15_thread, JavaThread::thread_state_offset()), _thread_in_native);
 
   __ call(RuntimeAddress(native_func));
+
+  // In wisp, this coroutine may be stolen by another thread inside the `native_func` call.
+  // If this `native_func` is one of the several native functions we supported,
+  // we will add thread fix code for them.
+  generate_thread_fix(masm, method());
 
   // Verify or restore cpu control state after JNI call
   __ restore_cpu_control_state_after_jni();
@@ -2589,6 +2611,11 @@ nmethod* SharedRuntime::generate_native_wrapper(MacroAssembler* masm,
     // Not a leaf but we have last_Java_frame setup as we want
     __ call_VM_leaf(CAST_FROM_FN_PTR(address, SharedRuntime::complete_monitor_locking_C), 3);
     restore_args(masm, total_c_args, c_arg, out_regs);
+
+    if (EnableCoroutine) {
+      // the r15 has been restored in restore_args so we need fix it.
+      WISP_COMPILER_RESTORE_FORCE_UPDATE;
+    }
 
 #ifdef ASSERT
     { Label L;
@@ -4474,10 +4501,17 @@ void create_switchTo_contents(MacroAssembler *masm, int start, OopMapSet* oop_ma
     __ movptr(Address(old_coroutine, Coroutine::active_handles_offset()), temp);
     __ movptr(temp, Address(thread, Thread::metadata_handles_offset()));
     __ movptr(Address(old_coroutine, Coroutine::metadata_handles_offset()), temp);
-#ifdef ASSERT
+    __ movptr(temp, Address(thread, JavaThread::last_Java_pc_offset()));
+    __ movptr(Address(old_coroutine, Coroutine::last_Java_pc_offset()), temp);
+    __ movptr(temp, Address(thread, JavaThread::last_Java_sp_offset()));
+    __ movptr(Address(old_coroutine, Coroutine::last_Java_sp_offset()), temp);
+    __ movptr(temp, Address(thread, JavaThread::privileged_stack_top_offset()));
+    __ movptr(Address(old_coroutine, Coroutine::privileged_stack_top_offset()), temp);
+    __ movptr(temp, Address(thread, JavaThread::threadObj_offset()));
+    __ movl(temp, Address(temp, java_lang_Thread::thread_status_offset()));
+    __ movl(Address(old_coroutine, Coroutine::thread_status_offset()), temp);
     __ movl(temp, Address(thread, JavaThread::java_call_counter_offset()));
     __ movl(Address(old_coroutine, Coroutine::java_call_counter_offset()), temp);
-#endif
 
     __ movptr(Address(old_stack, CoroutineStack::last_sp_offset()), rsp);
   }
@@ -4508,11 +4542,18 @@ void create_switchTo_contents(MacroAssembler *masm, int start, OopMapSet* oop_ma
       __ movptr(Address(thread, Thread::active_handles_offset()), temp);
       __ movptr(temp, Address(target_coroutine, Coroutine::metadata_handles_offset()));
       __ movptr(Address(thread, Thread::metadata_handles_offset()), temp);
-
-#ifdef ASSERT
+      __ movptr(temp, Address(target_coroutine, Coroutine::last_Java_pc_offset()));
+      __ movptr(Address(thread, JavaThread::last_Java_pc_offset()), temp);
+      __ movptr(temp, Address(target_coroutine, Coroutine::last_Java_sp_offset()));
+      __ movptr(Address(thread, JavaThread::last_Java_sp_offset()), temp);
+      __ movptr(temp, Address(target_coroutine, Coroutine::privileged_stack_top_offset()));
+      __ movptr(Address(thread, JavaThread::privileged_stack_top_offset()), temp);
+      __ movl(temp2, Address(target_coroutine, Coroutine::thread_status_offset()));
+      __ movptr(temp, Address(thread, JavaThread::threadObj_offset()));
+      __ movl(Address(temp, java_lang_Thread::thread_status_offset()), temp2);
       __ movl(temp, Address(target_coroutine, Coroutine::java_call_counter_offset()));
       __ movl(Address(thread, JavaThread::java_call_counter_offset()), temp);
-
+#ifdef ASSERT
       __ movptr(Address(target_coroutine, Coroutine::handle_area_offset()), (intptr_t)NULL_WORD);
       __ movptr(Address(target_coroutine, Coroutine::resource_area_offset()), (intptr_t)NULL_WORD);
       __ movptr(Address(target_coroutine, Coroutine::last_handle_mark_offset()), (intptr_t)NULL_WORD);

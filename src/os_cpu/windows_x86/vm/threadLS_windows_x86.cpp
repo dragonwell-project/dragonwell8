@@ -47,12 +47,3 @@ void ThreadLocalStorage::pd_init() { }
 void ThreadLocalStorage::pd_set_thread(Thread* thread)  {
   os::thread_local_storage_at_put(ThreadLocalStorage::thread_index(), thread);
 }
-
-
-void ThreadLocalStorage::pd_add_coroutine_stack(Thread* thread, address stack_base, size_t stack_size) {
-  // nothing to do
-}
-
-void ThreadLocalStorage::pd_remove_coroutine_stack(Thread* thread, address stack_base, size_t stack_size) {
-  // nothing to do
-}

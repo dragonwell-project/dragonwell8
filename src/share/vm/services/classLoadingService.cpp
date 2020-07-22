@@ -227,7 +227,7 @@ LoadedClassesEnumerator::LoadedClassesEnumerator(Thread* cur_thread) {
   _klass_handle_array = new GrowableArray<KlassHandle>(init_size);
 
   // For consistency of the loaded classes, grab the SystemDictionary lock
-  MutexLocker sd_mutex(SystemDictionary_lock);
+  SystemDictLocker sd_mutex(SystemDictionary_lock, cur_thread);
 
   // Set _loaded_classes and _current_thread and begin enumerating all classes.
   // Only one thread will do the enumeration at a time.

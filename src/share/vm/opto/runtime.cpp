@@ -126,6 +126,7 @@ address OptoRuntime::_g1_wb_pre_Java                              = NULL;
 address OptoRuntime::_g1_wb_post_Java                             = NULL;
 address OptoRuntime::_vtable_must_compile_Java                    = NULL;
 address OptoRuntime::_complete_monitor_locking_Java               = NULL;
+address OptoRuntime::_complete_wisp_monitor_unlocking_Java        = NULL;
 address OptoRuntime::_rethrow_Java                                = NULL;
 
 address OptoRuntime::_slow_arraycopy_Java                         = NULL;
@@ -174,6 +175,7 @@ bool OptoRuntime::generate(ciEnv* env) {
   gen(env, _g1_wb_pre_Java                 , g1_wb_pre_Type               , SharedRuntime::g1_wb_pre        ,    0 , false, false, false);
   gen(env, _g1_wb_post_Java                , g1_wb_post_Type              , SharedRuntime::g1_wb_post       ,    0 , false, false, false);
   gen(env, _complete_monitor_locking_Java  , complete_monitor_enter_Type  , SharedRuntime::complete_monitor_locking_C, 0, false, false, false);
+  gen(env, _complete_wisp_monitor_unlocking_Java  , complete_monitor_enter_Type  , SharedRuntime::complete_wisp_monitor_unlocking_C, 0, false, false, false);
   gen(env, _rethrow_Java                   , rethrow_Type                 , rethrow_C                       ,    2 , true , false, true );
 
   gen(env, _slow_arraycopy_Java            , slow_arraycopy_Type          , SharedRuntime::slow_arraycopy_C ,    0 , false, false, false);

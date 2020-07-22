@@ -1209,6 +1209,11 @@ address InterpreterGenerator::generate_native_entry(bool synchronized) {
   }
 #endif
 
+  if (EnableCoroutine) {
+    __ movptr(t, Address(r15_thread, JavaThread::coroutine_list_offset()));
+    __ incrementl(Address(t, Coroutine::native_call_counter_offset()));
+  }
+
   // Change state to native
 
   __ movl(Address(r15_thread, JavaThread::thread_state_offset()),
@@ -1216,6 +1221,14 @@ address InterpreterGenerator::generate_native_entry(bool synchronized) {
 
   // Call the native method.
   __ call(rax);
+
+  // when we get back from native c++ code, our coroutine may be stolen by another thread.
+  if (EnableCoroutine) {
+    // it is a little hard to present method signature check here: because interpreter
+    // will directly jump into this entry, which is in runtime.
+    WISP_CALLING_CONVENTION_V2j_UPDATE;
+  }
+
   // result potentially in rax or xmm0
 
   // Verify or restore cpu control state after JNI call
@@ -1903,11 +1916,31 @@ void TemplateInterpreterGenerator::generate_throw_exception() {
 
   // preserve exception over this code sequence
   __ pop_ptr(rax);
-  __ movptr(Address(r15_thread, JavaThread::vm_result_offset()), rax);
+  if (EnableCoroutine && UseWispMonitor) {
+    /**
+     * this fix is added here due to the fact that this function may call back to java(at _monitorexit when UseWispMonitor is enabled)
+     * Generally, _monitorexit is invoked by: 1. _return bytecode 2. when exception happens, 3. normally unlock an object.
+     * 1 and 2 will call remove_activation to force unwinding current stack and go up to the caller.
+     * When exception happens, program will run to: _remove_activation_entry and then remove_activation.
+     * they both will get call here while facing race condition.
+     * Only when 2 happens, hotspot will save the exception oop into rax, then call remove_activation.
+     * But because remove_activation possibly use rax, it hence saves rax (exception oop) to thread->_vm_result temporarily.
+     * It won't see the problem in normal case because _monitorexit won't call to java(the original vm code impl. does get chance to modify _vm_result)
+     * Because of the call back to java required by Wisp impl. at _monitorexit which in turn may modify _vm_result,
+     * The current fix MUST to restore the exception oop into different field(_vm_result_for_wisp ).
+     */
+    __ movptr(Address(r15_thread, JavaThread::vm_result_for_wisp_offset()), rax);
+  } else {
+    __ movptr(Address(r15_thread, JavaThread::vm_result_offset()), rax);
+  }
   // remove the activation (without doing throws on illegalMonitorExceptions)
   __ remove_activation(vtos, rdx, false, true, false);
   // restore exception
-  __ get_vm_result(rax, r15_thread);
+  if (EnableCoroutine && UseWispMonitor) {
+    __ get_vm_result_for_wisp(rax, r15_thread);
+  } else {
+    __ get_vm_result(rax, r15_thread);
+  }
 
   // In between activations - previous activation type unknown yet
   // compute continuation point - the continuation point expects the

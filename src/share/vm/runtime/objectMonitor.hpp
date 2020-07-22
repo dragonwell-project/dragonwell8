@@ -48,6 +48,11 @@ class ObjectWaiter : public StackObj {
   volatile TStates TState ;
   Sorted        _Sorted ;           // List placement disposition
   bool          _active ;           // Contention monitoring is enabled
+  int           _park_wisp_id;
+  bool          _using_wisp_park;
+  bool          _proxy_wisp_unpark;
+  long          _timeout;
+
  public:
   ObjectWaiter(Thread* thread);
 

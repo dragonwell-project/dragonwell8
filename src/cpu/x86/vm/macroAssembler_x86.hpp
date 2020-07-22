@@ -252,6 +252,7 @@ class MacroAssembler: public Assembler {
 
   void get_vm_result  (Register oop_result, Register thread);
   void get_vm_result_2(Register metadata_result, Register thread);
+  void get_vm_result_for_wisp(Register oop_result, Register thread);
 
   // These always tightly bind to MacroAssembler::call_VM_base
   // bypassing the virtual implementation

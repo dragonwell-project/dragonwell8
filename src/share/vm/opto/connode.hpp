@@ -590,6 +590,22 @@ public:
   virtual uint ideal_reg() const { return Op_RegP; }
 };
 
+// We use this node in gen_stub() while generating monitorenter stub.
+// Our monitorenter stub will call java for `park`, when it is blocked,
+// it may be stolen by another thread; but we cannot fix the r15 inside the
+// `SharedRuntime::complete_monitor_locking_C` because it obeys the x86
+// calling convention. So we should update it after returning on this function..
+// This node is used to: when `SharedRuntime::complete_monitor_locking_C` returns, we
+// immediately change r15 by using this node. About its MachNode definition,
+// please check `tlsRefetchP` in x86_64.ad for more detail.
+class ThreadRefetchNode : public Node {
+public:
+  ThreadRefetchNode(Node *control, Node *load) : Node(control, load) {}
+  virtual int Opcode() const;
+  virtual const Type *bottom_type() const { return TypeRawPtr::BOTTOM;}
+  virtual uint ideal_reg() const { return Op_RegP; }
+};
+
 //------------------------------LoadReturnPCNode-------------------------------
 class LoadReturnPCNode: public Node {
 public:

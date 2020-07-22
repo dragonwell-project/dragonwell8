@@ -11797,6 +11797,21 @@ instruct tlsLoadP(r15_RegP dst) %{
   ins_pipe(ialu_reg_reg);
 %}
 
+// Thread refetch:
+// take two main arguments:
+// 1. register @r15
+// 2. one register which contains the `Coroutine *`
+// and move Coroutine->_thread to @r15
+instruct tlsRefetchP(r15_RegP dst, any_RegP src) %{
+  match(Set dst (ThreadRefetch src));
+
+  format %{ "Refetch the r15 register" %}
+  ins_encode %{
+    __ movptr(r15, Address($src$$Register, Coroutine::thread_offset()));
+  %}
+  ins_pipe(ialu_reg_reg);
+%}
+
 
 //----------PEEPHOLE RULES-----------------------------------------------------
 // These must follow all instruction definitions as they use the names

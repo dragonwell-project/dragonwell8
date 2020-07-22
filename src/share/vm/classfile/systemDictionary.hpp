@@ -208,6 +208,12 @@ class SymbolPropertyTable;
   /* Stack manipulation classes */                                                                                       \
   do_klass(java_dyn_CoroutineSupport_klass,             java_dyn_CoroutineSupport,                 Opt                 ) \
   do_klass(java_dyn_CoroutineBase_klass,                java_dyn_CoroutineBase,                    Opt                 ) \
+  do_klass(com_alibaba_wisp_engine_WispTask_klass,      com_alibaba_wisp_engine_WispTask,          Opt                 ) \
+  do_klass(com_alibaba_wisp_engine_WispTask_CacheableCoroutine_klass,                                                    \
+                                                        com_alibaba_wisp_engine_WispTask_CacheableCoroutine, Opt       ) \
+  do_klass(com_alibaba_wisp_engine_WispEngine_klass,    com_alibaba_wisp_engine_WispEngine,        Opt                 ) \
+  do_klass(com_alibaba_wisp_engine_WispCarrier_klass,   com_alibaba_wisp_engine_WispCarrier,       Opt                 ) \
+  do_klass(com_alibaba_wisp_engine_WispEventPump_klass, com_alibaba_wisp_engine_WispEventPump,     Opt                 ) \
   /*end*/
 
 
@@ -643,7 +649,7 @@ protected:
   // waiting; relocks lockObject with correct recursion count
   // after waiting, but before reentering SystemDictionary_lock
   // to preserve lock order semantics.
-  static void double_lock_wait(Handle lockObject, TRAPS);
+  static void double_lock_wait(SystemDictLocker* mu, Handle lockObject, TRAPS);
   static void define_instance_class(instanceKlassHandle k, TRAPS);
   static instanceKlassHandle find_or_define_instance_class(Symbol* class_name,
                                                 Handle class_loader,
@@ -726,6 +732,9 @@ protected:
 
   static bool _has_loadClassInternal;
   static bool _has_checkPackageAccess;
+
+public:
+  static void system_dict_lock_change(TRAPS);
 };
 
 #endif // SHARE_VM_CLASSFILE_SYSTEMDICTIONARY_HPP

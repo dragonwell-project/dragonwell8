@@ -1514,7 +1514,13 @@ void GraphBuilder::method_return(Value x) {
     // released before we jump to the continuation block.
     if (method()->is_synchronized()) {
       assert(state()->locks_size() == 1, "receiver must be locked here");
-      monitorexit(state()->lock_at(0), SynchronizationEntryBCI);
+      if (UseWispMonitor) {
+        // It is needed to distinguish monitorexit called at method return from other locations
+        // Because it is unnecessary to generate oopmap at method return.
+        monitorexit(state()->lock_at(0), SynchronizationEntryBCI, true);
+      } else {
+        monitorexit(state()->lock_at(0), SynchronizationEntryBCI);
+      }
     }
 
     if (need_mem_bar) {
@@ -1564,7 +1570,7 @@ void GraphBuilder::method_return(Value x) {
     } else {
       receiver = append(new Constant(new ClassConstant(method()->holder())));
     }
-    append_split(new MonitorExit(receiver, state()->unlock()));
+    append_split(new MonitorExit(receiver, state()->unlock(), NULL));
   }
 
   if (need_mem_bar) {
@@ -2227,9 +2233,23 @@ void GraphBuilder::monitorenter(Value x, int bci) {
   kill_all();
 }
 
-
 void GraphBuilder::monitorexit(Value x, int bci) {
   append_with_bci(new MonitorExit(x, state()->unlock()), bci);
+  kill_all();
+}
+
+void GraphBuilder::monitorexit(Value x, int bci, bool at_method_return) {
+  if (UseWispMonitor) {
+    if (at_method_return == false) {
+      ValueStack* state_before = copy_state_for_exception_with_bci(bci);
+      Instruction* instr = new MonitorExit(x, state()->unlock(), state_before);
+      append_with_bci(instr, bci);
+    } else {
+      append_with_bci(new MonitorExit(x, state()->unlock()), bci);
+    }
+  } else {
+    append_with_bci(new MonitorExit(x, state()->unlock()), bci);
+  }
   kill_all();
 }
 

@@ -652,12 +652,22 @@ JRT_ENTRY(void, Runtime1::throw_incompatible_class_change_error(JavaThread* thre
   SharedRuntime::throw_and_post_jvmti_exception(thread, vmSymbols::java_lang_IncompatibleClassChangeError());
 JRT_END
 
+// funtions in `Runtime1` are all private, so add a function pointer to get its address
+void (*Runtime1::monitorenter_address_C1)(JavaThread *, oopDesc* obj, BasicObjectLock *) = Runtime1::monitorenter;
+address monitorenter_address_C1 = (address)Runtime1::monitorenter_address_C1;
 
 JRT_ENTRY_NO_ASYNC(void, Runtime1::monitorenter(JavaThread* thread, oopDesc* obj, BasicObjectLock* lock))
   NOT_PRODUCT(_monitorenter_slowcase_cnt++;)
   if (PrintBiasedLockingStatistics) {
     Atomic::inc(BiasedLocking::slow_path_entry_count_addr());
   }
+
+  // thread steal support
+  WispPostStealHandleUpdateMark w(thread, THREAD, __tiv, __hm);
+
+  // Coroutine work steal support
+  EnableStealMark p(THREAD);
+
   Handle h_obj(thread, obj);
   assert(h_obj()->is_oop(), "must be NULL or an object");
   if (UseBiasedLocking) {
@@ -676,6 +686,43 @@ JRT_ENTRY_NO_ASYNC(void, Runtime1::monitorenter(JavaThread* thread, oopDesc* obj
 JRT_END
 
 
+JRT_ENTRY_NO_ASYNC(void, Runtime1::monitorexit_wisp(JavaThread* thread, BasicObjectLock* lock))
+  NOT_PRODUCT(_monitorexit_slowcase_cnt++;)
+  Thread* thread_tmp = NULL;
+  ExceptionMark __em(thread_tmp);
+  oop obj = lock->obj();
+  assert(obj->is_oop(), "must be NULL or an object");
+  // Almost a copy from Runtime1::monitorexit,
+  // excpet that handles are used to access objects.
+  Handle h_obj(thread, obj);
+  ObjectSynchronizer::fast_exit(h_obj, lock->lock(), THREAD);
+JRT_END
+
+
+// Handle spcecial case for wisp unpark.
+// This function is executed only when the following four conditions are all satisfied
+// 1. A synchronized method is compiled by C1
+// 2. An exception happened in this method
+// 3. There is no exception handler in this method, So it needs to unwind to its caller
+// 4. GC happened during unpark
+// This path will not call Java, so JRT_LEAF is used.
+JRT_LEAF(void, Runtime1::monitorexit_wisp_proxy(JavaThread* thread, BasicObjectLock* lock))
+  NOT_PRODUCT(_monitorexit_slowcase_cnt++;)
+  EXCEPTION_MARK;
+  oop obj = lock->obj();
+  assert(obj->is_oop(), "must be NULL or an object");
+  // Setting _is_proxy_unpark of current wisp thread to true.
+  // Proxy unpark will be used when this flag is true.
+  WispThread* wisp_thread = WispThread::current(thread);
+  wisp_thread->set_proxy_unpark_flag();
+  // When using fast locking, the compiled code has already tried the fast case
+  if (UseFastLocking) {
+    ObjectSynchronizer::slow_exit(obj, lock->lock(), THREAD);
+  } else {
+    ObjectSynchronizer::fast_exit(obj, lock->lock(), THREAD);
+  }
+JRT_END
+
 JRT_LEAF(void, Runtime1::monitorexit(JavaThread* thread, BasicObjectLock* lock))
   NOT_PRODUCT(_monitorexit_slowcase_cnt++;)
   assert(thread == JavaThread::current(), "threads must correspond");
@@ -687,12 +734,21 @@ JRT_LEAF(void, Runtime1::monitorexit(JavaThread* thread, BasicObjectLock* lock))
   assert(obj->is_oop(), "must be NULL or an object");
   if (UseFastLocking) {
     // When using fast locking, the compiled code has already tried the fast case
-    ObjectSynchronizer::slow_exit(obj, lock->lock(), THREAD);
+    if (UseWispMonitor) {
+      HandleMarkCleaner __hm(THREAD);
+      ObjectSynchronizer::slow_exit(obj, lock->lock(), THREAD);
+    } else {
+      ObjectSynchronizer::slow_exit(obj, lock->lock(), THREAD);
+    }
   } else {
-    ObjectSynchronizer::fast_exit(obj, lock->lock(), THREAD);
+    if (UseWispMonitor) {
+      HandleMarkCleaner __hm(THREAD);
+      ObjectSynchronizer::fast_exit(obj, lock->lock(), THREAD);
+    } else {
+      ObjectSynchronizer::fast_exit(obj, lock->lock(), THREAD);
+    }
   }
 JRT_END
-
 // Cf. OptoRuntime::deoptimize_caller_frame
 JRT_ENTRY(void, Runtime1::deoptimize(JavaThread* thread))
   // Called from within the owner thread, so no need for safepoint

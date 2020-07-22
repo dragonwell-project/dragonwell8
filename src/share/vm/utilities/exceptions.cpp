@@ -27,6 +27,7 @@
 #include "classfile/vmSymbols.hpp"
 #include "compiler/compileBroker.hpp"
 #include "oops/oop.inline.hpp"
+#include "runtime/coroutine.hpp"
 #include "runtime/init.hpp"
 #include "runtime/java.hpp"
 #include "runtime/javaCalls.hpp"
@@ -216,6 +217,9 @@ void Exceptions::_throw_msg_cause(Thread* thread, const char* file, int line, Sy
   _throw_msg_cause(thread, file, line, name, message, h_cause, Handle(thread, NULL), Handle(thread, NULL));
 }
 void Exceptions::_throw_msg(Thread* thread, const char* file, int line, Symbol* name, const char* message) {
+  if (UseWispMonitor && thread->is_Wisp_thread()) {
+    thread = ((WispThread*) thread)->thread();
+  }
   _throw_msg(thread, file, line, name, message, Handle(thread, NULL), Handle(thread, NULL));
 }
 void Exceptions::_throw_cause(Thread* thread, const char* file, int line, Symbol* name, Handle h_cause) {
@@ -285,6 +289,12 @@ Handle Exceptions::new_exception(Thread *thread, Symbol* name,
                                          signature,
                                          args,
                                          thread);
+
+        {
+          // I didn't remove it, for I am not sure whether it will happen.
+          // If it happens, I will fix it.
+          guarantee(!EnableCoroutine || thread == Thread::current(), "fatal: stealed");
+        }
       }
     }
   }
@@ -319,6 +329,11 @@ Handle Exceptions::new_exception(Thread *thread, Symbol* name,
                                       vmSymbols::throwable_throwable_signature(),
                                       &args1,
                                       thread);
+
+    {
+      guarantee(!EnableCoroutine || thread == Thread::current(), "fatal: stealed");
+    }
+
   }
 
   // Check if another exception was thrown in the process, if so rethrow that one

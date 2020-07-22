@@ -281,6 +281,32 @@ Handle ThreadService::dump_stack_traces(GrowableArray<instanceHandle>* threads,
   return result_obj;
 }
 
+// Dump stack trace of Coroutine and return StackTraceElement[].
+Handle ThreadService::dump_coroutine_stack_trace(Coroutine *coro, TRAPS) {
+
+  assert(EnableCoroutine, "coroutine enabled");
+
+  ThreadDumpResult dump_result;
+  VM_CoroutineDump op(&dump_result, coro);
+  VMThread::execute(&op);
+
+  // Allocate the resulting StackTraceElement[] object
+
+  ResourceMark rm(THREAD);
+
+  assert(dump_result.num_snapshots() == 1, "must only one stacktrace");
+  ThreadStackTrace* stacktrace = dump_result.snapshots()->get_stack_trace();
+  Handle stacktrace_h;
+  if (stacktrace == NULL) {
+    // No stack trace
+    stacktrace_h = Handle();
+  } else {
+    // Construct an array of java/lang/StackTraceElement object
+    stacktrace_h = stacktrace->allocate_fill_stack_trace_element_array(CHECK_NH);
+  }
+  return stacktrace_h;
+}
+
 void ThreadService::reset_contention_count_stat(JavaThread* thread) {
   ThreadStatistics* stat = thread->get_thread_stat();
   if (stat != NULL) {
@@ -629,6 +655,41 @@ void ThreadStackTrace::add_stack_frame(javaVFrame* jvf) {
   _depth++;
 }
 
+void ThreadStackTrace::dump_stack_at_safepoint_for_coroutine(Coroutine *target) {
+  assert(SafepointSynchronize::is_at_safepoint(), "all threads are stopped");
+
+  Coroutine::CoroutineState state = target->state();
+  if (state != Coroutine::_onstack && state != Coroutine::_current) {
+    return;
+  }
+
+  RegisterMap reg_map(state == Coroutine::_onstack ? _thread : target->thread());
+  vframe* vf = NULL;
+  if (target->state() == Coroutine::_onstack) {
+    assert(_thread == target->thread(), "thread should equal");
+    frame last_frame = target->stack()->last_frame(target, reg_map);
+
+    JavaThread* t = UseWispMonitor ? target->wisp_thread() : _thread;
+    vf = vframe::new_vframe(&last_frame, &reg_map, t);
+  } else if (target->state() == Coroutine::_current) {
+    // we couldn't use the _current Coroutine to dump the stack of current Coroutine,
+    // while entering into safepoint, the sp/ip/fp will be stored to JavaThread::last_java_sp() etc.
+    // the _current Coroutine's sp/ip/fp are not updated.
+    JavaThread *t = target->thread();
+    if (t->has_last_Java_frame()) {
+      vf = t->last_java_vframe(&reg_map);
+    }
+  }
+
+  while (vf) {
+    if (vf->is_java_frame()) {
+      javaVFrame* jvf = javaVFrame::cast(vf);
+      add_stack_frame(jvf);
+    }
+    vf = vf->sender();
+  }
+}
+
 void ThreadStackTrace::oops_do(OopClosure* f) {
   int length = _frames->length();
   for (int i = 0; i < length; i++) {
@@ -837,6 +898,11 @@ ThreadSnapshot::~ThreadSnapshot() {
 void ThreadSnapshot::dump_stack_at_safepoint(int max_depth, bool with_locked_monitors) {
   _stack_trace = new ThreadStackTrace(_thread, with_locked_monitors);
   _stack_trace->dump_stack_at_safepoint(max_depth);
+}
+
+void ThreadSnapshot::dump_stack_at_safepoint_for_coroutine(Coroutine *target) {
+  _stack_trace = new ThreadStackTrace(_thread, false);
+  _stack_trace->dump_stack_at_safepoint_for_coroutine(target);
 }
 
 

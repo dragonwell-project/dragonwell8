@@ -4101,6 +4101,35 @@ jint Arguments::parse(const JavaVMInitArgs* args) {
     }
   }
 
+  if (UseWisp2) {
+    // check Compatibility
+    if (!EnableCoroutine && FLAG_IS_CMDLINE(EnableCoroutine)) {
+      warning("Wisp2 needs to enable -XX:+EnableCoroutine"
+              "; ignoring -XX:-EnableCoroutine." );
+    }
+    if (!UseWispMonitor && FLAG_IS_CMDLINE(UseWispMonitor)) {
+      warning("Wisp2 needs to enable -XX:+UseWispMonitor"
+              "; ignoring -XX:-UseWispMonitor." );
+    }
+    if (UseBiasedLocking && FLAG_IS_CMDLINE(UseBiasedLocking)) {
+      warning("Biased Locking is not supported with Wisp2"
+              "; ignoring UseBiasedLocking flag." );
+    }
+    // Turn on -XX:+EnableCoroutine, -XX:+UseWispMonitor
+    EnableCoroutine = true;
+    UseWispMonitor = true;
+    // Turn off -XX:-UseBiasedLocking
+    UseBiasedLocking = false;
+  } else {
+    if (EnableCoroutine) {
+      if (UseBiasedLocking && FLAG_IS_CMDLINE(UseBiasedLocking)) {
+        warning("Biased Locking is not supported with Wisp"
+                "; ignoring UseBiasedLocking flag." );
+      }
+      UseBiasedLocking = false;
+    }
+  }
+
   // Set object alignment values.
   set_object_alignment();
 

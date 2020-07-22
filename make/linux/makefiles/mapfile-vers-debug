@@ -41,6 +41,7 @@ SUNWprivate_1.1 {
                 JVM_Available;
                 JVM_BeforeHalt;
                 JVM_Bind;
+                JVM_CheckAndClearNativeInterruptForWisp;
                 JVM_CheckJWarmUpCompilationIsComplete;
                 JVM_ClassDepth;
                 JVM_ClassLoaderDepth;
@@ -169,6 +170,7 @@ SUNWprivate_1.1 {
                 JVM_GetMethodTypeAnnotations;
                 JVM_GetPrimitiveArrayElement;
                 JVM_GetProtectionDomain;
+                JVM_GetProxyUnpark;
                 JVM_GetSockName;
                 JVM_GetSockOpt;
                 JVM_GetStackAccessControlContext;
@@ -192,6 +194,7 @@ SUNWprivate_1.1 {
                 JVM_InvokeMethod;
                 JVM_IsArrayClass;
                 JVM_IsConstructorIx;
+                JVM_IsInSameNative;
                 JVM_IsInterface;
                 JVM_IsInterrupted;
                 JVM_IsNaN;
@@ -206,6 +209,7 @@ SUNWprivate_1.1 {
                 JVM_LoadClass0;
                 JVM_LoadLibrary;
                 JVM_Lseek;
+                JVM_MarkPreempted;
                 JVM_MaxObjectInspectionAge;
                 JVM_MaxMemory;
                 JVM_MonitorNotify;
@@ -243,6 +247,7 @@ SUNWprivate_1.1 {
                 JVM_SetNativeThreadName;
                 JVM_SetPrimitiveArrayElement;
                 JVM_SetSockOpt;
+                JVM_SetWispTask;
                 JVM_SetThreadPriority;
                 JVM_Sleep;
                 JVM_Socket;

@@ -1138,6 +1138,13 @@ void ThreadSafepointState::handle_polling_page_exception() {
     // Block the thread
     SafepointSynchronize::block(thread());
 
+    if (EnableCoroutine) {
+      Coroutine::after_safepoint(thread());
+    }
+    // pay attention: since the call to Coroutine::after_safepoint(thread());
+    // might trigger the GC, any oop value used before this call must be
+    // preserved over GCs(e.g via Handle).
+
     // restore oop result, if any
     if (return_oop) {
       caller_fr.set_saved_oop_result(&map, return_value());
@@ -1178,6 +1185,9 @@ void ThreadSafepointState::handle_polling_page_exception() {
 
         fatal("Exception installed and deoptimization is pending");
       }
+    }
+    if (EnableCoroutine) {
+      Coroutine::after_safepoint(thread());
     }
   }
 }

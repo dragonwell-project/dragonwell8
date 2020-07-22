@@ -257,6 +257,7 @@ class GraphBuilder VALUE_OBJ_CLASS_SPEC {
   void instance_of(int klass_index);
   void monitorenter(Value x, int bci);
   void monitorexit(Value x, int bci);
+  void monitorexit(Value x, int bci, bool at_method_return);
   void new_multi_array(int dimensions);
   void throw_op(int bci);
   Value round_fp(Value fp_value);

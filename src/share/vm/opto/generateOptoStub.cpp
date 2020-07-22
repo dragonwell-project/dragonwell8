@@ -106,6 +106,12 @@ void GraphKit::gen_stub(address C_function,
   Node *last_sp = basic_plus_adr(top(), frameptr(), (intptr_t) STACK_BIAS);
   store_to_memory(NULL, adr_sp, last_sp, T_ADDRESS, NoAlias, MemNode::unordered);
 
+  Node *coro_task = NULL;
+  if (EnableCoroutine && C_function == (address)SharedRuntime::complete_monitor_locking_C) {
+    Node *coro_adr = basic_plus_adr(top(), thread, in_bytes(JavaThread::current_coroutine_offset()));
+    coro_task = make_load(NULL, coro_adr, TypeRawPtr::NOTNULL, T_ADDRESS, MemNode::unordered);
+  }
+
   // Set _thread_in_native
   // The order of stores into TLS is critical!  Setting _thread_in_native MUST
   // be last, because a GC is allowed at any time after setting it and the GC
@@ -223,6 +229,18 @@ void GraphKit::gen_stub(address C_function,
 
   //-----------------------------
 
+  Node *refetch = NULL;
+  if (EnableCoroutine && C_function == (address)SharedRuntime::complete_monitor_locking_C) {
+    // we add ThreadRefetchNode so we can refetch r15 when monitorenter() ends, and
+    // after refetching thread, every node based on ThreadLocalNode should be changed to use ThreadRefetchNode as thread.
+    refetch = _gvn.transform(new (C) ThreadRefetchNode(control(), coro_task));
+    adr_sp = basic_plus_adr(top(), refetch, in_bytes(JavaThread::last_Java_sp_offset()));
+    adr_last_Java_pc = basic_plus_adr(top(),
+                                      refetch,
+                                      in_bytes(JavaThread::frame_anchor_offset()) +
+                                      in_bytes(JavaFrameAnchor::last_Java_pc_offset()));
+
+  }
   // Clear last_Java_sp
   store_to_memory(NULL, adr_sp, null(), T_ADDRESS, NoAlias, MemNode::unordered);
   // Clear last_Java_pc and (optionally)_flags
@@ -248,7 +266,7 @@ void GraphKit::gen_stub(address C_function,
 
   //-----------------------------
   // check exception
-  Node* adr = basic_plus_adr(top(), thread, in_bytes(Thread::pending_exception_offset()));
+  Node* adr = basic_plus_adr(top(), !refetch ? thread : refetch, in_bytes(Thread::pending_exception_offset()));
   Node* pending = make_load(NULL, adr, TypeOopPtr::BOTTOM, T_OBJECT, NoAlias, MemNode::unordered);
 
   Node* exit_memory = reset_memory();

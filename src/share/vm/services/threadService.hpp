@@ -105,6 +105,8 @@ public:
   static Handle dump_stack_traces(GrowableArray<instanceHandle>* threads,
                                   int num_threads, TRAPS);
 
+  static Handle dump_coroutine_stack_trace(Coroutine *coro, TRAPS);
+
   static void   reset_peak_thread_count();
   static void   reset_contention_count_stat(JavaThread* thread);
   static void   reset_contention_time_stat(JavaThread* thread);
@@ -241,6 +243,7 @@ public:
   ThreadConcurrentLocks* get_concurrent_locks()     { return _concurrent_locks; }
 
   void        dump_stack_at_safepoint(int max_depth, bool with_locked_monitors);
+  void        dump_stack_at_safepoint_for_coroutine(Coroutine *target);
   void        set_concurrent_locks(ThreadConcurrentLocks* l) { _concurrent_locks = l; }
   void        oops_do(OopClosure* f);
   void        metadata_do(void f(Metadata*));
@@ -265,6 +268,7 @@ class ThreadStackTrace : public CHeapObj<mtInternal> {
 
   void            add_stack_frame(javaVFrame* jvf);
   void            dump_stack_at_safepoint(int max_depth);
+  void            dump_stack_at_safepoint_for_coroutine(Coroutine *target);
   Handle          allocate_fill_stack_trace_element_array(TRAPS);
   void            oops_do(OopClosure* f);
   void            metadata_do(void f(Metadata*));
@@ -415,6 +419,9 @@ class JavaThreadStatusChanger : public StackObj {
  public:
   static void set_thread_status(JavaThread* java_thread,
                                 java_lang_Thread::ThreadStatus state) {
+    if (UseWispMonitor && java_thread->is_Wisp_thread()) {
+      return;
+    }
     java_lang_Thread::set_thread_status(java_thread->threadObj(), state);
   }
 
@@ -445,6 +452,8 @@ class JavaThreadStatusChanger : public StackObj {
   bool is_alive() {
     return _is_alive;
   }
+
+  Thread *& thread_ref()  { return (Thread *&)_java_thread; }
 };
 
 // Change status to waiting on an object  (timed or indefinite)

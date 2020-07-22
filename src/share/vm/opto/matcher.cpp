@@ -2113,6 +2113,7 @@ void Matcher::find_shared( Node *n ) {
       case Op_StrIndexOf:
       case Op_AryEq:
       case Op_EncodeISOArray:
+      case Op_ThreadRefetch:      // This must be added, otherwise we couldn't match the ThreadRefetchNode.
         set_shared(n); // Force result into register (it will be anyways)
         break;
       case Op_ConP: {  // Convert pointers above the centerline to NUL

@@ -352,6 +352,14 @@ const class TypePtr *MachNode::adr_type() const {
   // base of -1 with no particular offset means all of memory
   if (base == NodeSentinel)  return TypePtr::BOTTOM;
 
+  // always return TypeRawPtr::BOTTOM for tlsRefetch.
+  // tlsLoad is special handled in adlc to return bottom type,
+  // we do not want to hack for tlsRefetch because it is only
+  // used for complete_monitor_locking_C stub, just check here
+  if (EnableCoroutine && base->is_Mach() && base->as_Mach()->ideal_Opcode() == Op_ThreadRefetch) {
+    return TypeRawPtr::BOTTOM;
+  }
+
   const Type* t = base->bottom_type();
   if (t->isa_narrowoop() && Universe::narrow_oop_shift() == 0) {
     // 32-bit unscaled narrow oop can be the base of any address expression
