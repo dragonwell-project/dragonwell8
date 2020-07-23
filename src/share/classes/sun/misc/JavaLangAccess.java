@@ -31,6 +31,8 @@ import java.security.AccessControlContext;
 import java.util.Map;
 
 import com.alibaba.rcm.internal.AbstractResourceContainer;
+import com.alibaba.wisp.engine.WispEngine;
+import com.alibaba.wisp.engine.WispTask;
 import sun.reflect.ConstantPool;
 import sun.reflect.annotation.AnnotationType;
 import sun.nio.ch.Interruptible;
@@ -150,4 +152,23 @@ public interface JavaLangAccess {
      * Get the reference to the thread's inherited {@code ResourceContainer}
      */
     AbstractResourceContainer getInheritedResourceContainer(Thread thread);
+
+    /**
+     * Returns a reference to the currently executing thread object.
+     */
+    Thread currentThread0();
+
+    void yield0();
+
+    void setWispTask(Thread thread, WispTask task);
+
+    WispTask getWispTask(Thread thread);
+
+    void setWispAlive(Thread thread, boolean b);
+
+    boolean isInSameNative(Thread thread);
+
+    void threadExit(Thread thread);
+
+    void wispBooted();
 }

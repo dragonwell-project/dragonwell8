@@ -46,6 +46,7 @@ public class SelectionKeyImpl
 
     private volatile int interestOps;
     private int readyOps;
+    public int wispOps; // pass argument, access by WispSelector
 
     SelectionKeyImpl(SelChImpl ch, SelectorImpl sel) {
         channel = ch;
@@ -102,6 +103,7 @@ public class SelectionKeyImpl
     public SelectionKey nioInterestOps(int ops) {
         if ((ops & ~channel().validOps()) != 0)
             throw new IllegalArgumentException();
+        wispOps = ops; // read by WispSelector.putEventOps
         channel.translateAndSetInterestOps(ops, this);
         interestOps = ops;
         return this;

@@ -25,6 +25,8 @@
 
 package java.nio.channels;
 
+import com.alibaba.wisp.engine.WispEngine;
+
 import java.io.Closeable;
 import java.io.IOException;
 import java.nio.channels.spi.SelectorProvider;

@@ -30,6 +30,13 @@ import java.security.AccessController;
 import java.util.BitSet;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
+
+import com.alibaba.wisp.engine.WispEngine;
+import com.alibaba.wisp.engine.WispTask;
+import sun.misc.SharedSecrets;
+import sun.misc.WispEngineAccess;
 import sun.security.action.GetIntegerAction;
 
 /**
@@ -57,6 +64,8 @@ import sun.security.action.GetIntegerAction;
  */
 
 class EPollArrayWrapper {
+    private static final WispEngineAccess WEA = SharedSecrets.getWispEngineAccess();
+
     // EPOLL_EVENTS
     private static final int EPOLLIN      = 0x001;
 
@@ -266,13 +275,29 @@ class EPollArrayWrapper {
 
     int poll(long timeout) throws IOException {
         updateRegistrations();
-        updated = epollWait(pollArrayAddress, NUM_EPOLLEVENTS, timeout, epfd);
+        updated = WispEngine.transparentWispSwitch() ?
+                handleEPollWithWisp(timeout) :
+                epollWait(pollArrayAddress, NUM_EPOLLEVENTS, timeout, epfd);
         for (int i=0; i<updated; i++) {
             if (getDescriptor(i) == incomingInterruptFD) {
                 interruptedIndex = i;
                 interrupted = true;
                 break;
             }
+        }
+        return updated;
+    }
+
+    private final static Object INTERRUPTED = new Object();
+    private AtomicReference<Object> status = new AtomicReference<>();
+    // null: initial status
+    // INTERRUPTED: interrupted by wakeup()
+    // other: task blocking on this selector
+
+    private int handleEPollWithWisp(long timeout) throws IOException {
+        int updated =  WEA.epollWait(epfd, pollArrayAddress, NUM_EPOLLEVENTS, timeout, status, INTERRUPTED);
+        if (WEA.useDirectSelectorWakeup() && status.get() == INTERRUPTED) {
+            interrupted = true;
         }
         return updated;
     }
@@ -314,7 +339,11 @@ class EPollArrayWrapper {
     private boolean interrupted = false;
 
     public void interrupt() {
-        interrupt(outgoingInterruptFD);
+        if (WispEngine.transparentWispSwitch() && WEA.useDirectSelectorWakeup()) {
+            WEA.interruptEpoll(status, INTERRUPTED, outgoingInterruptFD);
+        } else {
+            interrupt(outgoingInterruptFD);
+        }
     }
 
     public int interruptedIndex() {
@@ -327,6 +356,10 @@ class EPollArrayWrapper {
 
     void clearInterrupted() {
         interrupted = false;
+        if (WispEngine.transparentWispSwitch() && WEA.useDirectSelectorWakeup()) {
+            assert status.get() == INTERRUPTED;
+            status.lazySet(null);
+        }
     }
 
     static {

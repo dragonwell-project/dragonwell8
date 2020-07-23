@@ -2565,4 +2565,7 @@ com/alibaba/tenant/TenantException
 com/alibaba/tenant/TenantState
 com/alibaba/tenant/TenantGlobals
 com/alibaba/tenant/TenantContainerFactory
+com/dyn/Coroutine
+com/alibaba/wisp/engine/WispEngine
+com/alibaba/wisp/engine/WispSysmon
 # eea35d9d56e0006e

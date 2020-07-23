@@ -1773,7 +1773,7 @@ class SecurityManager {
      * @see     java.lang.ThreadGroup
      */
     public ThreadGroup getThreadGroup() {
-        return Thread.currentThread().getThreadGroup();
+        return Thread.currentThread0().getThreadGroup();
     }
 
 }

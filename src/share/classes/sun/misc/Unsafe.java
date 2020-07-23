@@ -28,6 +28,7 @@ package sun.misc;
 import java.security.*;
 import java.lang.reflect.*;
 
+import com.alibaba.wisp.engine.WispEngine;
 import sun.reflect.CallerSensitive;
 import sun.reflect.Reflection;
 
@@ -52,6 +53,18 @@ public final class Unsafe {
     private Unsafe() {}
 
     private static final Unsafe theUnsafe = new Unsafe();
+
+    static final UnsafeAccess access = new UnsafeAccess() {
+        @Override
+        public void unpark0(Object thread) {
+            theUnsafe.unpark0(thread);
+        }
+
+        @Override
+        public void park0(boolean isAbsolute, long time) {
+            theUnsafe.park0(isAbsolute, time);
+        }
+    };
 
     /**
      * Provides the caller with the capability of performing unsafe
@@ -971,7 +984,7 @@ public final class Unsafe {
     public native void    putOrderedLong(Object o, long offset, long x);
 
     /**
-     * Unblock the given thread blocked on <tt>park</tt>, or, if it is
+     * Unblock the given thread(or coroutine) blocked on <tt>park</tt>, or, if it is
      * not blocked, cause the subsequent call to <tt>park</tt> not to
      * block.  Note: this operation is "unsafe" solely because the
      * caller must somehow ensure that the thread has not been
@@ -982,10 +995,25 @@ public final class Unsafe {
      * @param thread the thread to unpark.
      *
      */
-    public native void unpark(Object thread);
+    public void unpark(Object thread) {
+        if (WispEngine.transparentWispSwitch()) {
+            if (thread instanceof Thread) {
+                SharedSecrets.getWispEngineAccess().unpark(
+                        SharedSecrets.getJavaLangAccess().getWispTask((Thread) thread));
+            }
+            return;
+        }
+        unpark0(thread);
+    }
 
     /**
-     * Block current thread, returning when a balancing
+     * Unblock the given thread. Always use the thread semantic.
+     * @param thread
+     */
+    private native void unpark0(Object thread);
+
+    /**
+     * Block current thread(or coroutine), returning when a balancing
      * <tt>unpark</tt> occurs, or a balancing <tt>unpark</tt> has
      * already occurred, or the thread is interrupted, or, if not
      * absolute and time is not zero, the given time nanoseconds have
@@ -995,7 +1023,25 @@ public final class Unsafe {
      * because <tt>unpark</tt> is, so it would be strange to place it
      * elsewhere.
      */
-    public native void park(boolean isAbsolute, long time);
+    public void park(boolean isAbsolute, long time) {
+        if (WispEngine.transparentWispSwitch()) {
+            if (time <= 0) { // non-timeouted park
+                SharedSecrets.getWispEngineAccess().park(0);
+            }
+            long timeout = !isAbsolute ? time:
+                    java.util.concurrent.TimeUnit.MILLISECONDS.toNanos(time - System.currentTimeMillis());
+            if (timeout > 0) {
+                SharedSecrets.getWispEngineAccess().park(timeout);
+            }
+            return;
+        }
+        park0(isAbsolute, time);
+    }
+
+    /**
+     * Block current thread. Always use the thread semantic.
+     */
+    private native void park0(boolean isAbsolute, long time);
 
     /**
      * Gets the load average in the system run queue assigned

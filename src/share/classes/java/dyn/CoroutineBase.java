@@ -25,70 +25,69 @@
 
 package java.dyn;
 
+import sun.misc.SharedSecrets;
+
 public abstract class CoroutineBase {
-	transient long data;
+    transient long nativeCoroutine;
 
-	transient CoroutineLocal.CoroutineLocalMap coroutineLocals = null;
+    boolean finished = false;
 
-	boolean finished = false;
+    boolean needsUnlock = false;
 
-	transient CoroutineSupport threadSupport;
+    transient CoroutineSupport threadSupport;
 
-	CoroutineBase() {
-		Thread thread = Thread.currentThread();
-		assert thread.getCoroutineSupport() != null;
-		this.threadSupport = thread.getCoroutineSupport();
-	}
+    CoroutineBase() {
+        Thread thread = SharedSecrets.getJavaLangAccess().currentThread0();
+        assert thread.getCoroutineSupport() != null;
+        this.threadSupport = thread.getCoroutineSupport();
+    }
 
-	// creates the initial coroutine for a new thread
-	CoroutineBase(CoroutineSupport threadSupport, long data) {
-		this.threadSupport = threadSupport;
-		this.data = data;
-	}
+    // creates the initial coroutine for a new thread
+    CoroutineBase(CoroutineSupport threadSupport, long nativeCoroutine) {
+        this.threadSupport = threadSupport;
+        this.nativeCoroutine = nativeCoroutine;
+    }
 
-	protected abstract void run();
+    protected abstract void run();
 
-	@SuppressWarnings({ "unused" })
-	private final void startInternal() {
-		assert threadSupport.getThread() == Thread.currentThread();
-		try {
-			if (CoroutineSupport.DEBUG) {
-				System.out.println("starting coroutine " + this);
-			}
-			run();
-		} catch (Throwable t) {
-			if (!(t instanceof CoroutineExitException)) {
-				t.printStackTrace();
-			}
-		} finally {
-			finished = true;
-			// use Thread.currentThread().getCoroutineSupport() because we might have been migrated to another thread!
-			if (this instanceof Coroutine) {
-				Thread.currentThread().getCoroutineSupport().terminateCoroutine();
-			} else {
-				Thread.currentThread().getCoroutineSupport().terminateCallable();
-			}
-		}
-		assert threadSupport.getThread() == Thread.currentThread();
-	}
+    @SuppressWarnings({"unused"})
+    private final void startInternal() {
+        assert threadSupport.getThread() == SharedSecrets.getJavaLangAccess().currentThread0();
+        try {
+            // When we symmetricYieldTo a newly created coroutine,
+            // we'll expect the new coroutine release lock as soon as possible
+            threadSupport.beforeResume(this);
+            run();
+        } catch (Throwable t) {
+            if (!(t instanceof CoroutineExitException)) {
+                t.printStackTrace();
+            }
+        } finally {
+            finished = true;
+            // threadSupport is fixed by steal()
+            threadSupport.beforeResume(this);
 
-	/**
-	 * Returns true if this coroutine has reached its end. Under normal circumstances this happens when the {@link #run()} method returns.
-	 */
-	public final boolean isFinished() {
-		return finished;
-	}
+            threadSupport.terminateCoroutine();
+        }
+        assert threadSupport.getThread() == SharedSecrets.getJavaLangAccess().currentThread0();
+    }
 
-	/**
-	 * @return the thread that this coroutine is associated with
-	 * @throws NullPointerException
-	 *             if the coroutine has terminated
-	 */
-	public Thread getThread() {
-		return threadSupport.getThread();
-	}
+    /**
+     * Returns true if this coroutine has reached its end. Under normal circumstances this happens when the {@link #run()} method returns.
+     */
+    public final boolean isFinished() {
+        return finished;
+    }
 
-	public static CoroutineBase current() {
-		return Thread.currentThread().getCoroutineSupport().getCurrent();
-	}
+    /**
+     * @return the thread that this coroutine is associated with
+     * @throws NullPointerException if the coroutine has been terminated
+     */
+    public Thread getThread() {
+        return threadSupport.getThread();
+    }
+
+    public static CoroutineBase current() {
+        return SharedSecrets.getJavaLangAccess().currentThread0().getCoroutineSupport().getCurrent();
+    }
 }

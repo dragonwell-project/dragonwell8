@@ -34,12 +34,14 @@ import java.util.StringTokenizer;
 import java.util.Map;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
-import java.security.AllPermission;
 import java.nio.channels.Channel;
 import java.nio.channels.spi.SelectorProvider;
 import com.alibaba.rcm.internal.AbstractResourceContainer;
 import com.alibaba.tenant.TenantContainer;
 import com.alibaba.tenant.TenantGlobals;
+
+import com.alibaba.wisp.engine.WispEngine;
+import com.alibaba.wisp.engine.WispTask;
 import sun.misc.VM;
 import sun.nio.ch.Interruptible;
 import sun.reflect.CallerSensitive;
@@ -1317,6 +1319,44 @@ public final class System {
             @Override
             public AbstractResourceContainer getInheritedResourceContainer(Thread thread) {
                 return thread.inheritedResourceContainer;
+            }
+            public Thread currentThread0() {
+                return Thread.currentThread0();
+            }
+
+            @Override
+            public void yield0() {
+                Thread.yield0();
+            }
+
+            @Override
+            public void setWispTask(Thread thread, WispTask task) {
+                thread.wispTask = task;
+            }
+
+            @Override
+            public WispTask getWispTask(Thread thread) {
+                return thread.wispTask;
+            }
+
+            @Override
+            public void setWispAlive(Thread thread, boolean b) {
+                thread.wispIsAlive = b;
+            }
+
+            @Override
+            public boolean isInSameNative(Thread thread) {
+                return thread.isInSameNative();
+            }
+
+            @Override
+            public void threadExit(Thread thread) {
+                thread.exit();
+            }
+
+            @Override
+            public void wispBooted() {
+                Thread.wispBooted();
             }
         });
     }

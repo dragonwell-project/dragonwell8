@@ -87,6 +87,10 @@ abstract class Task<T> implements Runnable {
             while (entries.hasMoreElements()) {
                 String name = entries.nextElement().getName();
                 if (name.startsWith("java") && name.endsWith(".class")) {
+                    if (name.startsWith("java/dyn")) {
+                        // skip coroutine classes
+                        continue;
+                    }
                     classes.add(Class.forName(name.substring(0, name.indexOf(".")).replace('/', '.')));
                     if (count == classes.size()) {
                         break;

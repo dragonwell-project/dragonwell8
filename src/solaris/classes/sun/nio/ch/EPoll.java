@@ -26,6 +26,8 @@
 package sun.nio.ch;
 
 import java.io.IOException;
+
+import sun.misc.SharedSecrets;
 import sun.misc.Unsafe;
 
 /**
@@ -61,6 +63,8 @@ class EPoll {
 
     // flags
     static final int EPOLLONESHOT   = (1 << 30);
+
+    static final int ENOENT;
 
     /**
      * Allocates a poll array to handle up to {@code count} events.
@@ -109,10 +113,17 @@ class EPoll {
 
     static native int epollCtl(int epfd, int opcode, int fd, int events);
 
-    static native int epollWait(int epfd, long pollAddress, int numfds)
+    static int epollWait(int epfd, long pollAddress, int numfds) throws IOException {
+        return epollWait(epfd, pollAddress, numfds, -1);
+    }
+
+    static native int epollWait(int epfd, long pollAddress, int numfds, int timeout)
         throws IOException;
+
+    static native int errnoENOENT();
 
     static {
         IOUtil.load();
+        ENOENT = errnoENOENT();
     }
 }

@@ -38,7 +38,11 @@ import java.util.concurrent.TimeUnit;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Date;
+
+import com.alibaba.wisp.engine.WispEngine;
+import sun.misc.SharedSecrets;
 import sun.misc.Unsafe;
+import sun.misc.WispEngineAccess;
 
 /**
  * Provides a framework for implementing blocking locks and related
@@ -291,6 +295,8 @@ public abstract class AbstractQueuedSynchronizer
     implements java.io.Serializable {
 
     private static final long serialVersionUID = 7373984972572414691L;
+
+    private static WispEngineAccess WA = SharedSecrets.getWispEngineAccess();
 
     /**
      * Creates a new {@code AbstractQueuedSynchronizer} instance
@@ -930,7 +936,8 @@ public abstract class AbstractQueuedSynchronizer
                 if (nanosTimeout <= 0L)
                     return false;
                 if (shouldParkAfterFailedAcquire(p, node) &&
-                    nanosTimeout > spinForTimeoutThreshold)
+                        (nanosTimeout > spinForTimeoutThreshold ||
+                                WispEngine.transparentWispSwitch() && WA.hasMoreTasks()))
                     LockSupport.parkNanos(this, nanosTimeout);
                 if (Thread.interrupted())
                     throw new InterruptedException();
@@ -1033,7 +1040,8 @@ public abstract class AbstractQueuedSynchronizer
                 if (nanosTimeout <= 0L)
                     return false;
                 if (shouldParkAfterFailedAcquire(p, node) &&
-                    nanosTimeout > spinForTimeoutThreshold)
+                        (nanosTimeout > spinForTimeoutThreshold ||
+                                WispEngine.transparentWispSwitch() && WA.hasMoreTasks()))
                     LockSupport.parkNanos(this, nanosTimeout);
                 if (Thread.interrupted())
                     throw new InterruptedException();
@@ -2074,7 +2082,8 @@ public abstract class AbstractQueuedSynchronizer
                     transferAfterCancelledWait(node);
                     break;
                 }
-                if (nanosTimeout >= spinForTimeoutThreshold)
+                if (nanosTimeout >= spinForTimeoutThreshold ||
+                        WispEngine.transparentWispSwitch() && WA.hasMoreTasks())
                     LockSupport.parkNanos(this, nanosTimeout);
                 if ((interruptMode = checkInterruptWhileWaiting(node)) != 0)
                     break;
@@ -2159,7 +2168,8 @@ public abstract class AbstractQueuedSynchronizer
                     timedout = transferAfterCancelledWait(node);
                     break;
                 }
-                if (nanosTimeout >= spinForTimeoutThreshold)
+                if (nanosTimeout >= spinForTimeoutThreshold ||
+                        WispEngine.transparentWispSwitch() && WA.hasMoreTasks())
                     LockSupport.parkNanos(this, nanosTimeout);
                 if ((interruptMode = checkInterruptWhileWaiting(node)) != 0)
                     break;

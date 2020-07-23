@@ -144,12 +144,18 @@ LIBJAVA_SRC_DIRS += $(JDK_TOPDIR)/src/$(OPENJDK_TARGET_OS_API_DIR)/native/java/l
     $(JDK_TOPDIR)/src/share/native/com/alibaba/jwarmup \
     $(JDK_TOPDIR)/src/share/native/com/alibaba/jvm/gc \
     $(JDK_TOPDIR)/src/share/native/com/alibaba/tenant \
+    $(JDK_TOPDIR)/src/share/native/java/dyn \
     $(JDK_TOPDIR)/src/share/native/sun/misc \
     $(JDK_TOPDIR)/src/share/native/sun/reflect \
     $(JDK_TOPDIR)/src/share/native/java/util \
     $(JDK_TOPDIR)/src/share/native/java/util/concurrent/atomic \
     $(JDK_TOPDIR)/src/$(OPENJDK_TARGET_OS_API_DIR)/native/common \
     $(JDK_TOPDIR)/src/$(OPENJDK_TARGET_OS_API_DIR)/native/java/util
+
+# Wisp only supports Linux
+ifeq ($(OPENJDK_TARGET_OS), linux)
+  LIBJAVA_SRC_DIRS += $(JDK_TOPDIR)/src/linux/native/com/alibaba/wisp/engine
+endif
 
 ifeq ($(OPENJDK_TARGET_OS), windows)
   LIBJAVA_SRC_DIRS += $(JDK_TOPDIR)/src/$(OPENJDK_TARGET_OS_API_DIR)/native/sun/util/locale/provider

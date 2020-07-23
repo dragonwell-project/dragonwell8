@@ -26,6 +26,9 @@
 package sun.misc;
 
 import javax.crypto.SealedObject;
+
+import sun.nio.ch.IOEventAccess;
+
 import java.util.jar.JarFile;
 import java.io.Console;
 import java.io.FileDescriptor;
@@ -64,6 +67,8 @@ public class SharedSecrets {
     private static JavaObjectInputStreamAccess javaObjectInputStreamAccess;
     private static TenantAccess tenantAccess;
     private static JavaSecuritySignatureAccess javaSecuritySignatureAccess;
+    private static WispEngineAccess wispEngineAccess;
+    private static IOEventAccess ioEventAccess;
 
     public static JavaUtilJarAccess javaUtilJarAccess() {
         if (javaUtilJarAccess == null) {
@@ -256,5 +261,28 @@ public class SharedSecrets {
 
     public static TenantAccess getTenantAccess() {
         return tenantAccess;
+    }
+
+    public static WispEngineAccess getWispEngineAccess() {
+        return wispEngineAccess;
+    }
+
+    public static void setWispEngineAccess(WispEngineAccess wispEngineAccess) {
+        SharedSecrets.wispEngineAccess = wispEngineAccess;
+    }
+
+    public static UnsafeAccess getUnsafeAccess() {
+        return Unsafe.access;
+    }
+
+    public static IOEventAccess getIOEventAccess() {
+        if (ioEventAccess == null) {
+            IOEventAccess.initializeEvent();
+        }
+        return ioEventAccess;
+    }
+
+    public static void setIOEventAccess(IOEventAccess ioEventAccess) {
+        SharedSecrets.ioEventAccess = ioEventAccess;
     }
 }

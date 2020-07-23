@@ -25,6 +25,8 @@
 
 package java.dyn;
 
+import sun.misc.SharedSecrets;
+
 /**
  * Implementation of symmetric coroutines. A Coroutine will take part in thread-wide scheduling of coroutines. It transfers control to
  * the next coroutine whenever yield is called.
@@ -66,56 +68,92 @@ package java.dyn;
  * @author Lukas Stadler
  */
 public class Coroutine extends CoroutineBase {
-	private final Runnable target;
+    public enum StealResult {
+        SUCCESS,
+        FAIL_BY_CONTENTION,
+        FAIL_BY_STATUS,
+        FAIL_BY_NATIVE_FRAME
+    }
 
-	Coroutine next;
-	Coroutine last;
+    private final Runnable target;
 
-	public Coroutine() {
-		this.target = null;
-		threadSupport.addCoroutine(this, -1);
-	}
+    public Coroutine() {
+        this.target = null;
+        threadSupport.addCoroutine(this, -1);
+    }
 
-	public Coroutine(Runnable target) {
-		this.target = target;
-		threadSupport.addCoroutine(this, -1);
-	}
+    public Coroutine(Runnable target) {
+        this.target = target;
+        threadSupport.addCoroutine(this, -1);
+    }
 
-	public Coroutine(long stacksize) {
-		this.target = null;
-		threadSupport.addCoroutine(this, stacksize);
-	}
+    public Coroutine(long stacksize) {
+        this.target = null;
+        threadSupport.addCoroutine(this, stacksize);
+    }
 
-	public Coroutine(Runnable target, long stacksize) {
-		this.target = target;
-		threadSupport.addCoroutine(this, stacksize);
-	}
+    public Coroutine(Runnable target, long stacksize) {
+        this.target = target;
+        threadSupport.addCoroutine(this, stacksize);
+    }
 
-	// creates the initial coroutine for a new thread
-	Coroutine(CoroutineSupport threadSupport, long data) {
-		super(threadSupport, data);
-		this.target = null;
-	}
+    // creates the initial coroutine for a new thread
+    Coroutine(CoroutineSupport threadSupport, long nativeCoroutine) {
+        super(threadSupport, nativeCoroutine);
+        this.target = null;
+    }
 
-	/**
-	 * Yields execution to the next coroutine in the current threads coroutine queue.
-	 */
-	public static void yield() {
-		Thread.currentThread().getCoroutineSupport().symmetricYield();
-	}
 
-	public static void yieldTo(Coroutine target) {
-		Thread.currentThread().getCoroutineSupport().symmetricYieldTo(target);
-	}
+    public static void yieldTo(Coroutine target) {
+        SharedSecrets.getJavaLangAccess().currentThread0().getCoroutineSupport().symmetricYieldTo(target);
+    }
 
-	public void stop() {
-		Thread.currentThread().getCoroutineSupport().symmetricStopCoroutine(this);
-	}
+    /**
+     * optimized version of yieldTo function for wisp based on the following assumptions:
+     * 1. we won't simultaneously steal a {@link Coroutine} from other threads
+     * 2. we won't switch to a {@link Coroutine} that's being stolen
+     * 3. we won't steal a running {@link Coroutine}
+     * @param target target coroutine
+     */
+    public static void unsafeYieldTo(Coroutine target) {
+        SharedSecrets.getJavaLangAccess().currentThread0().getCoroutineSupport().unsafeSymmetricYieldTo(target);
+    }
 
-	protected void run() {
-		assert Thread.currentThread() == threadSupport.getThread();
-		if (target != null) {
-			target.run();
-		}
-	}
+    /**
+     * Steal a coroutine from it's carrier thread to current thread.
+     *
+     * @param failOnContention steal fail if there's too much lock contention
+     *
+     * @return result described by Coroutine.STEAL_*. Also return SUCCESS directly if coroutine's carrier thread is current.
+     */
+    public StealResult steal(boolean failOnContention) {
+        return threadSupport.steal(this, failOnContention);
+    }
+
+    public void stop() {
+        SharedSecrets.getJavaLangAccess().currentThread0().getCoroutineSupport().symmetricStopCoroutine(this);
+    }
+
+    public void setWispTask(int id, Object task, Object engine) {
+        setWispTask(nativeCoroutine, id, task, engine);
+    }
+
+    protected void run() {
+        assert Thread.currentThread() == threadSupport.getThread();
+        if (target != null) {
+            target.run();
+        }
+    }
+
+    static {
+        registerNatives();
+    }
+
+    private static native void registerNatives();
+
+    private static native void setWispTask(long coroutine, int id, Object task, Object engine);
+
+    public StackTraceElement[] getCoroutineStack() {
+        return CoroutineSupport.getCoroutineStack(this.nativeCoroutine);
+    }
 }

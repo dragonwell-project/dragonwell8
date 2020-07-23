@@ -25,6 +25,8 @@
 
 package sun.nio.ch;
 
+import sun.misc.SharedSecrets;
+
 import java.nio.channels.spi.AsynchronousChannelProvider;
 import java.io.IOException;
 import java.util.concurrent.ArrayBlockingQueue;
@@ -319,5 +321,91 @@ final class EPollPort
 
     static {
         IOUtil.load();
+        SharedSecrets.setIOEventAccess(new IOEventAccess() {
+            @Override
+            public int eventCtlAdd() {
+                return EPoll.EPOLL_CTL_ADD;
+            }
+
+            @Override
+            public int eventCtlDel() {
+                return EPoll.EPOLL_CTL_DEL;
+            }
+
+            @Override
+            public int eventCtlMod() {
+                return EPoll.EPOLL_CTL_MOD;
+            }
+
+            @Override
+            public int eventOneShot() {
+                return EPoll.EPOLLONESHOT;
+            }
+
+            @Override
+            public int noEvent() {
+                return EPoll.ENOENT;
+            }
+
+            @Override
+            public long allocatePollArray(int count) {
+                return EPoll.allocatePollArray(count);
+            }
+
+            @Override
+            public void freePollArray(long address) {
+                EPoll.freePollArray(address);
+            }
+
+            @Override
+            public long getEvent(long address, int i) {
+                return EPoll.getEvent(address, i);
+            }
+
+            @Override
+            public int getDescriptor(long eventAddress) {
+                return EPoll.getDescriptor(eventAddress);
+            }
+
+            @Override
+            public int getEvents(long eventAddress) {
+                return EPoll.getEvents(eventAddress);
+            }
+
+            @Override
+            public int eventCreate() throws IOException {
+                return EPoll.epollCreate();
+            }
+
+            @Override
+            public int eventCtl(int epfd, int opcode, int fd, int events) {
+                return EPoll.epollCtl(epfd, opcode, fd, events);
+            }
+
+            @Override
+            public int eventWait(int epfd, long pollAddress, int numfds, int timeout) throws IOException {
+                return EPoll.epollWait(epfd, pollAddress, numfds, timeout);
+            }
+
+            @Override
+            public void socketpair(int[] sv) throws IOException {
+                EPollPort.socketpair(sv);
+            }
+
+            @Override
+            public void interrupt(int fd) throws IOException {
+                EPollPort.interrupt(fd);
+            }
+
+            @Override
+            public void drain(int fd) throws IOException {
+                EPollPort.drain1(fd);
+            }
+
+            @Override
+            public void close(int fd) {
+                EPollPort.close0(fd);
+            }
+        });
     }
 }

@@ -269,6 +269,9 @@ JNIEXPORT jboolean JNICALL
 JVM_IsInterrupted(JNIEnv *env, jobject thread, jboolean clearInterrupted);
 
 JNIEXPORT jboolean JNICALL
+JVM_CheckAndClearNativeInterruptForWisp(JNIEnv* env, jobject task, jobject jthread);
+
+JNIEXPORT jboolean JNICALL
 JVM_HoldsLock(JNIEnv *env, jclass threadClass, jobject obj);
 
 JNIEXPORT void JNICALL
@@ -279,6 +282,9 @@ JVM_GetAllThreads(JNIEnv *env, jclass dummy);
 
 JNIEXPORT void JNICALL
 JVM_SetNativeThreadName(JNIEnv *env, jobject jthread, jstring name);
+
+JNIEXPORT jboolean JNICALL
+JVM_IsInSameNative(JNIEnv *env, jobject thread);
 
 /* getStackTrace() and getAllStackTraces() method */
 JNIEXPORT jobjectArray JNICALL
@@ -341,6 +347,15 @@ JVM_CheckJWarmUpCompilationIsComplete(JNIEnv *env, jclass clz);
 
 JNIEXPORT void JNICALL
 JVM_NotifyJVMDeoptWarmUpMethods(JNIEnv* env, jclass clz);
+
+JNIEXPORT void JNICALL
+JVM_SetWispTask(JNIEnv* env, jclass clz, jlong coroutinePtr, jint task_id, jobject task, jobject engine);
+
+JNIEXPORT jint JNICALL
+JVM_GetProxyUnpark(JNIEnv* env, jclass clz, jintArray res);
+
+JNIEXPORT void JNICALL
+JVM_MarkPreempted(JNIEnv* env, jclass clz, jobject thread);
 
 /*
  * com.alibaba.management.ElasticHeapMXBean

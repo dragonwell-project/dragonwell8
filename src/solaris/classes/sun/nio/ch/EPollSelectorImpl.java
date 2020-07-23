@@ -29,6 +29,8 @@ import java.io.IOException;
 import java.nio.channels.*;
 import java.nio.channels.spi.*;
 import java.util.*;
+
+import com.alibaba.wisp.engine.WispEngine;
 import sun.misc.*;
 
 /**
@@ -38,6 +40,7 @@ import sun.misc.*;
 class EPollSelectorImpl
     extends SelectorImpl
 {
+    private static final WispEngineAccess WEA = SharedSecrets.getWispEngineAccess();
 
     // File descriptors used for interrupt
     protected int fd0;
@@ -101,7 +104,12 @@ class EPollSelectorImpl
             pollWrapper.putEventOps(pollWrapper.interruptedIndex(), 0);
             synchronized (interruptLock) {
                 pollWrapper.clearInterrupted();
-                IOUtil.drain(fd0);
+                if (WispEngine.transparentWispSwitch()
+                        && WEA.useDirectSelectorWakeup() && WEA.isAllThreadAsWisp()) {
+                    // skip
+                } else {
+                    IOUtil.drain(fd0);
+                }
                 interruptTriggered = false;
             }
         }

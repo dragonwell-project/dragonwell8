@@ -31,7 +31,6 @@
 package test.java.dyn;
 
 import java.dyn.Coroutine;
-import java.dyn.AsymCoroutine;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 
@@ -51,188 +50,78 @@ public class CoroutineTest {
 
 	@Test
 	public void symSequence() {
+		Coroutine threadCoro = Thread.currentThread().getCoroutineSupport().threadCoroutine();
 		Coroutine coro = new Coroutine() {
 			protected void run() {
 				seq.append("c");
 				for (int i = 0; i < 3; i++) {
-					yield();
+					Coroutine.yieldTo(threadCoro);
 					seq.append("e");
 				}
 			}
 		};
 		seq.append("b");
 		assertFalse(coro.isFinished());
-		Coroutine.yield();
+		Coroutine.yieldTo(coro);
 		for (int i = 0; i < 3; i++) {
 			seq.append("d");
 			assertFalse(coro.isFinished());
-			Coroutine.yield();
+			Coroutine.yieldTo(coro);
 		}
 		seq.append("f");
 		assertTrue(coro.isFinished());
-		Coroutine.yield();
 		seq.append("g");
 		assertEquals("abcdededefg", seq.toString());
 	}
 
-	@Test
-	public void symMultiSequence() {
-		for (int i = 0; i < 10; i++)
-			new Coroutine() {
-				protected void run() {
-					seq.append("c");
-					yield();
-					seq.append("e");
-				}
-			};
-		seq.append("b");
-		Coroutine.yield();
-		seq.append("d");
-		Coroutine.yield();
-		seq.append("f");
-		Coroutine.yield();
-		seq.append("g");
-		assertEquals("abccccccccccdeeeeeeeeeefg", seq.toString());
-	}
-
-	@Test
-	public void asymSequence() {
-		AsymCoroutine<Void, Void> coro = new AsymCoroutine<Void, Void>() {
-			protected Void run(Void value) {
-				seq.append(value + "b");
-				Object o = ret();
-				seq.append(o + "d");
-				return null;
-			}
-		};
-		assertFalse(coro.isFinished());
-		coro.call();
-		assertFalse(coro.isFinished());
-		seq.append("c");
-		coro.call();
-		seq.append("e");
-		assertTrue(coro.isFinished());
-
-		RuntimeException exception = null;
-		try {
-			coro.call();
-		} catch (RuntimeException e) {
-			exception = e;
-		}
-		assertNotNull(exception);
-		assertEquals("anullbcnullde", seq.toString());
-	}
-
-	@Test
-	public void asymMultiSequence() {
-		AsymCoroutine<Void, Void> coro = null;
-		for (int j = 4; j >= 0; j--) {
-			final AsymCoroutine<Void, Void> last = coro;
-			final int i = j;
-			coro = new AsymCoroutine<Void, Void>() {
-				protected Void run(Void value) {
-					seq.append("b" + i);
-					if (last != null)
-						last.call();
-					seq.append("c" + i);
-					ret();
-					seq.append("e" + i);
-					if (last != null)
-						last.call();
-					seq.append("f" + i);
-					return null;
-				}
-			};
-		}
-		seq.append("_");
-		assertFalse(coro.isFinished());
-		coro.call();
-		assertFalse(coro.isFinished());
-		seq.append("d");
-		coro.call();
-		seq.append("g");
-		assertTrue(coro.isFinished());
-
-		RuntimeException exception = null;
-		try {
-			coro.call();
-		} catch (RuntimeException e) {
-			exception = e;
-		}
-		assertNotNull(exception);
-		assertEquals("a_b0b1b2b3b4c4c3c2c1c0de0e1e2e3e4f4f3f2f1f0g", seq.toString());
-	}
-
-	@Test
-	public void asymReturnValue() {
-		AsymCoroutine<Integer, Integer> coro = new AsymCoroutine<Integer, Integer>() {
-			protected Integer run(Integer value) {
-				value = ret(value * 2 + 1);
-				value = ret(value * 2 + 2);
-				value = ret(value * 2 + 3);
-				value = ret(value * 2 + 4);
-				value = ret(value * 2 + 5);
-				return value * 2 + 6;
-			}
-		};
-		assertFalse(coro.isFinished());
-		assertEquals(2001, (int) coro.call(1000));
-		assertEquals(4002, (int) coro.call(2000));
-		assertEquals(6003, (int) coro.call(3000));
-		assertEquals(8004, (int) coro.call(4000));
-		assertEquals(10005, (int) coro.call(5000));
-		assertEquals(12006, (int) coro.call(6000));
-		assertTrue(coro.isFinished());
-	}
 
 	@Test
 	public void gcTest1() {
-		new Coroutine() {
+		Coroutine threadCoro = Thread.currentThread().getCoroutineSupport().threadCoroutine();
+		Coroutine coro =  new Coroutine() {
 			protected void run() {
 				seq.append("c");
 				Integer v1 = 1;
 				Integer v2 = 14555668;
-				yield();
+				yieldTo(threadCoro);
 				seq.append("e");
 				seq.append("(" + v1 + "," + v2 + ")");
 			}
 		};
 		seq.append("b");
 		System.gc();
-		Coroutine.yield();
+		Coroutine.yieldTo(coro);
 		System.gc();
 		seq.append("d");
-		Coroutine.yield();
-		seq.append("f");
-		Coroutine.yield();
-		seq.append("g");
+		Coroutine.yieldTo(coro);
+		seq.append("fg");
 		assertEquals("abcde(1,14555668)fg", seq.toString());
 	}
 
 	@Test
 	public void exceptionTest1() {
+		Coroutine threadCoro = Thread.currentThread().getCoroutineSupport().threadCoroutine();
 		Coroutine coro = new Coroutine() {
 			protected void run() {
 				seq.append("c");
 				long temp = System.nanoTime();
 				if (temp != 0)
 					throw new RuntimeException();
-				yield();
 				seq.append("e");
 			}
 		};
 		seq.append("b");
 		assertFalse(coro.isFinished());
-		Coroutine.yield();
+		Coroutine.yieldTo(coro);
 		seq.append("d");
-		Coroutine.yield();
 		seq.append("f");
 		assertEquals("abcdf", seq.toString());
 	}
 
 	@Test
 	public void largeStackframeTest() {
-		new Coroutine() {
+		Coroutine threadCoro = Thread.currentThread().getCoroutineSupport().threadCoroutine();
+		Coroutine coro =  new Coroutine() {
 			protected void run() {
 				seq.append("c");
 				Integer v0 = 10000;
@@ -255,66 +144,71 @@ public class CoroutineTest {
 				Integer v17 = 10017;
 				Integer v18 = 10018;
 				Integer v19 = 10019;
-				yield();
+				yieldTo(threadCoro);
 				int sum = v0 + v1 + v2 + v3 + v4 + v5 + v6 + v7 + v8 + v9 + v10 + v11 + v12 + v13 + v14 + v15 + v16 + v17 + v18 + v19;
 				seq.append("e" + sum);
 			}
 		};
 		seq.append("b");
 		System.gc();
-		Coroutine.yield();
+		Coroutine.yieldTo(coro);
 		System.gc();
 		seq.append("d");
-		Coroutine.yield();
+		Coroutine.yieldTo(coro);
 		seq.append("f");
 		assertEquals("abcde200190f", seq.toString());
 	}
 
 	@Test
 	public void shaTest() {
+		Coroutine threadCoro = Thread.currentThread().getCoroutineSupport().threadCoroutine();
 		Coroutine coro = new Coroutine(65536) {
 			protected void run() {
 				try {
 					MessageDigest digest = MessageDigest.getInstance("SHA");
 					digest.update("TestMessage".getBytes());
 					seq.append("b");
-					yield();
+					yieldTo(threadCoro);
 					seq.append(digest.digest()[0]);
 				} catch (NoSuchAlgorithmException e) {
 					e.printStackTrace();
 				}
 			}
 		};
-		Coroutine.yield();
+		Coroutine.yieldTo(coro);
 		seq.append("c");
 		assertFalse(coro.isFinished());
-		Coroutine.yield();
+		Coroutine.yieldTo(coro);
 		assertTrue(coro.isFinished());
 		assertEquals("abc72", seq.toString());
 	}
 
 	public void stackoverflowTest() {
-		for (int i = 0; i < 10; i++) {
-			new Coroutine(65536) {
-				int i = 0;
+		Coroutine threadCoro = Thread.currentThread().getCoroutineSupport().threadCoroutine();
+		new Coroutine(255) {
+			int i = 0;
 
-				protected void run() {
-					System.out.println("start");
-					try {
-						iter();
-					} catch (StackOverflowError e) {
-						System.out.println("i: " + i);
-					}
-					System.out.println("asdf");
-				}
-
-				private void iter() {
-					System.out.print(".");
-					i++;
+			protected void run() {
+				System.out.println("start");
+				try {
 					iter();
+				} catch (StackOverflowError e) {
+					System.out.println("i: " + i);
 				}
-			};
-		}
-		Coroutine.yield();
+				System.out.println("asdf");
+			}
+
+			private void iter() {
+				System.out.print(".");
+				i++;
+				iter();
+			}
+		};
+		Coroutine.yieldTo(threadCoro);
 	}
+
+  @Test
+	public void destroyNonInitedTest() {
+    new Coroutine();
+  }
 }

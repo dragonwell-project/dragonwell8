@@ -410,6 +410,7 @@ public class VM {
     private final static int JVMTI_THREAD_STATE_WAITING_INDEFINITELY = 0x0010;
     private final static int JVMTI_THREAD_STATE_WAITING_WITH_TIMEOUT = 0x0020;
 
+
     /*
      * Returns first non-privileged class loader on the stack (excluding
      * reflection generated frames) or the extension class loader if only

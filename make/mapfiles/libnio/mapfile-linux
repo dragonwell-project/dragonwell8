@@ -49,6 +49,7 @@ SUNWprivate_1.1 {
 		Java_sun_nio_ch_EPoll_epollCreate;
 		Java_sun_nio_ch_EPoll_epollCtl;
 		Java_sun_nio_ch_EPoll_epollWait;
+		Java_sun_nio_ch_EPoll_errnoENOENT;
 		Java_sun_nio_ch_EPollPort_close0;
 		Java_sun_nio_ch_EPollPort_drain1;
 		Java_sun_nio_ch_EPollPort_interrupt;

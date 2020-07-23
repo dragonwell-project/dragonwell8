@@ -2032,6 +2032,14 @@ skip_method(CrwClassImage *ci, const char *name,
                 unsigned access_flags, ByteOffset code_len,
                 int system_class, jboolean *pskip_call_return_sites)
 {
+    if (strcmp(name,"currentThread0") == 0 ||
+            strcmp(name,"getJavaLangAccess") == 0) {
+        /*
+         * bypass here otherwise the jdk/test/demo/jvmti/hprof/ tests will fail
+         * caused by the change to the Thread.currentThread() in co-routine feature
+         */
+        return JNI_TRUE;
+    }
     *pskip_call_return_sites = JNI_FALSE;
     if ( system_class ) {
         if ( code_len == 1 && is_init_method(name) ) {

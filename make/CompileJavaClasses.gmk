@@ -264,6 +264,11 @@ ifndef OPENJDK
       $(wildcard $(JDK_TOPDIR)/src/closed/$(OPENJDK_TARGET_OS_API_DIR)/classes)
 endif
 
+LINUX_SRC_DIRS :=
+ifeq ($(OPENJDK_TARGET_OS), linux)
+  LINUX_SRC_DIRS += $(JDK_TOPDIR)/src/linux/classes
+endif
+
 MACOSX_SRC_DIRS :=
 ifeq ($(OPENJDK_TARGET_OS), macosx)
   MACOSX_SRC_DIRS += $(JDK_TOPDIR)/src/macosx/classes
@@ -328,6 +333,7 @@ $(eval $(call SetupJavaCompilation,BUILD_JDK,\
     SRC:=$(JDK_TOPDIR)/src/share/classes \
         $(JDK_TOPDIR)/src/$(OPENJDK_TARGET_OS_API_DIR)/classes \
         $(MACOSX_SRC_DIRS) \
+        $(LINUX_SRC_DIRS) \
         $(AIX_SRC_DIRS) \
         $(JDK_OUTPUTDIR)/gensrc \
         $(JDK_OUTPUTDIR)/gensrc_no_srczip \

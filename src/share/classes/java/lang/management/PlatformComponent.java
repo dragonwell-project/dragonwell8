@@ -37,6 +37,7 @@ import javax.management.ObjectName;
 
 import com.alibaba.management.TenantContainerMXBean;
 import com.alibaba.management.ElasticHeapMXBean;
+import com.alibaba.management.WispCounterMXBean;
 import com.sun.management.HotSpotDiagnosticMXBean;
 import com.sun.management.UnixOperatingSystemMXBean;
 
@@ -302,6 +303,19 @@ enum PlatformComponent {
         new MXBeanFetcher<ElasticHeapMXBean>() {
             public List<ElasticHeapMXBean> getMXBeans() {
                 return Collections.singletonList(ManagementFactoryHelper.getElasticHeapMXBean());
+            }
+        }),
+
+    /**
+     * Wisp Counter.
+     */
+    WISP_COUNTER(
+        "com.alibaba.management.WispCounterMXBean",
+                "com.alibaba.management", "WispCounter", defaultKeyProperties(),
+        true, // singleton
+        new MXBeanFetcher<WispCounterMXBean>() {
+            public List<WispCounterMXBean> getMXBeans() {
+                return Collections.singletonList(ManagementFactoryHelper.getWispCounterMXBean());
             }
         });
 

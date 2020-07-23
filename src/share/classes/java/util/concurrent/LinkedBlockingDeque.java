@@ -154,6 +154,10 @@ public class LinkedBlockingDeque<E>
     /** Maximum number of items in the deque */
     private final int capacity;
 
+    int getCapacity() {
+        return capacity;
+    }
+
     /** Main lock guarding all access */
     final ReentrantLock lock = new ReentrantLock();
 

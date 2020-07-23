@@ -37,6 +37,9 @@ package com.sun.demo.jvmti.hprof;
  *   for more details.
  */
 
+import sun.misc.JavaLangAccess;
+import sun.misc.SharedSecrets;
+
 public class Tracker {
 
     /* Master switch that activates calls to native functions. */
@@ -57,7 +60,7 @@ public class Tracker {
             if (obj == null) {
                 throw new IllegalArgumentException("Null object.");
             }
-            nativeObjectInit(Thread.currentThread(), obj);
+            nativeObjectInit(SharedSecrets.getJavaLangAccess().currentThread0(), obj);
         }
     }
 
@@ -73,7 +76,7 @@ public class Tracker {
             if (obj == null) {
                 throw new IllegalArgumentException("Null object.");
             }
-            nativeNewArray(Thread.currentThread(), obj);
+            nativeNewArray(SharedSecrets.getJavaLangAccess().currentThread0(), obj);
         }
     }
 
@@ -96,7 +99,11 @@ public class Tracker {
                 throw new IllegalArgumentException("Negative method index");
             }
 
-            nativeCallSite(Thread.currentThread(), cnum, mnum);
+            /*
+             * calling Thread.currentThread() will bring us here again, which will cause
+             * StackOverflow error. Instead, we use Thread.currentThread0().
+             */
+            nativeCallSite(SharedSecrets.getJavaLangAccess().currentThread0(), cnum, mnum);
         }
     }
 
@@ -117,7 +124,7 @@ public class Tracker {
                 throw new IllegalArgumentException("Negative method index");
             }
 
-            nativeReturnSite(Thread.currentThread(), cnum, mnum);
+            nativeReturnSite(SharedSecrets.getJavaLangAccess().currentThread0(), cnum, mnum);
         }
     }
 

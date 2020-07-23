@@ -84,12 +84,12 @@ Java_sun_nio_ch_EPoll_epollCtl(JNIEnv *env, jclass c, jint epfd,
 
 JNIEXPORT jint JNICALL
 Java_sun_nio_ch_EPoll_epollWait(JNIEnv *env, jclass c,
-                                    jint epfd, jlong address, jint numfds)
+                                    jint epfd, jlong address, jint numfds, jint timeout)
 {
     struct epoll_event *events = jlong_to_ptr(address);
     int res;
 
-    RESTARTABLE(epoll_wait(epfd, events, numfds, -1), res);
+    RESTARTABLE(epoll_wait(epfd, events, numfds, timeout), res);
     if (res < 0) {
         JNU_ThrowIOExceptionWithLastError(env, "epoll_wait failed");
     }
@@ -100,4 +100,9 @@ JNIEXPORT void JNICALL
 Java_sun_nio_ch_EPoll_close0(JNIEnv *env, jclass c, jint epfd) {
     int res;
     RESTARTABLE(close(epfd), res);
+}
+
+JNIEXPORT jint JNICALL
+Java_sun_nio_ch_EPoll_errnoENOENT(JNIEnv *env, jclass this) {
+    return (jint)ENOENT;
 }
