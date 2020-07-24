@@ -57,6 +57,9 @@ public class Metrics implements jdk.internal.platform.Metrics {
     }
 
     private static Metrics initContainerSubSystems() {
+        if (!isUseContainerSupport()) {
+            return null;
+        }
         Metrics metrics = new Metrics();
 
         /**
@@ -457,5 +460,7 @@ public class Metrics implements jdk.internal.platform.Metrics {
     public long getBlkIOServiced() {
         return SubSystem.getLongEntry(blkio, "blkio.throttle.io_serviced", "Total");
     }
+
+    private static native boolean isUseContainerSupport();
 
 }
