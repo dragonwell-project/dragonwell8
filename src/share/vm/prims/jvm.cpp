@@ -525,6 +525,17 @@ JVM_ENTRY_NO_ENV(jint, JVM_ActiveProcessorCount(void))
 JVM_END
 
 
+JVM_ENTRY_NO_ENV(jboolean, JVM_IsUseContainerSupport(void))
+  JVMWrapper("JVM_IsUseContainerSupport");
+#ifdef TARGET_OS_FAMILY_linux
+  if (UseContainerSupport) {
+      return JNI_TRUE;
+  }
+#endif
+  return JNI_FALSE;
+JVM_END
+
+
 
 // java.lang.Throwable //////////////////////////////////////////////////////
 
