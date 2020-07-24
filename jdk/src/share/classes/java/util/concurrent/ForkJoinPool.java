@@ -728,7 +728,7 @@ public class ForkJoinPool extends AbstractExecutorService {
     static final class DefaultForkJoinWorkerThreadFactory
         implements ForkJoinWorkerThreadFactory {
         public final ForkJoinWorkerThread newThread(ForkJoinPool pool) {
-            return new ForkJoinWorkerThread(pool);
+            return new ForkJoinWorkerThread(pool, true);
         }
     }
 
