@@ -206,8 +206,10 @@ Agent_OnLoad(JavaVM *vm, char *tail, void * reserved) {
         /*
          * According to JVMS class name is represented as CONSTANT_Utf8_info,
          * so its length is u2 (i.e. must be <= 0xFFFF).
+         * Negative oldLen or newLen means we got signed integer overflow
+         * (modifiedUtf8LengthOfUtf8 returns negative value if oldLen is negative).
          */
-        if (newLen > 0xFFFF) {
+        if (oldLen < 0 || newLen < 0 || newLen > 0xFFFF) {
             fprintf(stderr, "-javaagent: Premain-Class value is too big\n");
             free(jarfile);
             if (options != NULL) free(options);
@@ -376,8 +378,10 @@ Agent_OnAttach(JavaVM* vm, char *args, void * reserved) {
         /*
          * According to JVMS class name is represented as CONSTANT_Utf8_info,
          * so its length is u2 (i.e. must be <= 0xFFFF).
+         * Negative oldLen or newLen means we got signed integer overflow
+         * (modifiedUtf8LengthOfUtf8 returns negative value if oldLen is negative).
          */
-        if (newLen > 0xFFFF) {
+        if (oldLen < 0 || newLen < 0 || newLen > 0xFFFF) {
             fprintf(stderr, "Agent-Class value is too big\n");
             free(jarfile);
             if (options != NULL) free(options);

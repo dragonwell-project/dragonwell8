@@ -424,7 +424,9 @@ mlib_status mlib_AffineEdges(mlib_affine_param *param,
         if ((dxs < dxCl) || (dxs >= dwCl) || (dys < dyCl) || (dys >= dhCl)) {
           dxs += dx;
           dys += dy;
-          xLeft++;
+          if (xLeft < MLIB_S32_MAX) {
+              xLeft++;
+          }
 
           if ((dxs < dxCl) || (dxs >= dwCl) || (dys < dyCl) || (dys >= dhCl))
             xRight = -1;
@@ -436,7 +438,9 @@ mlib_status mlib_AffineEdges(mlib_affine_param *param,
         if ((dxe < dxCl) || (dxe >= dwCl) || (dye < dyCl) || (dye >= dhCl)) {
           dxe -= dx;
           dye -= dy;
-          xRight--;
+          if (xRight > MLIB_S32_MIN) {
+              xRight--;
+          }
 
           if ((dxe < dxCl) || (dxe >= dwCl) || (dye < dyCl) || (dye >= dhCl))
             xRight = -1;
@@ -510,7 +514,9 @@ mlib_status mlib_AffineEdges(mlib_affine_param *param,
         if ((dxs > dxCl) || (dxs <= dwCl) || (dys > dyCl) || (dys <= dhCl)) {
           dxs += dx;
           dys += dy;
-          xLeft++;
+          if (xLeft < MLIB_S32_MAX) {
+              xLeft++;
+          }
 
           if ((dxs > dxCl) || (dxs <= dwCl) || (dys > dyCl) || (dys <= dhCl))
             xRight = -1;
@@ -522,7 +528,9 @@ mlib_status mlib_AffineEdges(mlib_affine_param *param,
         if ((dxe > dxCl) || (dxe <= dwCl) || (dye > dyCl) || (dye <= dhCl)) {
           dxe -= dx;
           dye -= dy;
-          xRight--;
+          if (xRight > MLIB_S32_MIN) {
+              xRight--;
+          }
 
           if ((dxe > dxCl) || (dxe <= dwCl) || (dye > dyCl) || (dye <= dhCl))
             xRight = -1;
