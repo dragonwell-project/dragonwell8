@@ -30,6 +30,8 @@
  */
 
 import java.security.AccessController;
+import java.security.AccessControlException;
+
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.ForkJoinWorkerThread;
 import java.util.concurrent.RecursiveTask;
@@ -92,8 +94,13 @@ public class AccessControlContext {
         case "default":
             // Case fails because of "JDK-8249846: Change of behavior after
             // JDK-8237117: Better ForkJoinPool behavior".
-            System.out.println("Known to fail since 8u262 (see JDK-8249846)");
-            testDefault();
+            System.out.println("Known to fail with AccessControlException since 8u262 (see JDK-8249846)");
+            try {
+                testDefault();
+                throw new RuntimeException("Pool thread has inherited permissions.");
+            } catch (AccessControlException e) {
+                System.out.println("PASSED: " + e);
+            }
             break;
         }
 
