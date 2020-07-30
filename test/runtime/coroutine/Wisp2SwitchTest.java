@@ -1,6 +1,7 @@
 /*
  * @test
  * @summary test wisp2 switch
+ * @requires os.family == "linux"
  * @library /testlibrary
  * @run main/othervm -XX:+UseWisp2  Wisp2SwitchTest
  */

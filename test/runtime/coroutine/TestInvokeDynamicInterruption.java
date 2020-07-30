@@ -22,6 +22,7 @@
 /*
  * @test
  * @summary Test invoke dynamic class for lambda with interrupt
+ * @requires os.family == "linux"
  * @library /testlibrary
  * @run main/othervm -XX:+EnableCoroutine  -Dcom.alibaba.wisp.transparentWispSwitch=true -XX:+UseWispMonitor -Dcom.alibaba.wisp.enableHandOff=false -XX:+AllowParallelDefineClass TestInvokeDynamicInterruption
 */

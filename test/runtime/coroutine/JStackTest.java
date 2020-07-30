@@ -23,6 +23,7 @@
  * @test
  * @library /testlibrary
  * @summary Test jstack steal counter
+ * @requires os.family == "linux"
  * @run main/othervm -XX:+EnableCoroutine -XX:+UseWispMonitor -Dcom.alibaba.transparentAsync=true -XX:ActiveProcessorCount=2 JStackTest
  */
 

@@ -24,6 +24,7 @@
 ## @test
 ##
 ## @summary test c1 assertion failure when UseDirectUnpark is enabled (please run it in slowdebug ver.)
+## @requires os.family == "linux"
 ## @run shell c1AssertFailTest.sh
 
 

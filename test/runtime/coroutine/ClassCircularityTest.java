@@ -23,6 +23,7 @@
  * @test
  * @library /testlibrary
  * @summary test fix of parallel class-loading problem when we're using coroutine
+ * @requires os.family == "linux"
  * @run main/othervm -Xmx20m -XX:+AllowParallelDefineClass -XX:-UseBiasedLocking -XX:+EnableCoroutine -XX:+UseWispMonitor -Dcom.alibaba.wisp.transparentWispSwitch=true ClassCircularityTest
  */
 

@@ -39,6 +39,7 @@
                 _JVM_Available
                 _JVM_BeforeHalt
                 _JVM_Bind
+                _JVM_CheckAndClearNativeInterruptForWisp
                 _JVM_CheckJWarmUpCompilationIsComplete
                 _JVM_ClassDepth
                 _JVM_ClassLoaderDepth
@@ -167,6 +168,7 @@
                 _JVM_GetMethodTypeAnnotations
                 _JVM_GetPrimitiveArrayElement
                 _JVM_GetProtectionDomain
+                _JVM_GetProxyUnpark
                 _JVM_GetSockName
                 _JVM_GetSockOpt
                 _JVM_GetStackAccessControlContext
@@ -190,6 +192,7 @@
                 _JVM_InvokeMethod
                 _JVM_IsArrayClass
                 _JVM_IsConstructorIx
+                _JVM_IsInSameNative
                 _JVM_IsInterface
                 _JVM_IsInterrupted
                 _JVM_IsNaN
@@ -207,6 +210,7 @@
                 _JVM_LoadClass0
                 _JVM_LoadLibrary
                 _JVM_Lseek
+                _JVM_MarkPreempted
                 _JVM_MaxObjectInspectionAge
                 _JVM_MaxMemory
                 _JVM_MonitorNotify
@@ -241,6 +245,7 @@
                 _JVM_SetNativeThreadName
                 _JVM_SetPrimitiveArrayElement
                 _JVM_SetSockOpt
+                _JVM_SetWispTask
                 _JVM_SetThreadPriority
                 _JVM_Sleep
                 _JVM_Socket

@@ -25,7 +25,7 @@ import java.io.File;
 /*
  * @test
  * @summary Test Wisp2 flag Compatibility
- *
+ * @requires os.family == "linux"
  * @library /testlibrary
  * @run main Wisp2FlagCompatibilityCheckTest
  */

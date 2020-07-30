@@ -23,6 +23,7 @@
  * @test
  * @library /testlibrary
  * @summary test wisp  preempt
+ * @requires os.family == "linux"
  * @run main/othervm -XX:+EnableCoroutine -Dcom.alibaba.wisp.transparentWispSwitch=true -Dcom.alibaba.wisp.carrierEngines=1 -Dcom.alibaba.wisp.enableHandOff=true PreemptExceptionTest
  */
 

@@ -22,6 +22,7 @@
 /*
  * @test
  * @summary test a special wisp unpark case for C1 compiled method
+ * @requires os.family == "linux"
  * @run main/othervm  -XX:-UseBiasedLocking -XX:+EnableCoroutine -XX:+UseWispMonitor -Dcom.alibaba.transparentAsync=true -XX:TieredStopAtLevel=1 C1ThrowSyncExceptionTest
  */
 

@@ -4130,6 +4130,14 @@ jint Arguments::parse(const JavaVMInitArgs* args) {
     }
   }
 
+#ifndef LINUX
+  if (EnableCoroutine || UseWispMonitor) {
+    warning("Wisp supports Linux only"
+            "; ignore Wisp related flags");
+    EnableCoroutine = UseWispMonitor = false;
+  }
+#endif
+
   // Set object alignment values.
   set_object_alignment();
 

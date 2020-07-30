@@ -22,6 +22,7 @@
 /*
  * @test
  * @summary test of memory leak while creating and destroying coroutine/thread
+ * @requires os.family == "linux"
  * @run main/othervm -XX:+EnableCoroutine  -Xmx10m  -Xms10m MemLeakTest
  */
 

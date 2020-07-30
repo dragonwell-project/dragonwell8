@@ -3413,7 +3413,7 @@ void com_alibaba_wisp_engine_WispCarrier::compute_offsets() {
   compute_offset(_isInCritical_offset,        k, vmSymbols::isInCritical_name(),         vmSymbols::bool_signature());
 }
 
-bool com_alibaba_wisp_engine_WispCarrier::in_critical(oop obj) {
+jboolean com_alibaba_wisp_engine_WispCarrier::in_critical(oop obj) {
   return obj->bool_field(_isInCritical_offset);
 }
 

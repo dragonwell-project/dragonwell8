@@ -1044,6 +1044,4 @@ class os: AllStatic {
 
 extern "C" int SpinPause();
 
-bool clear_interrupt_for_wisp(Thread *);
-
 #endif // SHARE_VM_RUNTIME_OS_HPP

@@ -22,6 +22,7 @@
 /*
  * @test
  * @summary test XX:+UseWisp2 switch with -Dcom.alibaba.wisp.allThreadAsWisp=false
+ * @requires os.family == "linux"
  * @library /testlibrary
  * @run main/othervm -XX:+UseWisp2 -Dcom.alibaba.wisp.allThreadAsWisp=false Wisp2SwitchTest2
  */

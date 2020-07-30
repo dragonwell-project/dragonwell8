@@ -22,6 +22,7 @@
 /*
  * @test
  * @summary Verify wisp internal logic can not be preempted
+ * @requires os.family == "linux"
  * @library /testlibrary
  * @run main PreemptWispInternalBugTest
  */

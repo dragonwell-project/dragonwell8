@@ -22,6 +22,7 @@
 /*
  * @test
  * @summary test obj.wait() could be interrupted
+ * @requires os.family == "linux"
  * @library /testlibrary
  * @run main/othervm -XX:+EnableCoroutine -XX:+UseWispMonitor -Dcom.alibaba.wisp.transparentWispSwitch=true InterruptedWaitTest
  */

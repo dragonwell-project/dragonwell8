@@ -23,6 +23,7 @@
  * @test
  * @library /testlibrary
  * @summary Test jstack coroutine output
+ * @requires os.family == "linux"
  * @run main/othervm -XX:+EnableCoroutine -Dcom.alibaba.transparentAsync=true -XX:+UseWispMonitor MultiCoroutineStackTest
  */
 

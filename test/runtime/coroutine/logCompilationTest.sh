@@ -27,6 +27,7 @@
 # @compile SimpleWispTest.java
 #
 # @summary test coroutine and -XX:+LogCompilation could work together
+# @requires os.family == "linux"
 # @run shell logCompilationTest.sh
 #
 

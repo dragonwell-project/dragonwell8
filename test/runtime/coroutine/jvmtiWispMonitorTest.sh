@@ -24,6 +24,7 @@
 ## @test
 ##
 ## @summary test jvmti and wispMonitor could work together
+## @requires os.family == "linux"
 ## @run shell jvmtiWispMonitorTest.sh
 
 

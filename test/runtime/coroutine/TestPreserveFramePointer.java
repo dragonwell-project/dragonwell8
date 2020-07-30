@@ -22,6 +22,7 @@
 /*
  * @test
  * @summary PreserveFramePointer for coroutine stack backtrace test
+ * @requires os.family == "linux"
  * @run main/othervm -XX:-UseBiasedLocking -XX:+EnableCoroutine -XX:+UseWispMonitor -Dcom.alibaba.wisp.transparentWispSwitch=true -Dcom.alibaba.wisp.version=2 -Xcomp -XX:TieredStopAtLevel=1 -XX:+PreserveFramePointer TestPreserveFramePointer
  * @run main/othervm -XX:-UseBiasedLocking -XX:+EnableCoroutine -XX:+UseWispMonitor -Dcom.alibaba.wisp.transparentWispSwitch=true -Dcom.alibaba.wisp.version=2 -Xcomp -XX:TieredStopAtLevel=1 -XX:-PreserveFramePointer TestPreserveFramePointer
  * @run main/othervm -XX:-UseBiasedLocking -XX:+EnableCoroutine -XX:+UseWispMonitor -Dcom.alibaba.wisp.transparentWispSwitch=true -Dcom.alibaba.wisp.version=2 -Xcomp -XX:-TieredCompilation -XX:+PreserveFramePointer TestPreserveFramePointer

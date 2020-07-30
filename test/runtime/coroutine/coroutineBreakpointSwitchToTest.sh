@@ -27,6 +27,7 @@
 # @compile SimpleWispTest.java
 #
 # @summary test Coroutine SwitchTo() crash problem
+# @requires os.family == "linux"
 # @run shell coroutineBreakpointSwitchToTest.sh
 #
 

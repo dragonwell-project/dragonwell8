@@ -168,7 +168,7 @@ public:
   void set_wisp_task(oop x)         { _wisp_task = x;    }
 
   oop coroutine() const             { return _coroutine; }
-  oop set_coroutine(oop x)          { _coroutine = x;    }
+  void set_coroutine(oop x)         { _coroutine = x;    }
 
   WispThread* wisp_thread() const   { return _wisp_thread; }
 
@@ -324,8 +324,7 @@ template<class T> void DoublyLinkedList<T>::insert_into_list(pointer& list) {
   }
 }
 
-template<class T> void DoublyLinkedList<T>::move(DoublyLinkedList<T>::pointer &coro,
-                                                 DoublyLinkedList<T>::pointer &target) {
+template<class T> void DoublyLinkedList<T>::move(pointer &coro, pointer &target) {
   assert(coro != NULL, "coroutine can't be null");
   assert(target != NULL, "target can't be null");
   assert(coro != target, "target can't be equal to current");
@@ -617,5 +616,7 @@ public:
 private:
   JavaThread*   _thread;
 };
+
+bool clear_interrupt_for_wisp(Thread *);
 
 #endif // SHARE_VM_RUNTIME_COROUTINE_HPP

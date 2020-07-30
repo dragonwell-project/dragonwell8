@@ -23,6 +23,7 @@
  * @test
  * @library /testlibrary
  * @summary test clinit wait in coroutine
+ * @requires os.family == "linux"
  * @run main/othervm -XX:-UseBiasedLocking -XX:+EnableCoroutine -XX:+UseWispMonitor -Dcom.alibaba.wisp.transparentWispSwitch=true WispClinitTest
  */
 

@@ -4528,18 +4528,6 @@ void os::interrupt(Thread* thread) {
 
 }
 
-bool clear_interrupt_for_wisp(Thread* thread) {
-  // If we only use -XX:+EnableCoroutine and -Dcom.alibaba.transparentAsync=true, we will
-  // fall here, so we cannot use `assert(UseWispMonitor)` only.
-  if (UseWispMonitor && thread->is_Wisp_thread()) {
-    thread = ((WispThread *)thread)->thread();
-  }
-  bool interrupted = thread->osthread()->interrupted();
-  thread->osthread()->set_interrupted(false);
-
-  return interrupted;
-}
-
 bool os::is_interrupted(Thread* thread, bool clear_interrupted) {
   if (UseWispMonitor && thread->is_Wisp_thread()) {
     thread = ((WispThread*) thread)->thread();

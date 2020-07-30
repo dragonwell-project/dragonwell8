@@ -26,6 +26,7 @@
  * @run main ClassFileInstaller sun.hotspot.WhiteBox
  * @run main/othervm -XX:+EnableCoroutine -Xmx10m -Xms10m -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI TestAvoidDeoptCoroutineMethod
  * @summary test avoid coroutine intrinsic method to be deoptimized
+ * @requires os.family == "linux"
  */
 
 import sun.hotspot.WhiteBox;
