@@ -24,7 +24,7 @@
  * @library /lib/testlibrary
  * @summary test for adjusting carrier number at runtime
  * @requires os.family == "linux"
- * @run main/othervm -XX:+UseWisp2 -Dcom.alibaba.wisp.growCarrierTickUs=200000  AdjustCarrierTest
+ * @run main/othervm -XX:+UnlockExperimentalVMOptions -XX:+UseWisp2 -Dcom.alibaba.wisp.growCarrierTickUs=200000  AdjustCarrierTest
  */
 
 

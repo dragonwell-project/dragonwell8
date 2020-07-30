@@ -24,7 +24,7 @@
  * @library /lib/testlibrary
  * @summary ensure thread.isAlive() is false after thread.join()
  * @requires os.family == "linux"
- * @run main/othervm -XX:+UseWisp2 ConcurrentThreadJoinTest
+ * @run main/othervm -XX:+UnlockExperimentalVMOptions -XX:+UseWisp2 ConcurrentThreadJoinTest
  */
 
 import static jdk.testlibrary.Asserts.assertFalse;

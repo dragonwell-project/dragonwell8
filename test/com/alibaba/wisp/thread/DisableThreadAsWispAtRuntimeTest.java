@@ -24,7 +24,7 @@
  * @summary this feature is not supported in wisp2, just check compatibility
  * @requires os.family == "linux"
  * @library /lib/testlibrary
- * @run main/othervm -XX:+EnableCoroutine -XX:+UseWispMonitor -Dcom.alibaba.wisp.transparentWispSwitch=true DisableThreadAsWispAtRuntimeTest
+ * @run main/othervm -XX:+UnlockExperimentalVMOptions -XX:+EnableCoroutine -XX:+UseWispMonitor -Dcom.alibaba.wisp.transparentWispSwitch=true DisableThreadAsWispAtRuntimeTest
  */
 
 import com.alibaba.wisp.engine.WispEngine;

@@ -49,7 +49,7 @@ public class UnsafeDependencyBugTest {
     }
 
     private static void runLauncherWithWisp() throws Exception {
-        Process p = new ProcessBuilder(System.getProperty("java.home") + "/bin/java", "-XX:+EnableCoroutine")
+        Process p = new ProcessBuilder(System.getProperty("java.home") + "/bin/java", "-XX:+UnlockExperimentalVMOptions", "-XX:+EnableCoroutine")
                 .redirectErrorStream(true)
                 .redirectOutput(new File("/dev/null"))
                 .start();

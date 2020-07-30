@@ -24,8 +24,8 @@
  * @library /lib/testlibrary
  * @summary verify carrier is doing epoll instead of poller when useCarrierAsPoller is enabled
  * @requires os.family == "linux"
- * @run main/othervm -XX:+UseWisp2 -Dcom.alibaba.wisp.useCarrierAsPoller=true CarrierAsPollerTest
- * @run main/othervm -XX:+UseWisp2 -Dcom.alibaba.wisp.useCarrierAsPoller=false CarrierAsPollerTest
+ * @run main/othervm -XX:+UnlockExperimentalVMOptions -XX:+UseWisp2 -Dcom.alibaba.wisp.useCarrierAsPoller=true CarrierAsPollerTest
+ * @run main/othervm -XX:+UnlockExperimentalVMOptions -XX:+UseWisp2 -Dcom.alibaba.wisp.useCarrierAsPoller=false CarrierAsPollerTest
  */
 
 

@@ -23,7 +23,7 @@
  * @test
  * @summary ensure nio program call SelectionKey.is{}able() and got correct result.
  * @requires os.family == "linux"
- * @run main/othervm -XX:+EnableCoroutine -Dcom.alibaba.wisp.transparentWispSwitch=true WispSelectorReadyOpsTest
+ * @run main/othervm -XX:+UnlockExperimentalVMOptions -XX:+EnableCoroutine -Dcom.alibaba.wisp.transparentWispSwitch=true WispSelectorReadyOpsTest
  */
 
 import java.net.InetSocketAddress;

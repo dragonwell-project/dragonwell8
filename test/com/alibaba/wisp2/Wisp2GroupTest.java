@@ -24,7 +24,7 @@
  * @summary Test WispCounter removing during the shutdown of Wisp2Group
  * @requires os.family == "linux"
  * @library /lib/testlibrary
- * @run main/othervm -XX:+EnableCoroutine  -Dcom.alibaba.wisp.transparentWispSwitch=true  -Dcom.alibaba.wisp.version=2 -XX:+UseWispMonitor -Dcom.alibaba.wisp.enableHandOff=false  Wisp2GroupTest
+ * @run main/othervm -XX:+UnlockExperimentalVMOptions -XX:+EnableCoroutine  -Dcom.alibaba.wisp.transparentWispSwitch=true  -Dcom.alibaba.wisp.version=2 -XX:+UseWispMonitor -Dcom.alibaba.wisp.enableHandOff=false  Wisp2GroupTest
  */
 
 import com.alibaba.management.WispCounterMXBean;

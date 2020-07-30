@@ -24,7 +24,7 @@
  * @library /lib/testlibrary
  * @summary Test timer implementation
  * @requires os.family == "linux"
- * @run main/othervm -XX:+EnableCoroutine OverflowTest
+ * @run main/othervm -XX:+UnlockExperimentalVMOptions -XX:+EnableCoroutine OverflowTest
  */
 
 

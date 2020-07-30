@@ -23,7 +23,7 @@
  * @test
  * @summary Test ReentrantLock in coroutine environment
  * @requires os.family == "linux"
- * @run main/othervm  -XX:+EnableCoroutine  -Dcom.alibaba.wisp.transparentWispSwitch=true LockTest
+ * @run main/othervm -XX:+UnlockExperimentalVMOptions -XX:+EnableCoroutine  -Dcom.alibaba.wisp.transparentWispSwitch=true LockTest
  */
 
 

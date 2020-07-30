@@ -29,7 +29,7 @@
 
 public class NormalExitTest {
     public static void main(String[] args) throws Exception {
-        ProcessBuilder pb = jdk.testlibrary.ProcessTools.createJavaProcessBuilder("-XX:+UseWisp2", "-version");
+        ProcessBuilder pb = jdk.testlibrary.ProcessTools.createJavaProcessBuilder("-XX:+UnlockExperimentalVMOptions", "-XX:+UseWisp2", "-version");
         jdk.testlibrary.OutputAnalyzer output = new jdk.testlibrary.OutputAnalyzer(pb.start());
         output.shouldNotContain("IllegalArgumentException");
     }

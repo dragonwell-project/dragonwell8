@@ -24,7 +24,7 @@
  * @summary test coroutine throw Error
  * @requires os.family == "linux"
  * @library /lib/testlibrary
- * @run main/othervm -XX:+EnableCoroutine -Dcom.alibaba.wisp.transparentWispSwitch=true ThrowErrorTest
+ * @run main/othervm -XX:+UnlockExperimentalVMOptions -XX:+EnableCoroutine -Dcom.alibaba.wisp.transparentWispSwitch=true ThrowErrorTest
  */
 
 import com.alibaba.wisp.engine.WispEngine;

@@ -24,7 +24,7 @@
  * @library /lib/testlibrary
  * @summary test blocking accept
  * @requires os.family == "linux"
- * @run main/othervm -Dcom.alibaba.wisp.carrierEngines=1 -XX:+UseWisp2 BlockingAccept2Test
+ * @run main/othervm -Dcom.alibaba.wisp.carrierEngines=1 -XX:+UnlockExperimentalVMOptions -XX:+UseWisp2 BlockingAccept2Test
  */
 
 import java.net.InetSocketAddress;

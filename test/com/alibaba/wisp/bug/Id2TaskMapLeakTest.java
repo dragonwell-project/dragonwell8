@@ -24,7 +24,7 @@
  * @library /lib/testlibrary
  * @summary Test for thread WispTask leak
  * @requires os.family == "linux"
- * @run main/othervm -XX:+EnableCoroutine -Dcom.alibaba.wisp.transparentWispSwitch=true Id2TaskMapLeakTest
+ * @run main/othervm -XX:+UnlockExperimentalVMOptions -XX:+EnableCoroutine -Dcom.alibaba.wisp.transparentWispSwitch=true Id2TaskMapLeakTest
  */
 
 import com.alibaba.wisp.engine.WispEngine;

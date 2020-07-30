@@ -23,7 +23,7 @@
  * @test
  * @summary Test park nanos
  * @requires os.family == "linux"
- * @run main/othervm -XX:+EnableCoroutine -Dcom.alibaba.wisp.transparentWispSwitch=true ParkNanoTest
+ * @run main/othervm -XX:+UnlockExperimentalVMOptions -XX:+EnableCoroutine -Dcom.alibaba.wisp.transparentWispSwitch=true ParkNanoTest
  */
 
 

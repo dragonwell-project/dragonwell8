@@ -24,7 +24,7 @@
  * @summary Test Wisp engine park / unpark
  * @requires os.family == "linux"
  * @library /lib/testlibrary
- * @run main/othervm -XX:+UseWisp2 ParkTest
+ * @run main/othervm -XX:+UnlockExperimentalVMOptions -XX:+UseWisp2 ParkTest
  */
 
 

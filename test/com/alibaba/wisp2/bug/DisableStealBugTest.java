@@ -24,7 +24,7 @@
  * @library /lib/testlibrary
  * @summary test bug of update stealEnable fail
  * @requires os.family == "linux"
- * @run main/othervm -XX:+UseWisp2 DisableStealBugTest
+ * @run main/othervm -XX:+UnlockExperimentalVMOptions -XX:+UseWisp2 DisableStealBugTest
  */
 
 import com.alibaba.wisp.engine.WispEngine;

@@ -24,7 +24,7 @@
  * @library /lib/testlibrary
  * @summary Test yield in wisp2
  * @requires os.family == "linux"
- * @run main/othervm  -XX:-UseBiasedLocking -XX:+EnableCoroutine -XX:+UseWispMonitor -Dcom.alibaba.wisp.transparentWispSwitch=true -Dcom.alibaba.wisp.version=2 -Dcom.alibaba.wisp.workerEngines=1 Wisp2YieldTest
+ * @run main/othervm  -XX:-UseBiasedLocking -XX:+UnlockExperimentalVMOptions -XX:+EnableCoroutine -XX:+UseWispMonitor -Dcom.alibaba.wisp.transparentWispSwitch=true -Dcom.alibaba.wisp.version=2 -Dcom.alibaba.wisp.workerEngines=1 Wisp2YieldTest
  */
 
 import com.alibaba.wisp.engine.WispEngine;

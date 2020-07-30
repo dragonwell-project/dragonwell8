@@ -23,7 +23,7 @@
  * @test
  * @summary Test AQS: CountDownLatch is implement by AQS
  * @requires os.family == "linux"
- * @run main/othervm -XX:+EnableCoroutine -Dcom.alibaba.wisp.transparentWispSwitch=true AQSTest
+ * @run main/othervm -XX:+UnlockExperimentalVMOptions -XX:+EnableCoroutine -Dcom.alibaba.wisp.transparentWispSwitch=true AQSTest
  */
 
 

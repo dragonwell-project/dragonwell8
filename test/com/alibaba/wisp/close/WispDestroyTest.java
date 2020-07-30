@@ -23,7 +23,7 @@
  * @test
  * @summary Test WispCarrier's destroy
  * @requires os.family == "linux"
- * @run main/othervm -XX:+EnableCoroutine -Dcom.alibaba.wisp.transparentWispSwitch=true WispDestroyTest
+ * @run main/othervm -XX:+UnlockExperimentalVMOptions -XX:+EnableCoroutine -Dcom.alibaba.wisp.transparentWispSwitch=true WispDestroyTest
  */
 
 import com.alibaba.wisp.engine.WispTask;

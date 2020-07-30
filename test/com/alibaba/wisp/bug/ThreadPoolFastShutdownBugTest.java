@@ -23,7 +23,7 @@
  * @test
  * @summary test shutdown a thread pool which contains non-fully-started thread
  * @requires os.family == "linux"
- * @run main/othervm -XX:+EnableCoroutine -Dcom.alibaba.wisp.transparentWispSwitch=true ThreadPoolFastShutdownBugTest
+ * @run main/othervm -XX:+UnlockExperimentalVMOptions -XX:+EnableCoroutine -Dcom.alibaba.wisp.transparentWispSwitch=true ThreadPoolFastShutdownBugTest
  */
 
 import java.util.concurrent.ExecutorService;

@@ -24,7 +24,7 @@
  * @library /lib/testlibrary
  * @summary Verify the context class loader isolation per co-routine
  * @requires os.family == "linux"
- * @run main/othervm -XX:+EnableCoroutine -Dcom.alibaba.wisp.transparentWispSwitch=true CtxClassLoaderIsolateTest
+ * @run main/othervm -XX:+UnlockExperimentalVMOptions -XX:+EnableCoroutine -Dcom.alibaba.wisp.transparentWispSwitch=true CtxClassLoaderIsolateTest
  */
 
 

@@ -24,7 +24,7 @@
  * @summary Test a WispTask will not block when it created a new one and didn't yield to its parent.
  * @requires os.family == "linux"
  * @library /lib/testlibrary
- * @run main/othervm -XX:+UseWisp2  RemoveWispParentTest
+ * @run main/othervm -XX:+UnlockExperimentalVMOptions -XX:+UseWisp2  RemoveWispParentTest
  */
 
 import com.alibaba.wisp.engine.WispEngine;

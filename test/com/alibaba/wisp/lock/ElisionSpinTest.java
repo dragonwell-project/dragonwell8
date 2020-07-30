@@ -24,7 +24,7 @@
  * @summary Test elision spin
  * @requires os.family == "linux"
  * @library /lib/testlibrary
- * @run main/othervm  -XX:+UseWisp2 -Dcom.alibaba.wisp.carrierEngines=1 ElisionSpinTest
+ * @run main/othervm -XX:+UnlockExperimentalVMOptions -XX:+UseWisp2 -Dcom.alibaba.wisp.carrierEngines=1 ElisionSpinTest
  */
 
 import com.alibaba.wisp.engine.WispEngine;

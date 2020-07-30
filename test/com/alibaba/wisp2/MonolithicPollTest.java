@@ -24,8 +24,8 @@
  * @library /lib/testlibrary
  * @summary verify epollArray is set for Selector.select()
  * @requires os.family == "linux"
- * @run main/othervm -XX:+UseWisp2 -Dcom.alibaba.wisp.monolithicPoll=true MonolithicPollTest
- * @run main/othervm -XX:+UseWisp2 -Dcom.alibaba.wisp.monolithicPoll=false MonolithicPollTest
+ * @run main/othervm -XX:+UnlockExperimentalVMOptions -XX:+UseWisp2 -Dcom.alibaba.wisp.monolithicPoll=true MonolithicPollTest
+ * @run main/othervm -XX:+UnlockExperimentalVMOptions -XX:+UseWisp2 -Dcom.alibaba.wisp.monolithicPoll=false MonolithicPollTest
  */
 
 import com.alibaba.wisp.engine.WispTask;

@@ -26,7 +26,7 @@
  *      2. task B get the socket S and block on IO.
  *      3. task A exit and clean S's event, now B waiting forever...
  * @requires os.family == "linux"
- * @run main/othervm -XX:+EnableCoroutine -Dcom.alibaba.wisp.transparentWispSwitch=true ReleaseWispSocketAndExitTest
+ * @run main/othervm -XX:+UnlockExperimentalVMOptions -XX:+EnableCoroutine -Dcom.alibaba.wisp.transparentWispSwitch=true ReleaseWispSocketAndExitTest
  */
 
 

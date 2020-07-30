@@ -24,7 +24,7 @@
  * @library /lib/testlibrary
  * @summary test close will wake up blocking wispTask
  * @requires os.family == "linux"
- * @run main/othervm -XX:+EnableCoroutine -Dcom.alibaba.wisp.transparentWispSwitch=true WispSocketCloseTest
+ * @run main/othervm -XX:+UnlockExperimentalVMOptions -XX:+EnableCoroutine -Dcom.alibaba.wisp.transparentWispSwitch=true WispSocketCloseTest
  */
 
 import java.io.IOException;

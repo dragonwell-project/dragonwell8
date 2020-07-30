@@ -24,7 +24,7 @@
  * @library /lib/testlibrary
  * @summary test Thread.isInNative() is correct
  * @requires os.family == "linux"
- * @run main/othervm -XX:+EnableCoroutine IsInNativeTest
+ * @run main/othervm -XX:+UnlockExperimentalVMOptions -XX:+EnableCoroutine IsInNativeTest
  */
 
 import sun.misc.SharedSecrets;

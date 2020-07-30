@@ -23,7 +23,7 @@
  * @test
  * @summary Test Wisp engine's NIO support
  * @requires os.family == "linux"
- * @run main/othervm -XX:+EnableCoroutine -Dcom.alibaba.wisp.transparentWispSwitch=true IoTest
+ * @run main/othervm -XX:+UnlockExperimentalVMOptions -XX:+EnableCoroutine -Dcom.alibaba.wisp.transparentWispSwitch=true IoTest
  */
 
 import sun.misc.SharedSecrets;

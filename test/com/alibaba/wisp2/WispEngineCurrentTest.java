@@ -24,7 +24,7 @@
  * @summary Test WispEngine semantic change after refactor
  * @requires os.family == "linux"
  * @library /lib/testlibrary
- * @run main/othervm -XX:+UseWisp2  WispEngineCurrentTest
+ * @run main/othervm -XX:+UnlockExperimentalVMOptions -XX:+UseWisp2  WispEngineCurrentTest
  */
 
 import com.alibaba.wisp.engine.WispEngine;

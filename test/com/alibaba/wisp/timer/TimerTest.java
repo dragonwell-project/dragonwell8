@@ -23,8 +23,8 @@
  * @test
  * @summary Test timer implement
  * @requires os.family == "linux"
- * @run main/othervm -XX:+EnableCoroutine TimerTest
- * @run main/othervm -XX:+EnableCoroutine -Dcom.alibaba.wisp.highPrecisionTimer=true TimerTest
+ * @run main/othervm -XX:+UnlockExperimentalVMOptions -XX:+EnableCoroutine TimerTest
+ * @run main/othervm -XX:+UnlockExperimentalVMOptions -XX:+EnableCoroutine -Dcom.alibaba.wisp.highPrecisionTimer=true TimerTest
  */
 
 

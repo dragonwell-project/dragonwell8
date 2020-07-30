@@ -24,8 +24,8 @@
  * @library /lib/testlibrary
  * @summary test blocking accept
  * @requires os.family == "linux"
- * @run main/othervm -XX:ActiveProcessorCount=4 -XX:+EnableCoroutine -Dcom.alibaba.wisp.transparentWispSwitch=true -XX:+UseWispMonitor  BlockingAcceptTest
- * @run main/othervm -XX:ActiveProcessorCount=4 -XX:+UseWisp2 BlockingAcceptTest
+ * @run main/othervm -XX:ActiveProcessorCount=4 -XX:+UnlockExperimentalVMOptions -XX:+EnableCoroutine -Dcom.alibaba.wisp.transparentWispSwitch=true -XX:+UseWispMonitor  BlockingAcceptTest
+ * @run main/othervm -XX:ActiveProcessorCount=4 -XX:+UnlockExperimentalVMOptions -XX:+UseWisp2 BlockingAcceptTest
  */
 
 import java.net.InetSocketAddress;

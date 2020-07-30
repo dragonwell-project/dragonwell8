@@ -41,6 +41,7 @@ public class ConfigurationCompatibilityCheckTest {
 
     private static void incompatibility(String... args) throws Exception {
         ArrayList<String> list = new ArrayList<>();
+        list.add("-XX:+UnlockExperimentalVMOptions");
         list.add("-XX:+EnableCoroutine");
         list.addAll(Arrays.asList(args));
         list.add("-version");

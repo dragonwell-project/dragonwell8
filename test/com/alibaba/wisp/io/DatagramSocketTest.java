@@ -24,7 +24,7 @@
  * @library /lib/testlibrary
  * @summary Test WispCarrier's DatagramSocket, InitialDirContext use dup socket to query dns.
  * @requires os.family == "linux"
- * @run main/othervm -XX:+EnableCoroutine -Dcom.alibaba.wisp.transparentWispSwitch=true DatagramSocketTest
+ * @run main/othervm -XX:+UnlockExperimentalVMOptions -XX:+EnableCoroutine -Dcom.alibaba.wisp.transparentWispSwitch=true DatagramSocketTest
  */
 
 

@@ -61,6 +61,7 @@ public class LoadClassInnerWispGuard {
      */
     private static void driver() throws Exception {
         ProcessBuilder pb = jdk.testlibrary.ProcessTools.createJavaProcessBuilder(
+                "-XX:+UnlockExperimentalVMOptions",
                 "-XX:+UseWisp2", "-Dcom.alibaba.wisp.allThreadAsWisp=false", "-verbose:class",
                 "-cp", System.getProperty("java.class.path"),
                 LoadClassInnerWispGuard.class.getName(), "1");

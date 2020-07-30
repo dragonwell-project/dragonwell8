@@ -23,7 +23,7 @@
  * @test
  * @summary test selector.wakeup() performance
  * @requires os.family == "linux"
- * @run main/othervm -XX:+UseWisp2  EpollWakeupPerfTest
+ * @run main/othervm -XX:+UnlockExperimentalVMOptions -XX:+UseWisp2  EpollWakeupPerfTest
  */
 
 import java.nio.channels.Selector;

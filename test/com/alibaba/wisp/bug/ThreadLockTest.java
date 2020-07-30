@@ -23,7 +23,7 @@
  * @test
  * @summary Test fix of WispCarrier block on Thread.class lock
  * @requires os.family == "linux"
- * @run main/othervm -XX:-UseBiasedLocking -XX:+EnableCoroutine -XX:+UseWispMonitor -XX:SyncKnobs="ReportSettings=1:QMode=1"  -Dcom.alibaba.wisp.transparentWispSwitch=true ThreadLockTest
+ * @run main/othervm -XX:-UseBiasedLocking -XX:+UnlockExperimentalVMOptions -XX:+EnableCoroutine -XX:+UseWispMonitor -XX:SyncKnobs="ReportSettings=1:QMode=1"  -Dcom.alibaba.wisp.transparentWispSwitch=true ThreadLockTest
  */
 
 import com.alibaba.wisp.engine.WispEngine;

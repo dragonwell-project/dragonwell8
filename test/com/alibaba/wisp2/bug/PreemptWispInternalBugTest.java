@@ -41,6 +41,7 @@ public class PreemptWispInternalBugTest {
         if (args.length == 0) {
             for (int i = 0; i < tasks.length; i++) {
                 ProcessBuilder pb = jdk.testlibrary.ProcessTools.createJavaProcessBuilder(
+                        "-XX:+UnlockExperimentalVMOptions",
                         "-XX:+UseWisp2", "-XX:+UnlockDiagnosticVMOptions", "-XX:+VerboseWisp", "-XX:-Inline",
                         "-Xcomp", "-Dcom.alibaba.wisp.sysmonTickUs=100000",
                         PreemptWispInternalBugTest.class.getName(), tasks[i]);

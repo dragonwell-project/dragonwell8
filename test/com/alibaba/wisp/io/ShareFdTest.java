@@ -24,7 +24,7 @@
  * @library /lib/testlibrary
  * @summary test support fd use acorss coroutines
  * @requires os.family == "linux"
- * @run main/othervm -XX:+EnableCoroutine -Dcom.alibaba.wisp.transparentWispSwitch=true ShareFdTest
+ * @run main/othervm -XX:+UnlockExperimentalVMOptions -XX:+EnableCoroutine -Dcom.alibaba.wisp.transparentWispSwitch=true ShareFdTest
  */
 
 import sun.misc.SharedSecrets;

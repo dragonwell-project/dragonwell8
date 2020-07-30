@@ -24,7 +24,7 @@
  * @library /lib/testlibrary
  * @summary test all thread as wisp black list
  * @requires os.family == "linux"
- * @run main/othervm  -XX:+UseWisp2 ThreadAsWispBlackListTest
+ * @run main/othervm -XX:+UnlockExperimentalVMOptions -XX:+UseWisp2 ThreadAsWispBlackListTest
  */
 
 import sun.misc.SharedSecrets;

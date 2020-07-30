@@ -24,9 +24,9 @@
  * @library /lib/testlibrary
  * @summary test massive IO
  * @requires os.family == "linux"
- * @run main/othervm -XX:+UseWisp2 MassiveIOTest
- * @run main/othervm -XX:+UseWisp2 -Dcom.alibaba.pollerShardingSize=0 MassiveIOTest
- * @run main/othervm -XX:+UseWisp2 -Dcom.alibaba.pollerShardingSize=1000 MassiveIOTest
+ * @run main/othervm -XX:+UnlockExperimentalVMOptions -XX:+UseWisp2 MassiveIOTest
+ * @run main/othervm -XX:+UnlockExperimentalVMOptions -XX:+UseWisp2 -Dcom.alibaba.pollerShardingSize=0 MassiveIOTest
+ * @run main/othervm -XX:+UnlockExperimentalVMOptions -XX:+UseWisp2 -Dcom.alibaba.pollerShardingSize=1000 MassiveIOTest
  */
 import java.io.IOException;
 import java.io.InputStream;

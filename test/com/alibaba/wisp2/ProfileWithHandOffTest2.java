@@ -24,7 +24,7 @@
  * @library /lib/testlibrary
  * @summary test after long running or blocking syscall task could be retaken, the new carrier thread can be profiled.
  * @requires os.family == "linux"
- * @run main/othervm -Dcom.alibaba.wisp.carrierEngines=1 -XX:-UseBiasedLocking -XX:+EnableCoroutine -XX:+UseWispMonitor -Dcom.alibaba.wisp.transparentWispSwitch=true  -Dcom.alibaba.wisp.version=2 -Dcom.alibaba.wisp.enableHandOff=true -Dcom.alibaba.wisp.handoffPolicy=ADAPTIVE -Dcom.alibaba.wisp.sysmonTickUs=100000 -Dcom.alibaba.wisp.enablePerfLog=true -Dcom.alibaba.wisp.logTimeInternalMillis=1000 ProfileWithHandOffTest2
+ * @run main/othervm -Dcom.alibaba.wisp.carrierEngines=1 -XX:-UseBiasedLocking -XX:+UnlockExperimentalVMOptions -XX:+EnableCoroutine -XX:+UseWispMonitor -Dcom.alibaba.wisp.transparentWispSwitch=true  -Dcom.alibaba.wisp.version=2 -Dcom.alibaba.wisp.enableHandOff=true -Dcom.alibaba.wisp.handoffPolicy=ADAPTIVE -Dcom.alibaba.wisp.sysmonTickUs=100000 -Dcom.alibaba.wisp.enablePerfLog=true -Dcom.alibaba.wisp.logTimeInternalMillis=1000 ProfileWithHandOffTest2
  */
 
 import com.alibaba.wisp.engine.WispEngine;

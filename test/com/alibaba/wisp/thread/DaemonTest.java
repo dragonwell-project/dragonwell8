@@ -64,7 +64,7 @@ public class DaemonTest {
 
     private static void driver(boolean daemon) throws Exception {
         // we can not use jdk.testlibrary.ProcessTools here, because we need to analyse stdout of a unfinished process
-        Process process = new ProcessBuilder(System.getProperty("java.home") + "/bin/java",
+        Process process = new ProcessBuilder(System.getProperty("java.home") + "/bin/java", "-XX:+UnlockExperimentalVMOptions",
                 "-XX:+UseWisp2", "-cp", System.getProperty("java.class.path"), DaemonTest.class.getName(), Boolean.toString(daemon)).start();
         Thread.sleep(2000);
         byte[] buffer = new byte[1024];

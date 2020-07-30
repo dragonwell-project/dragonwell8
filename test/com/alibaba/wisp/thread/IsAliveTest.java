@@ -24,7 +24,7 @@
  * @summary test thread.isAlive() of wispTask
  * @requires os.family == "linux"
  * @library /lib/testlibrary
- * @run main/othervm -XX:+EnableCoroutine -Dcom.alibaba.wisp.transparentWispSwitch=true IsAliveTest
+ * @run main/othervm -XX:+UnlockExperimentalVMOptions -XX:+EnableCoroutine -Dcom.alibaba.wisp.transparentWispSwitch=true IsAliveTest
  */
 
 import com.alibaba.wisp.engine.WispEngine;

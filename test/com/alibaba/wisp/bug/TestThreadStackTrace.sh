@@ -131,7 +131,7 @@ then
 fi
 
 #run
-${JAVA} -XX:+PrintSafepointStatistics  -XX:PrintSafepointStatisticsCount=1 -XX:+UseWisp2 -Dcom.alibaba.wisp.carrierEngines=1 -cp ${TESTCLASSES} ${TEST_CLASS} > output.txt  2>&1
+${JAVA} -XX:+PrintSafepointStatistics  -XX:PrintSafepointStatisticsCount=1 -XX:+UnlockExperimentalVMOptions -XX:+UseWisp2 -Dcom.alibaba.wisp.carrierEngines=1 -cp ${TESTCLASSES} ${TEST_CLASS} > output.txt  2>&1
 cat output.txt
 
 function assert()

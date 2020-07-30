@@ -23,7 +23,7 @@
  * @test
  * @summary Test sleep
  * @requires os.family == "linux"
- * @run main/othervm -XX:+EnableCoroutine -Dcom.alibaba.wisp.transparentWispSwitch=true CancelTimerAndSleepTest
+ * @run main/othervm -XX:+UnlockExperimentalVMOptions -XX:+EnableCoroutine -Dcom.alibaba.wisp.transparentWispSwitch=true CancelTimerAndSleepTest
  */
 
 import sun.misc.SharedSecrets;

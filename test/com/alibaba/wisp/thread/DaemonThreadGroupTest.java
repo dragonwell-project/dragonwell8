@@ -24,7 +24,7 @@
  * @library /lib/testlibrary
  * @summary Test Daemon Thread Group implementation
  * @requires os.family == "linux"
- * @run main/othervm -XX:+EnableCoroutine -Dcom.alibaba.wisp.transparentWispSwitch=true -Dcom.alibaba.wisp.useCarrierAsPoller=false DaemonThreadGroupTest
+ * @run main/othervm -XX:+UnlockExperimentalVMOptions -XX:+EnableCoroutine -Dcom.alibaba.wisp.transparentWispSwitch=true -Dcom.alibaba.wisp.useCarrierAsPoller=false DaemonThreadGroupTest
 */
 
 

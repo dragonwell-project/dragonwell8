@@ -24,7 +24,7 @@
  * @library /lib/testlibrary
  * @summary Verify yield not really happened when queue is empty
  * @requires os.family == "linux"
- * @run main/othervm  -XX:+UseWisp2 YieldEmptyQueueTest
+ * @run main/othervm -XX:+UnlockExperimentalVMOptions -XX:+UseWisp2 YieldEmptyQueueTest
  */
 
 import com.alibaba.wisp.engine.WispEngine;

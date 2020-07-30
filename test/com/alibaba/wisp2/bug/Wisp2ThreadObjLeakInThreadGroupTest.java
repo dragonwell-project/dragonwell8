@@ -24,7 +24,7 @@
  * @library /lib/testlibrary
  * @summary test bug fix of thread object leak in thread group
  * @requires os.family == "linux"
- * @run main/othervm -XX:+UseWisp2 Wisp2ThreadObjLeakInThreadGroupTest
+ * @run main/othervm -XX:+UnlockExperimentalVMOptions -XX:+UseWisp2 Wisp2ThreadObjLeakInThreadGroupTest
  */
 
 import java.util.concurrent.CountDownLatch;

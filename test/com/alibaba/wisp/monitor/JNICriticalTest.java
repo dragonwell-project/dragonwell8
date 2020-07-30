@@ -23,7 +23,7 @@
  * @test
  * @summary Test unpark in JNI critical case
  * @requires os.family == "linux"
- * @run main/othervm   -XX:-UseBiasedLocking -XX:+EnableCoroutine -XX:+UseWispMonitor -Dcom.alibaba.wisp.transparentWispSwitch=true JNICriticalTest
+ * @run main/othervm   -XX:-UseBiasedLocking -XX:+UnlockExperimentalVMOptions -XX:+EnableCoroutine -XX:+UseWispMonitor -Dcom.alibaba.wisp.transparentWispSwitch=true JNICriticalTest
  */
 
 

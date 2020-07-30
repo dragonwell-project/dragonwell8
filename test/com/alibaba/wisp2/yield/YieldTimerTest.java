@@ -24,8 +24,8 @@
  * @library /lib/testlibrary
  * @summary Verify timer could be processed when we're yielding
  * @requires os.family == "linux"
- * @run main/othervm  -XX:+UseWisp2 -Dcom.alibaba.wisp.carrierEngines=1 YieldTimerTest
- * @run main/othervm  -XX:+UseWisp2 -Dcom.alibaba.wisp.carrierEngines=1 -Dcom.alibaba.wisp.highPrecisionTimer=true YieldTimerTest
+ * @run main/othervm -XX:+UnlockExperimentalVMOptions -XX:+UseWisp2 -Dcom.alibaba.wisp.carrierEngines=1 YieldTimerTest
+ * @run main/othervm -XX:+UnlockExperimentalVMOptions -XX:+UseWisp2 -Dcom.alibaba.wisp.carrierEngines=1 -Dcom.alibaba.wisp.highPrecisionTimer=true YieldTimerTest
  */
 
 

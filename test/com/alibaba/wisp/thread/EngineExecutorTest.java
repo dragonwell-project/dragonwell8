@@ -24,7 +24,7 @@
  * @library /lib/testlibrary
  * @summary test submit task to engine.
  * @requires os.family == "linux"
- * @run main/othervm -XX:+EnableCoroutine -Dcom.alibaba.wisp.transparentWispSwitch=true EngineExecutorTest
+ * @run main/othervm -XX:+UnlockExperimentalVMOptions -XX:+EnableCoroutine -Dcom.alibaba.wisp.transparentWispSwitch=true EngineExecutorTest
  */
 
 import com.alibaba.wisp.engine.WispEngine;

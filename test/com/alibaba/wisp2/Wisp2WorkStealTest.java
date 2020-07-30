@@ -24,7 +24,7 @@
  * @library /lib/testlibrary
  * @summary verification of work stealing really happened
  * @requires os.family == "linux"
- * @run main/othervm -XX:+UseWisp2 -Dcom.alibaba.wisp.schedule.stealRetry=100 -Dcom.alibaba.wisp.schedule.helpStealRetry=100 Wisp2WorkStealTest
+ * @run main/othervm -XX:+UnlockExperimentalVMOptions -XX:+UseWisp2 -Dcom.alibaba.wisp.schedule.stealRetry=100 -Dcom.alibaba.wisp.schedule.helpStealRetry=100 Wisp2WorkStealTest
  */
 
 import com.alibaba.wisp.engine.WispEngine;

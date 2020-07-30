@@ -36,7 +36,7 @@ import static jdk.testlibrary.Asserts.assertTrue;
  * @summary WispCounterMXBean unit test for Detail profile data
  * @requires os.family == "linux"
  * @library /lib/testlibrary
- * @run main/othervm/timeout=2000 -XX:+UseWisp2 -Dcom.alibaba.wisp.config=/tmp/wisp.config -Dcom.alibaba.wisp.profile=true -Dcom.alibaba.wisp.enableProfileLog=true -Dcom.alibaba.wisp.logTimeInternalMillis=3000 TestWispDetailCounter
+ * @run main/othervm/timeout=2000 -XX:+UnlockExperimentalVMOptions -XX:+UseWisp2 -Dcom.alibaba.wisp.config=/tmp/wisp.config -Dcom.alibaba.wisp.profile=true -Dcom.alibaba.wisp.enableProfileLog=true -Dcom.alibaba.wisp.logTimeInternalMillis=3000 TestWispDetailCounter
  */
 
 public class TestWispDetailCounter {

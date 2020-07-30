@@ -24,7 +24,7 @@
  * @library /lib/testlibrary
  * @summary Test for Global Poller
  * @requires os.family == "linux"
- * @run main/othervm -XX:+EnableCoroutine -Dcom.alibaba.transparentAsync=true GlobalPollerTest
+ * @run main/othervm -XX:+UnlockExperimentalVMOptions -XX:+EnableCoroutine -Dcom.alibaba.transparentAsync=true GlobalPollerTest
 */
 
 import com.alibaba.wisp.engine.WispTask;
