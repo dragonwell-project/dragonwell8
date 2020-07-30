@@ -24,7 +24,7 @@
  * @library /testlibrary
  * @summary Test the optimization of direct unpark with Object.wait/notify
  * @requires os.family == "linux"
- * @run main/othervm  -XX:-UseBiasedLocking -XX:+EnableCoroutine -XX:+UseWispMonitor -Dcom.alibaba.wisp.transparentWispSwitch=true -Dcom.alibaba.wisp.enableThreadAsWisp=true -Dcom.alibaba.wisp.version=2 -Dcom.alibaba.wisp.allThreadAsWisp=true DirectUnparkTest
+ * @run main/othervm  -XX:-UseBiasedLocking -XX:+UnlockExperimentalVMOptions -XX:+EnableCoroutine -XX:+UseWispMonitor -Dcom.alibaba.wisp.transparentWispSwitch=true -Dcom.alibaba.wisp.enableThreadAsWisp=true -Dcom.alibaba.wisp.version=2 -Dcom.alibaba.wisp.allThreadAsWisp=true DirectUnparkTest
 */
 
 import com.alibaba.wisp.engine.WispEngine;

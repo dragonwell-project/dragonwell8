@@ -34,28 +34,36 @@ public class Wisp2FlagCompatibilityCheckTest {
         ProcessBuilder pb;
         OutputAnalyzer output;
 
-        pb = ProcessTools.createJavaProcessBuilder("-XX:+UseWisp2",
+        pb = ProcessTools.createJavaProcessBuilder(
+                "-XX:+UnlockExperimentalVMOptions",
+                "-XX:+UseWisp2",
                 "-XX:-UseWispMonitor",
                 "-version");
         output = new OutputAnalyzer(pb.start());
         output.shouldContain("Wisp2 needs to enable -XX:+UseWispMonitor");
         System.out.println(output.getOutput());
 
-        pb = ProcessTools.createJavaProcessBuilder("-XX:+UseWisp2",
+        pb = ProcessTools.createJavaProcessBuilder(
+                "-XX:+UnlockExperimentalVMOptions",
+                "-XX:+UseWisp2",
                 "-XX:-EnableCoroutine",
                 "-version");
         output = new OutputAnalyzer(pb.start());
         output.shouldContain("Wisp2 needs to enable -XX:+EnableCoroutine");
         System.out.println(output.getOutput());
 
-        pb = ProcessTools.createJavaProcessBuilder("-XX:+UseWisp2",
+        pb = ProcessTools.createJavaProcessBuilder(
+                "-XX:+UnlockExperimentalVMOptions",
+                "-XX:+UseWisp2",
                 "-XX:+UseBiasedLocking",
                 "-version");
         output = new OutputAnalyzer(pb.start());
         output.shouldContain("Biased Locking is not supported with Wisp2");
         System.out.println(output.getOutput());
 
-        pb = ProcessTools.createJavaProcessBuilder("-XX:+EnableCoroutine",
+        pb = ProcessTools.createJavaProcessBuilder(
+                "-XX:+UnlockExperimentalVMOptions",
+                "-XX:+EnableCoroutine",
                 "-XX:+UseBiasedLocking",
                 "-version");
         output = new OutputAnalyzer(pb.start());

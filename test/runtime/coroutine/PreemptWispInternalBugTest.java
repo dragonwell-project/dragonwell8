@@ -42,6 +42,7 @@ public class PreemptWispInternalBugTest {
         if (args.length == 0) {
 	        for (int i = 0; i < tasks.length; i++) {
 		        ProcessBuilder pb = com.oracle.java.testlibrary.ProcessTools.createJavaProcessBuilder(
+		                "-XX:+UnlockExperimentalVMOptions",
 				        "-XX:+UseWisp2", "-XX:+UnlockDiagnosticVMOptions", "-XX:+VerboseWisp", "-XX:-Inline",
 				        PreemptWispInternalBugTest.class.getName(), tasks[i]);
 		        com.oracle.java.testlibrary.OutputAnalyzer output = new  com.oracle.java.testlibrary.OutputAnalyzer(pb.start());

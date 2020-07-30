@@ -24,7 +24,7 @@
  * @library /testlibrary
  * @summary Test jstack coroutine output
  * @requires os.family == "linux"
- * @run main/othervm -XX:+EnableCoroutine -Dcom.alibaba.transparentAsync=true -XX:+UseWispMonitor MultiCoroutineStackTest
+ * @run main/othervm -XX:+UnlockExperimentalVMOptions -XX:+EnableCoroutine -Dcom.alibaba.transparentAsync=true -XX:+UseWispMonitor MultiCoroutineStackTest
  */
 
 import com.alibaba.wisp.engine.WispEngine;

@@ -36,13 +36,14 @@ main()
 {
     JNIEnv *env;
     JavaVMInitArgs vm_args; /* JDK/JRE 6 VM initialization arguments */
-    JavaVMOption options[4];
-    options[0].optionString = "-XX:+EnableCoroutine";
-    options[1].optionString = "-XX:-UseBiasedLocking";
-    options[2].optionString = "-Dcom.alibaba.transparentAsync=true";
-    options[3].optionString = "-XX:+UseWispMonitor";
+    JavaVMOption options[5];
+    options[0].optionString = "-XX:+UnlockExperimentalVMOptions";
+    options[1].optionString = "-XX:+EnableCoroutine";
+    options[2].optionString = "-XX:-UseBiasedLocking";
+    options[3].optionString = "-Dcom.alibaba.transparentAsync=true";
+    options[4].optionString = "-XX:+UseWispMonitor";
     vm_args.version = JNI_VERSION_1_6;
-    vm_args.nOptions = 4;
+    vm_args.nOptions = 5;
     vm_args.options = options;
     vm_args.ignoreUnrecognized = false;
     /* load and initialize a Java VM, return a JNI interface

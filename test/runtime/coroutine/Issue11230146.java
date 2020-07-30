@@ -24,7 +24,7 @@
  * @library /testlibrary /testlibrary/whitebox
  * @build Issue11230146
  * @run main ClassFileInstaller sun.hotspot.WhiteBox
- * @run main/othervm -XX:-Inline -XX:+EnableCoroutine -Xmx10m -Xms10m -XX:ReservedCodeCacheSize=3m -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI Issue11230146
+ * @run main/othervm -XX:-Inline -XX:+UnlockExperimentalVMOptions -XX:+EnableCoroutine -Xmx10m -Xms10m -XX:ReservedCodeCacheSize=3m -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI Issue11230146
  * @summary Issue11230146, JTreg test for D181275
  * @requires os.family == "linux"
  */

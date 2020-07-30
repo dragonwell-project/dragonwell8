@@ -28,7 +28,7 @@
 ## @run shell c1AssertFailTest.sh
 
 
-${TESTJAVA}/bin/java -Xcomp -XX:-UseBiasedLocking -XX:+EnableCoroutine -XX:+UseWispMonitor -Dcom.alibaba.transparentAsync=true &
+${TESTJAVA}/bin/java -Xcomp -XX:-UseBiasedLocking -XX:+UnlockExperimentalVMOptions -XX:+EnableCoroutine -XX:+UseWispMonitor -Dcom.alibaba.transparentAsync=true &
 
 PID=$!
 

@@ -115,16 +115,16 @@
   product(bool, TenantDataIsolation, false,                                 \
           "Enable data isolation(e.g static vairable) per tenant")          \
                                                                             \
-  product(bool, EnableCoroutine, false,                                     \
+  experimental(bool, EnableCoroutine, false,                                \
           "Enable coroutine support")                                       \
                                                                             \
   product(uintx, DefaultCoroutineStackSize, 128*K,                          \
           "Default size of stack that is associated with new coroutine")    \
                                                                             \
-  product(bool, UseWispMonitor, false,                                      \
+  experimental(bool, UseWispMonitor, false,                                 \
           "yields to next coroutine when ObjectMonitor is contended")       \
                                                                             \
-  product(bool, UseWisp2, false,                                            \
+  experimental(bool, UseWisp2, false,                                       \
           "Enable Wisp2")                                                   \
                                                                             \
   diagnostic(bool, VerboseWisp, false,                                      \

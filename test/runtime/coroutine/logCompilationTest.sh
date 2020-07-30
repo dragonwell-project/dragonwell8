@@ -50,6 +50,6 @@ esac
 
 JAVA=${TESTJAVA}${FS}bin${FS}java
 
-${JAVA} -XX:+UnlockDiagnosticVMOptions -XX:+EnableCoroutine -XX:+UseWispMonitor -Dcom.alibaba.transparentAsync=true -XX:+LogCompilation -Xcomp -cp ${TESTCLASSES} SimpleWispTest
+${JAVA} -XX:+UnlockDiagnosticVMOptions -XX:+UnlockExperimentalVMOptions -XX:+EnableCoroutine -XX:+UseWispMonitor -Dcom.alibaba.transparentAsync=true -XX:+LogCompilation -Xcomp -cp ${TESTCLASSES} SimpleWispTest
 
 exit $?

@@ -23,7 +23,7 @@
  * @test
  * @summary c2 compiler monitorenter stub steal test
  * @requires os.family == "linux"
- * @run main/othervm/timeout=60 -XX:+UseWisp2 -Dcom.alibaba.wisp.schedule.stealRetry=100 -Dcom.alibaba.wisp.schedule.helpStealRetry=100 WispStealMonitorC2Test
+ * @run main/othervm/timeout=60 -XX:+UnlockExperimentalVMOptions -XX:+UseWisp2 -Dcom.alibaba.wisp.schedule.stealRetry=100 -Dcom.alibaba.wisp.schedule.helpStealRetry=100 WispStealMonitorC2Test
  */
 
 import com.alibaba.wisp.engine.WispEngine;

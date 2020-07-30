@@ -48,4 +48,4 @@ echo Agent-Class: ${AGENT} >> ${AGENT}.mf
 
 ${TESTJAVA}/bin/jar ${TESTTOOLVMOPTS} cvfm ${AGENT}.jar ${AGENT}.mf ${AGENT}*.class
 
-${TESTJAVA}/bin/java -ea -esa -XX:+UseWisp2 AttachTest &
+${TESTJAVA}/bin/java -ea -esa -XX:+UnlockExperimentalVMOptions -XX:+UseWisp2 AttachTest &

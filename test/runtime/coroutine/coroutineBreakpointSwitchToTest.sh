@@ -62,6 +62,6 @@ gcc -DLINUX -fPIC -shared -o libtest.so \
     -I${COMPILEJAVA}/include -I${COMPILEJAVA}/include/linux \
     ${TESTSRC}/coroutineBreakpointSwitchToTest.c
 
-${JAVA} -agentpath:libtest.so -XX:-UseBiasedLocking -XX:+EnableCoroutine -XX:+UseWispMonitor -Dcom.alibaba.transparentAsync=true -cp ${TESTCLASSES} SimpleWispTest
+${JAVA} -agentpath:libtest.so -XX:-UseBiasedLocking -XX:+UnlockExperimentalVMOptions -XX:+EnableCoroutine -XX:+UseWispMonitor -Dcom.alibaba.transparentAsync=true -cp ${TESTCLASSES} SimpleWispTest
 
 exit $?
