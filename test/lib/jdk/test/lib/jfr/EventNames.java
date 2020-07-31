@@ -185,6 +185,9 @@ public class EventNames {
     public final static String OptoInstanceObjectAllocation = PREFIX + "OptoInstanceObjectAllocation";
     public final static String OptoArrayObjectAllocation = PREFIX + "OptoArrayObjectAllocation";
 
+    public final static String SafepointStatistics = PREFIX + "SafepointStatistics";
+    public final static String HugeObjectAllocationSample = PREFIX + "HugeObjectAllocationSample";
+
     public static boolean isGcEvent(EventType et) {
         return et.getCategoryNames().contains(GC_CATEGORY);
     }

@@ -91,7 +91,8 @@ public class TestLookForUntestedEvents {
     private static final Set<String> experimentalEvents = new HashSet<>(
       Arrays.asList(
                     "Flush", "FlushStorage", "FlushStacktrace",
-                    "FlushStringPool", "FlushMetadata", "FlushTypeSet")
+                    "FlushStringPool", "FlushMetadata", "FlushTypeSet",
+                    "SafepointStatistics", "HugeObjectAllocationSample")
     );
 
     public static void main(String[] args) throws Exception {

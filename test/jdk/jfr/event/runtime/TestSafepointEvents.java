@@ -30,6 +30,7 @@ import java.nio.file.Paths;
 import java.time.Duration;
 import java.util.*;
 
+import jdk.jfr.Period;
 import jdk.jfr.Recording;
 import jdk.jfr.consumer.RecordedEvent;
 
@@ -63,6 +64,7 @@ public class TestSafepointEvents {
 
     public static void main(String[] args) throws Exception {
         Recording recording = new Recording();
+        recording.enable(EventNames.SafepointStatistics).with(Period.NAME, "endChunk");
         for (String name : EVENT_NAMES) {
             recording.enable(name).withThreshold(Duration.ofMillis(0));
         }
@@ -85,7 +87,15 @@ public class TestSafepointEvents {
 
             // Collect all events grouped by safepoint id
             SortedMap<Integer, Set<String>> safepointIds = new TreeMap<>();
+            RecordedEvent lastStatEvent = null;
             for (RecordedEvent event : Events.fromRecording(recording)) {
+                System.out.println(event);
+                if (event.getEventType().getName().equals(EventNames.SafepointStatistics)) {
+                    if (lastStatEvent == null || event.getStartTime().compareTo(lastStatEvent.getStartTime()) > 0) {
+                        lastStatEvent = event;
+                    }
+                    continue;
+                }
                 Integer safepointId = event.getValue("safepointId");
                 if (!safepointIds.containsKey(safepointId)) {
                     safepointIds.put(safepointId, new HashSet<>());
@@ -107,6 +117,14 @@ public class TestSafepointEvents {
                     assertTrue(safepointEvents.contains(name), "Expected event '" + name + "' to be present");
                 }
             }
+
+            // check statistics fields
+            Events.assertField(lastStatEvent, "totalCount").atLeast(1L);
+            Events.assertField(lastStatEvent, "syncTime").atLeast(0L);
+            Events.assertField(lastStatEvent, "safepointTime").atLeast(0L);
+            Events.assertField(lastStatEvent, "applicationTime").atLeast(0L);
+            Events.assertField(lastStatEvent, "maxSyncTime").atLeast(0L);
+            Events.assertField(lastStatEvent, "maxVMOperatoinTime").atLeast(0L);
         } catch (Throwable e) {
             recording.dump(Paths.get("failed.jfr"));
             throw e;

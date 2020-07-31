@@ -644,6 +644,16 @@
       <setting name="stackTrace">true</setting>
     </event>
 
+    <event name="jdk.SafepointStatistics">
+      <setting name="enabled">false</setting>
+      <setting name="period">5 s</setting>
+    </event>
+
+    <event name="jdk.HugeObjectAllocationSample">
+      <setting name="enabled">false</setting>
+      <setting name="stackTrace">true</setting>
+    </event>
+
 
 
 
