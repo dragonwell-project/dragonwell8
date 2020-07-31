@@ -138,7 +138,7 @@ class JDK_Version VALUE_OBJ_CLASS_SPEC {
     return JDK_Version(m);
   }
 
-  static JDK_Version jdk_update(uint8_t major, uint8_t update_number) {
+  static JDK_Version jdk_update(uint8_t major, uint16_t update_number) {
     return JDK_Version(major, 0, 0, update_number);
   }
 
