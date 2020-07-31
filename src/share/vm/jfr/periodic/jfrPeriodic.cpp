@@ -55,6 +55,7 @@
 #include "runtime/vmThread.hpp"
 #include "services/classLoadingService.hpp"
 #include "services/management.hpp"
+#include "services/runtimeService.hpp"
 #include "services/threadService.hpp"
 #include "utilities/exceptions.hpp"
 #include "utilities/globalDefinitions.hpp"
@@ -556,5 +557,16 @@ TRACE_REQUEST_FUNC(CodeSweeperConfiguration) {
   EventCodeSweeperConfiguration event;
   event.set_sweeperEnabled(MethodFlushing);
   event.set_flushingEnabled(UseCodeCacheFlushing);
+  event.commit();
+}
+
+TRACE_REQUEST_FUNC(SafepointStatistics) {
+  EventSafepointStatistics event;
+  event.set_totalCount(RuntimeService::safepoint_count());
+  event.set_syncTime(RuntimeService::safepoint_sync_time_ms());
+  event.set_safepointTime(RuntimeService::safepoint_time_ms());
+  event.set_applicationTime(RuntimeService::application_time_ms());
+  event.set_maxSyncTime(SafepointSynchronize::max_sync_time_ms());
+  event.set_maxVMOperatoinTime(SafepointSynchronize::max_vmop_time_ms());
   event.commit();
 }

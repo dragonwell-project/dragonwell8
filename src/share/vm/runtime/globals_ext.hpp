@@ -132,6 +132,10 @@
                                                                             \
   manageable(bool, PrintThreadCoroutineInfo, false,                         \
           "print the park/unpark information for thread coroutine")         \
+                                                                            \
+  manageable(uintx, HugeObjectAllocationThreshold, 128*M,                   \
+          "The size of the used heap of the instance must occupy to "       \
+          "generate a jfr event")                                           \
   //add new AJVM specific flags here
 
 

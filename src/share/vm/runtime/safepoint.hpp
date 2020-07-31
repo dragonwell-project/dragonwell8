@@ -188,6 +188,14 @@ public:
   static address address_of_state()                        { return (address)&_state; }
 
   static address safepoint_counter_addr()                  { return (address)&_safepoint_counter; }
+
+  static jlong max_sync_time_ms() {
+    return nanos_to_millis(_max_sync_time);
+  }
+
+  static jlong max_vmop_time_ms() {
+    return nanos_to_millis(_max_vmop_time);
+  }
 };
 
 // State class for a thread suspended at a safepoint

@@ -512,6 +512,15 @@
     <Field type="int" name="fullCount" label="Full Count" />
   </Event>
 
+  <Event name="SafepointStatistics" category="Java Virtual Machine, Runtime, Safepoint" label="Safepoint Statistics" description="Safepointing Statistics" thread="false" startTime="false" period="everyChunk" experimental="true">
+    <Field type="long" name="totalCount" label="Total Count"/>
+    <Field type="long" contentType="millis" name="syncTime" label="Total Sync Time"/>
+    <Field type="long" contentType="millis" name="safepointTime" label="Total Safepoint Time"/>
+    <Field type="long" contentType="millis" name="applicationTime" label="Total Application Time"/>
+    <Field type="long" contentType="millis" name="maxSyncTime" label="Max Sync Time"/>
+    <Field type="long" contentType="millis" name="maxVMOperatoinTime" label="Max VM Operation Time"/>
+  </Event>
+
   <Event name="SafepointBegin" category="Java Virtual Machine, Runtime, Safepoint" label="Safepoint Begin" description="Safepointing begin" thread="true">
     <Field type="int" name="safepointId" label="Safepoint Identifier" relation="SafepointId" />
     <Field type="int" name="totalThreadCount" label="Total Threads" description="The total number of threads at the start of safe point" />
@@ -573,6 +582,11 @@
     thread="true" stackTrace="true" startTime="false">
     <Field type="Class" name="objectClass" label="Object Class" description="Class of allocated object" />
     <Field type="ulong" contentType="bytes" name="allocationSize" label="Allocation Size" />
+  </Event>
+
+  <Event name="HugeObjectAllocationSample" category="Java Application" label="Huge Object Allocation Sample" description="Huge Object Allocation Sample" thread="true" stackTrace="true" startTime="false" experimental="true">
+    <Field type="Class" name="objectClass" label="Object Class" description="Class of allocated object"/>
+    <Field type="ulong" contentType="bytes" name="allocationSize" label="Allocation Size"/>
   </Event>
 
   <Event name="OptoInstanceObjectAllocation" category="Java Application" label="Opto instance object allocation" description="Allocation by Opto jitted method" thread="true" stackTrace="true" startTime="false">

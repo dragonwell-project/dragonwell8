@@ -219,6 +219,10 @@ const int NANOUNITS     = 1000000000;   // nano units per base unit
 const jlong NANOSECS_PER_SEC      = CONST64(1000000000);
 const jint  NANOSECS_PER_MILLISEC = 1000000;
 
+inline int64_t nanos_to_millis(int64_t nanos) {
+  return nanos / NANOSECS_PER_MILLISEC;
+}
+
 // Proper units routines try to maintain at least three significant digits.
 // In worst case, it would print five significant digits with lower prefix.
 // G is close to MAX_SIZE on 32-bit platforms, so its product can easily overflow,

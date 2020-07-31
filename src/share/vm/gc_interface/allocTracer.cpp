@@ -40,6 +40,14 @@ void AllocTracer::send_allocation_outside_tlab_event(KlassHandle klass, HeapWord
     event.set_allocationSize(alloc_size);
     event.commit();
   }
+  if (alloc_size >= HugeObjectAllocationThreshold) {
+    EventHugeObjectAllocationSample hoas_event;
+    if (hoas_event.should_commit()) {
+      hoas_event.set_objectClass(klass());
+      hoas_event.set_allocationSize(alloc_size);
+      hoas_event.commit();
+    }
+  }
 }
 
 void AllocTracer::send_allocation_in_new_tlab_event(KlassHandle klass, HeapWord* obj, size_t tlab_size, size_t alloc_size, Thread* thread) {
