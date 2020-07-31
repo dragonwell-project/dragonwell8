@@ -62,11 +62,11 @@ class JfrTraceIdEpoch : AllStatic {
   static void end_epoch_shift();
 
   static bool changed_tag_state() {
-    return (bool)OrderAccess::load_acquire((volatile jubyte*)&_changed_tag_state);
+    return OrderAccess::load_acquire(&_changed_tag_state);
   }
 
   static void set_tag_state(bool value) {
-    OrderAccess::release_store((volatile jubyte*)&_changed_tag_state, (jubyte)value);
+    OrderAccess::release_store(&_changed_tag_state, value);
   }
 
  public:
@@ -87,7 +87,7 @@ class JfrTraceIdEpoch : AllStatic {
   }
 
   static bool is_synchronizing() {
-    return (bool)OrderAccess::load_acquire((volatile jubyte*)&_synchronizing);
+    return OrderAccess::load_acquire(&_synchronizing);
   }
 
   static traceid in_use_this_epoch_bit() {

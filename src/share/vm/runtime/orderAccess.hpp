@@ -261,6 +261,7 @@ class OrderAccess : AllStatic {
   static julong   load_acquire(volatile julong*  p);
   static jfloat   load_acquire(volatile jfloat*  p);
   static jdouble  load_acquire(volatile jdouble* p);
+  static bool     load_acquire(volatile bool*    p);
 
   static intptr_t load_ptr_acquire(volatile intptr_t*   p);
   static void*    load_ptr_acquire(volatile void*       p);
@@ -276,6 +277,7 @@ class OrderAccess : AllStatic {
   static void     release_store(volatile julong*  p, julong  v);
   static void     release_store(volatile jfloat*  p, jfloat  v);
   static void     release_store(volatile jdouble* p, jdouble v);
+  static void     release_store(volatile bool*    p, bool    v);
 
   static void     release_store_ptr(volatile intptr_t* p, intptr_t v);
   static void     release_store_ptr(volatile void*     p, void*    v);

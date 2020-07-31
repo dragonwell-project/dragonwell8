@@ -91,6 +91,7 @@ inline juint    OrderAccess::load_acquire(volatile juint*   p) { register juint 
 inline julong   OrderAccess::load_acquire(volatile julong*  p) { return (julong)load_acquire((volatile jlong*)p); }
 inline jfloat   OrderAccess::load_acquire(volatile jfloat*  p) { register jfloat t = *p;  inlasm_acquire(); return t; }
 inline jdouble  OrderAccess::load_acquire(volatile jdouble* p) { register jdouble t = *p; inlasm_acquire(); return t; }
+inline bool     OrderAccess::load_acquire(volatile bool*    p) { register bool t = *p;    inlasm_acquire_reg(t); return t; }
 
 inline intptr_t OrderAccess::load_ptr_acquire(volatile intptr_t*   p) { return (intptr_t)load_acquire((volatile jlong*)p); }
 inline void*    OrderAccess::load_ptr_acquire(volatile void*       p) { return (void*)   load_acquire((volatile jlong*)p); }
@@ -106,6 +107,7 @@ inline void     OrderAccess::release_store(volatile juint*   p, juint   v) { inl
 inline void     OrderAccess::release_store(volatile julong*  p, julong  v) { inlasm_release(); *p = v; }
 inline void     OrderAccess::release_store(volatile jfloat*  p, jfloat  v) { inlasm_release(); *p = v; }
 inline void     OrderAccess::release_store(volatile jdouble* p, jdouble v) { inlasm_release(); *p = v; }
+inline void     OrderAccess::release_store(volatile bool*    p, bool    v) { inlasm_release(); *p = v; }
 
 inline void     OrderAccess::release_store_ptr(volatile intptr_t* p, intptr_t v) { inlasm_release(); *p = v; }
 inline void     OrderAccess::release_store_ptr(volatile void*     p, void*    v) { inlasm_release(); *(void* volatile *)p = v; }

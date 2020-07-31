@@ -60,6 +60,7 @@ inline juint    OrderAccess::load_acquire(volatile juint*   p) { return *p; }
 inline julong   OrderAccess::load_acquire(volatile julong*  p) { return *p; }
 inline jfloat   OrderAccess::load_acquire(volatile jfloat*  p) { return *p; }
 inline jdouble  OrderAccess::load_acquire(volatile jdouble* p) { return *p; }
+inline bool     OrderAccess::load_acquire(volatile bool*    p) { return *p; }
 
 inline intptr_t OrderAccess::load_ptr_acquire(volatile intptr_t*   p) { return *p; }
 inline void*    OrderAccess::load_ptr_acquire(volatile void*       p) { return *(void* volatile *)p; }
@@ -75,6 +76,7 @@ inline void     OrderAccess::release_store(volatile juint*   p, juint   v) { *p 
 inline void     OrderAccess::release_store(volatile julong*  p, julong  v) { *p = v; }
 inline void     OrderAccess::release_store(volatile jfloat*  p, jfloat  v) { *p = v; }
 inline void     OrderAccess::release_store(volatile jdouble* p, jdouble v) { *p = v; }
+inline void     OrderAccess::release_store(volatile bool*    p, bool    v) { *p = v; }
 
 inline void     OrderAccess::release_store_ptr(volatile intptr_t* p, intptr_t v) { *p = v; }
 inline void     OrderAccess::release_store_ptr(volatile void*     p, void*    v) { *(void* volatile *)p = v; }
