@@ -22,11 +22,14 @@
 package com.alibaba.wisp.engine;
 
 import com.alibaba.management.WispCounterMXBean;
+import sun.management.Util;
 
 import javax.management.ObjectName;
 import java.util.List;
 
 public class WispCounterMXBeanImpl implements WispCounterMXBean {
+
+    private final static String WISP_COUNTER_MXBEAN_NAME = "com.alibaba.management:type=WispCounter";
 
     @Override
     public List<Boolean> getRunningStates() {
@@ -145,6 +148,6 @@ public class WispCounterMXBeanImpl implements WispCounterMXBean {
 
     @Override
     public ObjectName getObjectName() {
-        throw new UnsupportedOperationException();
+        return Util.newObjectName(WISP_COUNTER_MXBEAN_NAME);
     }
 }

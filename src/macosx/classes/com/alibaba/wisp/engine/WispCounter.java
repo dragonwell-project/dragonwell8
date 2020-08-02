@@ -23,4 +23,63 @@ package com.alibaba.wisp.engine;
 
 final public class WispCounter {
 
+    public long getCompletedTaskCount() {
+        return 0;
+    }
+
+    public long getTotalEnqueueTime() {
+        return 0;
+    }
+
+    public long getEnqueueCount() {
+        return 0;
+    }
+
+    public long getTotalExecutionTime() {
+        return 0;
+    }
+
+    public long getExecutionCount() {
+        return 0;
+    }
+
+    public long getTotalWaitSocketIOTime() {
+        return 0;
+    }
+
+    public long getWaitSocketIOCount() {
+        return 0;
+    }
+
+    public long getTotalBlockingTime() {
+        return 0;
+    }
+
+    public long getUnparkCount() {
+        return 0;
+    }
+
+    public long getMaxEnqueueTime() {
+        return 0;
+    }
+
+    public long getMaxExecutionTime() {
+        return 0;
+    }
+
+    public long getMaxWaitSocketIOTime() {
+        return 0;
+    }
+
+    public long getMaxBlockingTime() {
+        return 0;
+    }
+
+    public long getTaskQueueLength() {
+        return 0;
+    }
+
+    public long getRunningTaskCount() {
+        return 0;
+    }
 }
