@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2007, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2007, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -38,6 +38,7 @@
  *      7114053 7074882 7040556 8013836 8021121 6192407 6931564 8027695 7090826
  *      8017142 8037343 8055222 8042126 8074791 8075173 8080774 8129361 8145952
  *      8164784 8187946 8195478 8193552 8202026 8204269 8208746 8209775 8234228
+ *      8250665
  * @summary Verify locale data
  *
  */
