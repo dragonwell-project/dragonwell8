@@ -82,6 +82,32 @@ public final class OutputAnalyzer {
     }
 
     /**
+     * Verify that the stdout contents of output buffer is empty
+     *
+     * @throws RuntimeException
+     *             If stdout was not empty
+     */
+    public void stdoutShouldBeEmpty() {
+        if (!stdout.isEmpty()) {
+            reportDiagnosticSummary();
+            throw new RuntimeException("stdout was not empty");
+        }
+    }
+
+    /**
+     * Verify that the stderr contents of output buffer is empty
+     *
+     * @throws RuntimeException
+     *             If stderr was not empty
+     */
+    public void stderrShouldBeEmpty() {
+        if (!stderr.isEmpty()) {
+            reportDiagnosticSummary();
+            throw new RuntimeException("stderr was not empty");
+        }
+    }
+
+    /**
      * Verify that the stdout and stderr contents of output buffer contains the
      * string
      *
