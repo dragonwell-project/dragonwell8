@@ -327,12 +327,14 @@ AC_DEFUN_ONCE([TOOLCHAIN_PRE_DETECTION],
       CXXFLAGS_JDK="${CXXFLAGS_JDK} -isysroot \"$SDKPATH\" -iframework\"$SDKPATH/System/Library/Frameworks\""
       LDFLAGS_JDK="${LDFLAGS_JDK} -isysroot \"$SDKPATH\" -iframework\"$SDKPATH/System/Library/Frameworks\""
     fi
-    
-    # These always need to be set, or we can't find the frameworks embedded in JavaVM.framework
-    # setting this here means it doesn't have to be peppered throughout the forest
-    CFLAGS_JDK="$CFLAGS_JDK -F\"$SDKPATH/System/Library/Frameworks/JavaVM.framework/Frameworks\""
-    CXXFLAGS_JDK="$CXXFLAGS_JDK -F\"$SDKPATH/System/Library/Frameworks/JavaVM.framework/Frameworks\""
-    LDFLAGS_JDK="$LDFLAGS_JDK -F\"$SDKPATH/System/Library/Frameworks/JavaVM.framework/Frameworks\""
+
+    if test -d "$SDKPATH/System/Library/Frameworks/JavaVM.framework/Frameworks" ; then
+      # These always need to be set on macOS 10.X, or we can't find the frameworks embedded in JavaVM.framework
+      # set this here so it doesn't have to be peppered throughout the forest
+      CFLAGS_JDK="$CFLAGS_JDK -F\"$SDKPATH/System/Library/Frameworks/JavaVM.framework/Frameworks\""
+      CXXFLAGS_JDK="$CXXFLAGS_JDK -F\"$SDKPATH/System/Library/Frameworks/JavaVM.framework/Frameworks\""
+      LDFLAGS_JDK="$LDFLAGS_JDK -F\"$SDKPATH/System/Library/Frameworks/JavaVM.framework/Frameworks\""
+    fi
   fi
 
   # For solaris we really need solaris tools, and not the GNU equivalent.
@@ -764,9 +766,14 @@ AC_DEFUN_ONCE([TOOLCHAIN_SETUP_BUILD_COMPILERS],
     # FIXME: we should list the discovered compilers as an exclude pattern!
     # If we do that, we can do this detection before POST_DETECTION, and still
     # find the build compilers in the tools dir, if needed.
-    BASIC_PATH_PROGS(BUILD_CC, [cl cc gcc])
+    if test "x$OPENJDK_BUILD_OS" = xmacosx; then
+      BASIC_PATH_PROGS(BUILD_CC, [clang cl cc gcc])
+      BASIC_PATH_PROGS(BUILD_CXX, [clang++ cl CC g++])
+    else
+      BASIC_REQUIRE_PROGS(BUILD_CC, [cl cc gcc])
+      BASIC_REQUIRE_PROGS(BUILD_CXX, [cl CC g++])
+    fi
     BASIC_FIXUP_EXECUTABLE(BUILD_CC)
-    BASIC_PATH_PROGS(BUILD_CXX, [cl CC g++])
     BASIC_FIXUP_EXECUTABLE(BUILD_CXX)
     BASIC_PATH_PROGS(BUILD_LD, ld)
     BASIC_FIXUP_EXECUTABLE(BUILD_LD)
