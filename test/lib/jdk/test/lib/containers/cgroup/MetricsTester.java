@@ -423,7 +423,7 @@ public class MetricsTester {
             }
         }).toArray(Integer[]::new);
         Arrays.sort(newVal);
-        if (Arrays.compare(oldVal, newVal) != 0) {
+        if (!Arrays.equals(oldVal, newVal)) {
             fail(SubSystem.CPUSET, "cpuset.cpus", Arrays.toString(oldVal),
                 Arrays.toString(newVal));
         }
@@ -445,7 +445,7 @@ public class MetricsTester {
                 }
             }).toArray(Integer[]::new);
             Arrays.sort(newVal);
-            if (Arrays.compare(oldVal, newVal) != 0) {
+            if (!Arrays.equals(oldVal, newVal)) {
                 fail(SubSystem.CPUSET, "cpuset.effective_cpus", Arrays.toString(oldVal),
                         Arrays.toString(newVal));
             }
@@ -464,7 +464,7 @@ public class MetricsTester {
             }
         }).toArray(Integer[]::new);
         Arrays.sort(newVal);
-        if (Arrays.compare(oldVal, newVal) != 0) {
+        if (!Arrays.equals(oldVal, newVal)) {
             fail(SubSystem.CPUSET, "cpuset.mems", Arrays.toString(oldVal),
                     Arrays.toString(newVal));
         }
@@ -486,7 +486,7 @@ public class MetricsTester {
                 }
             }).toArray(Integer[]::new);
             Arrays.sort(newVal);
-            if (Arrays.compare(oldVal, newVal) != 0) {
+            if (!Arrays.equals(oldVal, newVal)) {
                 fail(SubSystem.CPUSET, "cpuset.effective_mems", Arrays.toString(oldVal),
                         Arrays.toString(newVal));
             }
