@@ -55,6 +55,9 @@ import org.w3c.dom.Text;
  */
 public final class XMLUtils {
 
+    private static boolean lineFeedOnly =
+        AccessController.doPrivileged(
+            (PrivilegedAction<Boolean>) () -> Boolean.getBoolean("com.sun.org.apache.xml.internal.security.lineFeedOnly"));
     private static boolean ignoreLineBreaks =
         AccessController.doPrivileged(
             (PrivilegedAction<Boolean>) () -> Boolean.getBoolean("com.sun.org.apache.xml.internal.security.ignoreLineBreaks"));
@@ -66,6 +69,7 @@ public final class XMLUtils {
 
     private static final com.sun.org.slf4j.internal.Logger LOG =
         com.sun.org.slf4j.internal.LoggerFactory.getLogger(XMLUtils.class);
+    private static final java.util.Base64.Encoder LF_ENCODER = Base64.getMimeEncoder(76, new byte[] {'\n'});
 
 
     /**
@@ -447,6 +451,9 @@ public final class XMLUtils {
     public static String encodeToString(byte[] bytes) {
         if (ignoreLineBreaks) {
             return Base64.getEncoder().encodeToString(bytes);
+        }
+        if (lineFeedOnly) {
+            return LF_ENCODER.encodeToString(bytes);
         }
         return Base64.getMimeEncoder().encodeToString(bytes);
     }
