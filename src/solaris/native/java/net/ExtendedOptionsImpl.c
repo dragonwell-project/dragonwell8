@@ -332,6 +332,8 @@ static jboolean flowSupported0() {
     return JNI_FALSE;
 }
 
+#endif /* __solaris__ */
+
 // Keep alive options are available for MACOSX and Linux only for
 // the time being.
 #if defined(__linux__) || defined(MACOSX)
@@ -407,6 +409,18 @@ static jint getTcpSocketOption
 
 #else /* __linux__ || MACOSX */
 
+// On AIX and Solaris these constants aren't defined. Map them to a
+// value so that the code below compiles. Values aren't used as
+// on those platforms UnsupportedOperationException will be thrown
+// instead.
+#define SOCK_OPT_LEVEL -1
+#define SOCK_OPT_NAME_KEEPIDLE -1
+#define SOCK_OPT_NAME_KEEPIDLE_STR "TCP_KEEPIDLE"
+#define TCP_KEEPCNT -1
+#define TCP_KEEPINTVL -1
+#define SOCK_OPT_LEVEL -1
+#define SOCK_OPT_NAME_KEEPIDLE -1
+
 /* Keep alive options not supported for non-linux/non-macosx so throw UnsupportedOpExc */
 
 static void setTcpSocketOption
@@ -422,8 +436,6 @@ static jint getTcpSocketOption
 }
 
 #endif /* __linux__ || MACOSX*/
-
-#endif /* __solaris__ */
 
 JNIEXPORT jboolean JNICALL Java_sun_net_ExtendedOptionsImpl_flowSupported
   (JNIEnv *env, jclass UNUSED) {
