@@ -28,6 +28,7 @@
  * @bug 8026236
  * @summary test primality verification methods in BigInteger
  * @author bpb
+ * @key randomness
  */
 import java.math.BigInteger;
 import java.util.BitSet;
