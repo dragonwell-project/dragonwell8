@@ -26,6 +26,7 @@
  * @bug 6449335
  * @requires os.family == "windows"
  * @summary MSCAPI's PRNG is too slow
+ * @key randomness
  */
 
 import java.security.SecureRandom;

@@ -59,6 +59,7 @@ public class sun.misc.FloatingDecimal {
  * @bug 7032154
  * @summary unit tests of sun.misc.FloatingDecimal
  * @author Brian Burkhalter
+ * @key randomness
  */
 public class TestFloatingDecimal {
     private static enum ResultType {
