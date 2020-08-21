@@ -29,6 +29,7 @@
  * @build jdk.test.lib.SigTestUtil
  * @run main TestSignatures
  * @author Andreas Sterbenz
+ * @key randomness
  */
 
 import java.io.*;
