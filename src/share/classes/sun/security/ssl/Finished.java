@@ -40,10 +40,7 @@ import javax.crypto.Mac;
 import javax.crypto.SecretKey;
 import javax.crypto.spec.IvParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
-import javax.net.ssl.SSLPeerUnverifiedException;
 
-import jdk.internal.event.EventHelper;
-import jdk.internal.event.TLSHandshakeEvent;
 import sun.security.internal.spec.TlsPrfParameterSpec;
 import sun.security.ssl.CipherSuite.HashAlg;
 import static sun.security.ssl.CipherSuite.HashAlg.H_NONE;
@@ -541,7 +538,6 @@ final class Finished {
 
                 // handshake context cleanup.
                 chc.handshakeFinished = true;
-                recordEvent(chc.conContext.conSession);
 
                 chc.conContext.finishHandshake();
             } else {
@@ -598,7 +594,6 @@ final class Finished {
 
                 // handshake context cleanup.
                 shc.handshakeFinished = true;
-                recordEvent(shc.conContext.conSession);
 
                 shc.conContext.finishHandshake();
             } else {
@@ -734,7 +729,6 @@ final class Finished {
             // handshake context cleanup.
             chc.handshakeFinished = true;
             chc.conContext.finishHandshake();
-            recordEvent(chc.conContext.conSession);
 
 
             // The handshake message has been delivered.
@@ -1104,7 +1098,6 @@ final class Finished {
             shc.handshakeFinished = true;
 
             shc.conContext.finishHandshake();
-            recordEvent(shc.conContext.conSession);
 
             //
             // produce
@@ -1117,34 +1110,4 @@ final class Finished {
         }
     }
 
-    private static void recordEvent(SSLSessionImpl session) {
-        TLSHandshakeEvent event = new TLSHandshakeEvent();
-        if (event.shouldCommit() || EventHelper.isLoggingSecurity()) {
-            int peerCertificateId = 0;
-            try {
-                // use hash code for Id
-                peerCertificateId = session
-                        .getCertificateChain()[0]
-                        .hashCode();
-            } catch (SSLPeerUnverifiedException e) {
-                 // not verified msg
-            }
-            if (event.shouldCommit()) {
-                event.peerHost = session.getPeerHost();
-                event.peerPort = session.getPeerPort();
-                event.cipherSuite = session.getCipherSuite();
-                event.protocolVersion = session.getProtocol();
-                event.certificateId = peerCertificateId;
-                event.commit();
-            }
-            if (EventHelper.isLoggingSecurity()) {
-                EventHelper.logTLSHandshakeEvent(null,
-                                session.getPeerHost(),
-                                session.getPeerPort(),
-                                session.getCipherSuite(),
-                                session.getProtocol(),
-                                peerCertificateId);
-            }
-        }
-    }
 }
