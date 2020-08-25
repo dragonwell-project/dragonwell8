@@ -27,6 +27,8 @@ package sun.security.ssl;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import sun.security.ssl.SSLExtension.ExtensionConsumer;
 import sun.security.ssl.SSLHandshake.HandshakeMessage;
@@ -242,10 +244,11 @@ final class CertSignAlgsExtension {
             }
 
             // Produce the extension.
+            List<ProtocolVersion> protocols = Arrays.asList(shc.negotiatedProtocol);
+            protocols = Collections.unmodifiableList(protocols);
             List<SignatureScheme> sigAlgs =
                     SignatureScheme.getSupportedAlgorithms(
-                            shc.algorithmConstraints,
-                            List.of(shc.negotiatedProtocol));
+                            shc.algorithmConstraints, protocols);
 
             int vectorLen = SignatureScheme.sizeInRecord() * sigAlgs.size();
             byte[] extData = new byte[vectorLen + 2];

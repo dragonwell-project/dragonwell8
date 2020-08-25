@@ -25,6 +25,7 @@
 
 package sun.security.ssl;
 
+import java.security.AccessController;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Enumeration;
@@ -199,9 +200,9 @@ final class SSLSessionContextImpl implements SSLSessionContext {
 
     private static int getDefaultCacheLimit() {
         try {
-            int defaultCacheLimit = GetIntegerAction.privilegedGetProperty(
-                    "javax.net.ssl.sessionCacheSize", DEFAULT_MAX_CACHE_SIZE);
-
+            int defaultCacheLimit = AccessController.doPrivileged(
+                    new GetIntegerAction("javax.net.ssl.sessionCacheSize",
+                            DEFAULT_MAX_CACHE_SIZE));
             if (defaultCacheLimit >= 0) {
                 return defaultCacheLimit;
             } else if (SSLLogger.isOn && SSLLogger.isOn("ssl")) {

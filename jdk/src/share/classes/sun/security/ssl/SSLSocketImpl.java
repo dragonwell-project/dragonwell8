@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1996, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -47,8 +47,7 @@ import javax.net.ssl.SSLProtocolException;
 import javax.net.ssl.SSLServerSocket;
 import javax.net.ssl.SSLSession;
 import javax.net.ssl.SSLSocket;
-import jdk.internal.misc.JavaNetInetAddressAccess;
-import jdk.internal.misc.SharedSecrets;
+import sun.misc.SharedSecrets;
 
 /**
  * Implementation of an SSL socket.
@@ -1228,9 +1227,7 @@ public final class SSLSocketImpl
             return;
         }
 
-        JavaNetInetAddressAccess jna =
-                SharedSecrets.getJavaNetInetAddressAccess();
-        String originalHostname = jna.getOriginalHostName(inetAddress);
+        String originalHostname = SharedSecrets.getJavaNetAccess().getOriginalHostName(inetAddress);
         if (originalHostname != null && !originalHostname.isEmpty()) {
 
             this.peerHost = originalHostname;

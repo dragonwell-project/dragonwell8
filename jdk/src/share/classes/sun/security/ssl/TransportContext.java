@@ -613,8 +613,7 @@ class TransportContext implements ConnectionContext {
                 null,
                 new NotifyHandshake(sslConfig.handshakeListeners, hce),
                 "HandshakeCompletedNotify-Thread",
-                0,
-                false);
+                0);
             thread.start();
         }
 

@@ -470,14 +470,14 @@ final class RenegoInfoExtension {
                 }
 
                 byte[] cvd = chc.conContext.clientVerifyData;
-                if (!Arrays.equals(spec.renegotiatedConnection,
+                if (!Utilities.equals(spec.renegotiatedConnection,
                         0, cvd.length, cvd, 0, cvd.length)) {
                     throw chc.conContext.fatal(Alert.HANDSHAKE_FAILURE,
                         "Invalid renegotiation_info in ServerHello: " +
                         "unmatched client_verify_data value");
                 }
                 byte[] svd = chc.conContext.serverVerifyData;
-                if (!Arrays.equals(spec.renegotiatedConnection,
+                if (!Utilities.equals(spec.renegotiatedConnection,
                         cvd.length, infoLen, svd, 0, svd.length)) {
                     throw chc.conContext.fatal(Alert.HANDSHAKE_FAILURE,
                         "Invalid renegotiation_info in ServerHello: " +

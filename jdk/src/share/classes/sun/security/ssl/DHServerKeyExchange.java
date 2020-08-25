@@ -51,7 +51,7 @@ import sun.security.ssl.SSLHandshake.HandshakeMessage;
 import sun.security.ssl.SupportedGroupsExtension.NamedGroup;
 import sun.security.ssl.X509Authentication.X509Credentials;
 import sun.security.ssl.X509Authentication.X509Possession;
-import sun.security.util.HexDumpEncoder;
+import sun.misc.HexDumpEncoder;
 import sun.security.util.KeyUtil;
 
 /**

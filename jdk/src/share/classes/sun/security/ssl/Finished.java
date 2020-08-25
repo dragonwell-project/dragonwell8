@@ -51,7 +51,7 @@ import sun.security.ssl.SSLBasicKeyDerivation.SecretSizeSpec;
 import sun.security.ssl.SSLCipher.SSLReadCipher;
 import sun.security.ssl.SSLCipher.SSLWriteCipher;
 import sun.security.ssl.SSLHandshake.HandshakeMessage;
-import sun.security.util.HexDumpEncoder;
+import sun.misc.HexDumpEncoder;
 
 /**
  * Pack of the Finished handshake message.

@@ -49,7 +49,7 @@ import sun.security.ssl.SSLHandshake.HandshakeMessage;
 import sun.security.ssl.SupportedGroupsExtension.NamedGroup;
 import sun.security.ssl.SupportedGroupsExtension.NamedGroupType;
 import sun.security.ssl.SupportedGroupsExtension.SupportedGroups;
-import sun.security.util.HexDumpEncoder;
+import sun.misc.HexDumpEncoder;
 
 /**
  * Pack of the "key_share" extensions.

@@ -29,8 +29,6 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.PrintStream;
-import java.lang.System.Logger;
-import java.lang.System.Logger.Level;
 import java.nio.ByteBuffer;
 import java.security.cert.Certificate;
 import java.security.cert.Extension;
@@ -39,10 +37,13 @@ import java.text.MessageFormat;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Locale;
+import java.util.logging.LogRecord;
+import java.util.logging.Logger;
+import java.util.logging.Level;
 import java.util.Map;
 import java.util.ResourceBundle;
 import sun.security.action.GetPropertyAction;
-import sun.security.util.HexDumpEncoder;
+import sun.misc.HexDumpEncoder;
 import sun.security.x509.*;
 
 /**
@@ -56,7 +57,7 @@ import sun.security.x509.*;
  * and non-empty, a private debug logger implemented in this class is used.
  */
 public final class SSLLogger {
-    private static final System.Logger logger;
+    private static final Logger logger;
     private static final String property;
     public static final boolean isOn;
 
@@ -65,7 +66,7 @@ public final class SSLLogger {
         if (p != null) {
             if (p.isEmpty()) {
                 property = "";
-                logger = System.getLogger("javax.net.ssl");
+                logger = Logger.getLogger("javax.net.ssl");
             } else {
                 property = p.toLowerCase(Locale.ENGLISH);
                 if (property.equals("help")) {
@@ -155,7 +156,7 @@ public final class SSLLogger {
     }
 
     public static void severe(String msg, Object... params) {
-        SSLLogger.log(Level.ERROR, msg, params);
+        SSLLogger.log(Level.SEVERE, msg, params);
     }
 
     public static void warning(String msg, Object... params) {
@@ -167,11 +168,11 @@ public final class SSLLogger {
     }
 
     public static void fine(String msg, Object... params) {
-        SSLLogger.log(Level.DEBUG, msg, params);
+        SSLLogger.log(Level.FINE, msg, params);
     }
 
     public static void finer(String msg, Object... params) {
-        SSLLogger.log(Level.TRACE, msg, params);
+        SSLLogger.log(Level.FINER, msg, params);
     }
 
     public static void finest(String msg, Object... params) {
@@ -202,53 +203,47 @@ public final class SSLLogger {
         }
     }
 
-    private static class SSLConsoleLogger implements Logger {
+    private static class SSLConsoleLogger extends Logger {
         private final String loggerName;
         private final boolean useCompactFormat;
 
         SSLConsoleLogger(String loggerName, String options) {
+            super(loggerName, null);
             this.loggerName = loggerName;
             options = options.toLowerCase(Locale.ENGLISH);
             this.useCompactFormat = !options.contains("expand");
         }
 
-        @Override
         public String getName() {
             return loggerName;
         }
 
-        @Override
         public boolean isLoggable(Level level) {
             return (level != Level.OFF);
         }
 
         @Override
-        public void log(Level level,
-                ResourceBundle rb, String message, Throwable thrwbl) {
-            if (isLoggable(level)) {
+        public void log(LogRecord record) {
+            if (isLoggable(record.getLevel())) {
                 try {
-                    String formatted =
-                        SSLSimpleFormatter.format(this, level, message, thrwbl);
+                    String formatted = null;
+                    if (record.getThrown() != null) {
+                        formatted =
+                                SSLSimpleFormatter.format(this, record.getLevel(),
+                                        record.getMessage(),
+                                        record.getThrown());
+                    } else {
+                        formatted =
+                                SSLSimpleFormatter.format(this, record.getLevel(),
+                                        record.getMessage(),
+                                        record.getParameters());
+                    }
                     System.err.write(formatted.getBytes("UTF-8"));
                 } catch (Exception exp) {
                     // ignore it, just for debugging.
                 }
             }
-        }
-
-        @Override
-        public void log(Level level,
-                ResourceBundle rb, String message, Object... params) {
-            if (isLoggable(level)) {
-                try {
-                    String formatted =
-                        SSLSimpleFormatter.format(this, level, message, params);
-                    System.err.write(formatted.getBytes("UTF-8"));
-                } catch (Exception exp) {
-                    // ignore it, just for debugging.
-                }
-            }
-        }
+        };
     }
 
     private static class SSLSimpleFormatter {
@@ -388,12 +383,15 @@ public final class SSLLogger {
         }
 
         private static String formatCaller() {
-            return StackWalker.getInstance().walk(s ->
-                s.dropWhile(f ->
-                    f.getClassName().startsWith("sun.security.ssl.SSLLogger") ||
-                    f.getClassName().startsWith("java.lang.System"))
-                .map(f -> f.getFileName() + ":" + f.getLineNumber())
-                .findFirst().orElse("unknown caller"));
+            StackTraceElement[] stElements = Thread.currentThread().getStackTrace();
+            for (int i=1; i<stElements.length; i++) {
+                StackTraceElement ste = stElements[i];
+                if (!ste.getClassName().startsWith(SSLLogger.class.getName()) &&
+                    !ste.getClassName().startsWith("java.lang.System")) {
+                   return ste.getFileName() + ":" + ste.getLineNumber();
+                }
+            }
+            return "unknown caller";
         }
 
         private static String formatParameters(Object ... parameters) {

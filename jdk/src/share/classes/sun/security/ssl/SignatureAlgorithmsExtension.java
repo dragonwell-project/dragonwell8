@@ -29,6 +29,7 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.text.MessageFormat;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Locale;
@@ -408,10 +409,11 @@ final class SignatureAlgorithmsExtension {
             }
 
             // Produce the extension.
+            List<ProtocolVersion> protocols = Arrays.asList(shc.negotiatedProtocol);
+            protocols = Collections.unmodifiableList(protocols);
             List<SignatureScheme> sigAlgs =
                     SignatureScheme.getSupportedAlgorithms(
-                            shc.algorithmConstraints,
-                            List.of(shc.negotiatedProtocol));
+                            shc.algorithmConstraints, protocols);
 
             int vectorLen = SignatureScheme.sizeInRecord() * sigAlgs.size();
             byte[] extData = new byte[vectorLen + 2];

@@ -31,7 +31,7 @@ import java.text.MessageFormat;
 import java.util.*;
 
 import sun.security.ssl.SSLHandshake.HandshakeMessage;
-import sun.security.util.HexDumpEncoder;
+import sun.misc.HexDumpEncoder;
 
 /**
  * SSL/TLS extensions in a handshake message.
