@@ -292,9 +292,6 @@ public abstract class SSLContextImpl extends SSLContextSpi {
     // Get default CipherSuite list for client mode.
     abstract List<CipherSuite> getClientDefaultCipherSuites();
 
-    // Is the context for DTLS protocols?
-    abstract boolean isDTLS();
-
     // Get default protocols.
     List<ProtocolVersion> getDefaultProtocolVersions(boolean roleIsServer) {
         return roleIsServer ? getServerDefaultProtocolVersions()
@@ -496,7 +493,7 @@ public abstract class SSLContextImpl extends SSLContextSpi {
     }
 
     /*
-     * The SSLContext implementation for SSL/(D)TLS algorithm
+     * The SSLContext implementation for SSL/TLS algorithm
      *
      * SSL/TLS protocols specify the forward compatibility and version
      * roll-back attack protections, however, a number of SSL/TLS server
@@ -611,11 +608,6 @@ public abstract class SSLContextImpl extends SSLContextSpi {
         @Override
         SSLEngine createSSLEngineImpl(String host, int port) {
             return new SSLEngineImpl(this, host, port);
-        }
-
-        @Override
-        boolean isDTLS() {
-            return false;
         }
 
         static ProtocolVersion[] getSupportedProtocols() {
@@ -805,7 +797,7 @@ public abstract class SSLContextImpl extends SSLContextSpi {
     }
 
     /*
-     * The interface for the customized SSL/(D)TLS SSLContext.
+     * The interface for the customized SSL/TLS SSLContext.
      *
      * @see SSLContext
      */
@@ -925,9 +917,7 @@ public abstract class SSLContextImpl extends SSLContextSpi {
                 boolean client, List<ProtocolVersion> customized) {
             List<ProtocolVersion> refactored = new ArrayList<>();
             for (ProtocolVersion pv : customized) {
-                if (!pv.isDTLS) {
-                    refactored.add(pv);
-                }
+                refactored.add(pv);
             }
 
             // Use the default enabled protocols if no customization
@@ -1224,248 +1214,6 @@ public abstract class SSLContextImpl extends SSLContextSpi {
 
             return DefaultSSLContextHolder.sslContext;
         }
-    }
-
-    /*
-     * The base abstract SSLContext implementation for the Datagram Transport
-     * Layer Security (DTLS) protocols.
-     *
-     * This abstract class encapsulates supported and the default server DTLS
-     * parameters.
-     *
-     * @see SSLContext
-     */
-    private abstract static class AbstractDTLSContext extends SSLContextImpl {
-        private static final List<ProtocolVersion> supportedProtocols;
-        private static final List<ProtocolVersion> serverDefaultProtocols;
-
-        private static final List<CipherSuite> supportedCipherSuites;
-        private static final List<CipherSuite> serverDefaultCipherSuites;
-
-        static {
-            // Both DTLSv1.0 and DTLSv1.2 can be used in FIPS mode.
-            supportedProtocols = Arrays.asList(
-                ProtocolVersion.DTLS12,
-                ProtocolVersion.DTLS10
-            );
-
-            // available protocols for server mode
-            serverDefaultProtocols = getAvailableProtocols(
-                    new ProtocolVersion[] {
-                ProtocolVersion.DTLS12,
-                ProtocolVersion.DTLS10
-            });
-
-            supportedCipherSuites = getApplicableSupportedCipherSuites(
-                    supportedProtocols);
-            serverDefaultCipherSuites = getApplicableEnabledCipherSuites(
-                    serverDefaultProtocols, false);
-        }
-
-        @Override
-        List<ProtocolVersion> getSupportedProtocolVersions() {
-            return supportedProtocols;
-        }
-
-        @Override
-        List<CipherSuite> getSupportedCipherSuites() {
-            return supportedCipherSuites;
-        }
-
-        @Override
-        List<ProtocolVersion> getServerDefaultProtocolVersions() {
-            return serverDefaultProtocols;
-        }
-
-        @Override
-        List<CipherSuite> getServerDefaultCipherSuites() {
-            return serverDefaultCipherSuites;
-        }
-
-        @Override
-        SSLEngine createSSLEngineImpl() {
-            return new SSLEngineImpl(this);
-        }
-
-        @Override
-        SSLEngine createSSLEngineImpl(String host, int port) {
-            return new SSLEngineImpl(this, host, port);
-        }
-
-        @Override
-        boolean isDTLS() {
-            return true;
-        }
-    }
-
-    /*
-     * The SSLContext implementation for DTLSv1.0 algorithm.
-     *
-     * @see SSLContext
-     */
-    public static final class DTLS10Context extends AbstractDTLSContext {
-        private static final List<ProtocolVersion> clientDefaultProtocols;
-        private static final List<CipherSuite> clientDefaultCipherSuites;
-
-        static {
-            // available protocols for client mode
-            clientDefaultProtocols = getAvailableProtocols(
-                    new ProtocolVersion[] {
-                ProtocolVersion.DTLS10
-            });
-
-            clientDefaultCipherSuites = getApplicableEnabledCipherSuites(
-                    clientDefaultProtocols, true);
-        }
-
-        @Override
-        List<ProtocolVersion> getClientDefaultProtocolVersions() {
-            return clientDefaultProtocols;
-        }
-
-        @Override
-        List<CipherSuite> getClientDefaultCipherSuites() {
-            return clientDefaultCipherSuites;
-        }
-    }
-
-    /*
-     * The SSLContext implementation for DTLSv1.2 algorithm.
-     *
-     * @see SSLContext
-     */
-    public static final class DTLS12Context extends AbstractDTLSContext {
-        private static final List<ProtocolVersion> clientDefaultProtocols;
-        private static final List<CipherSuite> clientDefaultCipherSuites;
-
-        static {
-            // available protocols for client mode
-            clientDefaultProtocols = getAvailableProtocols(
-                    new ProtocolVersion[] {
-                ProtocolVersion.DTLS12,
-                ProtocolVersion.DTLS10
-            });
-
-            clientDefaultCipherSuites = getApplicableEnabledCipherSuites(
-                    clientDefaultProtocols, true);
-        }
-
-        @Override
-        List<ProtocolVersion> getClientDefaultProtocolVersions() {
-            return clientDefaultProtocols;
-        }
-
-        @Override
-        List<CipherSuite> getClientDefaultCipherSuites() {
-            return clientDefaultCipherSuites;
-        }
-    }
-
-    /*
-     * The SSLContext implementation for customized TLS protocols
-     *
-     * @see SSLContext
-     */
-    private static class CustomizedDTLSContext extends AbstractDTLSContext {
-        private static final List<ProtocolVersion> clientDefaultProtocols;
-        private static final List<ProtocolVersion> serverDefaultProtocols;
-        private static final List<CipherSuite> clientDefaultCipherSuites;
-        private static final List<CipherSuite> serverDefaultCipherSuites;
-
-        private static IllegalArgumentException reservedException = null;
-
-        // Don't want a java.lang.LinkageError for illegal system property.
-        //
-        // Please don't throw exception in this static block.  Otherwise,
-        // java.lang.LinkageError may be thrown during the instantiation of
-        // the provider service. Instead, let's handle the initialization
-        // exception in constructor.
-        static {
-            reservedException = CustomizedSSLProtocols.reservedException;
-            if (reservedException == null) {
-                clientDefaultProtocols = customizedProtocols(true,
-                        CustomizedSSLProtocols.customizedClientProtocols);
-                serverDefaultProtocols = customizedProtocols(false,
-                        CustomizedSSLProtocols.customizedServerProtocols);
-
-                clientDefaultCipherSuites =
-                        getApplicableEnabledCipherSuites(
-                                clientDefaultProtocols, true);
-                serverDefaultCipherSuites =
-                        getApplicableEnabledCipherSuites(
-                                serverDefaultProtocols, false);
-
-            } else {
-                // unlikely to be used
-                clientDefaultProtocols = null;
-                serverDefaultProtocols = null;
-                clientDefaultCipherSuites = null;
-                serverDefaultCipherSuites = null;
-            }
-        }
-
-        private static List<ProtocolVersion> customizedProtocols(boolean client,
-                List<ProtocolVersion> customized) {
-            List<ProtocolVersion> refactored = new ArrayList<>();
-            for (ProtocolVersion pv : customized) {
-                if (pv.isDTLS) {
-                    refactored.add(pv);
-                }
-            }
-
-            ProtocolVersion[] candidates;
-            // Use the default enabled protocols if no customization
-            if (refactored.isEmpty()) {
-                candidates = new ProtocolVersion[]{
-                        ProtocolVersion.DTLS12,
-                        ProtocolVersion.DTLS10
-                };
-                if (!client)
-                    return Arrays.asList(candidates);
-            } else {
-                // Use the customized TLS protocols.
-                candidates =
-                        new ProtocolVersion[customized.size()];
-                candidates = customized.toArray(candidates);
-            }
-
-            return getAvailableProtocols(candidates);
-        }
-
-        protected CustomizedDTLSContext() {
-            if (reservedException != null) {
-                throw reservedException;
-            }
-        }
-
-        @Override
-        List<ProtocolVersion> getClientDefaultProtocolVersions() {
-            return clientDefaultProtocols;
-        }
-
-        @Override
-        List<ProtocolVersion> getServerDefaultProtocolVersions() {
-            return serverDefaultProtocols;
-        }
-
-        @Override
-        List<CipherSuite> getClientDefaultCipherSuites() {
-            return clientDefaultCipherSuites;
-        }
-
-        @Override
-        List<CipherSuite> getServerDefaultCipherSuites() {
-            return serverDefaultCipherSuites;
-        }
-    }
-
-    /*
-     * The SSLContext implementation for default "DTLS" algorithm
-     *
-     * @see SSLContext
-     */
-    public static final class DTLSContext extends CustomizedDTLSContext {
-        // use the default constructor and methods
     }
 
 }

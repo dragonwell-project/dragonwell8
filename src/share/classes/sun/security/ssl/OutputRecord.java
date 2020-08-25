@@ -33,7 +33,7 @@ import java.nio.ByteBuffer;
 import sun.security.ssl.SSLCipher.SSLWriteCipher;
 
 /**
- * {@code OutputRecord} takes care of the management of SSL/(D)TLS
+ * {@code OutputRecord} takes care of the management of SSL/TLS
  * output records, including buffering, encryption, handshake
  * messages marshal, etc.
  *
@@ -212,21 +212,6 @@ abstract class OutputRecord
         return packetSize;
     }
 
-    // apply to DTLS SSLEngine
-    void initHandshaker() {
-        // blank
-    }
-
-    // apply to DTLS SSLEngine
-    void finishHandshake() {
-        // blank
-    }
-
-    // apply to DTLS SSLEngine
-    void launchRetransmission() {
-        // blank
-    }
-
     @Override
     public synchronized void close() throws IOException {
         if (isClosed) {
@@ -272,69 +257,15 @@ abstract class OutputRecord
             SSLWriteCipher encCipher, byte contentType, ByteBuffer destination,
             int headerOffset, int dstLim, int headerSize,
             ProtocolVersion protocolVersion) {
-        boolean isDTLS = protocolVersion.isDTLS;
-        if (isDTLS) {
-            if (protocolVersion.useTLS13PlusSpec()) {
-                return d13Encrypt(encCipher,
-                        contentType, destination, headerOffset,
-                        dstLim, headerSize, protocolVersion);
-            } else {
-                return d10Encrypt(encCipher,
-                        contentType, destination, headerOffset,
-                        dstLim, headerSize, protocolVersion);
-            }
+        if (protocolVersion.useTLS13PlusSpec()) {
+            return t13Encrypt(encCipher,
+                    contentType, destination, headerOffset,
+                    dstLim, headerSize, protocolVersion);
         } else {
-            if (protocolVersion.useTLS13PlusSpec()) {
-                return t13Encrypt(encCipher,
-                        contentType, destination, headerOffset,
-                        dstLim, headerSize, protocolVersion);
-            } else {
-                return t10Encrypt(encCipher,
-                        contentType, destination, headerOffset,
-                        dstLim, headerSize, protocolVersion);
-            }
+            return t10Encrypt(encCipher,
+                    contentType, destination, headerOffset,
+                    dstLim, headerSize, protocolVersion);
         }
-    }
-
-    private static long d13Encrypt(
-            SSLWriteCipher encCipher, byte contentType, ByteBuffer destination,
-            int headerOffset, int dstLim, int headerSize,
-            ProtocolVersion protocolVersion) {
-        throw new UnsupportedOperationException("Not supported yet.");
-    }
-
-    private static long d10Encrypt(
-            SSLWriteCipher encCipher, byte contentType, ByteBuffer destination,
-            int headerOffset, int dstLim, int headerSize,
-            ProtocolVersion protocolVersion) {
-        byte[] sequenceNumber = encCipher.authenticator.sequenceNumber();
-        encCipher.encrypt(contentType, destination);
-
-        // Finish out the record header.
-        int fragLen = destination.limit() - headerOffset - headerSize;
-
-        destination.put(headerOffset, contentType);         // content type
-        destination.put(headerOffset + 1, protocolVersion.major);
-        destination.put(headerOffset + 2, protocolVersion.minor);
-
-        // epoch and sequence_number
-        destination.put(headerOffset + 3, sequenceNumber[0]);
-        destination.put(headerOffset + 4, sequenceNumber[1]);
-        destination.put(headerOffset + 5, sequenceNumber[2]);
-        destination.put(headerOffset + 6, sequenceNumber[3]);
-        destination.put(headerOffset + 7, sequenceNumber[4]);
-        destination.put(headerOffset + 8, sequenceNumber[5]);
-        destination.put(headerOffset + 9, sequenceNumber[6]);
-        destination.put(headerOffset + 10, sequenceNumber[7]);
-
-        // fragment length
-        destination.put(headerOffset + 11, (byte)(fragLen >> 8));
-        destination.put(headerOffset + 12, (byte)fragLen);
-
-        // Update destination position to reflect the amount of data produced.
-        destination.position(destination.limit());
-
-        return Authenticator.toLong(sequenceNumber);
     }
 
     private static long t13Encrypt(

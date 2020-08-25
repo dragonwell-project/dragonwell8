@@ -191,7 +191,7 @@ final class SSLKeyExchange implements SSLKeyAgreementGenerator,
         }
     }
 
-    // SSL 3.0 - (D)TLS 1.2
+    // SSL 3.0 - TLS 1.2
     static SSLKeyExchange valueOf(
             CipherSuite.KeyExchange keyExchange,
             ProtocolVersion protocolVersion) {
@@ -209,7 +209,7 @@ final class SSLKeyExchange implements SSLKeyAgreementGenerator,
             case K_DHE_DSS_EXPORT:
                 return SSLKeyExDHEDSSExport.KE;
             case K_DHE_RSA:
-                if (protocolVersion.useTLS12PlusSpec()) {   // (D)TLS 1.2
+                if (protocolVersion.useTLS12PlusSpec()) {   // TLS 1.2
                     return SSLKeyExDHERSAOrPSS.KE;
                 } else {    // SSL 3.0, TLS 1.0/1.1
                     return SSLKeyExDHERSA.KE;
@@ -227,7 +227,7 @@ final class SSLKeyExchange implements SSLKeyAgreementGenerator,
             case K_ECDHE_ECDSA:
                 return SSLKeyExECDHEECDSA.KE;
             case K_ECDHE_RSA:
-                if (protocolVersion.useTLS12PlusSpec()) {   // (D)TLS 1.2
+                if (protocolVersion.useTLS12PlusSpec()) {   // TLS 1.2
                     return SSLKeyExECDHERSAOrPSS.KE;
                 } else {    // SSL 3.0, TLS 1.0/1.1
                     return SSLKeyExECDHERSA.KE;

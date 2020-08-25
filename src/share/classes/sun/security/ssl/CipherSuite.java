@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2002, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -39,7 +39,7 @@ import sun.security.ssl.SupportedGroupsExtension.NamedGroupType;
 import static sun.security.ssl.SupportedGroupsExtension.NamedGroupType.*;
 
 /**
- * Enum for SSL/(D)TLS cipher suites.
+ * Enum for SSL/TLS cipher suites.
  *
  * Please refer to the "TLS Cipher Suite Registry" section for more details
  * about each cipher suite:
@@ -952,7 +952,7 @@ enum CipherSuite {
 
     // See also SSLWriteCipher.calculatePacketSize().
     int calculatePacketSize(int fragmentSize,
-            ProtocolVersion protocolVersion, boolean isDTLS) {
+            ProtocolVersion protocolVersion) {
         int packetSize = fragmentSize;
         if (bulkCipher != null && bulkCipher != B_NULL) {
             int blockSize = bulkCipher.ivSize;
@@ -968,8 +968,7 @@ enum CipherSuite {
 
                     break;
                 case AEAD_CIPHER:
-                    if (protocolVersion == ProtocolVersion.TLS12 ||
-                            protocolVersion == ProtocolVersion.DTLS12) {
+                    if (protocolVersion == ProtocolVersion.TLS12) {
                         packetSize +=
                                 bulkCipher.ivSize - bulkCipher.fixedIvSize;
                     }
@@ -981,15 +980,13 @@ enum CipherSuite {
             }
         }
 
-        return packetSize +
-            (isDTLS ? DTLSRecord.headerSize : SSLRecord.headerSize);
+        return packetSize + SSLRecord.headerSize;
     }
 
     // See also CipherBox.calculateFragmentSize().
     int calculateFragSize(int packetLimit,
-            ProtocolVersion protocolVersion, boolean isDTLS) {
-        int fragSize = packetLimit -
-                (isDTLS ? DTLSRecord.headerSize : SSLRecord.headerSize);
+            ProtocolVersion protocolVersion) {
+        int fragSize = packetLimit - SSLRecord.headerSize;
         if (bulkCipher != null && bulkCipher != B_NULL) {
             int blockSize = bulkCipher.ivSize;
             switch (bulkCipher.cipherType) {

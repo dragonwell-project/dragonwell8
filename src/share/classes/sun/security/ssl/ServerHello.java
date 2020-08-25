@@ -68,14 +68,7 @@ final class ServerHello {
     private static final HandshakeConsumer t13HandshakeConsumer =
         new T13ServerHelloConsumer();
 
-    private static final HandshakeConsumer d12HandshakeConsumer =
-        new T12ServerHelloConsumer();
-    private static final HandshakeConsumer d13HandshakeConsumer =
-        new T13ServerHelloConsumer();
-
     private static final HandshakeConsumer t13HrrHandshakeConsumer =
-        new T13HelloRetryRequestConsumer();
-    private static final HandshakeConsumer d13HrrHandshakeConsumer =
         new T13HelloRetryRequestConsumer();
 
     /**
@@ -856,11 +849,6 @@ final class ServerHello {
             // clean up this consumer
             chc.handshakeConsumers.remove(SSLHandshake.SERVER_HELLO.id);
             if (!chc.handshakeConsumers.isEmpty()) {
-                // DTLS 1.0/1.2
-                chc.handshakeConsumers.remove(
-                        SSLHandshake.HELLO_VERIFY_REQUEST.id);
-            }
-            if (!chc.handshakeConsumers.isEmpty()) {
                 throw chc.conContext.fatal(Alert.UNEXPECTED_MESSAGE,
                     "No more message expected before ServerHello is processed");
             }
@@ -922,11 +910,7 @@ final class ServerHello {
             // Clean up before producing new client key share possessions.
             chc.handshakePossessions.clear();
 
-            if (serverVersion.isDTLS) {
-                d13HrrHandshakeConsumer.consume(chc, helloRetryRequest);
-            } else {
-                t13HrrHandshakeConsumer.consume(chc, helloRetryRequest);
-            }
+            t13HrrHandshakeConsumer.consume(chc, helloRetryRequest);
         }
 
         private void onServerHello(ClientHandshakeContext chc,
@@ -973,26 +957,14 @@ final class ServerHello {
             }
 
             // Consume the handshake message for the specific protocol version.
-            if (serverVersion.isDTLS) {
-                if (serverVersion.useTLS13PlusSpec()) {
-                    d13HandshakeConsumer.consume(chc, serverHello);
-                } else {
-                    // TLS 1.3 key share extension may have produced client
-                    // possessions for TLS 1.3 key exchanges.
-                    chc.handshakePossessions.clear();
-
-                    d12HandshakeConsumer.consume(chc, serverHello);
-                }
+            if (serverVersion.useTLS13PlusSpec()) {
+                t13HandshakeConsumer.consume(chc, serverHello);
             } else {
-                if (serverVersion.useTLS13PlusSpec()) {
-                    t13HandshakeConsumer.consume(chc, serverHello);
-                } else {
-                    // TLS 1.3 key share extension may have produced client
-                    // possessions for TLS 1.3 key exchanges.
-                    chc.handshakePossessions.clear();
+                // TLS 1.3 key share extension may have produced client
+                // possessions for TLS 1.3 key exchanges.
+                chc.handshakePossessions.clear();
 
-                    t12HandshakeConsumer.consume(chc, serverHello);
-                }
+                t12HandshakeConsumer.consume(chc, serverHello);
             }
         }
     }

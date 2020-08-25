@@ -93,7 +93,7 @@ final class SSLSocketInputRecord extends InputRecord implements SSLRecord {
              * Last sanity check that it's not a wild record
              */
             if (!ProtocolVersion.isNegotiable(
-                    temporary[1], temporary[2], false, false)) {
+                    temporary[1], temporary[2], false)) {
                 throw new SSLException("Unrecognized record version " +
                         ProtocolVersion.nameOf(temporary[1], temporary[2]) +
                         " , plaintext connection?");
@@ -123,7 +123,7 @@ final class SSLSocketInputRecord extends InputRecord implements SSLRecord {
 
             if (isShort && ((temporary[2] == 1) || (temporary[2] == 4))) {
                 if (!ProtocolVersion.isNegotiable(
-                        temporary[3], temporary[4], false, false)) {
+                        temporary[3], temporary[4], false)) {
                     throw new SSLException("Unrecognized record version " +
                             ProtocolVersion.nameOf(temporary[3], temporary[4]) +
                             " , plaintext connection?");

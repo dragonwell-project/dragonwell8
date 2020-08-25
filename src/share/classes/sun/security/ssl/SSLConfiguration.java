@@ -48,7 +48,7 @@ import sun.security.ssl.SSLExtension.ClientExtensions;
 import sun.security.ssl.SSLExtension.ServerExtensions;
 
 /**
- * SSL/(D)TLS configuration.
+ * SSL/TLS configuration.
  */
 final class SSLConfiguration implements Cloneable {
     // configurations with SSLParameters
@@ -61,8 +61,7 @@ final class SSLConfiguration implements Cloneable {
     Collection<SNIMatcher>      sniMatchers;
     String[]                    applicationProtocols;
     boolean                     preferLocalCipherSuites;
-    boolean                     enableRetransmissions;
-    int                         maximumPacketSize;
+    int                         maximumPacketSize = 0;
 
     // the maximum protocol version of enabled protocols
     ProtocolVersion             maximumProtocolVersion;
@@ -131,8 +130,6 @@ final class SSLConfiguration implements Cloneable {
         this.preferLocalCipherSuites = false;
 
         this.applicationProtocols = new String[0];
-        this.enableRetransmissions = sslContext.isDTLS();
-        this.maximumPacketSize = 0;         // please reset it explicitly later
 
         this.maximumProtocolVersion = ProtocolVersion.NONE;
         for (ProtocolVersion pv : enabledProtocols) {
@@ -186,8 +183,6 @@ final class SSLConfiguration implements Cloneable {
 
         params.setApplicationProtocols(this.applicationProtocols);
         params.setUseCipherSuitesOrder(this.preferLocalCipherSuites);
-        params.setEnableRetransmissions(this.enableRetransmissions);
-        params.setMaximumPacketSize(this.maximumPacketSize);
 
         return params;
     }
@@ -246,8 +241,6 @@ final class SSLConfiguration implements Cloneable {
         }   // otherwise, use the default values
 
         this.preferLocalCipherSuites = params.getUseCipherSuitesOrder();
-        this.enableRetransmissions = params.getEnableRetransmissions();
-        this.maximumPacketSize = params.getMaximumPacketSize();
     }
 
     // SSLSocket only

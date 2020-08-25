@@ -30,7 +30,7 @@ import java.nio.ByteBuffer;
 import javax.net.ssl.SSLException;
 
 /**
- * SSL/(D)TLS record.
+ * SSL/TLS record.
  *
  * This is the base interface, which defines common information and interfaces
  * used by both Input and Output records.

@@ -190,12 +190,8 @@ final class MaxFragExtension {
             } else if (chc.sslConfig.maximumPacketSize != 0) {
                 // Maybe we can calculate the fragment size more accurate
                 // by condering the enabled cipher suites in the future.
-                requestedMFLength = chc.sslConfig.maximumPacketSize;
-                if (chc.sslContext.isDTLS()) {
-                    requestedMFLength -= DTLSRecord.maxPlaintextPlusSize;
-                } else {
-                    requestedMFLength -= SSLRecord.maxPlaintextPlusSize;
-                }
+                requestedMFLength = chc.sslConfig.maximumPacketSize -
+                     SSLRecord.maxPlaintextPlusSize;
             } else {
                 // Need no max_fragment_length extension.
                 requestedMFLength = -1;
@@ -303,8 +299,7 @@ final class MaxFragExtension {
                     (shc.sslConfig.maximumPacketSize != 0)) {
                 int estimatedMaxFragSize =
                         shc.negotiatedCipherSuite.calculatePacketSize(
-                                shc.maxFragmentLength, shc.negotiatedProtocol,
-                                shc.sslContext.isDTLS());
+                                shc.maxFragmentLength, shc.negotiatedProtocol);
                 if (estimatedMaxFragSize > shc.sslConfig.maximumPacketSize) {
                     // For better interoperability, abort the maximum
                     // fragment length negotiation, rather than terminate
@@ -417,8 +412,7 @@ final class MaxFragExtension {
                     (chc.sslConfig.maximumPacketSize != 0)) {
                 int estimatedMaxFragSize =
                         chc.negotiatedCipherSuite.calculatePacketSize(
-                                chc.maxFragmentLength, chc.negotiatedProtocol,
-                                chc.sslContext.isDTLS());
+                                chc.maxFragmentLength, chc.negotiatedProtocol);
                 if (estimatedMaxFragSize > chc.sslConfig.maximumPacketSize) {
                     // For better interoperability, abort the maximum
                     // fragment length negotiation, rather than terminate
@@ -476,8 +470,7 @@ final class MaxFragExtension {
                     (shc.sslConfig.maximumPacketSize != 0)) {
                 int estimatedMaxFragSize =
                         shc.negotiatedCipherSuite.calculatePacketSize(
-                                shc.maxFragmentLength, shc.negotiatedProtocol,
-                                shc.sslContext.isDTLS());
+                                shc.maxFragmentLength, shc.negotiatedProtocol);
                 if (estimatedMaxFragSize > shc.sslConfig.maximumPacketSize) {
                     // For better interoperability, abort the maximum
                     // fragment length negotiation, rather than terminate
@@ -588,8 +581,7 @@ final class MaxFragExtension {
                     (chc.sslConfig.maximumPacketSize != 0)) {
                 int estimatedMaxFragSize =
                         chc.negotiatedCipherSuite.calculatePacketSize(
-                                chc.maxFragmentLength, chc.negotiatedProtocol,
-                                chc.sslContext.isDTLS());
+                                chc.maxFragmentLength, chc.negotiatedProtocol);
                 if (estimatedMaxFragSize > chc.sslConfig.maximumPacketSize) {
                     // For better interoperability, abort the maximum
                     // fragment length negotiation, rather than terminate

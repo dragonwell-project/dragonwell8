@@ -97,21 +97,6 @@ enum SSLHandshake implements SSLConsumer, HandshakeProducer {
         })),
 
     @SuppressWarnings({"unchecked", "rawtypes"})
-    HELLO_VERIFY_REQUEST        ((byte)0x03, "hello_verify_request",
-        (Map.Entry<SSLConsumer, ProtocolVersion[]>[])(new Map.Entry[] {
-            new SimpleImmutableEntry<SSLConsumer, ProtocolVersion[]>(
-                HelloVerifyRequest.handshakeConsumer,
-                ProtocolVersion.PROTOCOLS_TO_12
-            )
-        }),
-        (Map.Entry<HandshakeProducer, ProtocolVersion[]>[])(new Map.Entry[] {
-            new SimpleImmutableEntry<HandshakeProducer, ProtocolVersion[]>(
-                HelloVerifyRequest.handshakeProducer,
-                ProtocolVersion.PROTOCOLS_TO_12
-            )
-        })),
-
-    @SuppressWarnings({"unchecked", "rawtypes"})
     NEW_SESSION_TICKET          ((byte)0x04, "new_session_ticket",
         (Map.Entry<SSLConsumer, ProtocolVersion[]>[])(new Map.Entry[] {
             new SimpleImmutableEntry<SSLConsumer, ProtocolVersion[]>(
@@ -498,11 +483,11 @@ enum SSLHandshake implements SSLConsumer, HandshakeProducer {
             // For initial handshaking, including session resumption,
             // ClientHello message is used as the kickstart message.
             //
-            // (D)TLS 1.2 and older protocols support renegotiation on existing
+            // TLS 1.2 and older protocols support renegotiation on existing
             // connections.  A ClientHello messages is used to kickstart the
             // renegotiation.
             //
-            // (D)TLS 1.3 forbids renegotiation.  The post-handshake KeyUpdate
+            // TLS 1.3 forbids renegotiation.  The post-handshake KeyUpdate
             // message is used to update the sending cryptographic keys.
             if (context.conContext.isNegotiated &&
                     context.conContext.protocolVersion.useTLS13PlusSpec()) {
@@ -518,10 +503,10 @@ enum SSLHandshake implements SSLConsumer, HandshakeProducer {
             // The server side can delivering kickstart message after the
             // connection has established.
             //
-            // (D)TLS 1.2 and older protocols use HelloRequest to begin a
+            // TLS 1.2 and older protocols use HelloRequest to begin a
             // negotiation process anew.
             //
-            // While (D)TLS 1.3 uses the post-handshake KeyUpdate message
+            // While TLS 1.3 uses the post-handshake KeyUpdate message
             // to update the sending cryptographic keys.
             if (context.conContext.protocolVersion.useTLS13PlusSpec()) {
                 // Use KeyUpdate message for renegotiation.

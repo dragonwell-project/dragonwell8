@@ -207,8 +207,7 @@ final class HandshakeHash {
     }
 
     public boolean isHashable(byte handshakeType) {
-        return handshakeType != SSLHandshake.HELLO_REQUEST.id &&
-               handshakeType != SSLHandshake.HELLO_VERIFY_REQUEST.id;
+        return handshakeType != SSLHandshake.HELLO_REQUEST.id;
     }
 
     interface TranscriptHash {
