@@ -59,7 +59,7 @@ public abstract class SSLContextImpl extends SSLContextSpi {
     private volatile HelloCookieManager.Builder helloCookieManagerBuilder;
 
     private final boolean clientEnableStapling = Utilities.getBooleanProperty(
-            "jdk.tls.client.enableStatusRequestExtension", true);
+            "jdk.tls.client.enableStatusRequestExtension", false);
     private final boolean serverEnableStapling = Utilities.getBooleanProperty(
             "jdk.tls.server.enableStatusRequestExtension", false);
     private static final Collection<CipherSuite> clientCustomizedCipherSuites =
