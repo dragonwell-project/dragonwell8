@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,16 +26,17 @@
 package sun.security.ssl.krb5;
 
 import java.io.IOException;
-import java.io.PrintStream;
+import java.net.InetAddress;
+import java.net.UnknownHostException;
 import java.security.AccessController;
 import java.security.AccessControlContext;
 import java.security.PrivilegedExceptionAction;
 import java.security.PrivilegedActionException;
-import java.security.SecureRandom;
-import java.net.InetAddress;
+import java.util.Arrays;
 import java.security.PrivilegedAction;
 
 import javax.security.auth.kerberos.KerberosTicket;
+import javax.net.ssl.SSLKeyException;
 import javax.security.auth.kerberos.KerberosKey;
 import javax.security.auth.kerberos.KerberosPrincipal;
 import javax.security.auth.kerberos.ServicePermission;
@@ -51,111 +52,70 @@ import sun.security.krb5.internal.crypto.KeyUsage;
 import sun.security.jgss.krb5.Krb5Util;
 import sun.security.jgss.krb5.ServiceCreds;
 import sun.security.krb5.KrbException;
-import sun.security.krb5.internal.Krb5;
 
-import sun.security.ssl.Debug;
-import sun.security.ssl.HandshakeInStream;
-import sun.security.ssl.HandshakeOutStream;
 import sun.security.ssl.Krb5Helper;
-import sun.security.ssl.ProtocolVersion;
+import sun.security.ssl.SSLLogger;
 
-/**
- * This is Kerberos option in the client key exchange message
- * (CLIENT -> SERVER). It holds the Kerberos ticket and the encrypted
- * premaster secret encrypted with the session key sealed in the ticket.
- * From RFC 2712:
- *  struct
- *  {
- *    opaque Ticket;
- *    opaque authenticator;            // optional
- *    opaque EncryptedPreMasterSecret; // encrypted with the session key
- *                                     // which is sealed in the ticket
- *  } KerberosWrapper;
- *
- *
- * Ticket and authenticator are encrypted as per RFC 1510 (in ASN.1)
- * Encrypted pre-master secret has the same structure as it does for RSA
- * except for Kerberos, the encryption key is the session key instead of
- * the RSA public key.
- *
- * XXX authenticator currently ignored
- *
- */
-public final class KerberosClientKeyExchangeImpl
-    extends sun.security.ssl.KerberosClientKeyExchange {
+public final class KrbClientKeyExchangeHelperImpl
+        implements sun.security.ssl.KrbClientKeyExchangeHelper {
 
-    private KerberosPreMasterSecret preMaster;
+    private byte[] preMaster;
+    private byte[] preMasterEnc;
     private byte[] encodedTicket;
     private KerberosPrincipal peerPrincipal;
     private KerberosPrincipal localPrincipal;
 
-    public KerberosClientKeyExchangeImpl() {
+    /**
+     * Initialises an instance of KrbClientKeyExchangeHelperImpl.
+     * Used by the TLS client to create a Kerberos Client Key Exchange
+     * message.
+     *
+     * @param preMaster plain pre-master secret
+     * @param serverName name of the TLS server to perform the handshake;
+     *                   used by the TLS client to get a Kerberos service
+     *                   ticket which contains the session key to encrypt
+     *                   the pre-master secret
+     * @param acc the TLS client security context for the handshake
+     */
+    @Override
+    public void init(byte[] preMaster, String serverName,
+            AccessControlContext acc) throws IOException {
+        this.preMaster = preMaster;
+
+        // Get service ticket
+        KerberosTicket ticket = getServiceTicket(serverName, acc);
+        encodedTicket = ticket.getEncoded();
+
+        // Record the Kerberos principals
+        peerPrincipal = ticket.getServer();
+        localPrincipal = ticket.getClient();
+
+        // Encrypt the pre-master secret with the Kerberos session key
+        EncryptionKey sessionKey = new EncryptionKey(
+                ticket.getSessionKeyType(),
+                ticket.getSessionKey().getEncoded());
+        encryptPremasterSecret(sessionKey);
     }
 
     /**
-     * Creates an instance of KerberosClientKeyExchange consisting of the
-     * Kerberos service ticket, authenticator and encrypted premaster secret.
-     * Called by client handshaker.
+     * Initialises an instance of KrbClientKeyExchangeHelperImpl.
+     * Used by the TLS server to process the content of a Kerberos Client Key
+     * Exchange message (received from a TLS client).
      *
-     * @param serverName name of server with which to do handshake;
-     *             this is used to get the Kerberos service ticket
-     * @param protocolVersion Maximum version supported by client (i.e,
-     *          version it requested in client hello)
-     * @param rand random number generator to use for generating pre-master
-     *          secret
+     * @param encodedTicket the encoded Kerberos ticket (TGS) received from the
+     *                      TLS client. This ticket seals the Kerberos session
+     *                      key.
+     * @param preMasterEnc the pre-master secret encrypted with the Kerberos
+     *                     session key
+     * @param serviceCreds the TLS server Kerberos credentials used to process
+     *                     the received Kerberos ticket.
+     * @param acc the TLS server security context for the handshake
      */
     @Override
-    public void init(String serverName,
-        AccessControlContext acc, ProtocolVersion protocolVersion,
-        SecureRandom rand) throws IOException {
-
-         // Get service ticket
-         KerberosTicket ticket = getServiceTicket(serverName, acc);
-         encodedTicket = ticket.getEncoded();
-
-         // Record the Kerberos principals
-         peerPrincipal = ticket.getServer();
-         localPrincipal = ticket.getClient();
-
-         // Optional authenticator, encrypted using session key,
-         // currently ignored
-
-         // Generate premaster secret and encrypt it using session key
-         EncryptionKey sessionKey = new EncryptionKey(
-                                        ticket.getSessionKeyType(),
-                                        ticket.getSessionKey().getEncoded());
-
-         preMaster = new KerberosPreMasterSecret(protocolVersion,
-             rand, sessionKey);
-    }
-
-    /**
-     * Creates an instance of KerberosClientKeyExchange from its ASN.1 encoding.
-     * Used by ServerHandshaker to verify and obtain premaster secret.
-     *
-     * @param protocolVersion current protocol version
-     * @param clientVersion version requested by client in its ClientHello;
-     *          used by premaster secret version check
-     * @param rand random number generator used for generating random
-     *          premaster secret if ticket and/or premaster verification fails
-     * @param input inputstream from which to get ASN.1-encoded KerberosWrapper
-     * @param acc the AccessControlContext of the handshaker
-     * @param serviceCreds server's creds
-     */
-    @Override
-    public void init(ProtocolVersion protocolVersion,
-        ProtocolVersion clientVersion,
-        SecureRandom rand, HandshakeInStream input, AccessControlContext acc, Object serviceCreds)
-        throws IOException {
-
-        // Read ticket
-        encodedTicket = input.getBytes16();
-
-        if (debug != null && Debug.isOn("verbose")) {
-            Debug.println(System.out,
-                "encoded Kerberos service ticket", encodedTicket);
-        }
-
+    public void init(byte[] encodedTicket, byte[] preMasterEnc,
+            Object serviceCreds, AccessControlContext acc) throws IOException {
+        this.encodedTicket = encodedTicket;
+        this.preMasterEnc = preMasterEnc;
         EncryptionKey sessionKey = null;
 
         try {
@@ -164,7 +124,7 @@ public final class KerberosClientKeyExchangeImpl
             EncryptedData encPart = t.encPart;
             PrincipalName ticketSname = t.sname;
 
-            final ServiceCreds creds = (ServiceCreds)serviceCreds;
+            final ServiceCreds creds = (ServiceCreds) serviceCreds;
             final KerberosPrincipal princ =
                     new KerberosPrincipal(ticketSname.toString());
 
@@ -178,13 +138,12 @@ public final class KerberosClientKeyExchangeImpl
                                 ticketSname.toString(), "accept"), acc);
                     }
                 } catch (SecurityException se) {
-                    serviceCreds = null;
                     // Do not destroy keys. Will affect Subject
-                    if (debug != null && Debug.isOn("handshake")) {
-                        System.out.println("Permission to access Kerberos"
+                    if (SSLLogger.isOn && SSLLogger.isOn("ssl,handshake")) {
+                        SSLLogger.fine("Permission to access Kerberos"
                                 + " secret key denied");
                     }
-                    throw new IOException("Kerberos service not allowedy");
+                    throw new IOException("Kerberos service not allowed");
                 }
             }
             KerberosKey[] serverKeys = AccessController.doPrivileged(
@@ -199,13 +158,6 @@ public final class KerberosClientKeyExchangeImpl
                         (creds.getName() == null ? "" :
                         (", this keytab is for " + creds.getName() + " only")));
             }
-
-            /*
-             * permission to access and use the secret key of the Kerberized
-             * "host" service is done in ServerHandshaker.getKerberosKeys()
-             * to ensure server has the permission to use the secret key
-             * before promising the client
-             */
 
             // See if we have the right key to decrypt the ticket to get
             // the session key.
@@ -237,58 +189,124 @@ public final class KerberosClientKeyExchangeImpl
 
             // Record the Kerberos Principals
             peerPrincipal =
-                new KerberosPrincipal(encTicketPart.cname.getName());
+                    new KerberosPrincipal(encTicketPart.cname.getName());
             localPrincipal = new KerberosPrincipal(ticketSname.getName());
 
             sessionKey = encTicketPart.key;
 
-            if (debug != null && Debug.isOn("handshake")) {
-                System.out.println("server principal: " + ticketSname);
-                System.out.println("cname: " + encTicketPart.cname.toString());
+            if (SSLLogger.isOn && SSLLogger.isOn("ssl,handshake")) {
+                SSLLogger.fine("server principal: " + ticketSname);
+                SSLLogger.fine("cname: " + encTicketPart.cname.toString());
             }
-        } catch (IOException e) {
-            throw e;
         } catch (Exception e) {
-            if (debug != null && Debug.isOn("handshake")) {
-                System.out.println("KerberosWrapper error getting session key,"
-                        + " generating random secret (" + e.getMessage() + ")");
-            }
             sessionKey = null;
+            if (SSLLogger.isOn && SSLLogger.isOn("ssl,handshake")) {
+                SSLLogger.fine("Error getting the Kerberos session key" +
+                        " to decrypt the pre-master secret");
+            }
         }
-
-        input.getBytes16();   // XXX Read and ignore authenticator
-
-        if (sessionKey != null) {
-            preMaster = new KerberosPreMasterSecret(protocolVersion,
-                clientVersion, rand, input, sessionKey);
-        } else {
-            // Generate bogus premaster secret
-            preMaster = new KerberosPreMasterSecret(clientVersion, rand);
-        }
+        if (sessionKey != null)
+            decryptPremasterSecret(sessionKey);
     }
 
     @Override
-    public int messageLength() {
-        return (6 + encodedTicket.length + preMaster.getEncrypted().length);
+    public byte[] getEncodedTicket() {
+        return encodedTicket;
     }
 
     @Override
-    public void send(HandshakeOutStream s) throws IOException {
-        s.putBytes16(encodedTicket);
-        s.putBytes16(null); // XXX no authenticator
-        s.putBytes16(preMaster.getEncrypted());
+    public byte[] getEncryptedPreMasterSecret() {
+        return preMasterEnc;
     }
 
     @Override
-    public void print(PrintStream s) throws IOException {
-        s.println("*** ClientKeyExchange, Kerberos");
+    public byte[] getPlainPreMasterSecret() {
+        return preMaster;
+    }
 
-        if (debug != null && Debug.isOn("verbose")) {
-            Debug.println(s, "Kerberos service ticket", encodedTicket);
-            Debug.println(s, "Random Secret", preMaster.getUnencrypted());
-            Debug.println(s, "Encrypted random Secret",
-                preMaster.getEncrypted());
+    @Override
+    public KerberosPrincipal getPeerPrincipal() {
+        return peerPrincipal;
+    }
+
+    @Override
+    public KerberosPrincipal getLocalPrincipal() {
+        return localPrincipal;
+    }
+
+    private void encryptPremasterSecret(EncryptionKey sessionKey)
+            throws IOException {
+        if (sessionKey.getEType() ==
+                EncryptedData.ETYPE_DES3_CBC_HMAC_SHA1_KD) {
+            throw new IOException(
+                    "session keys with des3-cbc-hmac-sha1-kd encryption type " +
+                    "are not supported for TLS Kerberos cipher suites");
         }
+        try {
+            EncryptedData eData = new EncryptedData(sessionKey, preMaster,
+                    KeyUsage.KU_UNKNOWN);
+            preMasterEnc = eData.getBytes(); // not ASN.1 encoded.
+        } catch (KrbException e) {
+            throw (IOException) new SSLKeyException("Kerberos pre-master" +
+                    " secret error").initCause(e);
+        }
+    }
+
+    private void decryptPremasterSecret(EncryptionKey sessionKey)
+            throws IOException {
+        if (sessionKey.getEType() ==
+                EncryptedData.ETYPE_DES3_CBC_HMAC_SHA1_KD) {
+            throw new IOException(
+                    "session keys with des3-cbc-hmac-sha1-kd encryption type " +
+                    "are not supported for TLS Kerberos cipher suites");
+        }
+        try {
+            EncryptedData data = new EncryptedData(sessionKey.getEType(),
+                        null /* optional kvno */, preMasterEnc);
+            byte[] temp = data.decrypt(sessionKey, KeyUsage.KU_UNKNOWN);
+            if (SSLLogger.isOn && SSLLogger.isOn("ssl,handshake")) {
+                 if (preMasterEnc != null) {
+                     SSLLogger.fine("decrypted premaster secret", temp);
+                 }
+            }
+
+            // Remove padding bytes after decryption. Only DES and DES3 have
+            // paddings and we don't support DES3 in TLS (see above)
+            if (temp.length == 52 &&
+                    data.getEType() == EncryptedData.ETYPE_DES_CBC_CRC) {
+                // For des-cbc-crc, 4 paddings. Value can be 0x04 or 0x00.
+                if (paddingByteIs(temp, 52, (byte)4) ||
+                        paddingByteIs(temp, 52, (byte)0)) {
+                    temp = Arrays.copyOf(temp, 48);
+                }
+            } else if (temp.length == 56 &&
+                    data.getEType() == EncryptedData.ETYPE_DES_CBC_MD5) {
+                // For des-cbc-md5, 8 paddings with 0x08, or no padding
+                if (paddingByteIs(temp, 56, (byte)8)) {
+                    temp = Arrays.copyOf(temp, 48);
+                }
+            }
+
+            preMaster = temp;
+        } catch (Exception e) {
+            // Decrypting the pre-master secret was not possible.
+            if (SSLLogger.isOn && SSLLogger.isOn("ssl,handshake")) {
+                SSLLogger.fine("Error decrypting the pre-master secret");
+            }
+        }
+    }
+
+    /**
+     * Checks if all paddings of data are b
+     * @param data the block with padding
+     * @param len length of data, >= 48
+     * @param b expected padding byte
+     */
+    private static boolean paddingByteIs(byte[] data, int len, byte b) {
+        for (int i=48; i<len; i++) {
+            if (data[i] != b) return false;
+        }
+        return true;
     }
 
     // Similar to sun.security.jgss.krb5.Krb5InitCredenetial/Krb5Context
@@ -298,17 +316,17 @@ public final class KerberosClientKeyExchangeImpl
         if ("localhost".equals(serverName) ||
                 "localhost.localdomain".equals(serverName)) {
 
-            if (debug != null && Debug.isOn("handshake")) {
-                System.out.println("Get the local hostname");
+            if (SSLLogger.isOn && SSLLogger.isOn("ssl,handshake")) {
+                SSLLogger.fine("Get the local hostname");
             }
             String localHost = java.security.AccessController.doPrivileged(
                 new java.security.PrivilegedAction<String>() {
                 public String run() {
                     try {
                         return InetAddress.getLocalHost().getHostName();
-                    } catch (java.net.UnknownHostException e) {
-                        if (debug != null && Debug.isOn("handshake")) {
-                            System.out.println("Warning,"
+                    } catch (UnknownHostException e) {
+                        if (SSLLogger.isOn && SSLLogger.isOn("ssl,handshake")) {
+                            SSLLogger.fine("Warning,"
                                 + " cannot get the local hostname: "
                                 + e.getMessage());
                         }
@@ -373,21 +391,6 @@ public final class KerberosClientKeyExchangeImpl
             ioe.initCause(e);
             throw ioe;
         }
-    }
-
-    @Override
-    public byte[] getUnencryptedPreMasterSecret() {
-        return preMaster.getUnencrypted();
-    }
-
-    @Override
-    public KerberosPrincipal getPeerPrincipal() {
-        return peerPrincipal;
-    }
-
-    @Override
-    public KerberosPrincipal getLocalPrincipal() {
-        return localPrincipal;
     }
 
     /**

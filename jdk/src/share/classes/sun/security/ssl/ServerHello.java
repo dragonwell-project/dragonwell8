@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2020, Azul Systems, Inc. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,19 +28,26 @@ package sun.security.ssl;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.security.AccessController;
 import java.security.AlgorithmConstraints;
 import java.security.GeneralSecurityException;
+import java.security.Principal;
+import java.security.PrivilegedActionException;
+import java.security.PrivilegedExceptionAction;
 import java.text.MessageFormat;
 import java.util.Arrays;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import javax.crypto.SecretKey;
 import javax.crypto.spec.IvParameterSpec;
 import javax.net.ssl.SSLException;
 import javax.net.ssl.SSLHandshakeException;
 import javax.net.ssl.SSLProtocolException;
+import javax.security.auth.Subject;
+
 import sun.security.ssl.CipherSuite.KeyExchange;
 import sun.security.ssl.ClientHello.ClientHelloMessage;
 import sun.security.ssl.SSLCipher.SSLReadCipher;
@@ -1031,6 +1039,52 @@ final class ServerHello {
                     if (chc.negotiatedProtocol != sessionVersion) {
                         throw chc.conContext.fatal(Alert.PROTOCOL_VERSION,
                             "Server resumed with wrong protocol version");
+                    }
+
+                    // validate subject identity
+                    if (sessionSuite.keyExchange == KeyExchange.K_KRB5 ||
+                            sessionSuite.keyExchange == KeyExchange.K_KRB5_EXPORT) {
+                        Principal localPrincipal = chc.resumingSession.getLocalPrincipal();
+
+                        Subject subject = null;
+                        try {
+                            subject = AccessController.doPrivileged(
+                                    new PrivilegedExceptionAction<Subject>() {
+                                        @Override
+                                        public Subject run() throws Exception {
+                                            return Krb5Helper.getClientSubject(
+                                                    chc.conContext.acc);
+                                        }});
+                        } catch (PrivilegedActionException e) {
+                            subject = null;
+                            if (SSLLogger.isOn &&
+                                    SSLLogger.isOn("ssl,handshake,verbose")) {
+                                SSLLogger.fine("Attempt to obtain" +
+                                        " subject failed!");
+                            }
+                        }
+
+                        if (subject != null) {
+                            // Eliminate dependency on KerberosPrincipal
+                            Set<Principal> principals =
+                                    subject.getPrincipals(Principal.class);
+                            if (!principals.contains(localPrincipal)) {
+                                throw new SSLProtocolException("Server resumed" +
+                                        " session with wrong subject identity");
+                            } else {
+                                if (SSLLogger.isOn &&
+                                        SSLLogger.isOn("ssl,handshake,verbose"))
+                                    SSLLogger.fine("Subject identity is same");
+                            }
+                        } else {
+                            if (SSLLogger.isOn && SSLLogger.isOn("ssl,handshake,verbose"))
+                                SSLLogger.fine("Kerberos credentials are not" +
+                                        " present in the current Subject; check if" +
+                                        " javax.security.auth.useSubjectCredsOnly" +
+                                        " system property has been set to false");
+                            throw new SSLProtocolException
+                                    ("Server resumed session with no subject");
+                        }
                     }
 
                     // looks fine;  resume it.
