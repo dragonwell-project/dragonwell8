@@ -26,7 +26,7 @@
 package sun.security.ssl;
 
 /**
- * SSL/(D)TLS connection context.
+ * SSL/TLS connection context.
  */
 interface ConnectionContext {
     // blank

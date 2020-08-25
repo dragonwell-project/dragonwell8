@@ -26,7 +26,7 @@
 package sun.security.ssl;
 
 /**
- * Enum for SSL/(D)TLS cipher types.
+ * Enum for SSL/TLS cipher types.
  */
 enum CipherType {
     NULL_CIPHER,           // null cipher

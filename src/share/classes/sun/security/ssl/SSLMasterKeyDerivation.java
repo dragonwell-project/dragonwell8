@@ -53,10 +53,8 @@ enum SSLMasterKeyDerivation implements SSLKeyDerivationGenerator {
                 return SSLMasterKeyDerivation.SSL30;
             case TLS10:
             case TLS11:
-            case DTLS10:
                 return SSLMasterKeyDerivation.TLS10;
             case TLS12:
-            case DTLS12:
                 return SSLMasterKeyDerivation.TLS12;
             default:
                 return null;
@@ -96,29 +94,12 @@ enum SSLMasterKeyDerivation implements SSLKeyDerivationGenerator {
 
             byte majorVersion = protocolVersion.major;
             byte minorVersion = protocolVersion.minor;
-            if (protocolVersion.isDTLS) {
-                // Use TLS version number for DTLS key calculation
-                if (protocolVersion.id == ProtocolVersion.DTLS10.id) {
-                    majorVersion = ProtocolVersion.TLS11.major;
-                    minorVersion = ProtocolVersion.TLS11.minor;
-
-                    masterAlg = "SunTlsMasterSecret";
-                    hashAlg = H_NONE;
-                } else {    // DTLS 1.2
-                    majorVersion = ProtocolVersion.TLS12.major;
-                    minorVersion = ProtocolVersion.TLS12.minor;
-
-                    masterAlg = "SunTls12MasterSecret";
-                    hashAlg = cipherSuite.hashAlg;
-                }
+            if (protocolVersion.id >= ProtocolVersion.TLS12.id) {
+                masterAlg = "SunTls12MasterSecret";
+                hashAlg = cipherSuite.hashAlg;
             } else {
-                if (protocolVersion.id >= ProtocolVersion.TLS12.id) {
-                    masterAlg = "SunTls12MasterSecret";
-                    hashAlg = cipherSuite.hashAlg;
-                } else {
-                    masterAlg = "SunTlsMasterSecret";
-                    hashAlg = H_NONE;
-                }
+                masterAlg = "SunTlsMasterSecret";
+                hashAlg = H_NONE;
             }
 
             TlsMasterSecretParameterSpec spec;

@@ -35,7 +35,7 @@ import javax.crypto.BadPaddingException;
 import sun.security.ssl.SSLCipher.SSLReadCipher;
 
 /**
- * {@code InputRecord} takes care of the management of SSL/TLS/DTLS input
+ * {@code InputRecord} takes care of the management of SSL/TLS input
  * records, including buffering, decryption, handshake messages marshal, etc.
  *
  * @author David Brownell
@@ -71,20 +71,6 @@ abstract class InputRecord implements Record, Closeable {
     boolean seqNumIsHuge() {
         return (readCipher.authenticator != null) &&
                         readCipher.authenticator.seqNumIsHuge();
-    }
-
-    boolean isEmpty() {
-        return false;
-    }
-
-    // apply to DTLS SSLEngine
-    void expectingFinishFlight() {
-        // blank
-    }
-
-    // apply to DTLS SSLEngine
-    void finishHandshake() {
-        // blank
     }
 
     /**
@@ -147,12 +133,6 @@ abstract class InputRecord implements Record, Closeable {
         throw new UnsupportedOperationException();
     }
 
-    // apply to DTLS SSLEngine only
-    Plaintext acquirePlaintext()
-            throws IOException, BadPaddingException {
-        throw new UnsupportedOperationException();
-    }
-
     // read, decrypt and decompress the network record.
     //
     abstract Plaintext[] decode(ByteBuffer[] srcs, int srcsOffset,
@@ -174,7 +154,6 @@ abstract class InputRecord implements Record, Closeable {
     // shared helpers
     //
 
-    // Not apply to DTLS
     static ByteBuffer convertToClientHello(ByteBuffer packet) {
         int srcPos = packet.position();
 
@@ -330,7 +309,7 @@ abstract class InputRecord implements Record, Closeable {
         return ByteBuffer.wrap(converted, 5, pointer - 5);  // 5: header size
     }
 
-    // Extract an SSL/(D)TLS record from the specified source buffers.
+    // Extract an SSL/TLS record from the specified source buffers.
     static ByteBuffer extract(
             ByteBuffer[] buffers, int offset, int length, int headerSize) {
 

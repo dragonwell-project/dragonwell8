@@ -183,10 +183,8 @@ final class Finished {
                     return VerifyDataScheme.SSL30;
                 case TLS10:
                 case TLS11:
-                case DTLS10:
                     return VerifyDataScheme.TLS10;
                 case TLS12:
-                case DTLS12:
                     return VerifyDataScheme.TLS12;
                 case TLS13:
                     return VerifyDataScheme.TLS13;
@@ -222,7 +220,7 @@ final class Finished {
         }
     }
 
-    // TLS 1.0, TLS 1.1, DTLS 1.0
+    // TLS 1.0, TLS 1.1
     private static final
             class T10VerifyDataGenerator implements VerifyDataGenerator {
         @Override
@@ -416,7 +414,6 @@ final class Finished {
                         ChangeCipherSpec.t10Consumer);
                 chc.handshakeConsumers.put(
                         SSLHandshake.FINISHED.id, SSLHandshake.FINISHED);
-                chc.conContext.inputRecord.expectingFinishFlight();
             } else {
                 if (chc.handshakeSession.isRejoinable()) {
                     ((SSLSessionContextImpl)chc.sslContext.
@@ -429,10 +426,7 @@ final class Finished {
                 // handshake context cleanup.
                 chc.handshakeFinished = true;
 
-                // May need to retransmit the last flight for DTLS.
-                if (!chc.sslContext.isDTLS()) {
-                    chc.conContext.finishHandshake();
-                }
+                chc.conContext.finishHandshake();
             }
 
             // The handshake message has been delivered.
@@ -471,7 +465,6 @@ final class Finished {
                         ChangeCipherSpec.t10Consumer);
                 shc.handshakeConsumers.put(
                         SSLHandshake.FINISHED.id, SSLHandshake.FINISHED);
-                shc.conContext.inputRecord.expectingFinishFlight();
             } else {
                 if (shc.handshakeSession.isRejoinable()) {
                     ((SSLSessionContextImpl)shc.sslContext.
@@ -484,10 +477,7 @@ final class Finished {
                 // handshake context cleanup.
                 shc.handshakeFinished = true;
 
-                // May need to retransmit the last flight for DTLS.
-                if (!shc.sslContext.isDTLS()) {
-                    shc.conContext.finishHandshake();
-                }
+                shc.conContext.finishHandshake();
             }
 
             // The handshake message has been delivered.
@@ -553,10 +543,7 @@ final class Finished {
                 chc.handshakeFinished = true;
                 recordEvent(chc.conContext.conSession);
 
-                // May need to retransmit the last flight for DTLS.
-                if (!chc.sslContext.isDTLS()) {
-                    chc.conContext.finishHandshake();
-                }
+                chc.conContext.finishHandshake();
             } else {
                 chc.handshakeProducers.put(SSLHandshake.FINISHED.id,
                         SSLHandshake.FINISHED);
@@ -613,10 +600,7 @@ final class Finished {
                 shc.handshakeFinished = true;
                 recordEvent(shc.conContext.conSession);
 
-                // May need to retransmit the last flight for DTLS.
-                if (!shc.sslContext.isDTLS()) {
-                    shc.conContext.finishHandshake();
-                }
+                shc.conContext.finishHandshake();
             } else {
                 shc.handshakeProducers.put(SSLHandshake.FINISHED.id,
                         SSLHandshake.FINISHED);
@@ -1119,10 +1103,7 @@ final class Finished {
             // handshake context cleanup.
             shc.handshakeFinished = true;
 
-            // May need to retransmit the last flight for DTLS.
-            if (!shc.sslContext.isDTLS()) {
-                shc.conContext.finishHandshake();
-            }
+            shc.conContext.finishHandshake();
             recordEvent(shc.conContext.conSession);
 
             //

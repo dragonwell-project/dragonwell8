@@ -912,8 +912,7 @@ final class SSLSessionImpl extends ExtendedSSLSession {
         int packetSize = 0;
         if (negotiatedMaxFragLen > 0) {
             packetSize = cipherSuite.calculatePacketSize(
-                    negotiatedMaxFragLen, protocolVersion,
-                    protocolVersion.isDTLS);
+                    negotiatedMaxFragLen, protocolVersion);
         }
 
         if (maximumPacketSize > 0) {
@@ -925,12 +924,8 @@ final class SSLSessionImpl extends ExtendedSSLSession {
            return packetSize;
         }
 
-        if (protocolVersion.isDTLS) {
-            return DTLSRecord.maxRecordSize;
-        } else {
-            return acceptLargeFragments ?
-                    SSLRecord.maxLargeRecordSize : SSLRecord.maxRecordSize;
-        }
+        return acceptLargeFragments ?
+                SSLRecord.maxLargeRecordSize : SSLRecord.maxRecordSize;
     }
 
     /**
@@ -944,8 +939,7 @@ final class SSLSessionImpl extends ExtendedSSLSession {
         int fragmentSize = 0;
         if (maximumPacketSize > 0) {
             fragmentSize = cipherSuite.calculateFragSize(
-                    maximumPacketSize, protocolVersion,
-                    protocolVersion.isDTLS);
+                    maximumPacketSize, protocolVersion);
         }
 
         if (negotiatedMaxFragLen > 0) {
@@ -957,13 +951,9 @@ final class SSLSessionImpl extends ExtendedSSLSession {
             return fragmentSize;
         }
 
-        if (protocolVersion.isDTLS) {
-            return Record.maxDataSize;
-        } else {
-            int maxPacketSize = acceptLargeFragments ?
-                        SSLRecord.maxLargeRecordSize : SSLRecord.maxRecordSize;
-            return (maxPacketSize - SSLRecord.headerSize);
-        }
+        int maxPacketSize = acceptLargeFragments ?
+                SSLRecord.maxLargeRecordSize : SSLRecord.maxRecordSize;
+        return (maxPacketSize - SSLRecord.headerSize);
     }
 
     /**

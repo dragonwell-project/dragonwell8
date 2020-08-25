@@ -67,7 +67,7 @@ final class RSAClientKeyExchange {
             this.encrypted = premaster.getEncoded(
                     publicKey, context.sslContext.getSecureRandom());
             this.useTLS10PlusSpec = ProtocolVersion.useTLS10PlusSpec(
-                    protocolVersion, context.sslContext.isDTLS());
+                    protocolVersion);
         }
 
         RSAClientKeyExchangeMessage(HandshakeContext context,
@@ -81,7 +81,7 @@ final class RSAClientKeyExchange {
 
             this.protocolVersion = context.clientHelloVersion;
             this.useTLS10PlusSpec = ProtocolVersion.useTLS10PlusSpec(
-                    protocolVersion, context.sslContext.isDTLS());
+                    protocolVersion);
             if (useTLS10PlusSpec) {
                 this.encrypted = Record.getBytes16(m);
             } else {    //  SSL 3.0

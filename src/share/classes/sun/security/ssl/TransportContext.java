@@ -42,7 +42,7 @@ import javax.net.ssl.SSLSocket;
 import sun.security.ssl.SupportedGroupsExtension.NamedGroup;
 
 /**
- * SSL/(D)TLS transportation context.
+ * SSL/TLS transportation context.
  */
 class TransportContext implements ConnectionContext {
     final SSLTransport              transport;
@@ -177,7 +177,6 @@ class TransportContext implements ConnectionContext {
                         handshakeContext = sslConfig.isClientMode ?
                                 new ClientHandshakeContext(sslContext, this) :
                                 new ServerHandshakeContext(sslContext, this);
-                        outputRecord.initHandshaker();
                     }
                 }
                 handshakeContext.dispatch(type, plaintext);
@@ -221,7 +220,6 @@ class TransportContext implements ConnectionContext {
                 handshakeContext = sslConfig.isClientMode ?
                         new ClientHandshakeContext(sslContext, this) :
                         new ServerHandshakeContext(sslContext, this);
-                outputRecord.initHandshaker();
             }
         }
 
@@ -574,12 +572,7 @@ class TransportContext implements ConnectionContext {
             if (!handshakeContext.delegatedActions.isEmpty()) {
                 return HandshakeStatus.NEED_TASK;
             } else if (!isInboundClosed()) {
-                if (sslContext.isDTLS() &&
-                        !inputRecord.isEmpty()) {
-                    return HandshakeStatus.NEED_UNWRAP_AGAIN;
-                } else {
-                    return HandshakeStatus.NEED_UNWRAP;
-                }
+                return HandshakeStatus.NEED_UNWRAP;
             } else if (!isOutboundClosed()) {
                 // Special case that the inbound was closed, but outbound open.
                 return HandshakeStatus.NEED_WRAP;
@@ -608,8 +601,6 @@ class TransportContext implements ConnectionContext {
 
         handshakeContext = null;
         outputRecord.handshakeHash.finish();
-        inputRecord.finishHandshake();
-        outputRecord.finishHandshake();
         isNegotiated = true;
 
         // Tell folk about handshake completion, but do it in a separate thread.

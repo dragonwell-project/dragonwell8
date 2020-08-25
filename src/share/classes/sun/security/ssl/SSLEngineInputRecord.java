@@ -93,7 +93,7 @@ final class SSLEngineInputRecord extends InputRecord implements SSLRecord {
             byte majorVersion = packet.get(pos + 1);
             byte minorVersion = packet.get(pos + 2);
             if (!ProtocolVersion.isNegotiable(
-                    majorVersion, minorVersion, false, false)) {
+                    majorVersion, minorVersion, false)) {
                 throw new SSLException("Unrecognized record version " +
                         ProtocolVersion.nameOf(majorVersion, minorVersion) +
                         " , plaintext connection?");
@@ -128,7 +128,7 @@ final class SSLEngineInputRecord extends InputRecord implements SSLRecord {
                 byte majorVersion = packet.get(pos + 3);
                 byte minorVersion = packet.get(pos + 4);
                 if (!ProtocolVersion.isNegotiable(
-                        majorVersion, minorVersion, false, false)) {
+                        majorVersion, minorVersion, false)) {
                     throw new SSLException("Unrecognized record version " +
                             ProtocolVersion.nameOf(majorVersion, minorVersion) +
                             " , plaintext connection?");
