@@ -56,7 +56,6 @@ public class NullCerts {
     /*
      * Where do we find the keystores?
      */
-    // private final static String pathToStores = "./etc";
     private final static String pathToStores = "../../../../javax/net/ssl/etc";
     private final static String keyStoreFile = "keystore";
     private final static String trustStoreFile = "truststore";

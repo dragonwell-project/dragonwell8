@@ -26,7 +26,7 @@
 
 /*
  * @test
- * @bug 8162362 8208350
+ * @bug 8162362
  * @summary Cannot enable previously default enabled cipher suites
  * @run main/othervm
  *      CustomizedCipherSuites Default true
