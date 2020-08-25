@@ -39,7 +39,7 @@ import sun.security.ssl.RSAKeyExchange.RSAPremasterSecret;
 import sun.security.ssl.SSLHandshake.HandshakeMessage;
 import sun.security.ssl.X509Authentication.X509Credentials;
 import sun.security.ssl.X509Authentication.X509Possession;
-import sun.security.util.HexDumpEncoder;
+import sun.misc.HexDumpEncoder;
 
 /**
  * Pack of the "ClientKeyExchange" handshake message.

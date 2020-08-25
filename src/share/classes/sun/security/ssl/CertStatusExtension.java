@@ -44,7 +44,7 @@ import sun.security.ssl.SSLExtension.SSLExtensionSpec;
 import sun.security.ssl.SSLHandshake.HandshakeMessage;
 import sun.security.util.DerInputStream;
 import sun.security.util.DerValue;
-import sun.security.util.HexDumpEncoder;
+import sun.misc.HexDumpEncoder;
 
 /**
  * Pack of "status_request" and "status_request_v2" extensions.

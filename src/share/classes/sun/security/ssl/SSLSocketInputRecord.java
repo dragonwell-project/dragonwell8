@@ -287,7 +287,7 @@ final class SSLSocketInputRecord extends InputRecord implements SSLRecord {
                         handshakeBuffer.remaining() + fragment.remaining()]);
                 bb.put(handshakeBuffer);
                 bb.put(fragment);
-                handshakeFrag = bb.rewind();
+                handshakeFrag = (ByteBuffer)bb.rewind();
                 handshakeBuffer = null;
             }
 

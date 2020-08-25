@@ -36,7 +36,7 @@ import sun.security.ssl.SSLExtension.ExtensionConsumer;
 import sun.security.ssl.SSLHandshake.HandshakeMessage;
 import sun.security.ssl.SSLExtension.SSLExtensionSpec;
 import sun.security.ssl.ServerHello.ServerHelloMessage;
-import sun.security.util.HexDumpEncoder;
+import sun.misc.HexDumpEncoder;
 
 public class CookieExtension {
     static final HandshakeProducer chNetworkProducer =

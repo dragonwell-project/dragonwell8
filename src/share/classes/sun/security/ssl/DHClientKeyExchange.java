@@ -43,7 +43,7 @@ import sun.security.ssl.DHKeyExchange.DHECredentials;
 import sun.security.ssl.DHKeyExchange.DHEPossession;
 import sun.security.ssl.SSLHandshake.HandshakeMessage;
 import sun.security.ssl.SupportedGroupsExtension.NamedGroup;
-import sun.security.util.HexDumpEncoder;
+import sun.misc.HexDumpEncoder;
 
 /**
  * Pack of the "ClientKeyExchange" handshake message.

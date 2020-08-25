@@ -288,11 +288,12 @@ final class PredefinedDHParameterSpecs {
                         PROPERTY_NAME + ", definition");
             }
         }
+        BigInteger TWO = BigInteger.valueOf(2);
 
         Map<Integer,DHParameterSpec> tempFFDHEs = new HashMap<>();
         for (BigInteger p : ffdhePrimes) {
             int primeLen = p.bitLength();
-            DHParameterSpec dhps = new DHParameterSpec(p, BigInteger.TWO);
+            DHParameterSpec dhps = new DHParameterSpec(p, TWO);
             tempFFDHEs.put(primeLen, dhps);
             defaultParams.putIfAbsent(primeLen, dhps);
         }
@@ -301,7 +302,7 @@ final class PredefinedDHParameterSpecs {
             int primeLen = p.bitLength();
             if (defaultParams.get(primeLen) == null) {
                 defaultParams.put(primeLen,
-                    new DHParameterSpec(p, BigInteger.TWO));
+                    new DHParameterSpec(p, TWO));
             }
         }
 

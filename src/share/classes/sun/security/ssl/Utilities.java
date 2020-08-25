@@ -232,4 +232,41 @@ final class Utilities {
         }
         return b;
     }
+
+    /**
+     * Checks that {@code fromIndex} and {@code toIndex} are in
+     * the range and throws an exception if they aren't.
+     */
+    private static void rangeCheck(int arrayLength, int fromIndex, int toIndex) {
+        if (fromIndex > toIndex) {
+            throw new IllegalArgumentException(
+                    "fromIndex(" + fromIndex + ") > toIndex(" + toIndex + ")");
+        }
+        if (fromIndex < 0) {
+            throw new ArrayIndexOutOfBoundsException(fromIndex);
+        }
+        if (toIndex > arrayLength) {
+            throw new ArrayIndexOutOfBoundsException(toIndex);
+        }
+    }
+
+    /**
+     * Returns true if the two specified arrays of bytes, over the specified
+     * ranges, are <i>equal</i> to one another.
+     */
+    static boolean equals(byte[] arr1, int st1, int end1, byte[] arr2, int st2, int end2) {
+        rangeCheck(arr1.length, st1, end1);
+        rangeCheck(arr2.length, st2, end2);
+
+        int aLength = end1 - st1;
+        int bLength = end2 - st2;
+        if (aLength != bLength)
+            return false;
+
+        for(int i=0; i<aLength; i++)
+            if(arr1[i + st1] != arr2[i + st2])
+                return false;
+        return true;
+    }
+
 }

@@ -409,7 +409,7 @@ abstract class HandshakeContext implements ConnectionContext {
                 ByteBuffer fragment = ByteBuffer.wrap(
                         new byte[plaintext.fragment.remaining()]);
                 fragment.put(plaintext.fragment);
-                fragment = fragment.rewind();
+                fragment = (ByteBuffer)fragment.rewind();
 
                 delegatedActions.add(new SimpleImmutableEntry<>(
                         handshakeType,
