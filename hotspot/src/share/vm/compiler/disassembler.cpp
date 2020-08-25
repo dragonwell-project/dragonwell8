@@ -244,18 +244,24 @@ class decode_env {
   const char* options() { return _option_buf; }
 };
 
-decode_env::decode_env(CodeBlob* code, outputStream* output, CodeStrings c) {
-  memset(this, 0, sizeof(*this)); // Beware, this zeroes bits of fields.
-  _output = output ? output : tty;
-  _code = code;
-  if (code != NULL && code->is_nmethod())
-    _nm = (nmethod*) code;
-  _strings.copy(c);
-
+decode_env::decode_env(CodeBlob* code, outputStream* output, CodeStrings c) :
+  _nm((code != NULL && code->is_nmethod()) ? (nmethod*)code : NULL),
+  _code(code),
+  _strings(),
+  _output(output ? output : tty),
+  _start(NULL),
+  _end(NULL),
+  _option_buf(),
+  _print_raw(0),
   // by default, output pc but not bytes:
-  _print_pc       = true;
-  _print_bytes    = false;
-  _bytes_per_line = Disassembler::pd_instruction_alignment();
+  _print_pc(true),
+  _print_bytes(false),
+  _cur_insn(NULL),
+  _total_ticks(0),
+  _bytes_per_line(Disassembler::pd_instruction_alignment())
+{
+  memset(_option_buf, 0, sizeof(_option_buf));
+  _strings.copy(c);
 
   // parse the global option string:
   collect_options(Disassembler::pd_cpu_opts());
