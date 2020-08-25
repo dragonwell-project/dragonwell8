@@ -656,7 +656,6 @@ final class SSLSessionImpl extends ExtendedSSLSession {
      * been presented by the server or non-certificate based server
      * authentication is used then an empty {@code List} is returned.
      */
-    @Override
     public List<byte[]> getStatusResponses() {
         if (statusResponses == null || statusResponses.isEmpty()) {
             return Collections.emptyList();

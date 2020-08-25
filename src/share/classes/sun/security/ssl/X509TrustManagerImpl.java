@@ -215,9 +215,10 @@ final class X509TrustManagerImpl extends X509ExtendedTrustManager
 
             // Grab any stapled OCSP responses for use in validation
             List<byte[]> responseList = Collections.emptyList();
-            if (!checkClientTrusted && isExtSession) {
+            if (!checkClientTrusted && isExtSession &&
+                    session instanceof SSLSessionImpl) {
                 responseList =
-                        ((ExtendedSSLSession)session).getStatusResponses();
+                        ((SSLSessionImpl)session).getStatusResponses();
             }
              trustedChain = validate(v, chain, responseList,
                     constraints, checkClientTrusted ? null : authType);
@@ -269,9 +270,10 @@ final class X509TrustManagerImpl extends X509ExtendedTrustManager
 
             // Grab any stapled OCSP responses for use in validation
             List<byte[]> responseList = Collections.emptyList();
-            if (!checkClientTrusted && isExtSession) {
+            if (!checkClientTrusted && isExtSession &&
+                session instanceof SSLSessionImpl) {
                 responseList =
-                        ((ExtendedSSLSession)session).getStatusResponses();
+                        ((SSLSessionImpl)session).getStatusResponses();
             }
              trustedChain = validate(v, chain, responseList,
                     constraints, checkClientTrusted ? null : authType);
