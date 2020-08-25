@@ -41,6 +41,7 @@ import sun.security.ssl.Krb5Helper;
 import sun.security.x509.X500Name;
 
 import sun.net.util.IPAddressUtil;
+import sun.security.ssl.SSLLogger;
 
 /**
  * Class to check hostnames against the names specified in a certificate as
@@ -86,16 +87,25 @@ public class HostnameChecker {
     /**
      * Perform the check.
      *
-     * @exception CertificateException if the name does not match any of
-     * the names specified in the certificate
+     * @param expectedName the expected host name or ip address
+     * @param cert the certificate to check against
+     * @param chainsToPublicCA true if the certificate chains to a public
+     *     root CA (as pre-installed in the cacerts file)
+     * @throws CertificateException if the name does not match any of
+     *     the names specified in the certificate
      */
-    public void match(String expectedName, X509Certificate cert)
-            throws CertificateException {
+    public void match(String expectedName, X509Certificate cert,
+                      boolean chainsToPublicCA) throws CertificateException {
         if (isIpAddress(expectedName)) {
            matchIP(expectedName, cert);
         } else {
-           matchDNS(expectedName, cert);
+           matchDNS(expectedName, cert, chainsToPublicCA);
         }
+    }
+
+    public void match(String expectedName, X509Certificate cert)
+            throws CertificateException {
+        match(expectedName, cert, false);
     }
 
     /**
@@ -182,11 +192,12 @@ public class HostnameChecker {
      * Certification Authorities are encouraged to use the dNSName instead.
      *
      * Matching is performed using the matching rules specified by
-     * [RFC2459].  If more than one identity of a given type is present in
+     * [RFC5280].  If more than one identity of a given type is present in
      * the certificate (e.g., more than one dNSName name, a match in any one
      * of the set is considered acceptable.)
      */
-    private void matchDNS(String expectedName, X509Certificate cert)
+    private void matchDNS(String expectedName, X509Certificate cert,
+                          boolean chainsToPublicCA)
             throws CertificateException {
         // Check that the expected name is a valid domain name.
         try {
@@ -204,7 +215,7 @@ public class HostnameChecker {
                 if (((Integer)next.get(0)).intValue() == ALTNAME_DNS) {
                     foundDNS = true;
                     String dnsName = (String)next.get(1);
-                    if (isMatched(expectedName, dnsName)) {
+                    if (isMatched(expectedName, dnsName, chainsToPublicCA)) {
                         return;
                     }
                 }
@@ -226,7 +237,8 @@ public class HostnameChecker {
                     throw new CertificateException("Not a formal name "
                             + cname);
                 }
-                if (isMatched(expectedName, cname)) {
+                if (isMatched(expectedName, cname,
+                              chainsToPublicCA)) {
                     return;
                 }
             } catch (IOException e) {
@@ -271,7 +283,11 @@ public class HostnameChecker {
      * The <code>name</code> parameter should represent a DNS name.  The
      * <code>template</code> parameter may contain the wildcard character '*'.
      */
-    private boolean isMatched(String name, String template) {
+    private boolean isMatched(String name, String template,
+                              boolean chainsToPublicCA) {
+        if (hasIllegalWildcard(name, template, chainsToPublicCA)) {
+            return false;
+        }
         // check the validity of the domain name template.
         try {
             // Replacing wildcard character '*' with 'z' so as to check
@@ -293,6 +309,64 @@ public class HostnameChecker {
         }
     }
 
+    /**
+     * Returns true if the template contains an illegal wildcard character.
+     */
+    private static boolean hasIllegalWildcard(String domain, String template,
+                                              boolean chainsToPublicCA) {
+        // not ok if it is a single wildcard character or "*."
+        if (template.equals("*") || template.equals("*.")) {
+            if (SSLLogger.isOn) {
+                SSLLogger.fine(
+                    "Certificate domain name has illegal single " +
+                      "wildcard character: " + template);
+            }
+            return true;
+        }
+
+        int lastWildcardIndex = template.lastIndexOf("*");
+
+        // ok if it has no wildcard character
+        if (lastWildcardIndex == -1) {
+            return false;
+        }
+
+        String afterWildcard = template.substring(lastWildcardIndex);
+        int firstDotIndex = afterWildcard.indexOf(".");
+
+        // not ok if there is no dot after wildcard (ex: "*com")
+        if (firstDotIndex == -1) {
+            if (SSLLogger.isOn) {
+                SSLLogger.fine(
+                    "Certificate domain name has illegal wildcard, " +
+                    "no dot after wildcard character: " + template);
+            }
+            return true;
+        }
+
+        // If the wildcarded domain is a top-level domain under which names
+        // can be registered, then a wildcard is not allowed.
+
+        if (!chainsToPublicCA) {
+            return false; // skip check for non-public certificates
+        }
+        Optional<RegisteredDomain> rd = RegisteredDomain.from(domain)
+                .filter(d -> d.type() == RegisteredDomain.Type.ICANN);
+
+        if (rd.isPresent()) {
+            String wDomain = afterWildcard.substring(firstDotIndex + 1);
+            if (rd.get().publicSuffix().equalsIgnoreCase(wDomain)) {
+            if (SSLLogger.isOn) {
+                SSLLogger.fine(
+                    "Certificate domain name has illegal " +
+                    "wildcard for public suffix: " + template);
+                }
+                return true;
+            }
+        }
+
+        return false;
+    }
 
     /**
      * Returns true if name matches against template.<p>
