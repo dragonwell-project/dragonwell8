@@ -940,14 +940,12 @@ public abstract class SSLContextImpl extends SSLContextSpi {
         static ProtocolVersion[] getProtocols() {
             if (SunJSSE.isFIPS()) {
                 return new ProtocolVersion[]{
-                        ProtocolVersion.TLS13,
                         ProtocolVersion.TLS12,
                         ProtocolVersion.TLS11,
                         ProtocolVersion.TLS10
                 };
             } else {
                 return new ProtocolVersion[]{
-                        ProtocolVersion.TLS13,
                         ProtocolVersion.TLS12,
                         ProtocolVersion.TLS11,
                         ProtocolVersion.TLS10,
