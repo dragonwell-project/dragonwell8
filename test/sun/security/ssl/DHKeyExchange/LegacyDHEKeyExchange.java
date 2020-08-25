@@ -52,7 +52,7 @@ public class LegacyDHEKeyExchange {
     /*
      * Where do we find the keystores?
      */
-    static String pathToStores = "../etc";
+    static String pathToStores = "../../../../javax/net/ssl/etc";
     static String keyStoreFile = "keystore";
     static String trustStoreFile = "truststore";
     static String passwd = "passphrase";

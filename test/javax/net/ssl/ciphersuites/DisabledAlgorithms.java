@@ -46,7 +46,7 @@ import javax.net.ssl.SSLSocketFactory;
 public class DisabledAlgorithms {
 
     private static final String pathToStores =
-            "../../../../sun/security/ssl/etc";
+            "../etc";
     private static final String keyStoreFile = "keystore";
     private static final String trustStoreFile = "truststore";
     private static final String passwd = "passphrase";
