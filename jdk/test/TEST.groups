@@ -549,7 +549,7 @@ needs_compact3 = \
   sun/security/provider/PolicyFile/Alias.java \
   sun/security/provider/PolicyFile/Comparator.java \
   sun/security/provider/PolicyFile/SelfWildcard.java \
-  sun/security/ssl/com/sun/net/ssl/internal/ssl/SSLEngineImpl/SSLEngineDeadlock.java \
+  sun/security/ssl/SSLEngineImpl/SSLEngineDeadlock.java \
   sun/security/util/Oid/OidFormat.java \
   sun/security/util/Resources/Format.java \
   sun/security/util/Resources/NewNamesFormat.java
@@ -651,8 +651,8 @@ needs_compact2 = \
   java/util/zip/ZipFile/StreamZipEntriesTest.java \
   java/util/zip/ZipFile/DeleteTempJar.java \
   javax/crypto/Cipher/CipherStreamClose.java \
-  sun/security/ssl/sun/net/www/protocol/https/HttpsURLConnection/HttpsCreateSockTest.java \
-  sun/security/ssl/sun/net/www/protocol/https/HttpsURLConnection/HttpsSocketFacTest.java
+  sun/net/www/protocol/https/HttpsURLConnection/HttpsCreateSockTest.java \
+  sun/net/www/protocol/https/HttpsURLConnection/HttpsSocketFacTest.java
 
 # Compact 1 adds full VM tests
 #
