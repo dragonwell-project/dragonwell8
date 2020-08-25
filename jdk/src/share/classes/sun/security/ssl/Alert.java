@@ -34,10 +34,10 @@ import javax.net.ssl.SSLHandshakeException;
 import javax.net.ssl.SSLProtocolException;
 
 /**
- * SSL/(D)TLS Alter description
+ * SSL/TLS Alter description
  */
 enum Alert {
-    // Please refer to TLS Alert Registry for the latest (D)TLS Alert values:
+    // Please refer to TLS Alert Registry for the latest TLS Alert values:
     //     https://www.iana.org/assignments/tls-parameters/
     CLOSE_NOTIFY            ((byte)0,   "close_notify", false),
     UNEXPECTED_MESSAGE      ((byte)10,  "unexpected_message", false),
@@ -141,7 +141,7 @@ enum Alert {
     }
 
     /**
-     * SSL/(D)TLS Alert level.
+     * SSL/TLS Alert level.
      */
     enum Level {
         WARNING ((byte)1, "warning"),

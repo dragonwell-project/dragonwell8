@@ -32,7 +32,7 @@ import javax.crypto.BadPaddingException;
 import javax.net.ssl.SSLHandshakeException;
 
 /**
- * Interface for SSL/(D)TLS transportation.
+ * Interface for SSL/TLS transportation.
  */
 interface SSLTransport {
 
@@ -67,7 +67,7 @@ interface SSLTransport {
     boolean useDelegatedTask();
 
     /**
-     * Decodes an array of SSL/(D)TLS network source data into the
+     * Decodes an array of SSL/TLS network source data into the
      * destination application data buffers.
      *
      * For SSL/TLS connections, if no source data, the network data may be
@@ -108,11 +108,9 @@ interface SSLTransport {
                     context.inputRecord.decode(srcs, srcsOffset, srcsLength);
         } catch (UnsupportedOperationException unsoe) {         // SSLv2Hello
             // Hack code to deliver SSLv2 error message for SSL/TLS connections.
-            if (!context.sslContext.isDTLS()) {
-                context.outputRecord.encodeV2NoCipher();
-                if (SSLLogger.isOn && SSLLogger.isOn("ssl")) {
-                    SSLLogger.finest("may be talking to SSLv2");
-                }
+            context.outputRecord.encodeV2NoCipher();
+            if (SSLLogger.isOn && SSLLogger.isOn("ssl")) {
+                SSLLogger.finest("may be talking to SSLv2");
             }
 
             throw context.fatal(Alert.UNEXPECTED_MESSAGE, unsoe);
@@ -145,21 +143,8 @@ interface SSLTransport {
         Plaintext finalPlaintext = Plaintext.PLAINTEXT_NULL;
         for (Plaintext plainText : plaintexts) {
             // plainText should never be null for TLS protocols
-            if (plainText == Plaintext.PLAINTEXT_NULL) {
-                // Only happens for DTLS protocols.
-                //
-                // Received a retransmitted flight, and need to retransmit the
-                // previous delivered handshake flight messages.
-                if (context.handshakeContext != null &&
-                    context.handshakeContext.sslConfig.enableRetransmissions &&
-                    context.sslContext.isDTLS()) {
-                    if (SSLLogger.isOn && SSLLogger.isOn("ssl,verbose")) {
-                        SSLLogger.finest("retransmited handshake flight");
-                    }
-
-                    context.outputRecord.launchRetransmission();
-                }   // Otherwise, discard the retransmitted flight.
-            } else if (plainText != null &&
+            if (plainText != null &&
+                    plainText != Plaintext.PLAINTEXT_NULL &&
                     plainText.contentType != ContentType.APPLICATION_DATA.id) {
                 context.dispatch(plainText);
             }

@@ -602,17 +602,6 @@ enum SSLCipher {
             }
         }
 
-        static final SSLReadCipher nullDTlsReadCipher() {
-            try {
-                return B_NULL.createReadCipher(
-                        Authenticator.nullDtlsMac(),
-                        ProtocolVersion.NONE, null, null, null);
-            } catch (GeneralSecurityException gse) {
-                // unlikely
-                throw new RuntimeException("Cannot create NULL SSLCipher", gse);
-            }
-        }
-
         abstract Plaintext decrypt(byte contentType, ByteBuffer bb,
                     byte[] sequence) throws GeneralSecurityException;
 
@@ -668,18 +657,6 @@ enum SSLCipher {
             try {
                 return B_NULL.createWriteCipher(
                         Authenticator.nullTlsMac(),
-                        ProtocolVersion.NONE, null, null, null);
-            } catch (GeneralSecurityException gse) {
-                // unlikely
-                throw new RuntimeException(
-                        "Cannot create NULL SSL write Cipher", gse);
-            }
-        }
-
-        static final SSLWriteCipher nullDTlsWriteCipher() {
-            try {
-                return B_NULL.createWriteCipher(
-                        Authenticator.nullDtlsMac(),
                         ProtocolVersion.NONE, null, null, null);
             } catch (GeneralSecurityException gse) {
                 // unlikely

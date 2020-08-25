@@ -59,10 +59,6 @@ final class ClientHello {
             new T12ClientHelloConsumer();
     private static final HandshakeConsumer t13HandshakeConsumer =
             new T13ClientHelloConsumer();
-    private static final HandshakeConsumer d12HandshakeConsumer =
-            new D12ClientHelloConsumer();
-    private static final HandshakeConsumer d13HandshakeConsumer =
-            new D13ClientHelloConsumer();
 
     /**
      * The ClientHello handshake message.
@@ -70,12 +66,9 @@ final class ClientHello {
      * See RFC 5264/4346/2246/6347 for the specifications.
      */
     static final class ClientHelloMessage extends HandshakeMessage {
-        private final boolean       isDTLS;
-
         final int                   clientVersion;
         final RandomCookie          clientRandom;
         final SessionId             sessionId;
-        private byte[]              cookie;         // DTLS only
         final int[]                 cipherSuiteIds;
         final List<CipherSuite>     cipherSuites;   // known cipher suites only
         final byte[]                compressionMethod;
@@ -87,16 +80,10 @@ final class ClientHello {
                 int clientVersion, SessionId sessionId,
                 List<CipherSuite> cipherSuites, SecureRandom generator) {
             super(handshakeContext);
-            this.isDTLS = handshakeContext.sslContext.isDTLS();
 
             this.clientVersion = clientVersion;
             this.clientRandom = new RandomCookie(generator);
             this.sessionId = sessionId;
-            if (isDTLS) {
-                this.cookie = new byte[0];
-            } else {
-                this.cookie = null;
-            }
 
             this.cipherSuites = cipherSuites;
             this.cipherSuiteIds = getCipherSuiteIds(cipherSuites);
@@ -114,8 +101,6 @@ final class ClientHello {
          */
         static void readPartial(TransportContext tc,
                 ByteBuffer m) throws IOException {
-            boolean isDTLS = tc.sslContext.isDTLS();
-
             // version
             Record.getInt16(m);
 
@@ -123,11 +108,6 @@ final class ClientHello {
 
             // session ID
             Record.getBytes8(m);
-
-            // DTLS cookie
-            if (isDTLS) {
-                Record.getBytes8(m);
-            }
 
             // cipher suite IDs
             Record.getBytes16(m);
@@ -161,7 +141,6 @@ final class ClientHello {
         ClientHelloMessage(HandshakeContext handshakeContext, ByteBuffer m,
                 SSLExtension[] supportedExtensions) throws IOException {
             super(handshakeContext);
-            this.isDTLS = handshakeContext.sslContext.isDTLS();
 
             this.clientVersion = ((m.get() & 0xFF) << 8) | (m.get() & 0xFF);
             this.clientRandom = new RandomCookie(m);
@@ -172,12 +151,6 @@ final class ClientHello {
                 throw handshakeContext.conContext.fatal(
                         Alert.ILLEGAL_PARAMETER, ex);
             }
-            if (isDTLS) {
-                this.cookie = Record.getBytes8(m);
-            } else {
-                this.cookie = null;
-            }
-
             byte[] encodedIds = Record.getBytes16(m);
             if (encodedIds.length == 0 || (encodedIds.length & 0x01) != 0) {
                 throw handshakeContext.conContext.fatal(
@@ -202,32 +175,7 @@ final class ClientHello {
             }
         }
 
-        void setHelloCookie(byte[] cookie) {
-            this.cookie = cookie;
-        }
-
-        // DTLS 1.0/1.2, for cookie generation.
-        byte[] getHelloCookieBytes() {
-            HandshakeOutStream hos = new HandshakeOutStream(null);
-            try {
-                // copied from send() method
-                hos.putInt8((byte)((clientVersion >>> 8) & 0xFF));
-                hos.putInt8((byte)(clientVersion & 0xFF));
-                hos.write(clientRandom.randomBytes, 0, 32);
-                hos.putBytes8(sessionId.getId());
-                // ignore cookie
-                hos.putBytes16(getEncodedCipherSuites());
-                hos.putBytes8(compressionMethod);
-                extensions.send(hos);       // In TLS 1.3, use of certain
-                                            // extensions is mandatory.
-            } catch (IOException ioe) {
-                // unlikely
-            }
-
-            return hos.toByteArray();
-        }
-
-        // (D)TLS 1.3, for cookie generation.
+        // TLS 1.3, for cookie generation.
         byte[] getHeaderBytes() {
             HandshakeOutStream hos = new HandshakeOutStream(null);
             try {
@@ -304,7 +252,6 @@ final class ClientHello {
              */
             return (2 + 32 + 1 + 2 + 1
                 + sessionId.length()        /* ... + variable parts */
-                + (isDTLS ? (1 + cookie.length) : 0)
                 + (cipherSuiteIds.length * 2)
                 + compressionMethod.length)
                 + extensions.length();      // In TLS 1.3, use of certain
@@ -323,64 +270,34 @@ final class ClientHello {
             hos.putInt8((byte) clientVersion);
             hos.write(clientRandom.randomBytes, 0, 32);
             hos.putBytes8(sessionId.getId());
-            if (isDTLS) {
-                hos.putBytes8(cookie);
-            }
             hos.putBytes16(getEncodedCipherSuites());
             hos.putBytes8(compressionMethod);
         }
 
         @Override
         public String toString() {
-            if (isDTLS) {
-                MessageFormat messageFormat = new MessageFormat(
-                    "\"ClientHello\": '{'\n" +
-                    "  \"client version\"      : \"{0}\",\n" +
-                    "  \"random\"              : \"{1}\",\n" +
-                    "  \"session id\"          : \"{2}\",\n" +
-                    "  \"cookie\"              : \"{3}\",\n" +
-                    "  \"cipher suites\"       : \"{4}\",\n" +
-                    "  \"compression methods\" : \"{5}\",\n" +
-                    "  \"extensions\"          : [\n" +
-                    "{6}\n" +
-                    "  ]\n" +
-                    "'}'",
-                    Locale.ENGLISH);
-                Object[] messageFields = {
-                    ProtocolVersion.nameOf(clientVersion),
-                    Utilities.toHexString(clientRandom.randomBytes),
-                    sessionId.toString(),
-                    Utilities.toHexString(cookie),
-                    getCipherSuiteNames().toString(),
-                    Utilities.toHexString(compressionMethod),
-                    Utilities.indent(Utilities.indent(extensions.toString()))
-                };
+            MessageFormat messageFormat = new MessageFormat(
+                "\"ClientHello\": '{'\n" +
+                "  \"client version\"      : \"{0}\",\n" +
+                "  \"random\"              : \"{1}\",\n" +
+                "  \"session id\"          : \"{2}\",\n" +
+                "  \"cipher suites\"       : \"{3}\",\n" +
+                "  \"compression methods\" : \"{4}\",\n" +
+                "  \"extensions\"          : [\n" +
+                "{5}\n" +
+                "  ]\n" +
+                "'}'",
+                Locale.ENGLISH);
+            Object[] messageFields = {
+                ProtocolVersion.nameOf(clientVersion),
+                Utilities.toHexString(clientRandom.randomBytes),
+                sessionId.toString(),
+                getCipherSuiteNames().toString(),
+                Utilities.toHexString(compressionMethod),
+                Utilities.indent(Utilities.indent(extensions.toString()))
+            };
 
-                return messageFormat.format(messageFields);
-            } else {
-                MessageFormat messageFormat = new MessageFormat(
-                    "\"ClientHello\": '{'\n" +
-                    "  \"client version\"      : \"{0}\",\n" +
-                    "  \"random\"              : \"{1}\",\n" +
-                    "  \"session id\"          : \"{2}\",\n" +
-                    "  \"cipher suites\"       : \"{3}\",\n" +
-                    "  \"compression methods\" : \"{4}\",\n" +
-                    "  \"extensions\"          : [\n" +
-                    "{5}\n" +
-                    "  ]\n" +
-                    "'}'",
-                    Locale.ENGLISH);
-                Object[] messageFields = {
-                    ProtocolVersion.nameOf(clientVersion),
-                    Utilities.toHexString(clientRandom.randomBytes),
-                    sessionId.toString(),
-                    getCipherSuiteNames().toString(),
-                    Utilities.toHexString(compressionMethod),
-                    Utilities.indent(Utilities.indent(extensions.toString()))
-                };
-
-                return messageFormat.format(messageFields);
-            }
+            return messageFormat.format(messageFields);
         }
     }
 
@@ -626,14 +543,10 @@ final class ClientHello {
             // Create the handshake message.
             ProtocolVersion clientHelloVersion = maxProtocolVersion;
             if (clientHelloVersion.useTLS13PlusSpec()) {
-                // In (D)TLS 1.3, the client indicates its version preferences
+                // In TLS 1.3, the client indicates its version preferences
                 // in the "supported_versions" extension and the client_version
-                // (legacy_version) field MUST be set to (D)TLS 1.2.
-                if (clientHelloVersion.isDTLS) {
-                    clientHelloVersion = ProtocolVersion.DTLS12;
-                } else {
-                    clientHelloVersion = ProtocolVersion.TLS12;
-                }
+                // (legacy_version) field MUST be set to TLS 1.2.
+                clientHelloVersion = ProtocolVersion.TLS12;
             }
 
             ClientHelloMessage chm = new ClientHelloMessage(chc,
@@ -664,12 +577,6 @@ final class ClientHello {
             // What's the expected response?
             chc.handshakeConsumers.put(
                     SSLHandshake.SERVER_HELLO.id, SSLHandshake.SERVER_HELLO);
-            if (chc.sslContext.isDTLS() &&
-                    !minimumVersion.useTLS13PlusSpec()) {
-                chc.handshakeConsumers.put(
-                        SSLHandshake.HELLO_VERIFY_REQUEST.id,
-                        SSLHandshake.HELLO_VERIFY_REQUEST);
-            }
 
             // The handshake message has been delivered.
             return null;
@@ -686,7 +593,6 @@ final class ClientHello {
         // Response to one of the following handshake message:
         //     HelloRequest                     (SSL 3.0/TLS 1.0/1.1/1.2)
         //     ServerHello(HelloRetryRequest)   (TLS 1.3)
-        //     HelloVerifyRequest               (DTLS 1.0/1.2)
         @Override
         public byte[] produce(ConnectionContext context,
                 HandshakeMessage message) throws IOException {
@@ -706,41 +612,6 @@ final class ClientHello {
                     } catch (IOException ioe) {
                         throw chc.conContext.fatal(
                                 Alert.HANDSHAKE_FAILURE, ioe);
-                    }
-
-                    // The handshake message has been delivered.
-                    return null;
-                case HELLO_VERIFY_REQUEST:
-                    // DTLS 1.0/1.2
-                    //
-                    // The HelloVerifyRequest consumer should have updated the
-                    // ClientHello handshake message with cookie.
-                    if (SSLLogger.isOn && SSLLogger.isOn("ssl,handshake")) {
-                        SSLLogger.fine(
-                            "Produced ClientHello(cookie) handshake message",
-                            chc.initialClientHelloMsg);
-                    }
-
-                    // Output the handshake message.
-                    chc.initialClientHelloMsg.write(chc.handshakeOutput);
-                    chc.handshakeOutput.flush();
-
-                    // What's the expected response?
-                    chc.handshakeConsumers.put(SSLHandshake.SERVER_HELLO.id,
-                            SSLHandshake.SERVER_HELLO);
-
-                    ProtocolVersion minimumVersion = ProtocolVersion.NONE;
-                    for (ProtocolVersion pv : chc.activeProtocols) {
-                        if (minimumVersion == ProtocolVersion.NONE ||
-                                pv.compare(minimumVersion) < 0) {
-                            minimumVersion = pv;
-                        }
-                    }
-                    if (chc.sslContext.isDTLS() &&
-                            !minimumVersion.useTLS13PlusSpec()) {
-                        chc.handshakeConsumers.put(
-                                SSLHandshake.HELLO_VERIFY_REQUEST.id,
-                                SSLHandshake.HELLO_VERIFY_REQUEST);
                     }
 
                     // The handshake message has been delivered.
@@ -841,18 +712,10 @@ final class ClientHello {
             }
 
             // Consume the handshake message for the specific protocol version.
-            if (negotiatedProtocol.isDTLS) {
-                if (negotiatedProtocol.useTLS13PlusSpec()) {
-                    d13HandshakeConsumer.consume(context, clientHello);
-                } else {
-                    d12HandshakeConsumer.consume(context, clientHello);
-                }
+            if (negotiatedProtocol.useTLS13PlusSpec()) {
+                t13HandshakeConsumer.consume(context, clientHello);
             } else {
-                if (negotiatedProtocol.useTLS13PlusSpec()) {
-                    t13HandshakeConsumer.consume(context, clientHello);
-                } else {
-                    t12HandshakeConsumer.consume(context, clientHello);
-                }
+                t12HandshakeConsumer.consume(context, clientHello);
             }
         }
 
@@ -865,14 +728,8 @@ final class ClientHello {
             // Per TLS 1.3 specification, server MUST negotiate TLS 1.2 or prior
             // even if ClientHello.client_version is 0x0304 or later.
             int chv = clientHelloVersion;
-            if (context.sslContext.isDTLS()) {
-                if (chv < ProtocolVersion.DTLS12.id) {
-                    chv = ProtocolVersion.DTLS12.id;
-                }
-            } else {
-                if (chv > ProtocolVersion.TLS12.id) {
-                    chv = ProtocolVersion.TLS12.id;
-                }
+            if (chv > ProtocolVersion.TLS12.id) {
+                chv = ProtocolVersion.TLS12.id;
             }
 
             // Select a protocol version from the activated protocols.
@@ -1234,209 +1091,6 @@ final class ClientHello {
                     handshakeProducer.produce(shc, clientHello);
                 }
             }
-        }
-    }
-
-    /**
-     * The "ClientHello" handshake message consumer for DTLS 1.2 and
-     * previous DTLS protocol versions.
-     */
-    private static final
-            class D12ClientHelloConsumer implements HandshakeConsumer {
-        // Prevent instantiation of this class.
-        private D12ClientHelloConsumer() {
-            // blank
-        }
-
-        @Override
-        public void consume(ConnectionContext context,
-                HandshakeMessage message) throws IOException {
-            // The consuming happens in server side only.
-            ServerHandshakeContext shc = (ServerHandshakeContext)context;
-            ClientHelloMessage clientHello = (ClientHelloMessage)message;
-
-            //
-            // validate
-            //
-
-            // Reject client initiated renegotiation?
-            //
-            // If server side should reject client-initiated renegotiation,
-            // send an Alert.HANDSHAKE_FAILURE fatal alert, not a
-            // no_renegotiation warning alert (no_renegotiation must be a
-            // warning: RFC 2246).  no_renegotiation might seem more
-            // natural at first, but warnings are not appropriate because
-            // the sending party does not know how the receiving party
-            // will behave.  This state must be treated as a fatal server
-            // condition.
-            //
-            // This will not have any impact on server initiated renegotiation.
-            if (shc.conContext.isNegotiated) {
-                if (!shc.conContext.secureRenegotiation &&
-                        !HandshakeContext.allowUnsafeRenegotiation) {
-                    throw shc.conContext.fatal(Alert.HANDSHAKE_FAILURE,
-                            "Unsafe renegotiation is not allowed");
-                }
-
-                if (ServerHandshakeContext.rejectClientInitiatedRenego &&
-                        !shc.kickstartMessageDelivered) {
-                    throw shc.conContext.fatal(Alert.HANDSHAKE_FAILURE,
-                            "Client initiated renegotiation is not allowed");
-                }
-            }
-
-            // Is it an abbreviated handshake?
-            if (clientHello.sessionId.length() != 0) {
-                SSLSessionImpl previous = ((SSLSessionContextImpl)shc.sslContext
-                            .engineGetServerSessionContext())
-                            .get(clientHello.sessionId.getId());
-
-                boolean resumingSession =
-                        (previous != null) && previous.isRejoinable();
-                if (!resumingSession) {
-                    if (SSLLogger.isOn &&
-                            SSLLogger.isOn("ssl,handshake,verbose")) {
-                        SSLLogger.finest(
-                            "Can't resume, " +
-                            "the existing session is not rejoinable");
-                    }
-                }
-                // Validate the negotiated protocol version.
-                if (resumingSession) {
-                    ProtocolVersion sessionProtocol =
-                            previous.getProtocolVersion();
-                    if (sessionProtocol != shc.negotiatedProtocol) {
-                        resumingSession = false;
-                        if (SSLLogger.isOn &&
-                                SSLLogger.isOn("ssl,handshake,verbose")) {
-                            SSLLogger.finest(
-                                "Can't resume, not the same protocol version");
-                        }
-                    }
-                }
-
-                // Validate the required client authentication.
-                if (resumingSession &&
-                    (shc.sslConfig.clientAuthType == CLIENT_AUTH_REQUIRED)) {
-
-                    try {
-                        previous.getPeerPrincipal();
-                    } catch (SSLPeerUnverifiedException e) {
-                        resumingSession = false;
-                        if (SSLLogger.isOn &&
-                                SSLLogger.isOn("ssl,handshake,verbose")) {
-                            SSLLogger.finest(
-                                "Can't resume, " +
-                                "client authentication is required");
-                        }
-                    }
-                }
-
-                // Validate that the cached cipher suite.
-                if (resumingSession) {
-                    CipherSuite suite = previous.getSuite();
-                    if ((!shc.isNegotiable(suite)) ||
-                            (!clientHello.cipherSuites.contains(suite))) {
-                        resumingSession = false;
-                        if (SSLLogger.isOn &&
-                                SSLLogger.isOn("ssl,handshake,verbose")) {
-                            SSLLogger.finest(
-                                "Can't resume, " +
-                                "the session cipher suite is absent");
-                        }
-                    }
-                }
-
-                // So far so good.  Note that the handshake extensions may reset
-                // the resuming options later.
-                shc.isResumption = resumingSession;
-                shc.resumingSession = resumingSession ? previous : null;
-            }
-
-            HelloCookieManager hcm =
-                shc.sslContext.getHelloCookieManager(ProtocolVersion.DTLS10);
-            if (!shc.isResumption &&
-                !hcm.isCookieValid(shc, clientHello, clientHello.cookie)) {
-                //
-                // Perform cookie exchange for DTLS handshaking if no cookie
-                // or the cookie is invalid in the ClientHello message.
-                //
-                // update the responders
-                shc.handshakeProducers.put(
-                        SSLHandshake.HELLO_VERIFY_REQUEST.id,
-                        SSLHandshake.HELLO_VERIFY_REQUEST);
-
-                //
-                // produce response handshake message
-                //
-                SSLHandshake.HELLO_VERIFY_REQUEST.produce(context, clientHello);
-
-                return;
-            }
-
-            // cache the client random number for further using
-            shc.clientHelloRandom = clientHello.clientRandom;
-
-            // Check and launch ClientHello extensions.
-            SSLExtension[] extTypes = shc.sslConfig.getEnabledExtensions(
-                    SSLHandshake.CLIENT_HELLO);
-            clientHello.extensions.consumeOnLoad(shc, extTypes);
-
-            //
-            // update
-            //
-            if (!shc.conContext.isNegotiated) {
-                shc.conContext.protocolVersion = shc.negotiatedProtocol;
-                shc.conContext.outputRecord.setVersion(shc.negotiatedProtocol);
-            }
-
-            // update the responders
-            //
-            // Only need to ServerHello, which may add more responders later.
-            shc.handshakeProducers.put(SSLHandshake.SERVER_HELLO.id,
-                    SSLHandshake.SERVER_HELLO);
-
-            //
-            // produce
-            //
-            SSLHandshake[] probableHandshakeMessages = new SSLHandshake[] {
-                SSLHandshake.SERVER_HELLO,
-
-                // full handshake messages
-                SSLHandshake.CERTIFICATE,
-                SSLHandshake.CERTIFICATE_STATUS,
-                SSLHandshake.SERVER_KEY_EXCHANGE,
-                SSLHandshake.CERTIFICATE_REQUEST,
-                SSLHandshake.SERVER_HELLO_DONE,
-
-                // abbreviated handshake messages
-                SSLHandshake.FINISHED
-            };
-
-            for (SSLHandshake hs : probableHandshakeMessages) {
-                HandshakeProducer handshakeProducer =
-                        shc.handshakeProducers.remove(hs.id);
-                if (handshakeProducer != null) {
-                    handshakeProducer.produce(context, clientHello);
-                }
-            }
-        }
-    }
-
-    /**
-     * The "ClientHello" handshake message consumer for DTLS 1.3.
-     */
-    private static final
-            class D13ClientHelloConsumer implements HandshakeConsumer {
-        // Prevent instantiation of this class.
-        private D13ClientHelloConsumer() {
-            // blank
-        }
-
-        @Override
-        public void consume(ConnectionContext context,
-                HandshakeMessage message) throws IOException {
-            throw new UnsupportedOperationException("Not supported yet.");
         }
     }
 }

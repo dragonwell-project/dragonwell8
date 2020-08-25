@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -74,15 +74,9 @@ final class SSLEngineImpl extends SSLEngine implements SSLTransport {
         super(host, port);
         this.sslContext = sslContext;
         HandshakeHash handshakeHash = new HandshakeHash();
-        if (sslContext.isDTLS()) {
-            this.conContext = new TransportContext(sslContext, this,
-                    new DTLSInputRecord(handshakeHash),
-                    new DTLSOutputRecord(handshakeHash));
-        } else {
-            this.conContext = new TransportContext(sslContext, this,
-                    new SSLEngineInputRecord(handshakeHash),
-                    new SSLEngineOutputRecord(handshakeHash));
-        }
+        this.conContext = new TransportContext(sslContext, this,
+                new SSLEngineInputRecord(handshakeHash),
+                new SSLEngineOutputRecord(handshakeHash));
 
         // Server name indication is a connection scope extension.
         if (host != null) {
@@ -166,18 +160,7 @@ final class SSLEngineImpl extends SSLEngine implements SSLTransport {
 
             hsStatus = getHandshakeStatus();
             if (hsStatus == HandshakeStatus.NEED_UNWRAP) {
-                /*
-                 * For DTLS, if the handshake state is
-                 * HandshakeStatus.NEED_UNWRAP, a call to SSLEngine.wrap()
-                 * means that the previous handshake packets (if delivered)
-                 * get lost, and need retransmit the handshake messages.
-                 */
-                if (!sslContext.isDTLS() || hc == null ||
-                        !hc.sslConfig.enableRetransmissions ||
-                        conContext.outputRecord.firstMessage) {
-
-                    return new SSLEngineResult(Status.OK, hsStatus, 0, 0);
-                }   // otherwise, need retransmission
+                return new SSLEngineResult(Status.OK, hsStatus, 0, 0);
             }
         }
 
@@ -218,11 +201,8 @@ final class SSLEngineImpl extends SSLEngine implements SSLTransport {
         try {
             // Acquire the buffered to-be-delivered records or retransmissions.
             //
-            // May have buffered records, or need retransmission if handshaking.
-            if (!conContext.outputRecord.isEmpty() || (hc != null &&
-                    hc.sslConfig.enableRetransmissions &&
-                    hc.sslContext.isDTLS() &&
-                    hsStatus == HandshakeStatus.NEED_UNWRAP)) {
+            // May have buffered records.
+            if (!conContext.outputRecord.isEmpty()) {
                 ciphertext = encode(null, 0, 0,
                         dsts, dstsOffset, dstsLength);
             }
@@ -259,8 +239,7 @@ final class SSLEngineImpl extends SSLEngine implements SSLTransport {
             deltaDsts -= dsts[i].remaining();
         }
 
-        return new SSLEngineResult(status, hsStatus, deltaSrcs, deltaDsts,
-                ciphertext != null ? ciphertext.recordSN : -1L);
+        return new SSLEngineResult(status, hsStatus, deltaSrcs, deltaDsts);
     }
 
     private Ciphertext encode(
@@ -283,30 +262,8 @@ final class SSLEngineImpl extends SSLEngine implements SSLTransport {
         }
 
         // Is the handshake completed?
-        boolean needRetransmission =
-                conContext.sslContext.isDTLS() &&
-                conContext.handshakeContext != null &&
-                conContext.handshakeContext.sslConfig.enableRetransmissions;
         HandshakeStatus hsStatus =
                 tryToFinishHandshake(ciphertext.contentType);
-        if (needRetransmission &&
-                hsStatus == HandshakeStatus.FINISHED &&
-                conContext.sslContext.isDTLS() &&
-                ciphertext.handshakeType == SSLHandshake.FINISHED.id) {
-            // Retransmit the last flight for DTLS.
-            //
-            // The application data transactions may begin immediately
-            // after the last flight.  If the last flight get lost, the
-            // application data may be discarded accordingly.  As could
-            // be an issue for some applications.  This impact can be
-            // mitigated by sending the last fligth twice.
-            if (SSLLogger.isOn && SSLLogger.isOn("ssl,verbose")) {
-                SSLLogger.finest("retransmit the last flight messages");
-            }
-
-            conContext.outputRecord.launchRetransmission();
-            hsStatus = HandshakeStatus.NEED_WRAP;
-        }
 
         if (hsStatus == null) {
             hsStatus = conContext.getHandshakeStatus();
@@ -501,30 +458,6 @@ final class SSLEngineImpl extends SSLEngine implements SSLTransport {
             return new SSLEngineResult(Status.OK, hsStatus, 0, 0);
         }
 
-        if (hsStatus == SSLEngineResult.HandshakeStatus.NEED_UNWRAP_AGAIN) {
-            Plaintext plainText = null;
-            try {
-                plainText = decode(null, 0, 0,
-                        dsts, dstsOffset, dstsLength);
-            } catch (IOException ioe) {
-                if (ioe instanceof SSLException) {
-                    throw ioe;
-                } else {
-                    throw new SSLException("readRecord", ioe);
-                }
-            }
-
-            Status status = (isInboundDone() ? Status.CLOSED : Status.OK);
-            if (plainText.handshakeStatus != null) {
-                hsStatus = plainText.handshakeStatus;
-            } else {
-                hsStatus = getHandshakeStatus();
-            }
-
-            return new SSLEngineResult(
-                    status, hsStatus, 0, 0, plainText.recordSN);
-        }
-
         int srcsRemains = 0;
         for (int i = srcsOffset; i < srcsOffset + srcsLength; i++) {
             srcsRemains += srcs[i].remaining();
@@ -539,38 +472,13 @@ final class SSLEngineImpl extends SSLEngine implements SSLTransport {
          * Check the packet to make sure enough is here.
          * This will also indirectly check for 0 len packets.
          */
-        int packetLen = 0;
-        try {
-            packetLen = conContext.inputRecord.bytesInCompletePacket(
-                    srcs, srcsOffset, srcsLength);
-        } catch (SSLException ssle) {
-            // Need to discard invalid records for DTLS protocols.
-            if (sslContext.isDTLS()) {
-                if (SSLLogger.isOn && SSLLogger.isOn("ssl,verbose")) {
-                    SSLLogger.finest("Discard invalid DTLS records", ssle);
-                }
-
-                // invalid, discard the entire data [section 4.1.2.7, RFC 6347]
-                int deltaNet = 0;
-                // int deltaNet = netData.remaining();
-                // netData.position(netData.limit());
-
-                Status status = (isInboundDone() ? Status.CLOSED : Status.OK);
-                if (hsStatus == null) {
-                    hsStatus = getHandshakeStatus();
-                }
-
-                return new SSLEngineResult(status, hsStatus, deltaNet, 0, -1L);
-            } else {
-                throw ssle;
-            }
-        }
+        int packetLen = conContext.inputRecord.bytesInCompletePacket(
+                srcs, srcsOffset, srcsLength);
 
         // Is this packet bigger than SSL/TLS normally allows?
         if (packetLen > conContext.conSession.getPacketBufferSize()) {
-            int largestRecordSize = sslContext.isDTLS() ?
-                    DTLSRecord.maxRecordSize : SSLRecord.maxLargeRecordSize;
-            if ((packetLen <= largestRecordSize) && !sslContext.isDTLS()) {
+            int largestRecordSize = SSLRecord.maxLargeRecordSize;
+            if (packetLen <= largestRecordSize) {
                 // Expand the expected maximum packet/application buffer
                 // sizes.
                 //
@@ -657,8 +565,7 @@ final class SSLEngineImpl extends SSLEngine implements SSLTransport {
             deltaApp -= dsts[i].remaining();
         }
 
-        return new SSLEngineResult(
-                status, hsStatus, deltaNet, deltaApp, plainText.recordSN);
+        return new SSLEngineResult(status, hsStatus, deltaNet, deltaApp);
     }
 
     private Plaintext decode(

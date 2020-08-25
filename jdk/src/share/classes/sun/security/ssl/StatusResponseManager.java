@@ -780,7 +780,7 @@ final class StatusResponseManager {
         // If multiple ocsp or ocsp_multi types exist, select the first
         // instance of a given type.  Also since we don't support ResponderId
         // selection yet, only accept a request if the ResponderId field
-        // is empty.  Finally, we'll only do this in (D)TLS 1.2 or earlier.
+        // is empty.  Finally, we'll only do this in TLS 1.2 or earlier.
         if (statReqV2 != null && !shc.negotiatedProtocol.useTLS13PlusSpec()) {
             if (SSLLogger.isOn && SSLLogger.isOn("ssl,handshake,verbose")) {
                 SSLLogger.fine("SH Processing status_request_v2 extension");

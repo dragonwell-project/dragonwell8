@@ -61,10 +61,8 @@ enum SSLTrafficKeyDerivation implements SSLKeyDerivationGenerator {
                 return SSLTrafficKeyDerivation.SSL30;
             case TLS10:
             case TLS11:
-            case DTLS10:
                 return SSLTrafficKeyDerivation.TLS10;
             case TLS12:
-            case DTLS12:
                 return SSLTrafficKeyDerivation.TLS12;
             case TLS13:
                 return SSLTrafficKeyDerivation.TLS13;
@@ -233,32 +231,15 @@ enum SSLTrafficKeyDerivation implements SSLKeyDerivationGenerator {
 
             byte majorVersion = protocolVersion.major;
             byte minorVersion = protocolVersion.minor;
-            if (protocolVersion.isDTLS) {
-                // Use TLS version number for DTLS key calculation
-                if (protocolVersion.id == ProtocolVersion.DTLS10.id) {
-                    majorVersion = ProtocolVersion.TLS11.major;
-                    minorVersion = ProtocolVersion.TLS11.minor;
-
-                    keyMaterialAlg = "SunTlsKeyMaterial";
-                    hashAlg = H_NONE;
-                } else {    // DTLS 1.2+
-                    majorVersion = ProtocolVersion.TLS12.major;
-                    minorVersion = ProtocolVersion.TLS12.minor;
-
-                    keyMaterialAlg = "SunTls12KeyMaterial";
-                    hashAlg = cipherSuite.hashAlg;
-                }
+            if (protocolVersion.id >= ProtocolVersion.TLS12.id) {
+                keyMaterialAlg = "SunTls12KeyMaterial";
+                hashAlg = cipherSuite.hashAlg;
             } else {
-                if (protocolVersion.id >= ProtocolVersion.TLS12.id) {
-                    keyMaterialAlg = "SunTls12KeyMaterial";
-                    hashAlg = cipherSuite.hashAlg;
-                } else {
-                    keyMaterialAlg = "SunTlsKeyMaterial";
-                    hashAlg = H_NONE;
-                }
+                keyMaterialAlg = "SunTlsKeyMaterial";
+                hashAlg = H_NONE;
             }
 
-            // TLS v1.1+ and DTLS use an explicit IV in CBC cipher suites to
+            // TLS v1.1+ use an explicit IV in CBC cipher suites to
             // protect against the CBC attacks.  AEAD/GCM cipher suites in
             // TLS v1.2 or later use a fixed IV as the implicit part of the
             // partially implicit nonce technique described in RFC 5116.

@@ -34,7 +34,7 @@ import sun.security.ssl.SSLHandshake.HandshakeMessage;
 import sun.security.util.HexDumpEncoder;
 
 /**
- * SSL/(D)TLS extensions in a handshake message.
+ * SSL/TLS extensions in a handshake message.
  */
 final class SSLExtensions {
     private final HandshakeMessage handshakeMessage;

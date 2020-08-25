@@ -32,7 +32,7 @@ import java.util.Arrays;
 import static sun.security.ssl.ClientHello.ClientHelloMessage;
 
 /**
- *  (D)TLS handshake cookie manager
+ *  TLS handshake cookie manager
  */
 abstract class HelloCookieManager {
 
@@ -40,8 +40,6 @@ abstract class HelloCookieManager {
 
         final SecureRandom secureRandom;
 
-        private volatile D10HelloCookieManager d10HelloCookieManager;
-        private volatile D13HelloCookieManager d13HelloCookieManager;
         private volatile T13HelloCookieManager t13HelloCookieManager;
 
         Builder(SecureRandom secureRandom) {
@@ -49,49 +47,19 @@ abstract class HelloCookieManager {
         }
 
         HelloCookieManager valueOf(ProtocolVersion protocolVersion) {
-            if (protocolVersion.isDTLS) {
-                if (protocolVersion.useTLS13PlusSpec()) {
-                    if (d13HelloCookieManager != null) {
-                        return d13HelloCookieManager;
-                    }
-
-                    synchronized (this) {
-                        if (d13HelloCookieManager == null) {
-                            d13HelloCookieManager =
-                                    new D13HelloCookieManager(secureRandom);
-                        }
-                    }
-
-                    return d13HelloCookieManager;
-                } else {
-                    if (d10HelloCookieManager != null) {
-                        return d10HelloCookieManager;
-                    }
-
-                    synchronized (this) {
-                        if (d10HelloCookieManager == null) {
-                            d10HelloCookieManager =
-                                    new D10HelloCookieManager(secureRandom);
-                        }
-                    }
-
-                    return d10HelloCookieManager;
-                }
-            } else {
-                if (protocolVersion.useTLS13PlusSpec()) {
-                    if (t13HelloCookieManager != null) {
-                        return t13HelloCookieManager;
-                    }
-
-                    synchronized (this) {
-                        if (t13HelloCookieManager == null) {
-                            t13HelloCookieManager =
-                                    new T13HelloCookieManager(secureRandom);
-                        }
-                    }
-
+            if (protocolVersion.useTLS13PlusSpec()) {
+                if (t13HelloCookieManager != null) {
                     return t13HelloCookieManager;
                 }
+
+                synchronized (this) {
+                    if (t13HelloCookieManager == null) {
+                        t13HelloCookieManager =
+                                new T13HelloCookieManager(secureRandom);
+                    }
+                }
+
+                return t13HelloCookieManager;
             }
 
             return null;
@@ -103,99 +71,6 @@ abstract class HelloCookieManager {
 
     abstract boolean isCookieValid(ServerHandshakeContext context,
             ClientHelloMessage clientHello, byte[] cookie) throws IOException;
-
-    // DTLS 1.0/1.2
-    private static final
-            class D10HelloCookieManager extends HelloCookieManager {
-
-        final SecureRandom secureRandom;
-        private int         cookieVersion;  // allow to wrap, version + sequence
-        private byte[]      cookieSecret;
-        private byte[]      legacySecret;
-
-        D10HelloCookieManager(SecureRandom secureRandom) {
-            this.secureRandom = secureRandom;
-
-            this.cookieVersion = secureRandom.nextInt();
-            this.cookieSecret = new byte[32];
-            this.legacySecret = new byte[32];
-
-            secureRandom.nextBytes(cookieSecret);
-            System.arraycopy(cookieSecret, 0, legacySecret, 0, 32);
-        }
-
-        @Override
-        byte[] createCookie(ServerHandshakeContext context,
-                ClientHelloMessage clientHello) throws IOException {
-            int version;
-            byte[] secret;
-
-            synchronized (this) {
-                version = cookieVersion;
-                secret = cookieSecret;
-
-                // the cookie secret usage limit is 2^24
-                if ((cookieVersion & 0xFFFFFF) == 0) {  // reset the secret
-                    System.arraycopy(cookieSecret, 0, legacySecret, 0, 32);
-                    secureRandom.nextBytes(cookieSecret);
-                }
-
-                cookieVersion++;
-            }
-
-            MessageDigest md = JsseJce.getMessageDigest("SHA-256");
-            byte[] helloBytes = clientHello.getHelloCookieBytes();
-            md.update(helloBytes);
-            byte[] cookie = md.digest(secret);      // 32 bytes
-            cookie[0] = (byte)((version >> 24) & 0xFF);
-
-            return cookie;
-        }
-
-        @Override
-        boolean isCookieValid(ServerHandshakeContext context,
-            ClientHelloMessage clientHello, byte[] cookie) throws IOException {
-            // no cookie exchange or not a valid cookie length
-            if ((cookie == null) || (cookie.length != 32)) {
-                return false;
-            }
-
-            byte[] secret;
-            synchronized (this) {
-                if (((cookieVersion >> 24) & 0xFF) == cookie[0]) {
-                    secret = cookieSecret;
-                } else {
-                    secret = legacySecret;  // including out of window cookies
-                }
-            }
-
-            MessageDigest md = JsseJce.getMessageDigest("SHA-256");
-            byte[] helloBytes = clientHello.getHelloCookieBytes();
-            md.update(helloBytes);
-            byte[] target = md.digest(secret);      // 32 bytes
-            target[0] = cookie[0];
-
-            return Arrays.equals(target, cookie);
-        }
-    }
-
-    private static final
-            class D13HelloCookieManager extends HelloCookieManager {
-        D13HelloCookieManager(SecureRandom secureRandom) {
-        }
-
-        @Override
-        byte[] createCookie(ServerHandshakeContext context,
-                ClientHelloMessage clientHello) throws IOException {
-            throw new UnsupportedOperationException("Not supported yet.");
-        }
-
-        @Override
-        boolean isCookieValid(ServerHandshakeContext context,
-            ClientHelloMessage clientHello, byte[] cookie) throws IOException {
-            throw new UnsupportedOperationException("Not supported yet.");
-        }
-    }
 
     private static final
             class T13HelloCookieManager extends HelloCookieManager {

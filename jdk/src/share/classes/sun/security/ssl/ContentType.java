@@ -26,7 +26,7 @@
 package sun.security.ssl;
 
 /**
- * Enum for SSL/(D)TLS content types.
+ * Enum for SSL/TLS content types.
  */
 enum ContentType {
     INVALID             ((byte)0,   "invalid",
