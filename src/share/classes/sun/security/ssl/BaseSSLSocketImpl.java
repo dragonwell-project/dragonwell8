@@ -640,34 +640,6 @@ abstract class BaseSSLSocketImpl extends SSLSocket {
         }
     }
 
-    @Override
-    public <T> Socket setOption(SocketOption<T> name,
-            T value) throws IOException {
-        if (self == this) {
-            return super.setOption(name, value);
-        } else {
-            return self.setOption(name, value);
-        }
-    }
-
-    @Override
-    public <T> T getOption(SocketOption<T> name) throws IOException {
-        if (self == this) {
-            return super.getOption(name);
-        } else {
-            return self.getOption(name);
-        }
-    }
-
-    @Override
-    public Set<SocketOption<?>> supportedOptions() {
-        if (self == this) {
-            return super.supportedOptions();
-        } else {
-            return self.supportedOptions();
-        }
-    }
-
     boolean isLayered() {
         return (self != this);
     }

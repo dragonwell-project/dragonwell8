@@ -2307,7 +2307,7 @@ enum SSLCipher {
 
         // The padding data should be filled with the padding length value.
         int[] results = checkPadding(
-                bb.duplicate().position(offset + newLen),
+                (ByteBuffer)(bb.duplicate()).position(offset + newLen),
                 (byte)(padLen & 0xFF));
         if (protocolVersion.useTLS10PlusSpec()) {
             if (results[0] != 0) {          // padding data has invalid bytes
