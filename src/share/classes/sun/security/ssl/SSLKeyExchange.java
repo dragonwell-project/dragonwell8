@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2020, Azul Systems, Inc. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -234,6 +235,10 @@ final class SSLKeyExchange implements SSLKeyAgreementGenerator,
                 }
             case K_ECDH_ANON:
                 return SSLKeyExECDHANON.KE;
+            case K_KRB5:
+                return SSLKeyExKRB5.KE;
+            case K_KRB5_EXPORT:
+                return SSLKeyExKRB5EXPORT.KE;
         }
 
         return null;
@@ -325,6 +330,16 @@ final class SSLKeyExchange implements SSLKeyAgreementGenerator,
                 null, T12KeyAgreement.ECDHE);
     }
 
+    private static class SSLKeyExKRB5 {
+        private static SSLKeyExchange KE = new SSLKeyExchange(
+                null, T12KeyAgreement.KRB5);
+    }
+
+    private static class SSLKeyExKRB5EXPORT {
+        private static SSLKeyExchange KE = new SSLKeyExchange(
+                null, T12KeyAgreement.KRB5_EXPORT);
+    }
+
     private enum T12KeyAgreement implements SSLKeyAgreement {
         RSA             ("rsa",         null,
                                         RSAKeyExchange.kaGenerator),
@@ -337,7 +352,11 @@ final class SSLKeyExchange implements SSLKeyAgreementGenerator,
         ECDH            ("ecdh",        null,
                                         ECDHKeyExchange.ecdhKAGenerator),
         ECDHE           ("ecdhe",       ECDHKeyExchange.poGenerator,
-                                        ECDHKeyExchange.ecdheKAGenerator);
+                                        ECDHKeyExchange.ecdheKAGenerator),
+        KRB5            ("krb5",        KrbKeyExchange.poGenerator,
+                                        KrbKeyExchange.kaGenerator),
+        KRB5_EXPORT     ("krb5_export", KrbKeyExchange.poGenerator,
+                                        KrbKeyExchange.kaGenerator);
 
         final String name;
         final SSLPossessionGenerator possessionGenerator;
@@ -426,6 +445,15 @@ final class SSLKeyExchange implements SSLKeyAgreementGenerator,
                                 SSLHandshake.CLIENT_KEY_EXCHANGE.id,
                                 ECDHClientKeyExchange.ecdheHandshakeProducer
                             )
+                        });
+                    case KRB5:
+                    case KRB5_EXPORT:
+                        return (Map.Entry<Byte,
+                                HandshakeProducer>[])(new Map.Entry[] {
+                                new SimpleImmutableEntry<>(
+                                        SSLHandshake.CLIENT_KEY_EXCHANGE.id,
+                                        KrbClientKeyExchange.krbHandshakeProducer
+                                )
                         });
                 }
             } else {
@@ -539,6 +567,15 @@ final class SSLKeyExchange implements SSLKeyAgreementGenerator,
                                 SSLHandshake.CLIENT_KEY_EXCHANGE.id,
                                 ECDHClientKeyExchange.ecdheHandshakeConsumer
                             )
+                        });
+                    case KRB5:
+                    case KRB5_EXPORT:
+                        return (Map.Entry<Byte,
+                                SSLConsumer>[])(new Map.Entry[] {
+                                new SimpleImmutableEntry<>(
+                                        SSLHandshake.CLIENT_KEY_EXCHANGE.id,
+                                        KrbClientKeyExchange.krbHandshakeConsumer
+                                )
                         });
                 }
             }

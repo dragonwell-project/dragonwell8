@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2020, Azul Systems, Inc. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,6 +28,10 @@ package sun.security.ssl;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.security.AccessController;
+import java.security.Principal;
+import java.security.PrivilegedActionException;
+import java.security.PrivilegedExceptionAction;
 import java.security.SecureRandom;
 import java.security.cert.X509Certificate;
 import java.text.MessageFormat;
@@ -40,6 +45,10 @@ import javax.net.ssl.SSLException;
 import javax.net.ssl.SSLHandshakeException;
 import javax.net.ssl.SSLPeerUnverifiedException;
 import javax.net.ssl.SSLProtocolException;
+import javax.security.auth.Subject;
+
+import static sun.security.ssl.CipherSuite.KeyExchange.K_KRB5;
+import static sun.security.ssl.CipherSuite.KeyExchange.K_KRB5_EXPORT;
 import static sun.security.ssl.ClientAuthType.CLIENT_AUTH_REQUIRED;
 import sun.security.ssl.SSLHandshake.HandshakeMessage;
 import sun.security.ssl.SupportedVersionsExtension.CHSupportedVersionsSpec;
@@ -883,6 +892,58 @@ final class ClientHello {
                             SSLLogger.finest(
                                 "Can't resume, " +
                                 "the session cipher suite is absent");
+                        }
+                    }
+                }
+
+                // Validate KRB5 cipher suites
+                if (resumingSession) {
+                    CipherSuite suite = previous.getSuite();
+                    if (suite.keyExchange == K_KRB5 ||
+                            suite.keyExchange == K_KRB5_EXPORT) {
+                        Principal localPrincipal = previous.getLocalPrincipal();
+
+                        Subject subject = null;
+                        try {
+                            subject = AccessController.doPrivileged(
+                                    new PrivilegedExceptionAction<Subject>() {
+                                        @Override
+                                        public Subject run() throws Exception {
+                                            return Krb5Helper.getServerSubject(
+                                                    shc.conContext.acc);
+                                        }});
+                        } catch (PrivilegedActionException e) {
+                            subject = null;
+                            if (SSLLogger.isOn &&
+                                    SSLLogger.isOn("ssl,handshake,verbose")) {
+                                SSLLogger.finest("Attempt to obtain" +
+                                        " subject failed!");
+                            }
+                        }
+
+                        if (subject != null) {
+                            // Eliminate dependency on KerberosPrincipal
+                            if (Krb5Helper.isRelated(subject, localPrincipal)) {
+                                if (SSLLogger.isOn &&
+                                        SSLLogger.isOn("ssl,handshake,verbose"))
+                                    SSLLogger.finest("Subject can" +
+                                            " provide creds for princ");
+                            } else {
+                                resumingSession = false;
+                                if (SSLLogger.isOn &&
+                                        SSLLogger.isOn("ssl,handshake,verbose"))
+                                    SSLLogger.finest("Subject cannot" +
+                                            " provide creds for princ");
+                            }
+                        } else {
+                            resumingSession = false;
+                            if (SSLLogger.isOn &&
+                                    SSLLogger.isOn("ssl,handshake,verbose"))
+                                SSLLogger.finest("Kerberos credentials are" +
+                                        " not present in the current Subject;" +
+                                        " check if " +
+                                        " javax.security.auth.useSubjectCredsOnly" +
+                                        " system property has been set to false");
                         }
                     }
                 }

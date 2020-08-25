@@ -478,6 +478,49 @@ enum CipherSuite {
             ProtocolVersion.PROTOCOLS_TO_12,
             K_RSA, B_NULL, M_MD5, H_SHA256),
 
+
+    // Supported Kerberos ciphersuites from RFC2712
+    TLS_KRB5_WITH_3DES_EDE_CBC_SHA(
+            0x001f, false, "TLS_KRB5_WITH_3DES_EDE_CBC_SHA", "",
+            ProtocolVersion.PROTOCOLS_TO_12,
+            K_KRB5, B_3DES, M_SHA, H_SHA256),
+    TLS_KRB5_WITH_3DES_EDE_CBC_MD5(
+            0x0023, false, "TLS_KRB5_WITH_3DES_EDE_CBC_MD5", "",
+            ProtocolVersion.PROTOCOLS_TO_12,
+            K_KRB5, B_3DES, M_MD5, H_SHA256),
+    TLS_KRB5_WITH_RC4_128_SHA(
+            0x0020, false, "TLS_KRB5_WITH_RC4_128_SHA", "",
+            ProtocolVersion.PROTOCOLS_TO_12,
+            K_KRB5, B_RC4_128, M_SHA, H_SHA256),
+    TLS_KRB5_WITH_RC4_128_MD5(
+            0x0024, false, "TLS_KRB5_WITH_RC4_128_MD5", "",
+            ProtocolVersion.PROTOCOLS_TO_12,
+            K_KRB5, B_RC4_128, M_MD5, H_SHA256),
+    TLS_KRB5_WITH_DES_CBC_SHA(
+            0x001e, false, "TLS_KRB5_WITH_DES_CBC_SHA", "",
+            ProtocolVersion.PROTOCOLS_TO_11,
+            K_KRB5, B_DES, M_SHA, H_SHA256),
+    TLS_KRB5_WITH_DES_CBC_MD5(
+            0x0022, false, "TLS_KRB5_WITH_DES_CBC_MD5", "",
+            ProtocolVersion.PROTOCOLS_TO_11,
+            K_KRB5, B_DES, M_MD5, H_SHA256),
+    TLS_KRB5_EXPORT_WITH_DES_CBC_40_SHA(
+            0x0026, false, "TLS_KRB5_EXPORT_WITH_DES_CBC_40_SHA", "",
+            ProtocolVersion.PROTOCOLS_TO_10,
+            K_KRB5_EXPORT, B_DES_40, M_SHA, H_SHA256),
+    TLS_KRB5_EXPORT_WITH_DES_CBC_40_MD5(
+            0x0029, false, "TLS_KRB5_EXPORT_WITH_DES_CBC_40_MD5", "",
+            ProtocolVersion.PROTOCOLS_TO_10,
+            K_KRB5_EXPORT, B_DES_40, M_MD5, H_SHA256),
+    TLS_KRB5_EXPORT_WITH_RC4_40_SHA(
+            0x0028, false, "TLS_KRB5_EXPORT_WITH_RC4_40_SHA", "",
+            ProtocolVersion.PROTOCOLS_TO_10,
+            K_KRB5_EXPORT, B_RC4_40, M_SHA, H_SHA256),
+    TLS_KRB5_EXPORT_WITH_RC4_40_MD5(
+            0x002B, false, "TLS_KRB5_EXPORT_WITH_RC4_40_MD5", "",
+            ProtocolVersion.PROTOCOLS_TO_10,
+            K_KRB5_EXPORT, B_RC4_40, M_MD5, H_SHA256),
+
     // Definition of the CipherSuites that are not supported but the names
     // are known.
     TLS_CHACHA20_POLY1305_SHA256(                    // TLS 1.3
@@ -516,20 +559,10 @@ enum CipherSuite {
     CS_FEFF("SSL_RSA_FIPS_WITH_3DES_EDE_CBC_SHA",           0xfeff),
 
     // Unsupported Kerberos cipher suites from RFC 2712
-    CS_001E("TLS_KRB5_WITH_DES_CBC_SHA",                    0x001E),
-    CS_001F("TLS_KRB5_WITH_3DES_EDE_CBC_SHA",               0x001F),
-    CS_0020("TLS_KRB5_WITH_RC4_128_SHA",                    0x0020),
     CS_0021("TLS_KRB5_WITH_IDEA_CBC_SHA",                   0x0021),
-    CS_0022("TLS_KRB5_WITH_DES_CBC_MD5",                    0x0022),
-    CS_0023("TLS_KRB5_WITH_3DES_EDE_CBC_MD5",               0x0023),
-    CS_0024("TLS_KRB5_WITH_RC4_128_MD5",                    0x0024),
     CS_0025("TLS_KRB5_WITH_IDEA_CBC_MD5",                   0x0025),
-    CS_0026("TLS_KRB5_EXPORT_WITH_DES_CBC_40_SHA",          0x0026),
     CS_0027("TLS_KRB5_EXPORT_WITH_RC2_CBC_40_SHA",          0x0027),
-    CS_0028("TLS_KRB5_EXPORT_WITH_RC4_40_SHA",              0x0028),
-    CS_0029("TLS_KRB5_EXPORT_WITH_DES_CBC_40_MD5",          0x0029),
     CS_002A("TLS_KRB5_EXPORT_WITH_RC2_CBC_40_MD5",          0x002a),
-    CS_002B("TLS_KRB5_EXPORT_WITH_RC4_40_MD5",              0x002B),
 
     // Unsupported cipher suites from RFC 4162
     CS_0096("TLS_RSA_WITH_SEED_CBC_SHA",                    0x0096),
@@ -1035,6 +1068,10 @@ enum CipherSuite {
         K_ECDHE_RSA     ("ECDHE_RSA",      true,  false,  NAMED_GROUP_ECDHE),
         K_ECDH_ANON     ("ECDH_anon",      true,  true,   NAMED_GROUP_ECDHE),
 
+        // Kerberos cipher suites
+        K_KRB5          ("KRB5",           true,  false,  NAMED_GROUP_NONE),
+        K_KRB5_EXPORT   ("KRB5_EXPORT",    true,  false,  NAMED_GROUP_NONE),
+
         // renegotiation protection request signaling cipher suite
         K_SCSV          ("SCSV",           true,  true,   NAMED_GROUP_NONE);
 
@@ -1065,6 +1102,8 @@ enum CipherSuite {
 
             if (groupType == NAMED_GROUP_ECDHE) {
                 return (allowed && JsseJce.isEcAvailable());
+            } else if (name.startsWith("KRB")) {
+                return (allowed && JsseJce.isKerberosAvailable());
             } else {
                 return allowed;
             }
