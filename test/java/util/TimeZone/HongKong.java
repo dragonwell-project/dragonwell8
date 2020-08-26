@@ -25,7 +25,7 @@
  * @test
  * @bug 4487276 8008577
  * @summary Verify that Hong Kong locale uses traditional Chinese names.
- * @run main/othervm -Djava.locale.providers=COMPAT,SPI HongKong
+ * @run main/othervm -Djava.locale.providers=JRE,SPI HongKong
  */
 
 import java.util.Locale;

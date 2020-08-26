@@ -24,9 +24,9 @@
 /*
  * @test
  * @bug 8218781
- * @summary Test the localized names of Japanese era Reiwa from COMPAT provider.
+ * @summary Test the localized names of Japanese era Reiwa from JRE provider.
  * @modules jdk.localedata
- * @run testng/othervm -Djava.locale.providers=COMPAT JapanEraNameCompatTest
+ * @run testng/othervm -Djava.locale.providers=JRE JapanEraNameCompatTest
  */
 
 import static java.util.Calendar.*;
