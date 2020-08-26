@@ -26,7 +26,7 @@
  * @summary test Date Format (Round Trip)
  * @bug 8008577
  * @library /java/text/testlib
- * @run main/othervm -Djava.locale.providers=COMPAT,SPI DateFormatRoundTripTest
+ * @run main/othervm -Djava.locale.providers=JRE,SPI DateFormatRoundTripTest
  */
 
 import java.text.*;
