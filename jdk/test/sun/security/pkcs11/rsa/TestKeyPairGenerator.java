@@ -28,16 +28,21 @@
  * @author Andreas Sterbenz
  * @library ..
  * @run main/othervm TestKeyPairGenerator
+ * @run main/othervm TestKeyPairGenerator sm TestKeyPairGenerator.policy
  * @key intermittent randomness
  */
 
-import java.io.*;
-import java.util.*;
 import java.math.BigInteger;
-
-import java.security.*;
-import java.security.interfaces.*;
-import java.security.spec.*;
+import java.security.KeyPair;
+import java.security.KeyPairGenerator;
+import java.security.PrivateKey;
+import java.security.Provider;
+import java.security.PublicKey;
+import java.security.Signature;
+import java.security.interfaces.RSAPrivateCrtKey;
+import java.security.interfaces.RSAPublicKey;
+import java.security.spec.RSAKeyGenParameterSpec;
+import java.util.Random;
 
 public class TestKeyPairGenerator extends PKCS11Test {
 
@@ -45,7 +50,8 @@ public class TestKeyPairGenerator extends PKCS11Test {
 
     private static byte[] data;
 
-    private static void testSignature(String algorithm, PrivateKey privateKey, PublicKey publicKey) throws Exception {
+    private static void testSignature(String algorithm, PrivateKey privateKey,
+            PublicKey publicKey) throws Exception {
         System.out.println("Testing " + algorithm + "...");
         Signature s = Signature.getInstance(algorithm, provider);
         s.initSign(privateKey);
@@ -95,9 +101,10 @@ public class TestKeyPairGenerator extends PKCS11Test {
     }
 
     public static void main(String[] args) throws Exception {
-        main(new TestKeyPairGenerator());
+        main(new TestKeyPairGenerator(), args);
     }
 
+    @Override
     public void main(Provider p) throws Exception {
         long start = System.currentTimeMillis();
         provider = p;
