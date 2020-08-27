@@ -36,6 +36,7 @@ import javax.net.ssl.TrustManagerFactory;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.security.KeyStore;
 import java.security.SecureRandom;
@@ -277,9 +278,8 @@ public class RenegotiateTLS13 {
     SSLContext initContext() throws Exception {
         System.out.println("Using TLS13");
         SSLContext sc = SSLContext.getInstance("TLSv1.3");
-        KeyStore ks = KeyStore.getInstance(
-                new File(System.getProperty("javax.net.ssl.keyStore")),
-                passwd.toCharArray());
+        KeyStore ks = KeyStore.getInstance("jks");
+        ks.load(new FileInputStream(new File(System.getProperty("javax.net.ssl.keyStore"))), passwd.toCharArray());
         KeyManagerFactory kmf = KeyManagerFactory.getInstance(
                 KeyManagerFactory.getDefaultAlgorithm());
         kmf.init(ks, passwd.toCharArray());

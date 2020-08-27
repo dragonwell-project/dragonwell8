@@ -28,19 +28,10 @@
  *          cipher suites with different maximum fragment length. Testing of
  *          MFLN extension.
  * @library /sun/security/krb5/auto /javax/net/ssl/TLSCommon
- * @modules java.security.jgss
- *          jdk.security.auth
- *          java.security.jgss/sun.security.jgss.krb5
- *          java.security.jgss/sun.security.krb5:+open
- *          java.security.jgss/sun.security.krb5.internal:+open
- *          java.security.jgss/sun.security.krb5.internal.ccache
- *          java.security.jgss/sun.security.krb5.internal.crypto
- *          java.security.jgss/sun.security.krb5.internal.ktab
- *          java.base/sun.security.util
- * @run main/othervm -Dtest.security.protocol=TLSv1 -Dtest.mode=test TLSMFLNTest
+ * @run main/othervm -Dtest.security.protocol=TLSv1 -Dtest.mode=norm TLSMFLNTest
+ * @run main/othervm -Dtest.security.protocol=TLSv1 -Dtest.mode=norm_sni TLSMFLNTest
+ * @run main/othervm -Dtest.security.protocol=TLSv1 -Dtest.mode=krb TLSMFLNTest
  */
- // __run main/othervm -Dtest.security.protocol=TLSv1 -Dtest.mode=norm_sni TLSMFLNTest
- // __run main/othervm -Dtest.security.protocol=TLSv1 -Dtest.mode=krb TLSMFLNTest
 
 /**
  * Testing TLS engines handshake using each of the supported cipher suites with

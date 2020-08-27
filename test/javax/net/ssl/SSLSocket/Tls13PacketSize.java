@@ -30,9 +30,8 @@
  * @test
  * @bug 8221253
  * @summary TLSv1.3 may generate TLSInnerPlainText longer than 2^14+1 bytes
- * @modules jdk.crypto.ec
  * @library /javax/net/ssl/templates
- * @run main/othervm Tls13PacketSize
+ * @run main/othervm -Djdk.tls.client.protocols="TLSv1.3,TLSv1.2,TLSv1.1,TLSv1,SSLv3" Tls13PacketSize
  */
 import java.io.InputStream;
 import java.io.OutputStream;

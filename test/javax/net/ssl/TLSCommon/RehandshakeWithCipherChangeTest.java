@@ -60,9 +60,6 @@ public class RehandshakeWithCipherChangeTest extends SSLEngineTestCase {
                 HandshakeMode.INITIAL_HANDSHAKE);
         sendApplicationData(clientEngine, serverEngine);
         r = sendApplicationData(serverEngine, clientEngine);
-        if (TESTED_SECURITY_PROTOCOL.contains("DTLS")) {
-            initialEpoch = r.sequenceNumber() >> 48;
-        }
         final Random RNG = RandomFactory.getRandom();
         randomCipher = Ciphers.ENABLED_NON_KRB_NOT_ANON_CIPHERS.ciphers[RNG
                 .nextInt(Ciphers.ENABLED_NON_KRB_NOT_ANON_CIPHERS.ciphers.length)];
@@ -71,15 +68,6 @@ public class RehandshakeWithCipherChangeTest extends SSLEngineTestCase {
                 HandshakeMode.REHANDSHAKE_BEGIN_CLIENT);
         sendApplicationData(clientEngine, serverEngine);
         r = sendApplicationData(serverEngine, clientEngine);
-        if (TESTED_SECURITY_PROTOCOL.contains("DTLS")) {
-            secondEpoch = r.sequenceNumber() >> 48;
-            AssertionError epochError = new AssertionError("Epoch number"
-                    + " did not grow after re-handshake! "
-                    + " Was " + initialEpoch + ", now " + secondEpoch + ".");
-            if (Long.compareUnsigned(secondEpoch, initialEpoch) <= 0) {
-                throw epochError;
-            }
-        }
         closeEngines(clientEngine, serverEngine);
     }
 }

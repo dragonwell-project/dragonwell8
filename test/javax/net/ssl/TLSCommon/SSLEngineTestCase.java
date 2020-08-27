@@ -36,6 +36,7 @@ import javax.net.ssl.TrustManagerFactory;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.lang.reflect.Field;
 import java.nio.ByteBuffer;
 import java.security.KeyManagementException;
 import java.security.KeyStore;
@@ -52,7 +53,7 @@ import java.util.Map;
 
 /**
  * Basic class to inherit SSLEngine test cases from it. Tests apply for
- * the TLS or DTLS security protocols and their versions.
+ * the TLS security protocols and their versions.
  */
 abstract public class SSLEngineTestCase {
 
@@ -130,8 +131,8 @@ abstract public class SSLEngineTestCase {
         REHANDSHAKE_BEGIN_SERVER;
     }
     /**
-     * Security protocol to be tested: "TLS" or "DTLS" or their versions,
-     * e.g. "TLSv1", "TLSv1.1", "TLSv1.2", "DTLSv1.0", "DTLSv1.2".
+     * Security protocol to be tested: "TLS" or their versions,
+     * e.g. "TLSv1", "TLSv1.1", "TLSv1.2".
      */
     public static final String TESTED_SECURITY_PROTOCOL
             = System.getProperty("test.security.protocol", "TLS");
@@ -300,6 +301,55 @@ abstract public class SSLEngineTestCase {
     };
 
     private final int maxPacketSize;
+
+    // to access maximumPacketSize and packetSize protected fields
+    static Class<?> sslEngineImplClz;
+    static Class<?> transportContextClz;
+    static Class<?> sslConfigurationClz;
+    static Class<?> outputRecordClz;
+    static Field conContextFld;
+    static Field sslConfigFld;
+    static Field maximumPacketSizeFld;
+    static Field outputRecordFld;
+    static Field packetSizeFld;
+
+    static {
+        try {
+            sslEngineImplClz = Class.forName("sun.security.ssl.SSLEngineImpl");
+            transportContextClz = Class.forName("sun.security.ssl.TransportContext");
+            sslConfigurationClz = Class.forName("sun.security.ssl.SSLConfiguration");
+            outputRecordClz = Class.forName("sun.security.ssl.OutputRecord");
+
+            conContextFld = sslEngineImplClz.getDeclaredField("conContext");
+            sslConfigFld = transportContextClz.getDeclaredField("sslConfig");
+            outputRecordFld = transportContextClz.getDeclaredField("outputRecord");
+            maximumPacketSizeFld = sslConfigurationClz.getDeclaredField("maximumPacketSize");
+            packetSizeFld = outputRecordClz.getDeclaredField("packetSize");
+
+            conContextFld.setAccessible(true);
+            sslConfigFld.setAccessible(true);
+            outputRecordFld.setAccessible(true);
+            maximumPacketSizeFld.setAccessible(true);
+            packetSizeFld.setAccessible(true);
+        } catch (Exception x) {
+            throw new RuntimeException(x);
+        }
+    }
+
+    public static void setMaxPacketSize(SSLEngine sslEngine, int maxPacketSize) {
+        try {
+            Object conContext = conContextFld.get(sslEngine);
+            Object sslConfig = sslConfigFld.get(conContext);
+            maximumPacketSizeFld.setInt(sslConfig, maxPacketSize);
+
+            if (maxPacketSize != 0) {
+                Object outputRecord = outputRecordFld.get(conContext);
+                packetSizeFld.setInt(outputRecord, maxPacketSize);
+            }
+        } catch(IllegalAccessException | IllegalArgumentException iae) {
+            throw new RuntimeException(iae);
+        }
+    }
 
     /**
      * Constructs test case with the given MFLN maxMacketSize.
@@ -555,12 +605,8 @@ abstract public class SSLEngineTestCase {
         if (maxPacketSize < 0) {
             throw new Error("Test issue: maxPacketSize is less than zero!");
         }
-        SSLParameters params = clientEngine.getSSLParameters();
-        params.setMaximumPacketSize(maxPacketSize);
-        clientEngine.setSSLParameters(params);
-        params = serverEngine.getSSLParameters();
-        params.setMaximumPacketSize(maxPacketSize);
-        serverEngine.setSSLParameters(params);
+        setMaxPacketSize(clientEngine, maxPacketSize);
+        setMaxPacketSize(serverEngine, maxPacketSize);
         SSLEngine firstEngine;
         SSLEngine secondEngine;
         switch (mode) {
@@ -732,12 +778,10 @@ abstract public class SSLEngineTestCase {
             case "norm":
             case "norm_sni":
                 switch (TESTED_SECURITY_PROTOCOL) {
-                    case "DTLSv1.0":
                     case "TLSv1":
                     case "TLSv1.1":
                         runTests(Ciphers.SUPPORTED_NON_KRB_NON_SHA_CIPHERS);
                         break;
-                    case "DTLSv1.1":
                     case "TLSv1.2":
                         runTests(Ciphers.SUPPORTED_NON_KRB_CIPHERS);
                         break;
@@ -1057,8 +1101,6 @@ abstract public class SSLEngineTestCase {
                             }
                         }
                         break;
-                    case NEED_UNWRAP_AGAIN:
-                        break;
                     case NOT_HANDSHAKING:
                         if (doUnwrapForNotHandshakingStatus) {
                             System.out.println("Not handshake status unwrap");
@@ -1098,10 +1140,6 @@ abstract public class SSLEngineTestCase {
                 }
                 break;
             case NEED_UNWRAP:
-                break;
-            case NEED_UNWRAP_AGAIN:
-                net.flip();
-                doUnWrap(wrapingEngine, wrapper, net);
                 break;
             case NEED_TASK:
                 runDelegatedTasks(wrapingEngine);

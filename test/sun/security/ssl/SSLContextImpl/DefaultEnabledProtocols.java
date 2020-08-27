@@ -49,9 +49,9 @@ import javax.net.ssl.TrustManager;
 public class DefaultEnabledProtocols {
     enum ContextVersion {
         TLS_CV_01("SSL",
-                new String[] {"SSLv3", "TLSv1", "TLSv1.1", "TLSv1.2", "TLSv1.3"}),
+                new String[] {"SSLv3", "TLSv1", "TLSv1.1", "TLSv1.2"}),
         TLS_CV_02("TLS",
-                new String[] {"SSLv3", "TLSv1", "TLSv1.1", "TLSv1.2", "TLSv1.3"}),
+                new String[] {"SSLv3", "TLSv1", "TLSv1.1", "TLSv1.2"}),
         TLS_CV_03("SSLv3",
                 new String[] {"SSLv3", "TLSv1"}),
         TLS_CV_04("TLSv1",
@@ -63,7 +63,7 @@ public class DefaultEnabledProtocols {
         TLS_CV_07("TLSv1.3",
                 new String[] {"SSLv3", "TLSv1", "TLSv1.1", "TLSv1.2", "TLSv1.3"}),
         TLS_CV_08("Default",
-                new String[] {"SSLv3", "TLSv1", "TLSv1.1", "TLSv1.2", "TLSv1.3"});
+                new String[] {"SSLv3", "TLSv1", "TLSv1.1", "TLSv1.2"});
 
         final String contextVersion;
         final String[] enabledProtocols;

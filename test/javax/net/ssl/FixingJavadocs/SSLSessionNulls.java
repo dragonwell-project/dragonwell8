@@ -27,7 +27,6 @@
  * @summary Need to revisit the javadocs for JSSE, especially the
  *      promoted classes.
  * @library /javax/net/ssl/templates
- * @modules jdk.crypto.ec
  * @run main/othervm SSLSessionNulls
  *
  *     SunJSSE does not support dynamic system properties, no way to re-use

@@ -25,8 +25,6 @@
  * @test
  * @bug 4474255
  * @summary Can no longer obtain a com.sun.net.ssl.HttpsURLConnection
- * @modules java.base/com.sun.net.ssl
- *          java.base/com.sun.net.ssl.internal.www.protocol.https
  * @run main/othervm ComHTTPSConnection
  *
  *     SunJSSE does not support dynamic system properties, no way to re-use
@@ -36,7 +34,7 @@
 
 import java.io.*;
 import java.net.*;
-import java.security.cert.Certificate;
+import javax.security.cert.X509Certificate;
 import javax.net.ssl.*;
 import com.sun.net.ssl.HostnameVerifier;
 import com.sun.net.ssl.HttpsURLConnection;
@@ -242,8 +240,8 @@ public class ComHTTPSConnection {
 
                 System.out.println("Cipher Suite: " +
                     ((HttpsURLConnection)urlc).getCipherSuite());
-                Certificate[] certs =
-                    ((HttpsURLConnection)urlc).getServerCertificates();
+                X509Certificate[] certs =
+                        ((HttpsURLConnection)urlc).getServerCertificateChain();
                 for (int i = 0; i < certs.length; i++) {
                     System.out.println(certs[0]);
                 }

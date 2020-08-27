@@ -25,9 +25,6 @@
  * @test
  * @bug 8046321
  * @summary Unit tests for OCSPNonceExtension objects
- * @modules java.base/sun.security.provider.certpath
- *          java.base/sun.security.util
- *          java.base/sun.security.x509
  */
 
 import java.security.cert.Extension;

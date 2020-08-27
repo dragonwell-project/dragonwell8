@@ -29,7 +29,6 @@
 /*
  * @test
  * @bug 8161106 8170329
- * @modules jdk.crypto.ec
  * @summary Improve SSLSocket test template
  * @run main/othervm SSLSocketTemplate
  */

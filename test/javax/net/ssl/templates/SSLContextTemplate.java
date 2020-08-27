@@ -420,7 +420,7 @@ public interface SSLContextTemplate {
     /*
      * Create an instance of SSLContext with the specified trust/key materials.
      */
-    private SSLContext createSSLContext(
+    default SSLContext createSSLContext(
             String[] trustedMaterials,
             String[] keyMaterialCerts,
             String[] keyMaterialKeys,

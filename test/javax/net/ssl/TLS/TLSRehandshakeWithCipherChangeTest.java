@@ -28,14 +28,6 @@
  *          is taken randomly from the supporetd ciphers list.
  * @key randomness
  * @library /sun/security/krb5/auto /lib /javax/net/ssl/TLSCommon
- * @modules java.security.jgss
- *          java.security.jgss/sun.security.jgss.krb5
- *          java.security.jgss/sun.security.krb5:+open
- *          java.security.jgss/sun.security.krb5.internal:+open
- *          java.security.jgss/sun.security.krb5.internal.ccache
- *          java.security.jgss/sun.security.krb5.internal.crypto
- *          java.security.jgss/sun.security.krb5.internal.ktab
- *          java.base/sun.security.util
  * @build jdk.test.lib.RandomFactory
  * @run main/othervm -Dtest.security.protocol=TLS TLSRehandshakeWithCipherChangeTest
  */

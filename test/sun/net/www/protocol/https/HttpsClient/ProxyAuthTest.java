@@ -31,8 +31,6 @@
  * @bug 4323990 4413069 8160838
  * @summary HttpsURLConnection doesn't send Proxy-Authorization on CONNECT
  *     Incorrect checking of proxy server response
- * @modules jdk.crypto.ec
- *          java.base/sun.net.www
  * @library /javax/net/ssl/templates
  * @run main/othervm ProxyAuthTest fail
  * @run main/othervm -Djdk.http.auth.tunneling.disabledSchemes=Basic

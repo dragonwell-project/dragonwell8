@@ -30,13 +30,11 @@
  * @test
  * @bug 8169362
  * @summary Interop automated testing with Chrome
- * @modules jdk.crypto.ec
- *          java.base/sun.security.util
  * @run main/othervm ClientHelloChromeInterOp
  */
 
 import java.util.Base64;
-import sun.security.util.HexDumpEncoder;
+import sun.misc.HexDumpEncoder;
 
 public class ClientHelloChromeInterOp extends ClientHelloInterOp {
     // The ClientHello message.
