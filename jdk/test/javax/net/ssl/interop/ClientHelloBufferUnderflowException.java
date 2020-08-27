@@ -30,11 +30,10 @@
  * @test
  * @bug 8215790 8219389
  * @summary Verify exception
- * @modules java.base/sun.security.util
  * @run main/othervm ClientHelloBufferUnderflowException
  */
 
-import sun.security.util.HexDumpEncoder;
+import sun.misc.HexDumpEncoder;
 import javax.net.ssl.SSLHandshakeException;
 
 public class ClientHelloBufferUnderflowException extends ClientHelloInterOp {

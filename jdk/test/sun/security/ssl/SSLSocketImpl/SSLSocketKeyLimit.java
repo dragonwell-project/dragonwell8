@@ -25,7 +25,6 @@
  * @test
  * @bug 8164879
  * @library /lib/testlibrary ../../
- * @modules java.base/sun.security.util
  * @summary Verify AES/GCM's limits set in the jdk.tls.keyLimits property
  * @run main SSLSocketKeyLimit 0 server AES/GCM/NoPadding keyupdate 1000000
  * @run main SSLSocketKeyLimit 0 client AES/GCM/NoPadding keyupdate 1000000
@@ -50,6 +49,7 @@ import javax.net.ssl.TrustManagerFactory;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.PrintWriter;
@@ -60,7 +60,8 @@ import java.util.Arrays;
 import jdk.testlibrary.ProcessTools;
 import jdk.testlibrary.Utils;
 import jdk.testlibrary.OutputAnalyzer;
-import sun.security.util.HexDumpEncoder;
+import sun.misc.HexDumpEncoder;
+import sun.misc.IOUtils;
 
 public class SSLSocketKeyLimit {
     SSLSocket socket;
@@ -84,8 +85,8 @@ public class SSLSocketKeyLimit {
 
     SSLContext initContext() throws Exception {
         SSLContext sc = SSLContext.getInstance("TLSv1.3");
-        KeyStore ks = KeyStore.getInstance(
-                new File(System.getProperty("javax.net.ssl.keyStore")),
+        KeyStore ks = KeyStore.getInstance("JKS");
+        ks.load(new FileInputStream(new File(System.getProperty("javax.net.ssl.keyStore"))),
                 passwd.toCharArray());
         KeyManagerFactory kmf =
                 KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());
@@ -100,7 +101,7 @@ public class SSLSocketKeyLimit {
      * args should have two values:  server|client, <limit size>
      * Prepending 'p' is for internal use only.
      */
-    public static void main(String args[]) throws Exception {
+    public static void main(String args[]) throws Throwable {
         if (args[0].compareTo("p") != 0) {
 
             boolean expectedFail = (Integer.parseInt(args[0]) == 1);
@@ -181,7 +182,7 @@ public class SSLSocketKeyLimit {
         while (i++ < 150) {
             out.write(data, 0, dataLen);
             System.out.print("W");
-            in.readNBytes(1);
+            IOUtils.readNBytes(in,1);
             System.out.print("R");
         }
         out.write(0x0D);

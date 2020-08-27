@@ -57,9 +57,6 @@ public class RehandshakeWithDataExTest extends SSLEngineTestCase {
                 HandshakeMode.INITIAL_HANDSHAKE);
         sendApplicationData(clientEngine, serverEngine);
         r = sendApplicationData(serverEngine, clientEngine);
-        if (TESTED_SECURITY_PROTOCOL.contains("DTLS")) {
-            initialEpoch = r.sequenceNumber() >> 48;
-        }
         doHandshake(clientEngine, serverEngine, maxPacketSize,
                 HandshakeMode.REHANDSHAKE_BEGIN_CLIENT);
         sendApplicationData(clientEngine, serverEngine);
@@ -67,22 +64,10 @@ public class RehandshakeWithDataExTest extends SSLEngineTestCase {
         AssertionError epochError = new AssertionError("Epoch number"
                 + " did not grow after re-handshake! "
                 + " Was " + initialEpoch + ", now " + secondEpoch + ".");
-        if (TESTED_SECURITY_PROTOCOL.contains("DTLS")) {
-            secondEpoch = r.sequenceNumber() >> 48;
-            if (Long.compareUnsigned(secondEpoch, initialEpoch) <= 0) {
-                throw epochError;
-            }
-        }
         doHandshake(clientEngine, serverEngine, maxPacketSize,
                 HandshakeMode.REHANDSHAKE_BEGIN_SERVER);
         sendApplicationData(clientEngine, serverEngine);
         r = sendApplicationData(serverEngine, clientEngine);
-        if (TESTED_SECURITY_PROTOCOL.contains("DTLS")) {
-        thirdEpoch = r.sequenceNumber() >> 48;
-            if (Long.compareUnsigned(thirdEpoch, secondEpoch) <= 0) {
-                throw epochError;
-            }
-        }
         closeEngines(clientEngine, serverEngine);
     }
 

@@ -29,8 +29,6 @@
  * @bug 4474255 4484246
  * @summary When an application enables anonymous SSL cipher suite,
  *        Hostname verification is not required
- * @modules java.base/com.sun.net.ssl
- *          java.base/com.sun.net.ssl.internal.www.protocol.https
  * @run main/othervm ComHostnameVerifier
  */
 

@@ -28,11 +28,7 @@ public enum Protocol {
     TLSV1     (0x0301, "TLSv1"),
     TLSV1_1   (0x0302, "TLSv1.1"),
     TLSV1_2   (0x0303, "TLSv1.2"),
-    TLSV1_3   (0x0304, "TLSv1.3"),
-
-    DTLS1_3   (0xFEFC, "DTLSv1.3"),
-    DTLS1_2   (0xFEFD, "DTLSv1.2"),
-    DTLS1_0   (0xFEFF, "DTLSv1.0");
+    TLSV1_3   (0x0304, "TLSv1.3");
 
     public final int id;
     public final String name;

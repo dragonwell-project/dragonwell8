@@ -29,7 +29,6 @@
 /*
  * @test
  * @bug 8216326
- * @modules jdk.crypto.ec
  * @library /javax/net/ssl/templates
  * @summary SSLSocket stream close() does not close the associated socket
  * @run main/othervm OutputStreamClosure

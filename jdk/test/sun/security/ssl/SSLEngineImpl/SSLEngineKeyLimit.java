@@ -47,6 +47,7 @@ import javax.net.ssl.SSLEngine;
 import javax.net.ssl.SSLEngineResult;
 import javax.net.ssl.TrustManagerFactory;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.PrintWriter;
 import java.nio.ByteBuffer;
 import java.security.KeyStore;
@@ -88,7 +89,7 @@ public class SSLEngineKeyLimit {
      * args should have two values:  server|client, <limit size>
      * Prepending 'p' is for internal use only.
      */
-    public static void main(String args[]) throws Exception {
+    public static void main(String args[]) throws Throwable {
 
         for (int i = 0; i < args.length; i++) {
             System.out.print(" " + args[i]);
@@ -401,8 +402,8 @@ public class SSLEngineKeyLimit {
 
     SSLContext initContext() throws Exception {
         SSLContext sc = SSLContext.getInstance("TLSv1.3");
-        KeyStore ks = KeyStore.getInstance(
-                new File(System.getProperty("javax.net.ssl.keyStore")),
+        KeyStore ks = KeyStore.getInstance("JKS");
+        ks.load(new FileInputStream(new File(System.getProperty("javax.net.ssl.keyStore"))),
                 passwd.toCharArray());
         KeyManagerFactory kmf = KeyManagerFactory.getInstance(
                 KeyManagerFactory.getDefaultAlgorithm());
