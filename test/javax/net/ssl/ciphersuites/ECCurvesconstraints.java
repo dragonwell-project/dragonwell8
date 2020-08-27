@@ -32,7 +32,6 @@
  * @test
  * @bug 8148516
  * @summary Improve the default strength of EC in JDK
- * @modules jdk.crypto.ec
  * @run main/othervm ECCurvesconstraints PKIX
  * @run main/othervm ECCurvesconstraints SunX509
  */

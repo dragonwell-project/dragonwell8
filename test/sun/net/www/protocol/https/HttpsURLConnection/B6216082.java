@@ -30,8 +30,7 @@
  * @test
  * @bug 6216082
  * @summary  Redirect problem with HttpsURLConnection using a proxy
- * @modules java.base/sun.net.www
- * @library .. /test/lib
+ * @library .. /lib
  * @build jdk.test.lib.NetworkConfiguration
  *        jdk.test.lib.Platform
  *        HttpCallback TestHttpsServer ClosedChannelList

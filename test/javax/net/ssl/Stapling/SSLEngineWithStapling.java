@@ -30,7 +30,7 @@
  * @summary OCSP Stapling for TLS
  * @library ../../../../java/security/testlibrary
  * @build CertificateBuilder SimpleOCSPServer
- * @run main/othervm SSLEngineWithStapling
+ * @run main/othervm -Djdk.tls.client.protocols="TLSv1.3,TLSv1.2,TLSv1.1,TLSv1,SSLv3" SSLEngineWithStapling
  */
 
 /**
@@ -173,7 +173,9 @@ public class SSLEngineWithStapling {
 
         // Create a list of TLS protocol configurations we can use to
         // drive tests with different handshaking models.
-        List<String[]> allowedProtList = List.of(TLS12MAX, TLS13ONLY);
+        List<String[]> allowedProtList = new ArrayList();
+        allowedProtList.add(TLS12MAX);
+        allowedProtList.add(TLS13ONLY);
 
         for (String[] protocols : allowedProtList) {
             SSLEngineWithStapling test = new SSLEngineWithStapling();

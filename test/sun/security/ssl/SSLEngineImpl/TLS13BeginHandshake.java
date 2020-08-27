@@ -36,6 +36,7 @@ import javax.net.ssl.SSLEngineResult.HandshakeStatus;
 import javax.net.ssl.SSLSession;
 import javax.net.ssl.TrustManagerFactory;
 import java.io.File;
+import java.io.FileInputStream;
 import java.nio.ByteBuffer;
 import java.security.KeyStore;
 import java.security.SecureRandom;
@@ -162,7 +163,8 @@ public class TLS13BeginHandshake {
 
     private SSLContext initContext() throws Exception {
         SSLContext sc = SSLContext.getInstance("TLSv1.3");
-        KeyStore ks = KeyStore.getInstance(new File(pathToStores + keyStoreFile),
+        KeyStore ks = KeyStore.getInstance("JKS");
+        ks.load(new FileInputStream(new File(pathToStores + keyStoreFile)),
                 passwd.toCharArray());
         KeyManagerFactory kmf =
                 KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());

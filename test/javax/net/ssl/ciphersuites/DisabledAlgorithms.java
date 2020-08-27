@@ -25,7 +25,6 @@
  * @test
  * @bug 8076221 8211883
  * @summary Check if weak cipher suites are disabled
- * @modules jdk.crypto.ec
  * @run main/othervm DisabledAlgorithms default
  * @run main/othervm DisabledAlgorithms empty
  */

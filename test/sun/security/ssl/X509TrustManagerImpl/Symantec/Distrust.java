@@ -31,15 +31,12 @@ import javax.net.ssl.*;
 import sun.security.validator.Validator;
 import sun.security.validator.ValidatorException;
 
-import jdk.test.lib.security.SecurityUtils;
-
 /**
  * @test
  * @bug 8207258 8216280
  * @summary Check that TLS Server certificates chaining back to distrusted
  *          Symantec roots are invalid
- * @library /test/lib
- * @modules java.base/sun.security.validator
+ * @library /lib/security
  * @run main/othervm Distrust after policyOn invalid
  * @run main/othervm Distrust after policyOff valid
  * @run main/othervm Distrust before policyOn valid

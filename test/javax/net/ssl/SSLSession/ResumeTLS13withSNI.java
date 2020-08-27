@@ -28,7 +28,7 @@
  * @test
  * @bug 8211806
  * @summary TLS 1.3 handshake server name indication is missing on a session resume
- * @run main/othervm ResumeTLS13withSNI
+ * @run main/othervm -Djdk.tls.client.protocols="TLSv1.3,TLSv1.2,TLSv1.1,TLSv1,SSLv3" ResumeTLS13withSNI
  */
 
 import javax.net.ssl.*;
@@ -36,7 +36,7 @@ import javax.net.ssl.SSLEngineResult.*;
 import java.io.*;
 import java.security.*;
 import java.nio.*;
-import java.util.List;
+import java.util.Arrays;
 
 public class ResumeTLS13withSNI {
 
@@ -100,13 +100,13 @@ public class ResumeTLS13withSNI {
         // Make client and server engines, then customize as needed
         SSLEngine clientEngine = makeEngine(sslCtx, kmf, tmf, true);
         SSLParameters cliSSLParams = clientEngine.getSSLParameters();
-        cliSSLParams.setServerNames(List.of(SNI_NAME));
+        cliSSLParams.setServerNames(Arrays.asList(SNI_NAME));
         clientEngine.setSSLParameters(cliSSLParams);
         clientEngine.setEnabledProtocols(new String[] { "TLSv1.3" });
 
         SSLEngine serverEngine = makeEngine(sslCtx, kmf, tmf, false);
         SSLParameters servSSLParams = serverEngine.getSSLParameters();
-        servSSLParams.setSNIMatchers(List.of(SNI_MATCHER));
+        servSSLParams.setSNIMatchers(Arrays.asList(SNI_MATCHER));
         serverEngine.setSSLParameters(servSSLParams);
 
         initialHandshake(clientEngine, serverEngine);
