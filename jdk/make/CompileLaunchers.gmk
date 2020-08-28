@@ -231,7 +231,25 @@ $(JDK_OUTPUTDIR)/bin$(OUTPUT_SUBDIR)/java$(EXE_SUFFIX): $(BUILD_LAUNCHER_java)
 	$(RM) $@
 	$(CP) $(JDK_OUTPUTDIR)/objs/java_objs$(OUTPUT_SUBDIR)/java$(EXE_SUFFIX) $@
 
+ifeq ($(ZIP_DEBUGINFO_FILES), true)
+  DEBUGINFO_EXT := .diz
+else ifeq ($(OPENJDK_TARGET_OS), macosx)
+  DEBUGINFO_EXT := .dSYM
+else ifeq ($(OPENJDK_TARGET_OS), windows)
+  DEBUGINFO_EXT := .pdb
+else
+  DEBUGINFO_EXT := .debuginfo
+endif
+
+$(JDK_OUTPUTDIR)/bin$(OUTPUT_SUBDIR)/java$(DEBUGINFO_EXT): $(BUILD_LAUNCHER_java)
+	$(MKDIR) -p $(@D)
+	$(RM) $@
+	$(CP) $(JDK_OUTPUTDIR)/objs/java_objs$(OUTPUT_SUBDIR)/java$(DEBUGINFO_EXT) $@
+
 BUILD_LAUNCHERS += $(JDK_OUTPUTDIR)/bin$(OUTPUT_SUBDIR)/java$(EXE_SUFFIX)
+ifeq ($(ENABLE_DEBUG_SYMBOLS), true)
+  BUILD_LAUNCHERS += $(JDK_OUTPUTDIR)/bin$(OUTPUT_SUBDIR)/java$(DEBUGINFO_EXT)
+endif
 
 ifeq ($(OPENJDK_TARGET_OS), windows)
   $(eval $(call SetupLauncher,javaw, \
@@ -533,7 +551,13 @@ endif
 $(JDK_OUTPUTDIR)/bin$(OUTPUT_SUBDIR)/unpack200$(EXE_SUFFIX): $(BUILD_UNPACKEXE)
 	$(call install-file)
 
+$(JDK_OUTPUTDIR)/bin$(OUTPUT_SUBDIR)/unpack200$(DEBUGINFO_EXT): $(BUILD_UNPACKEXE)
+	$(call install-file)
+
 BUILD_LAUNCHERS += $(JDK_OUTPUTDIR)/bin$(OUTPUT_SUBDIR)/unpack200$(EXE_SUFFIX)
+ifeq ($(ENABLE_DEBUG_SYMBOLS), true)
+  BUILD_LAUNCHERS += $(JDK_OUTPUTDIR)/bin$(OUTPUT_SUBDIR)/unpack200$(DEBUGINFO_EXT)
+endif
 
 ##########################################################################################
 
