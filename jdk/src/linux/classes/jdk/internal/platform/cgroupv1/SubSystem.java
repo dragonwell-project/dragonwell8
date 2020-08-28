@@ -30,6 +30,9 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.security.AccessController;
+import java.security.PrivilegedActionException;
+import java.security.PrivilegedExceptionAction;
 import java.util.ArrayList;
 import java.util.Optional;
 import java.util.stream.Stream;
@@ -88,14 +91,24 @@ public class SubSystem {
     public static String getStringValue(SubSystem subsystem, String parm) {
         if (subsystem == null) return null;
 
-        try(BufferedReader bufferedReader = Files.newBufferedReader(Paths.get(subsystem.path(), parm))) {
-            String line = bufferedReader.readLine();
-            return line;
-        }
-        catch (IOException e) {
+        try {
+            return subsystem.readStringValue(parm);
+        } catch (IOException e) {
             return null;
         }
+    }
 
+    private String readStringValue(String param) throws IOException {
+        PrivilegedExceptionAction<BufferedReader> pea = () ->
+                Files.newBufferedReader(Paths.get(path(), param));
+        try (BufferedReader bufferedReader =
+                     AccessController.doPrivileged(pea)) {
+            String line = bufferedReader.readLine();
+            return line;
+        } catch (PrivilegedActionException e) {
+            Metrics.unwrapIOExceptionAndRethrow(e);
+            throw new InternalError(e.getCause());
+        }
     }
 
     public static long getLongValue(SubSystem subsystem, String parm) {
@@ -136,7 +149,7 @@ public class SubSystem {
 
         if (subsystem == null) return 0L;
 
-        try (Stream<String> lines = Files.lines(Paths.get(subsystem.path(), parm))) {
+        try (Stream<String> lines = Metrics.readFilePrivileged(Paths.get(subsystem.path(), parm))) {
 
             Optional<String> result = lines.map(line -> line.split(" "))
                                            .filter(line -> (line.length == 2 &&
