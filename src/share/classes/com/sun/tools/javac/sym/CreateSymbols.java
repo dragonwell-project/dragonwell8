@@ -502,6 +502,7 @@ public class CreateSymbols extends AbstractProcessor {
             "org.w3c.dom.css",
             "org.w3c.dom.events",
             "org.w3c.dom.views",
+            "com.sun.jndi.ldap.spi",
             "com.sun.management",
             "com.sun.security.auth",
             "com.sun.security.auth.callback",
