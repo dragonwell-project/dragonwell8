@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2002, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,16 +28,19 @@
 
 /*
  * @test
- * @bug 6405536 8080102
+ * @bug 6405536
  * @summary Verify that all ciphersuites work (incl. ECC using NSS crypto)
  * @author Andreas Sterbenz
- * @library ..
+ * @library /lib .. ../../../../javax/net/ssl/TLSCommon
  * @library ../../../../java/security/testlibrary
  * @run main/othervm -Djdk.tls.namedGroups="secp256r1,sect193r1"
  *      ClientJSSEServerJSSE
+ * @run main/othervm -Djdk.tls.namedGroups="secp256r1,sect193r1"
+ *      ClientJSSEServerJSSE sm policy
  */
 
-import java.security.*;
+import java.security.Provider;
+import java.security.Security;
 
 public class ClientJSSEServerJSSE extends PKCS11Test {
 
@@ -51,29 +54,14 @@ public class ClientJSSEServerJSSE extends PKCS11Test {
 
         cmdArgs = args;
         main(new ClientJSSEServerJSSE());
-        // now test without SunEC Provider
-        System.setProperty("testWithoutSunEC", "true");
-        main(new ClientJSSEServerJSSE());
-
     }
 
+    @Override
     public void main(Provider p) throws Exception {
-        String testWithoutSunEC = System.getProperty("testWithoutSunEC");
-
         if (p.getService("KeyFactory", "EC") == null) {
             System.out.println("Provider does not support EC, skipping");
             return;
         }
-
-        if (testWithoutSunEC != null) {
-            Provider sunec = Security.getProvider("SunEC");
-            if (sunec == null) {
-                System.out.println("SunEC provider not present. Skipping test");
-                 return;
-            }
-            Security.removeProvider(sunec.getName());
-        }
-
         Providers.setAt(p, 1);
         CipherTest.main(new JSSEFactory(), cmdArgs);
         Security.removeProvider(p.getName());
@@ -81,14 +69,17 @@ public class ClientJSSEServerJSSE extends PKCS11Test {
 
     private static class JSSEFactory extends CipherTest.PeerFactory {
 
+        @Override
         String getName() {
             return "Client JSSE - Server JSSE";
         }
 
+        @Override
         CipherTest.Client newClient(CipherTest cipherTest) throws Exception {
             return new JSSEClient(cipherTest);
         }
 
+        @Override
         CipherTest.Server newServer(CipherTest cipherTest) throws Exception {
             return new JSSEServer(cipherTest);
         }

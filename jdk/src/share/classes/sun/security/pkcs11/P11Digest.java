@@ -34,6 +34,8 @@ import javax.crypto.SecretKey;
 
 import sun.nio.ch.DirectBuffer;
 
+import sun.security.util.MessageDigestSpi2;
+
 import sun.security.pkcs11.wrapper.*;
 import static sun.security.pkcs11.wrapper.PKCS11Constants.*;
 
@@ -49,7 +51,8 @@ import static sun.security.pkcs11.wrapper.PKCS11Constants.*;
  * @author  Andreas Sterbenz
  * @since   1.5
  */
-final class P11Digest extends MessageDigestSpi implements Cloneable {
+final class P11Digest extends MessageDigestSpi implements Cloneable,
+    MessageDigestSpi2 {
 
     /* fields initialized, no session acquired */
     private final static int S_BLANK    = 1;
@@ -234,10 +237,11 @@ final class P11Digest extends MessageDigestSpi implements Cloneable {
     }
 
     // Called by SunJSSE via reflection during the SSL 3.0 handshake if
-    // the master secret is sensitive. We may want to consider making this
-    // method public in a future release.
-    protected void implUpdate(SecretKey key) throws InvalidKeyException {
-
+    // the master secret is sensitive.
+    // Note: Change to protected after this method is moved from
+    // sun.security.util.MessageSpi2 interface to
+    // java.security.MessageDigestSpi class
+    public void engineUpdate(SecretKey key) throws InvalidKeyException {
         // SunJSSE calls this method only if the key does not have a RAW
         // encoding, i.e. if it is sensitive. Therefore, no point in calling
         // SecretKeyFactory to try to convert it. Just verify it ourselves.

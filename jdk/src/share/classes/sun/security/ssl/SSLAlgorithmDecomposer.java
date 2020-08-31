@@ -27,9 +27,12 @@ package sun.security.ssl;
 
 import java.util.HashSet;
 import java.util.Set;
-import sun.security.util.AlgorithmDecomposer;
-import static sun.security.ssl.CipherSuite.*;
+import sun.security.ssl.CipherSuite.HashAlg;
+import sun.security.ssl.CipherSuite.KeyExchange;
 import static sun.security.ssl.CipherSuite.KeyExchange.*;
+import sun.security.ssl.CipherSuite.MacAlg;
+import static sun.security.ssl.SSLCipher.*;
+import sun.security.util.AlgorithmDecomposer;
 
 /**
  * The class decomposes standard SSL/TLS cipher suites into sub-elements.
@@ -125,77 +128,79 @@ class SSLAlgorithmDecomposer extends AlgorithmDecomposer {
                     components.add("ECDH_ANON");
                 }
                 break;
-            case K_KRB5:
-                if (!onlyX509) {
-                    components.add("KRB5");
-                }
-                break;
-            case K_KRB5_EXPORT:
-                if (!onlyX509) {
-                    components.add("KRB5_EXPORT");
-                }
-                break;
             default:
-                // ignore
+                // otherwise ignore
             }
 
         return components;
     }
 
-    private Set<String> decomposes(CipherSuite.BulkCipher bulkCipher) {
+    private Set<String> decomposes(SSLCipher bulkCipher) {
         Set<String> components = new HashSet<>();
 
         if (bulkCipher.transformation != null) {
             components.addAll(super.decompose(bulkCipher.transformation));
         }
 
-        if (bulkCipher == B_NULL) {
-            components.add("C_NULL");
-        } else if (bulkCipher == B_RC2_40) {
-            components.add("RC2_CBC_40");
-        } else if (bulkCipher == B_RC4_40) {
-            components.add("RC4_40");
-        } else if (bulkCipher == B_RC4_128) {
-            components.add("RC4_128");
-        } else if (bulkCipher == B_DES_40) {
-            components.add("DES40_CBC");
-            components.add("DES_CBC_40");
-        } else if (bulkCipher == B_DES) {
-            components.add("DES_CBC");
-        } else if (bulkCipher == B_3DES) {
-            components.add("3DES_EDE_CBC");
-        } else if (bulkCipher == B_AES_128) {
-            components.add("AES_128_CBC");
-        } else if (bulkCipher == B_AES_256) {
-            components.add("AES_256_CBC");
-        } else if (bulkCipher == B_AES_128_GCM) {
-            components.add("AES_128_GCM");
-        } else if (bulkCipher == B_AES_256_GCM) {
-            components.add("AES_256_GCM");
+        switch (bulkCipher) {
+            case B_NULL:
+                components.add("C_NULL");
+                break;
+            case B_RC2_40:
+                components.add("RC2_CBC_40");
+                break;
+            case B_RC4_40:
+                components.add("RC4_40");
+                break;
+            case B_RC4_128:
+                components.add("RC4_128");
+                break;
+            case B_DES_40:
+                components.add("DES40_CBC");
+                components.add("DES_CBC_40");
+                break;
+            case B_DES:
+                components.add("DES_CBC");
+                break;
+            case B_3DES:
+                components.add("3DES_EDE_CBC");
+                break;
+            case B_AES_128:
+                components.add("AES_128_CBC");
+                break;
+            case B_AES_256:
+                components.add("AES_256_CBC");
+                break;
+            case B_AES_128_GCM:
+                components.add("AES_128_GCM");
+                break;
+            case B_AES_256_GCM:
+                components.add("AES_256_GCM");
+                break;
         }
 
         return components;
     }
 
     private Set<String> decomposes(CipherSuite.MacAlg macAlg,
-            BulkCipher cipher) {
+            SSLCipher cipher) {
         Set<String> components = new HashSet<>();
 
-        if (macAlg == M_NULL
+        if (macAlg == CipherSuite.MacAlg.M_NULL
                 && cipher.cipherType != CipherType.AEAD_CIPHER) {
             components.add("M_NULL");
-        } else if (macAlg == M_MD5) {
+        } else if (macAlg == CipherSuite.MacAlg.M_MD5) {
             components.add("MD5");
             components.add("HmacMD5");
-        } else if (macAlg == M_SHA) {
+        } else if (macAlg == CipherSuite.MacAlg.M_SHA) {
             components.add("SHA1");
             components.add("SHA-1");
             components.add("HmacSHA1");
-        } else if (macAlg == M_SHA256) {
+        } else if (macAlg == CipherSuite.MacAlg.M_SHA256) {
             components.add("SHA256");
             components.add("SHA-256");
             components.add("HmacSHA256");
-        } else if (macAlg == M_SHA384) {
+        } else if (macAlg == CipherSuite.MacAlg.M_SHA384) {
             components.add("SHA384");
             components.add("SHA-384");
             components.add("HmacSHA384");
@@ -204,8 +209,26 @@ class SSLAlgorithmDecomposer extends AlgorithmDecomposer {
         return components;
     }
 
-    private Set<String> decompose(KeyExchange keyExchange, BulkCipher cipher,
-            MacAlg macAlg) {
+    private Set<String> decomposes(CipherSuite.HashAlg hashAlg) {
+        Set<String> components = new HashSet<>();
+
+        if (hashAlg == CipherSuite.HashAlg.H_SHA256) {
+            components.add("SHA256");
+            components.add("SHA-256");
+            components.add("HmacSHA256");
+        } else if (hashAlg == CipherSuite.HashAlg.H_SHA384) {
+            components.add("SHA384");
+            components.add("SHA-384");
+            components.add("HmacSHA384");
+        }
+
+        return components;
+    }
+
+    private Set<String> decompose(KeyExchange keyExchange,
+            SSLCipher cipher,
+            MacAlg macAlg,
+            HashAlg hashAlg) {
         Set<String> components = new HashSet<>();
 
         if (keyExchange != null) {
@@ -226,6 +249,10 @@ class SSLAlgorithmDecomposer extends AlgorithmDecomposer {
             components.addAll(decomposes(macAlg, cipher));
         }
 
+        if (hashAlg != null) {
+            components.addAll(decomposes(hashAlg));
+        }
+
         return components;
     }
 
@@ -234,19 +261,20 @@ class SSLAlgorithmDecomposer extends AlgorithmDecomposer {
         if (algorithm.startsWith("SSL_") || algorithm.startsWith("TLS_")) {
             CipherSuite cipherSuite = null;
             try {
-                cipherSuite = CipherSuite.valueOf(algorithm);
+                cipherSuite = CipherSuite.nameOf(algorithm);
             } catch (IllegalArgumentException iae) {
                 // ignore: unknown or unsupported ciphersuite
             }
 
             if (cipherSuite != null &&
-                cipherSuite != CipherSuite.C_SCSV /* TLS_EMPTY_RENEGOTIATION_INFO_SCSV */) {
-                return decompose(cipherSuite.keyExchange, cipherSuite.cipher,
-                        cipherSuite.macAlg);
+                cipherSuite != CipherSuite.TLS_EMPTY_RENEGOTIATION_INFO_SCSV) {
+                return decompose(cipherSuite.keyExchange,
+                        cipherSuite.bulkCipher,
+                        cipherSuite.macAlg,
+                        cipherSuite.hashAlg);
             }
         }
 
         return super.decompose(algorithm);
     }
-
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002, 2007, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2002, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -36,12 +36,12 @@ import java.security.*;
 final class EphemeralKeyManager {
 
     // indices for the keys array below
-    private final static int INDEX_RSA512 = 0;
-    private final static int INDEX_RSA1024 = 1;
+    private static final int INDEX_RSA512 = 0;
+    private static final int INDEX_RSA1024 = 1;
 
     /*
      * Current cached RSA KeyPairs. Elements are never null.
-     * Indexed via the the constants above.
+     * Indexed via the constants above.
      */
     private final EphemeralKeyPair[] keys = new EphemeralKeyPair[] {
         new EphemeralKeyPair(null),
@@ -87,10 +87,10 @@ final class EphemeralKeyManager {
     private static class EphemeralKeyPair {
 
         // maximum number of times a KeyPair is used
-        private final static int MAX_USE = 200;
+        private static final int MAX_USE = 200;
 
         // maximum time interval in which the keypair is used (1 hour in ms)
-        private final static long USE_INTERVAL = 3600*1000;
+        private static final long USE_INTERVAL = 3600*1000;
 
         private KeyPair keyPair;
         private int uses;

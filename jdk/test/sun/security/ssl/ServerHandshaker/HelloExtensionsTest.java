@@ -43,7 +43,7 @@ public class HelloExtensionsTest {
     private static boolean proceed = true;
     private static boolean EcAvailable = isEcAvailable();
 
-    static String pathToStores = "../etc";
+    static String pathToStores = "../../../../javax/net/ssl/etc";
     private static String keyStoreFile = "keystore";
     private static String trustStoreFile = "truststore";
     private static String passwd = "passphrase";

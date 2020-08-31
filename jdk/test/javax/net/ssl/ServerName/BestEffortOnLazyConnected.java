@@ -55,7 +55,7 @@ public class BestEffortOnLazyConnected {
     /*
      * Where do we find the keystores?
      */
-    private static final String pathToStores = "../../../../sun/security/ssl/etc";
+    private static final String pathToStores = "../etc";
     private static final String keyStoreFile = "keystore";
     private static final String trustStoreFile = "truststore";
     private static final String passwd = "passphrase";

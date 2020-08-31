@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,14 +25,22 @@
 
 package sun.security.ssl;
 
-import javax.net.ssl.*;
+import java.math.BigInteger;
 import java.util.*;
+import java.util.regex.Pattern;
+import javax.net.ssl.*;
 import sun.net.util.IPAddressUtil;
+import sun.security.action.GetPropertyAction;
 
 /**
  * A utility class to share the static methods.
  */
 final class Utilities {
+    static final char[] hexDigits = "0123456789ABCDEF".toCharArray();
+    private static final String indent = "  ";
+    private static final Pattern lineBreakPatern =
+                Pattern.compile("\\r\\n|\\n|\\r");
+
     /**
      * Puts {@code hostname} into the {@code serverNames} list.
      * <P>
@@ -61,9 +69,9 @@ final class Utilities {
             SNIServerName serverName = sniList.get(i);
             if (serverName.getType() == StandardConstants.SNI_HOST_NAME) {
                 sniList.set(i, sniHostName);
-                if (Debug.isOn("ssl")) {
-                    System.out.println(Thread.currentThread().getName() +
-                        ", the previous server name in SNI (" + serverName +
+                if (SSLLogger.isOn && SSLLogger.isOn("ssl")) {
+                     SSLLogger.fine(
+                        "the previous server name in SNI (" + serverName +
                         ") was replaced with (" + sniHostName + ")");
                 }
                 reset = true;
@@ -102,9 +110,8 @@ final class Utilities {
                 sniHostName = new SNIHostName(hostname);
             } catch (IllegalArgumentException iae) {
                 // don't bother to handle illegal host_name
-                if (Debug.isOn("ssl")) {
-                    System.out.println(Thread.currentThread().getName() +
-                        ", \"" + hostname + "\" " +
+                if (SSLLogger.isOn && SSLLogger.isOn("ssl")) {
+                     SSLLogger.fine(hostname + "\" " +
                         "is not a legal HostName for  server name indication");
                 }
             }
@@ -112,4 +119,154 @@ final class Utilities {
 
         return sniHostName;
     }
+
+    /**
+     * Return the value of the boolean System property propName.
+     *
+     * Note use of privileged action. Do NOT make accessible to applications.
+     */
+    static boolean getBooleanProperty(String propName, boolean defaultValue) {
+        // if set, require value of either true or false
+        String b = GetPropertyAction.privilegedGetProperty(propName);
+        if (b == null) {
+            return defaultValue;
+        } else if (b.equalsIgnoreCase("false")) {
+            return false;
+        } else if (b.equalsIgnoreCase("true")) {
+            return true;
+        } else {
+            throw new RuntimeException("Value of " + propName
+                + " must either be 'true' or 'false'");
+        }
+    }
+
+    static String indent(String source) {
+        return Utilities.indent(source, indent);
+    }
+
+    static String indent(String source, String prefix) {
+        StringBuilder builder = new StringBuilder();
+        if (source == null) {
+             builder.append("\n" + prefix + "<blank message>");
+        } else {
+            String[] lines = lineBreakPatern.split(source);
+            boolean isFirst = true;
+            for (String line : lines) {
+                if (isFirst) {
+                    isFirst = false;
+                } else {
+                    builder.append("\n");
+                }
+                builder.append(prefix).append(line);
+            }
+        }
+
+        return builder.toString();
+    }
+
+    static String toHexString(byte b) {
+        return String.valueOf(hexDigits[(b >> 4) & 0x0F]) +
+                String.valueOf(hexDigits[b & 0x0F]);
+    }
+
+    static String byte16HexString(int id) {
+        return "0x" +
+                hexDigits[(id >> 12) & 0x0F] + hexDigits[(id >> 8) & 0x0F] +
+                hexDigits[(id >> 4) & 0x0F] + hexDigits[id & 0x0F];
+    }
+
+    static String toHexString(byte[] bytes) {
+        if (bytes == null || bytes.length == 0) {
+            return "";
+        }
+
+        StringBuilder builder = new StringBuilder(bytes.length * 3);
+        boolean isFirst = true;
+        for (byte b : bytes) {
+            if (isFirst) {
+                isFirst = false;
+            } else {
+                builder.append(' ');
+            }
+
+            builder.append(hexDigits[(b >> 4) & 0x0F]);
+            builder.append(hexDigits[b & 0x0F]);
+        }
+        return builder.toString();
+    }
+
+    static String toHexString(long lv) {
+        StringBuilder builder = new StringBuilder(128);
+
+        boolean isFirst = true;
+        do {
+            if (isFirst) {
+                isFirst = false;
+            } else {
+                builder.append(' ');
+            }
+
+            builder.append(hexDigits[(int)(lv & 0x0F)]);
+            lv >>>= 4;
+            builder.append(hexDigits[(int)(lv & 0x0F)]);
+            lv >>>= 4;
+        } while (lv != 0);
+        builder.reverse();
+
+        return builder.toString();
+    }
+
+    /**
+     * Utility method to convert a BigInteger to a byte array in unsigned
+     * format as needed in the handshake messages. BigInteger uses
+     * 2's complement format, i.e. it prepends an extra zero if the MSB
+     * is set. We remove that.
+     */
+    static byte[] toByteArray(BigInteger bi) {
+        byte[] b = bi.toByteArray();
+        if ((b.length > 1) && (b[0] == 0)) {
+            int n = b.length - 1;
+            byte[] newarray = new byte[n];
+            System.arraycopy(b, 1, newarray, 0, n);
+            b = newarray;
+        }
+        return b;
+    }
+
+    /**
+     * Checks that {@code fromIndex} and {@code toIndex} are in
+     * the range and throws an exception if they aren't.
+     */
+    private static void rangeCheck(int arrayLength, int fromIndex, int toIndex) {
+        if (fromIndex > toIndex) {
+            throw new IllegalArgumentException(
+                    "fromIndex(" + fromIndex + ") > toIndex(" + toIndex + ")");
+        }
+        if (fromIndex < 0) {
+            throw new ArrayIndexOutOfBoundsException(fromIndex);
+        }
+        if (toIndex > arrayLength) {
+            throw new ArrayIndexOutOfBoundsException(toIndex);
+        }
+    }
+
+    /**
+     * Returns true if the two specified arrays of bytes, over the specified
+     * ranges, are <i>equal</i> to one another.
+     */
+    static boolean equals(byte[] arr1, int st1, int end1, byte[] arr2, int st2, int end2) {
+        rangeCheck(arr1.length, st1, end1);
+        rangeCheck(arr2.length, st2, end2);
+
+        int aLength = end1 - st1;
+        int bLength = end2 - st2;
+        if (aLength != bLength)
+            return false;
+
+        for(int i=0; i<aLength; i++)
+            if(arr1[i + st1] != arr2[i + st2])
+                return false;
+        return true;
+    }
+
 }
