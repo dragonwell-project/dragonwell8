@@ -45,7 +45,7 @@ public class BigCRL {
     public static void main(String[] args) throws Exception {
         int n = 500000;
         String ks = System.getProperty("test.src", ".")
-                + "/../../ssl/etc/keystore";
+                + "/../../../../javax/net/ssl/etc/keystore";
         String pass = "passphrase";
         String alias = "dummy";
 

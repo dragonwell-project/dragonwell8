@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -52,7 +52,7 @@ public class LegacyDHEKeyExchange {
     /*
      * Where do we find the keystores?
      */
-    static String pathToStores = "../etc";
+    static String pathToStores = "../../../../javax/net/ssl/etc";
     static String keyStoreFile = "keystore";
     static String trustStoreFile = "truststore";
     static String passwd = "passphrase";
@@ -104,7 +104,7 @@ public class LegacyDHEKeyExchange {
             sslOS.flush();
 
             throw new Exception(
-                "Legacy DH keys (< 1024) should be restricted");
+                "Leagcy DH keys (< 1024) should be restricted");
         } catch (SSLHandshakeException she) {
             // ignore, client should terminate the connection
         } finally {
@@ -143,7 +143,7 @@ public class LegacyDHEKeyExchange {
             sslOS.flush();
             sslIS.read();
 
-            throw new Exception("Legacy DH keys (< 1024) should be restricted");
+            throw new Exception("Leagcy DH keys (< 1024) should be restricted");
         } catch (SSLHandshakeException she) {
             // ignore, should be caused by algorithm constraints
         } finally {

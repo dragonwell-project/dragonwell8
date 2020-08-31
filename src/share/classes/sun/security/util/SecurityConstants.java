@@ -227,4 +227,6 @@ public final class SecurityConstants {
     // java.lang.SecurityManager
     public static final SocketPermission LOCAL_LISTEN_PERMISSION =
         new SocketPermission("localhost:0", SOCKET_LISTEN_ACTION);
+
+    public static final Double PROVIDER_VER = 1.8d;
 }

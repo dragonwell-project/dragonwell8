@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -36,20 +36,24 @@
  * @run main/othervm ECCurvesconstraints SunX509
  */
 
-import java.net.*;
-import java.util.*;
-import java.io.*;
-import javax.net.ssl.*;
-import java.security.Security;
+import java.io.ByteArrayInputStream;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.io.IOException;
 import java.security.KeyStore;
 import java.security.KeyFactory;
 import java.security.cert.Certificate;
-import java.security.cert.X509Certificate;
 import java.security.cert.CertificateFactory;
-import java.security.spec.*;
-import java.security.interfaces.*;
+import java.security.interfaces.ECPrivateKey;
+import java.security.spec.PKCS8EncodedKeySpec;
 import java.util.Base64;
-
+import javax.net.ssl.KeyManagerFactory;
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.SSLServerSocket;
+import javax.net.ssl.SSLServerSocketFactory;
+import javax.net.ssl.SSLSocket;
+import javax.net.ssl.SSLSocketFactory;
+import javax.net.ssl.TrustManagerFactory;
 
 public class ECCurvesconstraints {
 
@@ -136,7 +140,7 @@ public class ECCurvesconstraints {
             sslOS.flush();
 
             throw new Exception("EC curve secp224k1 should be disabled");
-        } catch (SSLHandshakeException she) {
+        } catch (IOException she) {
             // expected exception: no cipher suites in common
             System.out.println("Expected exception: " + she);
         } finally {
@@ -178,7 +182,7 @@ public class ECCurvesconstraints {
             sslIS.read();
 
             throw new Exception("EC curve secp224k1 should be disabled");
-        } catch (SSLHandshakeException she) {
+        } catch (IOException she) {
             // expected exception: Received fatal alert
             System.out.println("Expected exception: " + she);
         } finally {
