@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1996, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -343,6 +343,40 @@ public class WWindowPeer extends WPanelPeer implements WindowPeer,
                 }
             }
         }
+    }
+
+    private void notifyWindowStateChanged(int oldState, int newState) {
+        int changed = oldState ^ newState;
+        if (changed == 0) {
+            return;
+        }
+        if (log.isLoggable(PlatformLogger.Level.FINE)) {
+            log.fine("Reporting state change %x -> %x", oldState, newState);
+        }
+
+        if (target instanceof Frame) {
+            // Sync target with peer.
+            AWTAccessor.getFrameAccessor().setExtendedState((Frame) target,
+                newState);
+        }
+
+        // Report (de)iconification to old clients.
+        if ((changed & Frame.ICONIFIED) > 0) {
+            if ((newState & Frame.ICONIFIED) > 0) {
+                postEvent(new TimedWindowEvent((Window) target,
+                        WindowEvent.WINDOW_ICONIFIED, null, 0, 0,
+                        System.currentTimeMillis()));
+            } else {
+                postEvent(new TimedWindowEvent((Window) target,
+                        WindowEvent.WINDOW_DEICONIFIED, null, 0, 0,
+                        System.currentTimeMillis()));
+            }
+        }
+
+        // New (since 1.4) state change event.
+        postEvent(new TimedWindowEvent((Window) target,
+                WindowEvent.WINDOW_STATE_CHANGED, null, oldState, newState,
+                System.currentTimeMillis()));
     }
 
     synchronized void addWindowListener(WindowListener l) {
