@@ -56,7 +56,7 @@ public class ImpactOnSNI {
      * Where do we find the keystores?
      */
     private static final String pathToStores =
-                                        "../../../../../../sun/security/ssl/etc";
+                                        "../../../../../../javax/net/ssl/etc";
     private static final String keyStoreFile = "keystore";
     private static final String trustStoreFile = "truststore";
     private static final String passwd = "passphrase";
