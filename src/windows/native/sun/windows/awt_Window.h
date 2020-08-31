@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1996, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -57,6 +57,7 @@ public:
     static jfieldID securityWarningWidthID;
     static jfieldID securityWarningHeightID;
 
+    /* sun.awt.windows.WWindowPeer field and method IDs */
     // The coordinates at the peer.
     static jfieldID sysXID;
     static jfieldID sysYID;
@@ -64,7 +65,9 @@ public:
     static jfieldID sysHID;
 
     static jfieldID windowTypeID;
+    static jmethodID notifyWindowStateChangedMID;
 
+    /* java.awt.Window method IDs */
     static jmethodID getWarningStringMID;
     static jmethodID calculateSecurityWarningPositionMID;
     static jmethodID windowTypeNameMID;
@@ -149,6 +152,7 @@ public:
     void SendComponentEvent(jint eventId);
     void SendWindowEvent(jint id, HWND opposite = NULL,
                          jint oldState = 0, jint newState = 0);
+    void NotifyWindowStateChanged(jint oldState, jint newState);
 
     BOOL IsFocusableWindow();
 
