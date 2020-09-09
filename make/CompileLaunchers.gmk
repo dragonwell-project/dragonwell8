@@ -248,7 +248,9 @@ $(JDK_OUTPUTDIR)/bin$(OUTPUT_SUBDIR)/java$(DEBUGINFO_EXT): $(BUILD_LAUNCHER_java
 
 BUILD_LAUNCHERS += $(JDK_OUTPUTDIR)/bin$(OUTPUT_SUBDIR)/java$(EXE_SUFFIX)
 ifeq ($(ENABLE_DEBUG_SYMBOLS), true)
-  BUILD_LAUNCHERS += $(JDK_OUTPUTDIR)/bin$(OUTPUT_SUBDIR)/java$(DEBUGINFO_EXT)
+  ifneq ($(POST_STRIP_CMD), )
+    BUILD_LAUNCHERS += $(JDK_OUTPUTDIR)/bin$(OUTPUT_SUBDIR)/java$(DEBUGINFO_EXT)
+  endif
 endif
 
 ifeq ($(OPENJDK_TARGET_OS), windows)
@@ -556,7 +558,9 @@ $(JDK_OUTPUTDIR)/bin$(OUTPUT_SUBDIR)/unpack200$(DEBUGINFO_EXT): $(BUILD_UNPACKEX
 
 BUILD_LAUNCHERS += $(JDK_OUTPUTDIR)/bin$(OUTPUT_SUBDIR)/unpack200$(EXE_SUFFIX)
 ifeq ($(ENABLE_DEBUG_SYMBOLS), true)
-  BUILD_LAUNCHERS += $(JDK_OUTPUTDIR)/bin$(OUTPUT_SUBDIR)/unpack200$(DEBUGINFO_EXT)
+  ifneq ($(POST_STRIP_CMD), )
+    BUILD_LAUNCHERS += $(JDK_OUTPUTDIR)/bin$(OUTPUT_SUBDIR)/unpack200$(DEBUGINFO_EXT)
+  endif
 endif
 
 ##########################################################################################
