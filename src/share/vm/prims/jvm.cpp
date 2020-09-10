@@ -101,6 +101,7 @@
 #endif // INCLUDE_ALL_GCS
 
 #include <errno.h>
+#include <jfr/recorder/jfrRecorder.hpp>
 
 #ifndef USDT2
 HS_DTRACE_PROBE_DECL1(hotspot, thread__sleep__begin, long long);
@@ -3229,6 +3230,15 @@ JVM_ENTRY(void, JVM_StartThread(JNIEnv* env, jobject jthread))
     THROW_MSG(vmSymbols::java_lang_OutOfMemoryError(),
               "unable to create new native thread");
   }
+
+#if INCLUDE_JFR
+  if (JfrRecorder::is_recording() && EventThreadStart::is_enabled() &&
+      EventThreadStart::is_stacktrace_enabled()) {
+    JfrThreadLocal* tl = native_thread->jfr_thread_local();
+    // skip Thread.start() and Thread.start0()
+    tl->set_cached_stack_trace_id(JfrStackTraceRepository::record(thread, 2, WALK_BY_DEFAULT));
+  }
+#endif
 
   Thread::start(native_thread);
 
