@@ -105,8 +105,6 @@ public:
   static Handle dump_stack_traces(GrowableArray<instanceHandle>* threads,
                                   int num_threads, TRAPS);
 
-  static Handle dump_coroutine_stack_trace(Coroutine *coro, TRAPS);
-
   static void   reset_peak_thread_count();
   static void   reset_contention_count_stat(JavaThread* thread);
   static void   reset_contention_time_stat(JavaThread* thread);
@@ -243,7 +241,7 @@ public:
   ThreadConcurrentLocks* get_concurrent_locks()     { return _concurrent_locks; }
 
   void        dump_stack_at_safepoint(int max_depth, bool with_locked_monitors);
-  void        dump_stack_at_safepoint_for_coroutine(Coroutine *target);
+  void        dump_stack_at_safepoint_for_coroutine(Coroutine *target, int max_depth, bool with_locked_monitors);
   void        set_concurrent_locks(ThreadConcurrentLocks* l) { _concurrent_locks = l; }
   void        oops_do(OopClosure* f);
   void        metadata_do(void f(Metadata*));
@@ -268,7 +266,7 @@ class ThreadStackTrace : public CHeapObj<mtInternal> {
 
   void            add_stack_frame(javaVFrame* jvf);
   void            dump_stack_at_safepoint(int max_depth);
-  void            dump_stack_at_safepoint_for_coroutine(Coroutine *target);
+  void            dump_stack_at_safepoint_for_coroutine(Coroutine *target, int max_depth);
   Handle          allocate_fill_stack_trace_element_array(TRAPS);
   void            oops_do(OopClosure* f);
   void            metadata_do(void f(Metadata*));
@@ -392,6 +390,7 @@ class DeadlockCycle : public CHeapObj<mtInternal> {
 class ThreadsListEnumerator : public StackObj {
 private:
   GrowableArray<instanceHandle>* _threads_array;
+  static bool skipThread(JavaThread* jt, bool include_jvmti_agent_threads, bool include_jni_attaching_threads);
 public:
   ThreadsListEnumerator(Thread* cur_thread,
                         bool include_jvmti_agent_threads = false,
