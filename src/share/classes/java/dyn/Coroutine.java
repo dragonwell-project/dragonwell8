@@ -152,8 +152,4 @@ public class Coroutine extends CoroutineBase {
     private static native void registerNatives();
 
     private static native void setWispTask(long coroutine, int id, Object task, Object engine);
-
-    public StackTraceElement[] getCoroutineStack() {
-        return CoroutineSupport.getCoroutineStack(this.nativeCoroutine);
-    }
 }

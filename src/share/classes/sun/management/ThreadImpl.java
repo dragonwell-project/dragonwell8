@@ -25,6 +25,9 @@
 
 package sun.management;
 
+import sun.misc.SharedSecrets;
+import sun.misc.WispEngineAccess;
+
 import java.lang.management.ManagementFactory;
 
 import java.lang.management.ThreadInfo;
@@ -39,6 +42,8 @@ import javax.management.ObjectName;
  * of this class.
  */
 class ThreadImpl implements com.sun.management.ThreadMXBean {
+
+    private static WispEngineAccess WEA = SharedSecrets.getWispEngineAccess();
 
     private final VMManagement jvm;
 
@@ -57,7 +62,7 @@ class ThreadImpl implements com.sun.management.ThreadMXBean {
     }
 
     public int getThreadCount() {
-        return jvm.getLiveThreadCount();
+        return WEA != null && WEA.isAllThreadAsWisp() ? getAllThreadIds().length : jvm.getLiveThreadCount();
     }
 
     public int getPeakThreadCount() {

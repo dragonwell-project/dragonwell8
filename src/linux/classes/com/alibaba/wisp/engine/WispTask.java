@@ -603,7 +603,7 @@ public class WispTask implements Comparable<WispTask> {
     }
 
     StackTraceElement[] getStackTrace() {
-        return this.ctx.getCoroutineStack();
+        return this.threadWrapper.getStackTrace();
     }
 
     private static final AtomicReferenceFieldUpdater<WispTask, WispCarrier> CARRIER_UPDATER;

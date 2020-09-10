@@ -87,11 +87,8 @@ public class TmpThreadStackTrace {
                     result.set(false);
                 }
                 runningCoroutine.getStackTrace();
-                result.set(false);
             } catch (Exception e) {
-                if (!(e instanceof UnsupportedOperationException)) {
-                    result.set(false);
-                }
+              result.set(false);
             } finally {
                 done.countDown();
             }
@@ -138,7 +135,7 @@ function assert()
 {
     line=`cat output.txt | grep ThreadDump | wc -l`
     echo $line
-    if [[ $line -eq "2" ]]; then
+    if [[ $line -eq "3" ]]; then
         echo "success"
     else
         echo "failure"
