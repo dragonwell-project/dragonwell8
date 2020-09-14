@@ -145,6 +145,7 @@ final class WispCarrier implements Comparable<WispCarrier> {
         } finally {
             isInCritical = isInCritical0;
         }
+        wispTask.enterTs = System.nanoTime();
         yieldTo(wispTask);
         runWispTaskEpilog();
 
@@ -236,8 +237,11 @@ final class WispCarrier implements Comparable<WispCarrier> {
      */
     final void schedule() {
         assert WispCarrier.current() == this;
+        assert current.enterTs != 0;
         WispTask current = this.current;
         current.countExecutionTime(switchTimestamp);
+        current.totalTs += System.nanoTime() -  current.enterTs;
+        current.enterTs = 0;
         assert current != threadTask;
         assert current.resumeEntry != null : "call `schedule()` in scheduler";
         current.resumeEntry.setStealEnable(true);
@@ -297,6 +301,7 @@ final class WispCarrier implements Comparable<WispCarrier> {
                 }
                 current.countEnqueueTime(task.getEnqueueTime());
                 task.resetEnqueueTime();
+                task.enterTs = System.nanoTime();
                 if (current.yieldTo(task)) {
                     current.runWispTaskEpilog();
                 } else { // switch failure

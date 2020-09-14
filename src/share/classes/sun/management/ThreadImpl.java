@@ -220,6 +220,11 @@ class ThreadImpl implements com.sun.management.ThreadMXBean {
 
     public long getCurrentThreadCpuTime() {
         if (verifyCurrentThreadCpuTime()) {
+            if (WEA != null && WEA.isAllThreadAsWisp()) {
+                long[] times = new long[1];
+                WEA.getCpuTime(new long[]{Thread.currentThread().getId()}, times);
+                return times[0];
+            }
             return getThreadTotalCpuTime0(0);
         }
         return -1;
@@ -264,7 +269,9 @@ class ThreadImpl implements com.sun.management.ThreadMXBean {
         java.util.Arrays.fill(times, -1);
 
         if (verified) {
-            if (length == 1) {
+            if (WEA != null && WEA.isAllThreadAsWisp()) {
+                WEA.getCpuTime(ids, times);
+            } else if (length == 1) {
                 long id = ids[0];
                 if (id == Thread.currentThread().getId()) {
                     id = 0;
@@ -278,7 +285,8 @@ class ThreadImpl implements com.sun.management.ThreadMXBean {
     }
 
     public long getCurrentThreadUserTime() {
-        if (verifyCurrentThreadCpuTime()) {
+        boolean wispEnabled = WEA != null && WEA.isAllThreadAsWisp();
+        if (!wispEnabled && verifyCurrentThreadCpuTime()) {
             return getThreadUserCpuTime0(0);
         }
         return -1;
@@ -292,7 +300,8 @@ class ThreadImpl implements com.sun.management.ThreadMXBean {
     }
 
     public long[] getThreadUserTime(long[] ids) {
-        boolean verified = verifyThreadCpuTime(ids);
+        boolean wispEnabled = WEA != null && WEA.isAllThreadAsWisp();
+        boolean verified = verifyThreadCpuTime(ids) && !wispEnabled;
 
         int length = ids.length;
         long[] times = new long[length];

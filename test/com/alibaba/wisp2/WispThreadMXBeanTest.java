@@ -26,11 +26,15 @@ public class WispThreadMXBeanTest {
     private static final ThreadMXBean mbean = ManagementFactory.getThreadMXBean();
     private static final int THREAD_SIZE = 25;
     private static final Phaser startupCheck = new Phaser(THREAD_SIZE + 1);
+    private static volatile boolean done = false;
+
 
     public static void main(String[] args) throws Exception {
         getAllThreadIds();
         dumpAllThreads();
         getThreadInfo();
+        disableThreadCpu();
+        verifyCPUTime();
     }
 
     // also getThreadCount
@@ -80,8 +84,8 @@ public class WispThreadMXBeanTest {
         }
         startupCheck.arriveAndAwaitAdvance();
 
-        boolean[] lockedMonitor = new boolean[] {false, true};
-        boolean[] lockedSyncronizer = new boolean[] {false, true};
+        boolean[] lockedMonitor = new boolean[]{false, true};
+        boolean[] lockedSyncronizer = new boolean[]{false, true};
         for (boolean lm : lockedMonitor) {
             for (boolean ls : lockedSyncronizer) {
                 ThreadInfo[] threadInfosNew = mbean.dumpAllThreads(lm, ls);
@@ -101,22 +105,126 @@ public class WispThreadMXBeanTest {
         CountDownLatch latch = new CountDownLatch(1);
         Thread thread = new Thread(() -> {
             latch.countDown();
-            while (true) { sleep(); }
+            while (true) {
+                sleep();
+            }
         });
         thread.start();
 
         latch.await();
         ThreadInfo[] infos = mbean.getThreadInfo(new long[]{thread.getId()}, Integer.MAX_VALUE);
-        StackTraceElement[] stack1 =  thread.getStackTrace();
-        StackTraceElement[] stack2 =  infos[0].getStackTrace();
+        StackTraceElement[] stack1 = thread.getStackTrace();
+        StackTraceElement[] stack2 = infos[0].getStackTrace();
         assertTrue(Arrays.equals(stack1, stack2));
     }
 
+    private static void disableThreadCpu() throws Exception {
+        if (!mbean.isCurrentThreadCpuTimeSupported()) {
+            return;
+        }
 
+        // disable CPU time
+        if (mbean.isThreadCpuTimeEnabled()) {
+            mbean.setThreadCpuTimeEnabled(false);
+        }
+        Thread curThread = Thread.currentThread();
+        long t = mbean.getCurrentThreadCpuTime();
+        if (t != -1) {
+            throw new RuntimeException("Invalid CurrenThreadCpuTime returned = " +
+                    t + " expected = -1");
+        }
+
+        if (mbean.isThreadCpuTimeSupported()) {
+            long t1 = mbean.getThreadCpuTime(curThread.getId());
+            if (t1 != -1) {
+                throw new RuntimeException("Invalid ThreadCpuTime returned = " +
+                        t1 + " expected = -1");
+            }
+        }
+        if (!mbean.isThreadCpuTimeEnabled()) {
+            mbean.setThreadCpuTimeEnabled(true);
+        }
+    }
+
+    private static void verifyCPUTime() throws Exception {
+        Thread[] threads = new Thread[THREAD_SIZE];
+        long[] times = new long[THREAD_SIZE];
+        CountDownLatch latch = new CountDownLatch(THREAD_SIZE);
+
+        for (int i = 0; i < THREAD_SIZE; i++) {
+            threads[i] = new Worker(latch);
+            threads[i].start();
+        }
+        latch.await();
+
+        for (int i = 0; i < THREAD_SIZE; i++) {
+            times[i] = mbean.getThreadCpuTime(threads[i].getId());
+        }
+
+        Thread.sleep(100);
+
+        for (int i = 0; i < THREAD_SIZE; i++) {
+            long newTime = mbean.getThreadCpuTime(threads[i].getId());
+            if (times[i] > newTime) {
+                throw new RuntimeException("TEST FAILED: " +
+                        threads[i].getName() +
+                        " previous CPU time = " + times[i] +
+                        " > current CPU time = " + newTime);
+            }
+        }
+
+        done = true;
+        for (int i = 0; i < THREAD_SIZE; i++) {
+            threads[i].interrupt();
+        }
+
+        Thread.sleep(100);
+
+        for (int i = 0; i < THREAD_SIZE; i++) {
+            threads[i].join();
+        }
+    }
+
+    private static class Worker extends Thread {
+        private CountDownLatch latch;
+
+        Worker(CountDownLatch latch) {
+            super();
+            this.latch = latch;
+        }
+
+        public void run() {
+            double sum = 0;
+            for (int i = 0; i < 5000; i++) {
+                double r = Math.random();
+                double x = Math.pow(3, r);
+                sum += x - r;
+            }
+
+            latch.countDown();
+            while (!done) {
+                WispThreadMXBeanTest.sleep();
+            }
+
+            long time1 = mbean.getCurrentThreadCpuTime();
+            long time2 = mbean.getThreadCpuTime(getId());
+
+            System.out.println(getName() + ": " +
+                    "CurrentThreadCpuTime  = " + time1 +
+                    " ThreadCpuTime  = " + time2);
+
+            if (time1 > time2) {
+                throw new RuntimeException("TEST FAILED: " + getName() +
+                        " CurrentThreadCpuTime = " + time1 +
+                        " > ThreadCpuTime = " + time2);
+            }
+        }
+    }
 
     private static void sleep() {
         try {
             Thread.sleep(20);
-        } catch (InterruptedException e) {}
+        } catch (InterruptedException e) {
+        }
     }
 }

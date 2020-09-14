@@ -326,6 +326,24 @@ public class WispEngine extends AbstractExecutorService {
             public StackTraceElement[] getStackTrace(WispTask task) {
                 return task.getStackTrace();
             }
+
+            @Override
+            public void getCpuTime(long[] ids, long[] times) {
+                WispTask currentTask = WispCarrier.current().getCurrentTask();
+                assert currentTask.getThreadWrapper() != null;
+                for (int i = 0; i < ids.length; i++) {
+                    if (ids[i] == currentTask.getThreadWrapper().getId()) {
+                        times[i] = currentTask.getCpuTime();
+                        continue;
+                    }
+                    for (WispTask wispTask : WispTask.id2Task.values()) {
+                        Thread wispThreadWrapper = wispTask.getThreadWrapper();
+                        if (wispThreadWrapper != null && wispThreadWrapper.getId() == ids[i]) {
+                            times[i] = wispTask.getCpuTime();
+                        }
+                    }
+                }
+            }
         });
     }
 

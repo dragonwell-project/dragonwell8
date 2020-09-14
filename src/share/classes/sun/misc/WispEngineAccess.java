@@ -80,4 +80,6 @@ public interface WispEngineAccess {
     boolean enableSocketLock();
 
     StackTraceElement[] getStackTrace(WispTask task);
+
+    void getCpuTime(long[] ids, long[] times);
 }

@@ -151,6 +151,8 @@ public class WispTask implements Comparable<WispTask> {
     private long parkTime;
     private long blockingTime;
     private long registerEventTime;
+    long enterTs;
+    long totalTs;
 
     // monolithic epoll support
     private volatile long epollArray;
@@ -187,6 +189,8 @@ public class WispTask implements Comparable<WispTask> {
         stealCount        = 0;
         stealFailureCount = 0;
         preemptCount      = 0;
+        totalTs           = 0;
+        enterTs           = 0;
 
         // thread status
         if (thread != null) { // calling from Thread.start()
@@ -604,6 +608,12 @@ public class WispTask implements Comparable<WispTask> {
 
     StackTraceElement[] getStackTrace() {
         return this.threadWrapper.getStackTrace();
+    }
+
+    long getCpuTime() {
+        // concurrent inaccurate is acceptable
+        long currentEnterTs = enterTs;
+        return totalTs + (currentEnterTs == 0 ? 0 : System.nanoTime() - currentEnterTs);
     }
 
     private static final AtomicReferenceFieldUpdater<WispTask, WispCarrier> CARRIER_UPDATER;
