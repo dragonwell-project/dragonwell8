@@ -177,6 +177,7 @@ public class WispSocketImpl
         }
 
         protected final SocketChannel ch;
+        private boolean eof = false;
         private ByteBuffer bb = null;
         // Invoker's previous array
         private byte[] bs = null;
@@ -226,6 +227,9 @@ public class WispSocketImpl
 
         private int read0(ByteBuffer bb)
                 throws IOException {
+            if (eof) {
+                return -1;
+            }
             int n;
             try {
                 if (readAhead != null && readAhead.hasRemaining()) {
@@ -242,6 +246,9 @@ public class WispSocketImpl
                 }
 
                 if ((n = ch.read(bb)) != 0) {
+                    if (n == -1) {
+                        eof = true;
+                    }
                     return n;
                 }
 
@@ -265,6 +272,9 @@ public class WispSocketImpl
                 WEA.unregisterEvent();
             }
 
+            if (n == -1) {
+                eof = true;
+            }
             return n;
         }
 
