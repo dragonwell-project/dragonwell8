@@ -26,6 +26,8 @@
  * @test
  * @bug 8165996
  * @summary Test NSS DB Sqlite
+ * @comment There is no NSS on Aix.
+ * @requires os.family != "aix"
  * @library ../
  * @run main/othervm/timeout=120 TestNssDbSqlite
  * @author Martin Balao (mbalao@redhat.com)
