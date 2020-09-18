@@ -251,7 +251,6 @@ decode_env::decode_env(CodeBlob* code, outputStream* output, CodeStrings c) :
   _output(output ? output : tty),
   _start(NULL),
   _end(NULL),
-  _option_buf(),
   _print_raw(0),
   // by default, output pc but not bytes:
   _print_pc(true),
