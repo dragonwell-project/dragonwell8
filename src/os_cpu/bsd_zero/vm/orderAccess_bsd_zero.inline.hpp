@@ -29,7 +29,7 @@
 #include "runtime/orderAccess.hpp"
 #include "vm_version_zero.hpp"
 
-#ifdef ARM
+#if defined(ARM)   // ----------------------------------------------------
 
 /*
  * ARM Kernel helper for memory barrier.
@@ -40,32 +40,36 @@
 typedef void (__kernel_dmb_t) (void);
 #define __kernel_dmb (*(__kernel_dmb_t *) 0xffff0fa0)
 
-#define FULL_MEM_BARRIER __kernel_dmb()
-#define READ_MEM_BARRIER __kernel_dmb()
+#define READ_MEM_BARRIER  __kernel_dmb()
 #define WRITE_MEM_BARRIER __kernel_dmb()
+#define FULL_MEM_BARRIER  __kernel_dmb()
 
-#else // ARM
-
-#define FULL_MEM_BARRIER __sync_synchronize()
-
-#ifdef PPC
+#elif defined(PPC) // ----------------------------------------------------
 
 #ifdef __NO_LWSYNC__
-#define READ_MEM_BARRIER __asm __volatile ("sync":::"memory")
+#define READ_MEM_BARRIER  __asm __volatile ("sync":::"memory")
 #define WRITE_MEM_BARRIER __asm __volatile ("sync":::"memory")
 #else
-#define READ_MEM_BARRIER __asm __volatile ("lwsync":::"memory")
+#define READ_MEM_BARRIER  __asm __volatile ("lwsync":::"memory")
 #define WRITE_MEM_BARRIER __asm __volatile ("lwsync":::"memory")
 #endif
+#define FULL_MEM_BARRIER  __sync_synchronize()
 
-#else // PPC
+#elif defined(X86) // ----------------------------------------------------
 
-#define READ_MEM_BARRIER __asm __volatile ("":::"memory")
+#define READ_MEM_BARRIER  __asm __volatile ("":::"memory")
 #define WRITE_MEM_BARRIER __asm __volatile ("":::"memory")
+#define FULL_MEM_BARRIER  __sync_synchronize()
 
-#endif // PPC
+#else              // ----------------------------------------------------
 
-#endif // ARM
+// Default to strongest barriers for correctness.
+
+#define READ_MEM_BARRIER  __sync_synchronize()
+#define WRITE_MEM_BARRIER __sync_synchronize()
+#define FULL_MEM_BARRIER  __sync_synchronize()
+
+#endif             // ----------------------------------------------------
 
 
 inline void OrderAccess::loadload()   { acquire(); }
