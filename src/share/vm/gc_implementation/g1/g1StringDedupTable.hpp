@@ -38,8 +38,10 @@ class G1StringDedupEntryCache;
 class G1StringDedupEntry : public CHeapObj<mtGC> {
 private:
   G1StringDedupEntry* _next;
-  unsigned int      _hash;
-  typeArrayOop      _obj;
+  uint64_t            _hash;
+  typeArrayOop        _obj;
+
+  static const uint64_t java_hash_mask = ((uint64_t)1 << 32) - 1;
 
 public:
   G1StringDedupEntry() :
@@ -60,11 +62,19 @@ public:
     _next = next;
   }
 
-  unsigned int hash() {
+  unsigned int java_hash() {
+    return (unsigned int)(_hash & java_hash_mask);
+  }
+
+  void set_java_hash(unsigned int hash) {
+    _hash = hash;
+  }
+
+  uint64_t alt_hash() {
     return _hash;
   }
 
-  void set_hash(unsigned int hash) {
+  void set_alt_hash(uint64_t hash) {
     _hash = hash;
   }
 
@@ -119,8 +129,8 @@ private:
   // The hash seed also dictates which hash function to use. A
   // zero hash seed means we will use the Java compatible hash
   // function (which doesn't use a seed), and a non-zero hash
-  // seed means we use the murmur3 hash function.
-  jint                            _hash_seed;
+  // seed means we use the alternate and better hash function.
+  uint64_t                        _hash_seed;
 
   // Constants governing table resize/rehash/cache.
   static const size_t             _min_size;
@@ -137,7 +147,7 @@ private:
   static uintx                    _resize_count;
   static uintx                    _rehash_count;
 
-  G1StringDedupTable(size_t size, jint hash_seed = 0);
+  G1StringDedupTable(size_t size, uint64_t hash_seed = 0);
   ~G1StringDedupTable();
 
   // Returns the hash bucket at the given index.
@@ -146,12 +156,12 @@ private:
   }
 
   // Returns the hash bucket index for the given hash code.
-  size_t hash_to_index(unsigned int hash) {
+  size_t hash_to_index(uint64_t hash) {
     return (size_t)hash & (_size - 1);
   }
 
   // Adds a new table entry to the given hash bucket.
-  void add(typeArrayOop value, unsigned int hash, G1StringDedupEntry** list);
+  void add(typeArrayOop value, uint64_t hash, G1StringDedupEntry** list);
 
   // Removes the given table entry from the table.
   void remove(G1StringDedupEntry** pentry, uint worker_id);
@@ -161,15 +171,15 @@ private:
 
   // Returns an existing character array in the given hash bucket, or NULL
   // if no matching character array exists.
-  typeArrayOop lookup(typeArrayOop value, unsigned int hash,
+  typeArrayOop lookup(typeArrayOop value, uint64_t hash,
                       G1StringDedupEntry** list, uintx &count);
 
   // Returns an existing character array in the table, or inserts a new
   // table entry if no matching character array exists.
-  typeArrayOop lookup_or_add_inner(typeArrayOop value, unsigned int hash);
+  typeArrayOop lookup_or_add_inner(typeArrayOop value, uint64_t hash);
 
   // Thread safe lookup or add of table entry
-  static typeArrayOop lookup_or_add(typeArrayOop value, unsigned int hash) {
+  static typeArrayOop lookup_or_add(typeArrayOop value, uint64_t hash) {
     // Protect the table from concurrent access. Also note that this lock
     // acts as a fence for _table, which could have been replaced by a new
     // instance if the table was resized or rehashed.
@@ -187,7 +197,8 @@ private:
 
   // Computes the hash code for the given character array, using the
   // currently active hash function and hash seed.
-  static unsigned int hash_code(typeArrayOop value);
+  static unsigned int java_hash_code(typeArrayOop value);
+  static uint64_t alt_hash_code(typeArrayOop value);
 
   static uintx unlink_or_oops_do(G1StringDedupUnlinkOrOopsDoClosure* cl,
                                  size_t partition_begin,

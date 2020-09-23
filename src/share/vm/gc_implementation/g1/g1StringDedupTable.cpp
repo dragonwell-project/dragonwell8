@@ -150,7 +150,7 @@ void G1StringDedupEntryCache::free(G1StringDedupEntry* entry, uint worker_id) {
   assert(worker_id < _nlists, "Invalid worker id");
 
   entry->set_obj(NULL);
-  entry->set_hash(0);
+  entry->set_java_hash(0);
 
   if (_cached[worker_id].length() < _max_list_length) {
     // Cache is not full
@@ -215,7 +215,7 @@ uintx                    G1StringDedupTable::_entries_removed = 0;
 uintx                    G1StringDedupTable::_resize_count = 0;
 uintx                    G1StringDedupTable::_rehash_count = 0;
 
-G1StringDedupTable::G1StringDedupTable(size_t size, jint hash_seed) :
+G1StringDedupTable::G1StringDedupTable(size_t size, uint64_t hash_seed) :
   _size(size),
   _entries(0),
   _grow_threshold((uintx)(size * _grow_load_factor)),
@@ -237,10 +237,14 @@ void G1StringDedupTable::create() {
   _table = new G1StringDedupTable(_min_size);
 }
 
-void G1StringDedupTable::add(typeArrayOop value, unsigned int hash, G1StringDedupEntry** list) {
+void G1StringDedupTable::add(typeArrayOop value, uint64_t hash, G1StringDedupEntry** list) {
   G1StringDedupEntry* entry = _entry_cache->alloc();
   entry->set_obj(value);
-  entry->set_hash(hash);
+  if (use_java_hash()) {
+    entry->set_java_hash((unsigned int)hash);
+  } else {
+    entry->set_alt_hash(hash);
+  }
   entry->set_next(*list);
   *list = entry;
   _entries++;
@@ -255,7 +259,7 @@ void G1StringDedupTable::remove(G1StringDedupEntry** pentry, uint worker_id) {
 void G1StringDedupTable::transfer(G1StringDedupEntry** pentry, G1StringDedupTable* dest) {
   G1StringDedupEntry* entry = *pentry;
   *pentry = entry->next();
-  unsigned int hash = entry->hash();
+  uint64_t hash = use_java_hash() ? entry->java_hash() : entry->alt_hash();
   size_t index = dest->hash_to_index(hash);
   G1StringDedupEntry** list = dest->bucket(index);
   entry->set_next(*list);
@@ -270,10 +274,10 @@ bool G1StringDedupTable::equals(typeArrayOop value1, typeArrayOop value2) {
                     value1->length() * sizeof(jchar)))));
 }
 
-typeArrayOop G1StringDedupTable::lookup(typeArrayOop value, unsigned int hash,
+typeArrayOop G1StringDedupTable::lookup(typeArrayOop value, uint64_t hash,
                                         G1StringDedupEntry** list, uintx &count) {
   for (G1StringDedupEntry* entry = *list; entry != NULL; entry = entry->next()) {
-    if (entry->hash() == hash) {
+    if ((use_java_hash() ? entry->java_hash() : entry->alt_hash()) == hash) {
       typeArrayOop existing_value = entry->obj();
       if (equals(value, existing_value)) {
         // Match found
@@ -287,7 +291,7 @@ typeArrayOop G1StringDedupTable::lookup(typeArrayOop value, unsigned int hash,
   return NULL;
 }
 
-typeArrayOop G1StringDedupTable::lookup_or_add_inner(typeArrayOop value, unsigned int hash) {
+typeArrayOop G1StringDedupTable::lookup_or_add_inner(typeArrayOop value, uint64_t hash) {
   size_t index = hash_to_index(hash);
   G1StringDedupEntry** list = bucket(index);
   uintx count = 0;
@@ -311,18 +315,23 @@ typeArrayOop G1StringDedupTable::lookup_or_add_inner(typeArrayOop value, unsigne
   return existing_value;
 }
 
-unsigned int G1StringDedupTable::hash_code(typeArrayOop value) {
+unsigned int G1StringDedupTable::java_hash_code(typeArrayOop value) {
+  assert(use_java_hash(), "Should not use java hash code");
   unsigned int hash;
   int length = value->length();
   const jchar* data = (jchar*)value->base(T_CHAR);
 
-  if (use_java_hash()) {
-    hash = java_lang_String::hash_code(data, length);
-  } else {
-    hash = AltHashing::murmur3_32(_table->_hash_seed, data, length);
-  }
+  hash = java_lang_String::hash_code(data, length);
 
   return hash;
+}
+
+uint64_t G1StringDedupTable::alt_hash_code(typeArrayOop value) {
+  assert(!use_java_hash(), "Should not use alt hash code");
+
+  int length = value->length();
+  const jbyte* data = (jbyte*)value->base(T_BYTE);
+  return AltHashing::halfsiphash_64(_table->_hash_seed, (const int8_t*)data, length);
 }
 
 void G1StringDedupTable::deduplicate(oop java_string, G1StringDedupStat& stat) {
@@ -338,7 +347,7 @@ void G1StringDedupTable::deduplicate(oop java_string, G1StringDedupStat& stat) {
     return;
   }
 
-  unsigned int hash = 0;
+  uint64_t hash = 0;
 
   if (use_java_hash()) {
     // Get hash code from cache
@@ -347,7 +356,7 @@ void G1StringDedupTable::deduplicate(oop java_string, G1StringDedupStat& stat) {
 
   if (hash == 0) {
     // Compute hash
-    hash = hash_code(value);
+    hash = alt_hash_code(value);
     stat.inc_hashed();
   }
 
@@ -501,8 +510,9 @@ uintx G1StringDedupTable::unlink_or_oops_do(G1StringDedupUnlinkOrOopsDoClosure* 
             // destination partitions. finish_rehash() will do a single
             // threaded transfer of all entries.
             typeArrayOop value = (typeArrayOop)*p;
-            unsigned int hash = hash_code(value);
-            (*entry)->set_hash(hash);
+            assert(!use_java_hash(), "Should not be using Java hash");
+            uint64_t hash = alt_hash_code(value);
+            (*entry)->set_alt_hash(hash);
           }
 
           // Move to next entry
@@ -565,8 +575,14 @@ void G1StringDedupTable::verify() {
       guarantee(Universe::heap()->is_in_reserved(value), "Object must be on the heap");
       guarantee(!value->is_forwarded(), "Object must not be forwarded");
       guarantee(value->is_typeArray(), "Object must be a typeArrayOop");
-      unsigned int hash = hash_code(value);
-      guarantee((*entry)->hash() == hash, "Table entry has inorrect hash");
+      uint64_t hash;
+      if (use_java_hash()) {
+        hash = (*entry)->java_hash();
+        guarantee(java_hash_code(value) == hash, "Table entry has incorrect hash");
+      } else {
+        hash = (*entry)->alt_hash();
+        guarantee(alt_hash_code(value) == hash, "Table entry has incorrect hash");
+      }
       guarantee(_table->hash_to_index(hash) == bucket, "Table entry has incorrect index");
       entry = (*entry)->next_addr();
     }
@@ -581,7 +597,10 @@ void G1StringDedupTable::verify() {
       G1StringDedupEntry** entry2 = (*entry1)->next_addr();
       while (*entry2 != NULL) {
         typeArrayOop value2 = (*entry2)->obj();
-        guarantee(!equals(value1, value2), "Table entries must not have identical arrays");
+        guarantee(value1 != value2, "Table entries must not have the same array");
+        if (use_java_hash()) {
+          guarantee(!equals(value1, value2), "Table entries must not have identical arrays");
+        }
         entry2 = (*entry2)->next_addr();
       }
       entry1 = (*entry1)->next_addr();
@@ -600,7 +619,7 @@ void G1StringDedupTable::print_statistics(outputStream* st) {
     "      [Size: " SIZE_FORMAT ", Min: " SIZE_FORMAT ", Max: " SIZE_FORMAT "]\n"
     "      [Entries: " UINTX_FORMAT ", Load: " G1_STRDEDUP_PERCENT_FORMAT_NS ", Cached: " UINTX_FORMAT ", Added: " UINTX_FORMAT ", Removed: " UINTX_FORMAT "]\n"
     "      [Resize Count: " UINTX_FORMAT ", Shrink Threshold: " UINTX_FORMAT "(" G1_STRDEDUP_PERCENT_FORMAT_NS "), Grow Threshold: " UINTX_FORMAT "(" G1_STRDEDUP_PERCENT_FORMAT_NS ")]\n"
-    "      [Rehash Count: " UINTX_FORMAT ", Rehash Threshold: " UINTX_FORMAT ", Hash Seed: 0x%x]\n"
+    "      [Rehash Count: " UINTX_FORMAT ", Rehash Threshold: " UINTX_FORMAT ", Hash Seed: " UINT64_FORMAT_X "]\n"
     "      [Age Threshold: " UINTX_FORMAT "]",
     G1_STRDEDUP_BYTES_PARAM(_table->_size * sizeof(G1StringDedupEntry*) + (_table->_entries + _entry_cache->size()) * sizeof(G1StringDedupEntry)),
     _table->_size, _min_size, _max_size,
