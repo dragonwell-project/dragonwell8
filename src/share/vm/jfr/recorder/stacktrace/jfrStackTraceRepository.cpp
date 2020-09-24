@@ -376,6 +376,7 @@ bool JfrStackTrace::record_safe(JavaThread* thread, int skip, bool leakp /* fals
     vfs.next();
   }
 
+  _hash = 1;
   while (!vfs.at_end()) {
     if (count >= _max_frames) {
       _reached_root = false;
@@ -391,7 +392,9 @@ bool JfrStackTrace::record_safe(JavaThread* thread, int skip, bool leakp /* fals
       bci = vfs.bci();
     }
     // Can we determine if it's inlined?
-    _hash = (_hash << 2) + (unsigned int)(((size_t)mid >> 2) + (bci << 4) + type);
+    _hash = (_hash * 31) + mid;
+    _hash = (_hash * 31) + bci;
+    _hash = (_hash * 31) + type;
     _frames[count] = JfrStackFrame(mid, bci, type, method);
     vfs.next();
     count++;
