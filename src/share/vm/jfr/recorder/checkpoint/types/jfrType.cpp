@@ -108,6 +108,7 @@ void JfrCheckpointThreadClosure::do_thread(Thread* t) {
 
 void JfrThreadConstantSet::serialize(JfrCheckpointWriter& writer) {
   JfrCheckpointThreadClosure tc(writer);
+  MutexLockerEx ml(Threads_lock);
   JfrJavaThreadIterator javathreads;
   while (javathreads.has_next()) {
     tc.do_thread(javathreads.next());

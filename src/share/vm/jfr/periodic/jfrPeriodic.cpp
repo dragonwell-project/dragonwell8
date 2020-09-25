@@ -395,12 +395,17 @@ TRACE_REQUEST_FUNC(ThreadAllocationStatistics) {
   GrowableArray<jlong> allocated(initial_size);
   GrowableArray<traceid> thread_ids(initial_size);
   JfrTicks time_stamp = JfrTicks::now();
-  JfrJavaThreadIterator iter;
-  while (iter.has_next()) {
-    JavaThread* const jt = iter.next();
-    assert(jt != NULL, "invariant");
-    allocated.append(jt->cooked_allocated_bytes());
-    thread_ids.append(JFR_THREAD_ID(jt));
+
+  {
+    // Collect allocation statistics while holding threads lock
+    MutexLockerEx ml(Threads_lock);
+    JfrJavaThreadIterator iter;
+    while (iter.has_next()) {
+      JavaThread* const jt = iter.next();
+      assert(jt != NULL, "invariant");
+      allocated.append(jt->cooked_allocated_bytes());
+      thread_ids.append(JFR_THREAD_ID(jt));
+    }
   }
 
   // Write allocation statistics to buffer.
