@@ -291,29 +291,32 @@ public class MetricsTester {
         }
 
         //  Memory and Swap
-        oldVal = metrics.getMemoryAndSwapFailCount();
-        newVal = getLongValueFromFile(SubSystem.MEMORY, "memory.memsw.failcnt");
-        if (!compareWithErrorMargin(oldVal, newVal)) {
-            fail(SubSystem.MEMORY, "memory.memsw.failcnt", oldVal, newVal);
-        }
+        // Skip swap tests if no swap is configured.
+        if (metrics.getMemoryAndSwapLimit() > metrics.getMemoryLimit()) {
+            oldVal = metrics.getMemoryAndSwapFailCount();
+            newVal = getLongValueFromFile(SubSystem.MEMORY, "memory.memsw.failcnt");
+            if (!compareWithErrorMargin(oldVal, newVal)) {
+                fail(SubSystem.MEMORY, "memory.memsw.failcnt", oldVal, newVal);
+            }
 
-        oldVal = metrics.getMemoryAndSwapLimit();
-        newVal = getLongValueFromFile(SubSystem.MEMORY, "memory.memsw.limit_in_bytes");
-        newVal = newVal > unlimited_minimum ? -1L : newVal;
-        if (!compareWithErrorMargin(oldVal, newVal)) {
-            fail(SubSystem.MEMORY, "memory.memsw.limit_in_bytes", oldVal, newVal);
-        }
+            oldVal = metrics.getMemoryAndSwapLimit();
+            newVal = getLongValueFromFile(SubSystem.MEMORY, "memory.memsw.limit_in_bytes");
+            newVal = newVal > unlimited_minimum ? -1L : newVal;
+            if (!compareWithErrorMargin(oldVal, newVal)) {
+                fail(SubSystem.MEMORY, "memory.memsw.limit_in_bytes", oldVal, newVal);
+            }
 
-        oldVal = metrics.getMemoryAndSwapMaxUsage();
-        newVal = getLongValueFromFile(SubSystem.MEMORY, "memory.memsw.max_usage_in_bytes");
-        if (!compareWithErrorMargin(oldVal, newVal)) {
-            fail(SubSystem.MEMORY, "memory.memsw.max_usage_in_bytes", oldVal, newVal);
-        }
+            oldVal = metrics.getMemoryAndSwapMaxUsage();
+            newVal = getLongValueFromFile(SubSystem.MEMORY, "memory.memsw.max_usage_in_bytes");
+            if (!compareWithErrorMargin(oldVal, newVal)) {
+                fail(SubSystem.MEMORY, "memory.memsw.max_usage_in_bytes", oldVal, newVal);
+            }
 
-        oldVal = metrics.getMemoryAndSwapUsage();
-        newVal = getLongValueFromFile(SubSystem.MEMORY, "memory.memsw.usage_in_bytes");
-        if (!compareWithErrorMargin(oldVal, newVal)) {
-            fail(SubSystem.MEMORY, "memory.memsw.usage_in_bytes", oldVal, newVal);
+            oldVal = metrics.getMemoryAndSwapUsage();
+            newVal = getLongValueFromFile(SubSystem.MEMORY, "memory.memsw.usage_in_bytes");
+            if (!compareWithErrorMargin(oldVal, newVal)) {
+                fail(SubSystem.MEMORY, "memory.memsw.usage_in_bytes", oldVal, newVal);
+            }
         }
 
         oldVal = metrics.getMemorySoftLimit();
