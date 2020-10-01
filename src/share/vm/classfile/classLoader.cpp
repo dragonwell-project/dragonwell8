@@ -1179,6 +1179,11 @@ instanceKlassHandle ClassLoader::load_classfile(Symbol* h_name, TRAPS) {
     ClassLoaderData* loader_data = ClassLoaderData::the_null_class_loader_data();
     Handle protection_domain;
     TempNewSymbol parsed_name = NULL;
+    // Callers are expected to declare a ResourceMark to determine
+    // the lifetime of any updated (resource) allocated under
+    // this call to parseClassFile
+    // We do not declare another ResourceMark here, reusing the one declared
+    // at the start of the method
     instanceKlassHandle result = parser.parseClassFile(h_name,
                                                        loader_data,
                                                        protection_domain,

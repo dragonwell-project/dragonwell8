@@ -3746,7 +3746,13 @@ instanceKlassHandle ClassFileParser::parseClassFile(Symbol* name,
   Handle class_loader(THREAD, loader_data->class_loader());
   bool has_default_methods = false;
   bool declares_default_methods = false;
-  ResourceMark rm(THREAD);
+  // JDK-8252904:
+  // The stream (resource) attached to the instance klass may
+  // be reallocated by this method. When JFR is included the
+  // stream may need to survive beyond the end of the call. So,
+  // the caller is expected to declare the ResourceMark that
+  // determines the lifetime of resources allocated under this
+  // call.
 
   ClassFileStream* cfs = stream();
   // Timing
