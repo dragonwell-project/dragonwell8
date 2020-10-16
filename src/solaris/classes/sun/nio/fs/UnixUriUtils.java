@@ -116,9 +116,10 @@ class UnixUriUtils {
         // trailing slash if directory
         if (sb.charAt(sb.length()-1) != '/') {
             try {
+                 up.checkRead();
                  if (UnixFileAttributes.get(up, true).isDirectory())
                      sb.append('/');
-            } catch (UnixException x) {
+            } catch (SecurityException | UnixException x) {
                 // ignore
             }
         }
