@@ -263,13 +263,17 @@ int write__artifact__klass__symbol(JfrCheckpointWriter* writer, JfrArtifactSet* 
   assert(k != NULL, "invariant");
   const InstanceKlass* const ik = (const InstanceKlass*)k;
   if (ik->is_anonymous()) {
-    CStringEntryPtr entry =
-      artifacts->map_cstring(JfrSymbolId::anonymous_klass_name_hash_code(ik));
+    CStringEntryPtr entry = NULL;
+    {
+      ResourceMark rm;
+      uintptr_t hashcode = JfrSymbolId::anonymous_klass_name_hash_code(ik);
+      entry = artifacts->map_cstring(JfrSymbolId::get_anonymous_klass_chars(ik, hashcode), hashcode);
+    }
     assert(entry != NULL, "invariant");
     return write__artifact__cstring__entry__(writer, entry);
   }
 
-  SymbolEntryPtr entry = artifacts->map_symbol(JfrSymbolId::regular_klass_name_hash_code(ik));
+  SymbolEntryPtr entry = artifacts->map_symbol(ik->name());
   return write__artifact__symbol__entry__(writer, entry);
 }
 
@@ -326,8 +330,12 @@ int KlassSymbolWriterImpl<Predicate>::klass_symbols(KlassPtr klass) {
   assert(_predicate(klass), "invariant");
   const InstanceKlass* const ik = (const InstanceKlass*)klass;
   if (ik->is_anonymous()) {
-    CStringEntryPtr entry =
-      this->_artifacts->map_cstring(JfrSymbolId::anonymous_klass_name_hash_code(ik));
+    CStringEntryPtr entry = NULL;
+    {
+      ResourceMark rm;
+      uintptr_t hashcode = JfrSymbolId::anonymous_klass_name_hash_code(ik);
+      entry = _artifacts->map_cstring(JfrSymbolId::get_anonymous_klass_chars(ik, hashcode), hashcode);
+    }
     assert(entry != NULL, "invariant");
     return _unique_predicate(entry->id()) ? write__artifact__cstring__entry__(this->_writer, entry) : 0;
   }
@@ -345,7 +353,7 @@ int KlassSymbolWriterImpl<Predicate>::class_loader_symbols(CldPtr cld) {
   const Klass* class_loader_klass = cld->class_loader() != NULL ? cld->class_loader()->klass() : NULL;
   if (class_loader_klass == NULL) {
     // (primordial) boot class loader
-    CStringEntryPtr entry = this->_artifacts->map_cstring(0);
+    CStringEntryPtr entry = this->_artifacts->map_cstring(BOOTSTRAP_LOADER_NAME, 0);
     assert(entry != NULL, "invariant");
     assert(strncmp(entry->literal(),
       BOOTSTRAP_LOADER_NAME,
