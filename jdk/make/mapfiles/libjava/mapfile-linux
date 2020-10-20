@@ -278,7 +278,8 @@ SUNWprivate_1.1 {
                 Java_sun_misc_VM_initialize;
 		Java_sun_misc_VMSupport_initAgentProperties;
 		Java_sun_misc_VMSupport_getVMTemporaryDirectory;
-		
+		Java_jdk_internal_platform_cgroupv1_Metrics_isUseContainerSupport;
+
                 # ZipFile.c needs this one
 		throwFileNotFoundException;
                 # zip_util.c needs this
