@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2004, 2020, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2020, Huawei Technologies Co. Ltd. All rights reserved.
 # DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 #
 # This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
 #
 
 #   @test
-#   @bug        5023573 5062569
-#   @summary    jtreg test ResourceCheckTest.java must be
+#   @bug        8254683
+#   @summary    jtreg test WorkerDeadlockTest.java must be
 #               able to find jconsole.jar
 #
-#   @run shell common.sh ResourceCheckTest
+#   @run shell common.sh WorkerDeadlockTest
