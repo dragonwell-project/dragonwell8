@@ -184,47 +184,38 @@ public class Metrics implements jdk.internal.platform.Metrics {
      * setSubSystemPath based on the contents of /proc/self/cgroup
      */
     private static void setSubSystemPath(Metrics metric, String[] entry) {
-        String controller;
-        String base;
-        SubSystem subsystem = null;
-        SubSystem subsystem2 = null;
-
-        controller = entry[1];
-        base = entry[2];
+        String controller = entry[1];
+        String base = entry[2];
         if (controller != null && base != null) {
-            switch (controller) {
-                case "memory":
-                    subsystem = metric.MemorySubSystem();
-                    break;
-                case "cpuset":
-                    subsystem = metric.CpuSetSubSystem();
-                    break;
-                case "cpu,cpuacct":
-                case "cpuacct,cpu":
-                    subsystem = metric.CpuSubSystem();
-                    subsystem2 = metric.CpuAcctSubSystem();
-                    break;
-                case "cpuacct":
-                    subsystem = metric.CpuAcctSubSystem();
-                    break;
-                case "cpu":
-                    subsystem = metric.CpuSubSystem();
-                    break;
-                case "blkio":
-                    subsystem = metric.BlkIOSubSystem();
-                    break;
-                // Ignore subsystems that we don't support
-                default:
-                    break;
+            for (String cName: controller.split(",")) {
+                switch (cName) {
+                    case "memory":
+                        setPath(metric, metric.MemorySubSystem(), base);
+                        break;
+                    case "cpuset":
+                        setPath(metric, metric.CpuSetSubSystem(), base);
+                        break;
+                    case "cpuacct":
+                        setPath(metric, metric.CpuAcctSubSystem(), base);
+                        break;
+                    case "cpu":
+                        setPath(metric, metric.CpuSubSystem(), base);
+                        break;
+                    case "blkio":
+                        setPath(metric, metric.BlkIOSubSystem(), base);
+                        break;
+                    // Ignore subsystems that we don't support
+                    default:
+                        break;
+                }
             }
         }
+    }
 
+    private static void setPath(Metrics metric, SubSystem subsystem, String base) {
         if (subsystem != null) {
             subsystem.setPath(base);
             metric.setActiveSubSystems();
-        }
-        if (subsystem2 != null) {
-            subsystem2.setPath(base);
         }
     }
 
