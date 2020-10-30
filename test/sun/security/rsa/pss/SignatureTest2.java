@@ -31,13 +31,15 @@ import static javax.crypto.Cipher.PUBLIC_KEY;
 
 /**
  * @test
- * @bug 8146293
- * @summary Create a signature for RSA and get its signed data. re-initiate
- *          the signature with the public key. The signature can be verified
- *          by acquired signed data.
+ * @bug 8146293 8238448
+ * @summary Create a signature for RSASSA-PSS and get its signed data.
+ *          re-initiate the signature with the public key. The signature
+ *          can be verified by acquired signed data.
  * @run main SignatureTest2 768
  * @run main SignatureTest2 1024
+ * @run main SignatureTest2 1025
  * @run main SignatureTest2 2048
+ * @run main SignatureTest2 2049
  * @run main/timeout=240 SignatureTest2 4096
  */
 public class SignatureTest2 {
