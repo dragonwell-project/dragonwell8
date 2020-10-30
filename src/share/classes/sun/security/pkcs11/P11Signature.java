@@ -245,10 +245,12 @@ final class P11Signature extends SignatureSpi {
             return;
         }
         initialized = false;
+
         try {
             if (session == null) {
                 return;
             }
+
             if (doCancel && token.explicitCancel) {
                 cancelOperation();
             }
@@ -259,59 +261,51 @@ final class P11Signature extends SignatureSpi {
     }
 
     private void cancelOperation() {
-
         token.ensureValid();
-        if (session.hasObjects() == false) {
-            session = token.killSession(session);
-            return;
-        } else {
-            // "cancel" operation by finishing it
-            // XXX make sure all this always works correctly
+        // cancel operation by finishing it; avoid killSession as some
+        // hardware vendors may require re-login
+        try {
             if (mode == M_SIGN) {
-                try {
-                    if (type == T_UPDATE) {
-                        token.p11.C_SignFinal(session.id(), 0);
-                    } else {
-                        byte[] digest;
-                        if (type == T_DIGEST) {
-                            digest = md.digest();
-                        } else { // T_RAW
-                            digest = buffer;
-                        }
-                        token.p11.C_Sign(session.id(), digest);
+                if (type == T_UPDATE) {
+                    token.p11.C_SignFinal(session.id(), 0);
+                } else {
+                    byte[] digest;
+                    if (type == T_DIGEST) {
+                        digest = md.digest();
+                    } else { // T_RAW
+                        digest = buffer;
                     }
-                } catch (PKCS11Exception e) {
-                    throw new ProviderException("cancel failed", e);
+                    token.p11.C_Sign(session.id(), digest);
                 }
             } else { // M_VERIFY
                 byte[] signature;
-                try {
-                    if (keyAlgorithm.equals("DSA")) {
-                        signature = new byte[40];
-                    } else {
-                        signature = new byte[(p11Key.length() + 7) >> 3];
+                if (keyAlgorithm.equals("DSA")) {
+                    signature = new byte[40];
+                } else {
+                    signature = new byte[(p11Key.length() + 7) >> 3];
+                }
+                if (type == T_UPDATE) {
+                    token.p11.C_VerifyFinal(session.id(), signature);
+                } else {
+                    byte[] digest;
+                    if (type == T_DIGEST) {
+                        digest = md.digest();
+                    } else { // T_RAW
+                        digest = buffer;
                     }
-                    if (type == T_UPDATE) {
-                        token.p11.C_VerifyFinal(session.id(), signature);
-                    } else {
-                        byte[] digest;
-                        if (type == T_DIGEST) {
-                            digest = md.digest();
-                        } else { // T_RAW
-                            digest = buffer;
-                        }
-                        token.p11.C_Verify(session.id(), digest, signature);
-                    }
-                } catch (PKCS11Exception e) {
-                    long errorCode = e.getErrorCode();
-                    if ((errorCode == CKR_SIGNATURE_INVALID) ||
-                        (errorCode == CKR_SIGNATURE_LEN_RANGE)) {
-                        // expected since signature is incorrect
-                        return;
-                    }
-                    throw new ProviderException("cancel failed", e);
+                    token.p11.C_Verify(session.id(), digest, signature);
                 }
             }
+        } catch (PKCS11Exception e) {
+            if (mode == M_VERIFY) {
+                long errorCode = e.getErrorCode();
+                if ((errorCode == CKR_SIGNATURE_INVALID) ||
+                     (errorCode == CKR_SIGNATURE_LEN_RANGE)) {
+                     // expected since signature is incorrect
+                     return;
+                }
+            }
+            throw new ProviderException("cancel failed", e);
         }
     }
 
