@@ -215,7 +215,7 @@ uintx                    G1StringDedupTable::_entries_removed = 0;
 uintx                    G1StringDedupTable::_resize_count = 0;
 uintx                    G1StringDedupTable::_rehash_count = 0;
 
-G1StringDedupTable::G1StringDedupTable(size_t size, jint hash_seed) :
+G1StringDedupTable::G1StringDedupTable(size_t size, uint64_t hash_seed) :
   _size(size),
   _entries(0),
   _grow_threshold((uintx)(size * _grow_load_factor)),
@@ -319,9 +319,8 @@ unsigned int G1StringDedupTable::hash_code(typeArrayOop value) {
   if (use_java_hash()) {
     hash = java_lang_String::hash_code(data, length);
   } else {
-    hash = AltHashing::murmur3_32(_table->_hash_seed, data, length);
+    hash = AltHashing::halfsiphash_32(_table->_hash_seed, (const uint16_t*)data, length);
   }
-
   return hash;
 }
 
@@ -600,7 +599,7 @@ void G1StringDedupTable::print_statistics(outputStream* st) {
     "      [Size: " SIZE_FORMAT ", Min: " SIZE_FORMAT ", Max: " SIZE_FORMAT "]\n"
     "      [Entries: " UINTX_FORMAT ", Load: " G1_STRDEDUP_PERCENT_FORMAT_NS ", Cached: " UINTX_FORMAT ", Added: " UINTX_FORMAT ", Removed: " UINTX_FORMAT "]\n"
     "      [Resize Count: " UINTX_FORMAT ", Shrink Threshold: " UINTX_FORMAT "(" G1_STRDEDUP_PERCENT_FORMAT_NS "), Grow Threshold: " UINTX_FORMAT "(" G1_STRDEDUP_PERCENT_FORMAT_NS ")]\n"
-    "      [Rehash Count: " UINTX_FORMAT ", Rehash Threshold: " UINTX_FORMAT ", Hash Seed: 0x%x]\n"
+    "      [Rehash Count: " UINTX_FORMAT ", Rehash Threshold: " UINTX_FORMAT ", Hash Seed: " UINT64_FORMAT "]\n"
     "      [Age Threshold: " UINTX_FORMAT "]",
     G1_STRDEDUP_BYTES_PARAM(_table->_size * sizeof(G1StringDedupEntry*) + (_table->_entries + _entry_cache->size()) * sizeof(G1StringDedupEntry)),
     _table->_size, _min_size, _max_size,
