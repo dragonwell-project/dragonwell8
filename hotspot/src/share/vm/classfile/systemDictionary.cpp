@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -1074,6 +1074,18 @@ Klass* SystemDictionary::parse_stream(Symbol* class_name,
   return k();
 }
 
+static bool is_prohibited_package_slow(Symbol* class_name) {
+  // Caller has ResourceMark
+  int length;
+  jchar* unicode = class_name->as_unicode(length);
+  return (length >= 5 &&
+          unicode[0] == 'j' &&
+          unicode[1] == 'a' &&
+          unicode[2] == 'v' &&
+          unicode[3] == 'a' &&
+          unicode[4] == '/');
+}
+
 // Add a klass to the system from a stream (called by jni_DefineClass and
 // JVM_DefineClass).
 // Note: class_name can be NULL. In that case we do not know the name of
@@ -1121,24 +1133,33 @@ Klass* SystemDictionary::resolve_from_stream(Symbol* class_name,
   if (!HAS_PENDING_EXCEPTION &&
       !class_loader.is_null() &&
       parsed_name != NULL &&
-      parsed_name->utf8_length() >= (int)pkglen &&
-      !strncmp((const char*)parsed_name->bytes(), pkg, pkglen)) {
-    // It is illegal to define classes in the "java." package from
-    // JVM_DefineClass or jni_DefineClass unless you're the bootclassloader
+      parsed_name->utf8_length() >= (int)pkglen) {
     ResourceMark rm(THREAD);
-    char* name = parsed_name->as_C_string();
-    char* index = strrchr(name, '/');
-    assert(index != NULL, "must be");
-    *index = '\0'; // chop to just the package name
-    while ((index = strchr(name, '/')) != NULL) {
-      *index = '.'; // replace '/' with '.' in package name
+    bool prohibited;
+    const jbyte* base = parsed_name->base();
+    if ((base[0] | base[1] | base[2] | base[3] | base[4]) & 0x80) {
+      prohibited = is_prohibited_package_slow(parsed_name);
+    } else {
+      char* name = parsed_name->as_C_string();
+      prohibited = (strncmp(name, pkg, pkglen) == 0);
     }
-    const char* fmt = "Prohibited package name: %s";
-    size_t len = strlen(fmt) + strlen(name);
-    char* message = NEW_RESOURCE_ARRAY(char, len);
-    jio_snprintf(message, len, fmt, name);
-    Exceptions::_throw_msg(THREAD_AND_LOCATION,
-      vmSymbols::java_lang_SecurityException(), message);
+    if (prohibited) {
+      // It is illegal to define classes in the "java." package from
+      // JVM_DefineClass or jni_DefineClass unless you're the bootclassloader
+      char* name = parsed_name->as_C_string();
+      char* index = strrchr(name, '/');
+      assert(index != NULL, "must be");
+      *index = '\0'; // chop to just the package name
+      while ((index = strchr(name, '/')) != NULL) {
+        *index = '.'; // replace '/' with '.' in package name
+      }
+      const char* fmt = "Prohibited package name: %s";
+      size_t len = strlen(fmt) + strlen(name);
+      char* message = NEW_RESOURCE_ARRAY(char, len);
+      jio_snprintf(message, len, fmt, name);
+      Exceptions::_throw_msg(THREAD_AND_LOCATION,
+        vmSymbols::java_lang_SecurityException(), message);
+    }
   }
 
   if (!HAS_PENDING_EXCEPTION) {
