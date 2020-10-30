@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1996, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -305,6 +305,15 @@ final class SSLSocketInputRecord extends InputRecord implements SSLRecord {
                 // skip the first byte: handshake type
                 byte handshakeType = handshakeFrag.get();
                 int handshakeBodyLen = Record.getInt24(handshakeFrag);
+                if (handshakeBodyLen > SSLConfiguration.maxHandshakeMessageSize) {
+                    throw new SSLProtocolException(
+                            "The size of the handshake message ("
+                            + handshakeBodyLen
+                            + ") exceeds the maximum allowed size ("
+                            + SSLConfiguration.maxHandshakeMessageSize
+                            + ")");
+                }
+
                 handshakeFrag.reset();
                 int handshakeMessageLen =
                         handshakeHeaderSize + handshakeBodyLen;

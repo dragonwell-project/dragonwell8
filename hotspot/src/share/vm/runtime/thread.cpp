@@ -3496,6 +3496,7 @@ jint Threads::create_vm(JavaVMInitArgs* args, bool* canTryAgain) {
   JvmtiExport::enter_start_phase();
 
   // Notify JVMTI agents that VM has started (JNI is up) - nop if no agents.
+  JvmtiExport::post_vm_start();
 
   {
     TraceTime timer("Initialize java.lang classes", TraceStartupTime);

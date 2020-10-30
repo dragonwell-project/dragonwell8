@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,7 +23,7 @@
 
 /*
  * @test
- * @bug 8011402
+ * @bug 8011402 8237995
  * @summary Move blacklisting certificate logic from hard code to data
  */
 
@@ -115,7 +115,8 @@ public class CheckBlacklistedCerts {
                 System.out.println("There are " + acount + " algorithms");
                 failed = true;
             }
-            if (ccount != blacklisted.size()
+            // There are two unique fingerprints for each RSA certificate
+            if (ccount != blacklisted.size() * 2
                     && !blacklisted.isEmpty()) {
                 System.out.println("Wrong blacklisted.certs size: "
                         + ccount + " fingerprints, "
