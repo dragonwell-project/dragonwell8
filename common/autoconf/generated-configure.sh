@@ -4394,7 +4394,7 @@ VS_SDK_PLATFORM_NAME_2017=
 #CUSTOM_AUTOCONF_INCLUDE
 
 # Do not change or remove the following line, it is needed for consistency checks:
-DATE_WHEN_GENERATED=1589212500
+DATE_WHEN_GENERATED=1591143270
 
 ###############################################################################
 #
@@ -19822,8 +19822,8 @@ fi
   #
   # Enable or disable JFR
   #
-  { $as_echo "$as_me:${as_lineno-$LINENO}: checking whether to build jfr" >&5
-$as_echo_n "checking whether to build jfr... " >&6; }
+  { $as_echo "$as_me:${as_lineno-$LINENO}: checking whether to build JFR" >&5
+$as_echo_n "checking whether to build JFR... " >&6; }
   # Check whether --enable-jfr was given.
 if test "${enable_jfr+set}" = set; then :
   enableval=$enable_jfr;
@@ -19835,14 +19835,22 @@ fi
     ENABLE_JFR=false
   elif test "x$enable_jfr" = "xyes" ; then
     if test "x$JVM_VARIANT_MINIMAL1" = "xtrue" -o "x$JVM_VARIANT_ZERO" = "xtrue"; then
-      as_fn_error $? "cannot enable JFR on minimal1 VM or zero build" "$LINENO" 5
+      if test "x$enable_jfr" = "xyes"; then
+        as_fn_error $? "cannot enable JFR on minimal1 VM or zero build" "$LINENO" 5
+      else
+        ENABLE_JFR=false
+      fi
     elif test "x$OPENJDK_TARGET_OS" = xaix; then
-      as_fn_error $? "AIX does not support JFR" "$LINENO" 5
+      if test "x$enable_jfr" = "xyes"; then
+        as_fn_error $? "AIX does not support JFR" "$LINENO" 5
+      else
+        ENABLE_JFR=false
+      fi
     else
       ENABLE_JFR=true
     fi
   else
-    as_fn_error $? "--enable-jfr must either be set to yes or no" "$LINENO" 5
+    as_fn_error $? "--enable-jfr must be set to either yes or no" "$LINENO" 5
   fi
   { $as_echo "$as_me:${as_lineno-$LINENO}: result: $ENABLE_JFR" >&5
 $as_echo "$ENABLE_JFR" >&6; }
