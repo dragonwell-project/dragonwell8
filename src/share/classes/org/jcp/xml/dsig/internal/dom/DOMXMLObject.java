@@ -21,10 +21,10 @@
  * under the License.
  */
 /*
- * Copyright (c) 2005, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2018, Oracle and/or its affiliates. All rights reserved.
  */
 /*
- * $Id: DOMXMLObject.java 1333415 2012-05-03 12:03:51Z coheigea $
+ * $Id: DOMXMLObject.java 1788465 2017-03-24 15:10:51Z coheigea $
  */
 package org.jcp.xml.dsig.internal.dom;
 
@@ -38,13 +38,12 @@ import java.util.*;
 import org.w3c.dom.Attr;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
+import org.w3c.dom.NamedNodeMap;
 import org.w3c.dom.Node;
-import org.w3c.dom.NodeList;
 
 /**
  * DOM-based implementation of XMLObject.
  *
- * @author Sean Mullan
  */
 public final class DOMXMLObject extends DOMStructure implements XMLObject {
 
@@ -55,15 +54,15 @@ public final class DOMXMLObject extends DOMStructure implements XMLObject {
     private Element objectElem;
 
     /**
-     * Creates an <code>XMLObject</code> from the specified parameters.
+     * Creates an {@code XMLObject} from the specified parameters.
      *
      * @param content a list of {@link XMLStructure}s. The list
      *    is defensively copied to protect against subsequent modification.
-     *    May be <code>null</code> or empty.
-     * @param id the Id (may be <code>null</code>)
-     * @param mimeType the mime type (may be <code>null</code>)
-     * @param encoding the encoding (may be <code>null</code>)
-     * @throws ClassCastException if <code>content</code> contains any
+     *    May be {@code null} or empty.
+     * @param id the Id (may be {@code null})
+     * @param mimeType the mime type (may be {@code null})
+     * @param encoding the encoding (may be {@code null})
+     * @throws ClassCastException if {@code content} contains any
      *    entries that are not of type {@link XMLStructure}
      */
     public DOMXMLObject(List<? extends XMLStructure> content, String id,
@@ -73,7 +72,7 @@ public final class DOMXMLObject extends DOMStructure implements XMLObject {
             this.content = Collections.emptyList();
         } else {
             this.content = Collections.unmodifiableList(
-                new ArrayList<XMLStructure>(content));
+                new ArrayList<>(content));
             for (int i = 0, size = this.content.size(); i < size; i++) {
                 if (!(this.content.get(i) instanceof XMLStructure)) {
                     throw new ClassCastException
@@ -87,7 +86,7 @@ public final class DOMXMLObject extends DOMStructure implements XMLObject {
     }
 
     /**
-     * Creates an <code>XMLObject</code> from an element.
+     * Creates an {@code XMLObject} from an element.
      *
      * @param objElem an Object element
      * @throws MarshalException if there is an error when unmarshalling
@@ -108,32 +107,43 @@ public final class DOMXMLObject extends DOMStructure implements XMLObject {
         }
         this.mimeType = DOMUtils.getAttributeValue(objElem, "MimeType");
 
-        NodeList nodes = objElem.getChildNodes();
-        int length = nodes.getLength();
-        List<XMLStructure> content = new ArrayList<XMLStructure>(length);
-        for (int i = 0; i < length; i++) {
-            Node child = nodes.item(i);
-            if (child.getNodeType() == Node.ELEMENT_NODE) {
-                Element childElem = (Element)child;
+        List<XMLStructure> newContent = new ArrayList<>();
+        Node firstChild = objElem.getFirstChild();
+        while (firstChild != null) {
+            if (firstChild.getNodeType() == Node.ELEMENT_NODE) {
+                Element childElem = (Element)firstChild;
                 String tag = childElem.getLocalName();
-                if (tag.equals("Manifest")) {
-                    content.add(new DOMManifest(childElem, context, provider));
-                    continue;
-                } else if (tag.equals("SignatureProperties")) {
-                    content.add(new DOMSignatureProperties(childElem, context));
-                    continue;
-                } else if (tag.equals("X509Data")) {
-                    content.add(new DOMX509Data(childElem));
-                    continue;
+                String namespace = childElem.getNamespaceURI();
+                if ("Manifest".equals(tag) && XMLSignature.XMLNS.equals(namespace)) {
+                    newContent.add(new DOMManifest(childElem, context, provider));
+                } else if ("SignatureProperties".equals(tag) && XMLSignature.XMLNS.equals(namespace)) {
+                    newContent.add(new DOMSignatureProperties(childElem));
+                } else if ("X509Data".equals(tag) && XMLSignature.XMLNS.equals(namespace)) {
+                    newContent.add(new DOMX509Data(childElem));
+                } else {
+                    //@@@FIXME: check for other dsig structures
+                    newContent.add(new javax.xml.crypto.dom.DOMStructure(firstChild));
                 }
-                //@@@FIXME: check for other dsig structures
+            } else {
+                newContent.add(new javax.xml.crypto.dom.DOMStructure(firstChild));
             }
-            content.add(new javax.xml.crypto.dom.DOMStructure(child));
+            firstChild = firstChild.getNextSibling();
         }
-        if (content.isEmpty()) {
+
+        // Here we capture namespace declarations, so that when they're marshalled back
+        // out, we can make copies of them. Note that attributes are NOT captured.
+        NamedNodeMap nnm = objElem.getAttributes();
+        for (int idx = 0 ; idx < nnm.getLength() ; idx++) {
+            Node nsDecl = nnm.item(idx);
+            if (DOMUtils.isNamespace(nsDecl)) {
+                newContent.add(new javax.xml.crypto.dom.DOMStructure(nsDecl));
+            }
+        }
+
+        if (newContent.isEmpty()) {
             this.content = Collections.emptyList();
         } else {
-            this.content = Collections.unmodifiableList(content);
+            this.content = Collections.unmodifiableList(newContent);
         }
         this.objectElem = objElem;
     }
@@ -154,6 +164,7 @@ public final class DOMXMLObject extends DOMStructure implements XMLObject {
         return encoding;
     }
 
+    @Override
     public void marshal(Node parent, String dsPrefix, DOMCryptoContext context)
         throws MarshalException {
         Document ownerDoc = DOMUtils.getOwnerDocument(parent);
@@ -183,6 +194,7 @@ public final class DOMXMLObject extends DOMStructure implements XMLObject {
         parent.appendChild(objElem);
     }
 
+    @SuppressWarnings("unchecked")
     @Override
     public boolean equals(Object o) {
         if (this == o) {
@@ -194,19 +206,17 @@ public final class DOMXMLObject extends DOMStructure implements XMLObject {
         }
         XMLObject oxo = (XMLObject)o;
 
-        boolean idsEqual = (id == null ? oxo.getId() == null
-                                       : id.equals(oxo.getId()));
+        boolean idsEqual = id == null ? oxo.getId() == null
+                                       : id.equals(oxo.getId());
         boolean encodingsEqual =
-            (encoding == null ? oxo.getEncoding() == null
-                              : encoding.equals(oxo.getEncoding()));
+            encoding == null ? oxo.getEncoding() == null
+                              : encoding.equals(oxo.getEncoding());
         boolean mimeTypesEqual =
-            (mimeType == null ? oxo.getMimeType() == null
-                              : mimeType.equals(oxo.getMimeType()));
+            mimeType == null ? oxo.getMimeType() == null
+                              : mimeType.equals(oxo.getMimeType());
 
-        @SuppressWarnings("unchecked")
-        List<XMLStructure> oxoContent = oxo.getContent();
-        return (idsEqual && encodingsEqual && mimeTypesEqual &&
-                equalsContent(oxoContent));
+        return idsEqual && encodingsEqual && mimeTypesEqual &&
+                equalsContent(oxo.getContent());
     }
 
     @Override

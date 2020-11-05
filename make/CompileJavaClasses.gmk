@@ -264,10 +264,6 @@ ifndef OPENJDK
       $(wildcard $(JDK_TOPDIR)/src/closed/$(OPENJDK_TARGET_OS_API_DIR)/classes)
 endif
 
-LINUX_SRC_DIRS :=
-ifeq ($(OPENJDK_TARGET_OS), linux)
-  LINUX_SRC_DIRS += $(JDK_TOPDIR)/src/linux/classes
-endif
 
 MACOSX_SRC_DIRS :=
 ifeq ($(OPENJDK_TARGET_OS), macosx)
@@ -309,6 +305,11 @@ ifeq ($(OPENJDK_TARGET_OS),aix)
       $(JDK_TOPDIR)/src/solaris/classes/sun/nio/ch/sctp/SctpServerChannelImpl.java
 endif
 
+LINUX_SRC_DIRS :=
+ifeq ($(OPENJDK_TARGET_OS), linux)
+    LINUX_SRC_DIRS += $(JDK_TOPDIR)/src/linux/classes
+endif
+
 # The exception handling of swing beaninfo
 # These resources violates the convention of having code and resources together under
 # $(JDK_TOPDIR)/src/.../classes directories
@@ -333,8 +334,8 @@ $(eval $(call SetupJavaCompilation,BUILD_JDK,\
     SRC:=$(JDK_TOPDIR)/src/share/classes \
         $(JDK_TOPDIR)/src/$(OPENJDK_TARGET_OS_API_DIR)/classes \
         $(MACOSX_SRC_DIRS) \
-        $(LINUX_SRC_DIRS) \
         $(AIX_SRC_DIRS) \
+        $(LINUX_SRC_DIRS) \
         $(JDK_OUTPUTDIR)/gensrc \
         $(JDK_OUTPUTDIR)/gensrc_no_srczip \
         $(CLOSED_SRC_DIRS),\

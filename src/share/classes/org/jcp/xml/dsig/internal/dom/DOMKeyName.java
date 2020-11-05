@@ -21,16 +21,16 @@
  * under the License.
  */
 /*
- * Copyright (c) 2005, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2018, Oracle and/or its affiliates. All rights reserved.
  */
 /*
- * $Id: DOMKeyName.java 1333415 2012-05-03 12:03:51Z coheigea $
+ * $Id: DOMKeyName.java 1788465 2017-03-24 15:10:51Z coheigea $
  */
 package org.jcp.xml.dsig.internal.dom;
 
-import javax.xml.crypto.*;
+import javax.xml.crypto.MarshalException;
 import javax.xml.crypto.dom.DOMCryptoContext;
-import javax.xml.crypto.dsig.*;
+import javax.xml.crypto.dsig.XMLSignature;
 import javax.xml.crypto.dsig.keyinfo.KeyName;
 
 import org.w3c.dom.Document;
@@ -40,17 +40,16 @@ import org.w3c.dom.Node;
 /**
  * DOM-based implementation of KeyName.
  *
- * @author Sean Mullan
  */
 public final class DOMKeyName extends DOMStructure implements KeyName {
 
     private final String name;
 
     /**
-     * Creates a <code>DOMKeyName</code>.
+     * Creates a {@code DOMKeyName}.
      *
      * @param name the name of the key identifier
-     * @throws NullPointerException if <code>name</code> is null
+     * @throws NullPointerException if {@code name} is null
      */
     public DOMKeyName(String name) {
         if (name == null) {
@@ -60,7 +59,7 @@ public final class DOMKeyName extends DOMStructure implements KeyName {
     }
 
     /**
-     * Creates a <code>DOMKeyName</code> from a KeyName element.
+     * Creates a {@code DOMKeyName} from a KeyName element.
      *
      * @param knElem a KeyName element
      */
@@ -72,6 +71,7 @@ public final class DOMKeyName extends DOMStructure implements KeyName {
         return name;
     }
 
+    @Override
     public void marshal(Node parent, String dsPrefix, DOMCryptoContext context)
         throws MarshalException
     {

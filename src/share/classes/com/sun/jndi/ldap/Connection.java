@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -158,6 +158,13 @@ public final class Connection implements Runnable {
 
     int readTimeout;
     int connectTimeout;
+
+    // Is connection upgraded to SSL via STARTTLS extended operation
+    private volatile boolean isUpgradedToStartTls;
+
+    // Lock to maintain isUpgradedToStartTls state
+    final Object startTlsLock = new Object();
+
     private static final boolean IS_HOSTNAME_VERIFICATION_DISABLED
             = hostnameVerificationDisabledValue();
 
@@ -454,22 +461,34 @@ public final class Connection implements Runnable {
     BerDecoder readReply(LdapRequest ldr) throws IOException, NamingException {
         BerDecoder rber;
 
+        NamingException namingException = null;
         try {
             // if no timeout is set so we wait infinitely until
-            // a response is received
+            // a response is received OR until the connection is closed or cancelled
             // http://docs.oracle.com/javase/8/docs/technotes/guides/jndi/jndi-ldap.html#PROP
             rber = ldr.getReplyBer(readTimeout);
         } catch (InterruptedException ex) {
             throw new InterruptedNamingException(
                 "Interrupted during LDAP operation");
+        } catch (CommunicationException ce) {
+            // Re-throw
+            throw ce;
+        } catch (NamingException ne) {
+            // Connection is timed out OR closed/cancelled
+            namingException = ne;
+            rber = null;
         }
 
         if (rber == null) {
             abandonRequest(ldr, null);
-            throw new NamingException(
-                    "LDAP response read timed out, timeout used:"
-                            + readTimeout + "ms." );
-
+        }
+        // namingException can be not null in the following cases:
+        //  a) The response is timed-out
+        //  b) LDAP request connection has been closed or cancelled
+        // The exception message is initialized in LdapRequest::getReplyBer
+        if (namingException != null) {
+            // Re-throw NamingException after all cleanups are done
+            throw namingException;
         }
         return rber;
     }
@@ -702,6 +721,23 @@ public final class Connection implements Runnable {
         outStream = newOut;
     }
 
+    /*
+     * Replace streams and set isUpdradedToStartTls flag to the provided value
+     */
+    synchronized public void replaceStreams(InputStream newIn, OutputStream newOut, boolean isStartTls) {
+        synchronized (startTlsLock) {
+            replaceStreams(newIn, newOut);
+            isUpgradedToStartTls = isStartTls;
+        }
+    }
+
+    /*
+     * Returns true if connection was upgraded to SSL with STARTTLS extended operation
+     */
+    public boolean isUpgradedToStartTls() {
+        return isUpgradedToStartTls;
+    }
+
     /**
      * Used by Connection thread to read inStream into a local variable.
      * This ensures that there is no contention between the main thread
@@ -856,6 +892,11 @@ public final class Connection implements Runnable {
                     // is equal to & 0x80 (i.e. length byte with high bit off).
                     if ((seqlen & 0x80) == 0x80) {
                         seqlenlen = seqlen & 0x7f;  // number of length bytes
+                        // Check the length of length field, since seqlen is int
+                        // the number of bytes can't be greater than 4
+                        if (seqlenlen > 4) {
+                            throw new IOException("Length coded with too many bytes: " + seqlenlen);
+                        }
 
                         bytesread = 0;
                         eos = false;
@@ -883,20 +924,18 @@ public final class Connection implements Runnable {
                         offset += bytesread;
                     }
 
+                    if (seqlenlen > bytesread) {
+                        throw new IOException("Unexpected EOF while reading length");
+                    }
+
+                    if (seqlen < 0) {
+                        throw new IOException("Length too big: " + (((long) seqlen) & 0xFFFFFFFFL));
+                    }
                     // read in seqlen bytes
                     byte[] left = readFully(in, seqlen);
                     inbuf = Arrays.copyOf(inbuf, offset + left.length);
                     System.arraycopy(left, 0, inbuf, offset, left.length);
                     offset += left.length;
-/*
-if (dump > 0) {
-System.err.println("seqlen: " + seqlen);
-System.err.println("bufsize: " + offset);
-System.err.println("bytesleft: " + bytesleft);
-System.err.println("bytesread: " + bytesread);
-}
-*/
-
 
                     try {
                         retBer = new BerDecoder(inbuf, 0, offset);
@@ -1004,36 +1043,4 @@ System.err.println("bytesread: " + bytesread);
         }
         return buf;
     }
-
-    // This code must be uncommented to run the LdapAbandonTest.
-    /*public void sendSearchReqs(String dn, int numReqs) {
-        int i;
-        String attrs[] = null;
-        for(i = 1; i <= numReqs; i++) {
-            BerEncoder ber = new BerEncoder(2048);
-
-            try {
-            ber.beginSeq(Ber.ASN_SEQUENCE | Ber.ASN_CONSTRUCTOR);
-                ber.encodeInt(i);
-                ber.beginSeq(LdapClient.LDAP_REQ_SEARCH);
-                    ber.encodeString(dn == null ? "" : dn);
-                    ber.encodeInt(0, LdapClient.LBER_ENUMERATED);
-                    ber.encodeInt(3, LdapClient.LBER_ENUMERATED);
-                    ber.encodeInt(0);
-                    ber.encodeInt(0);
-                    ber.encodeBoolean(true);
-                    LdapClient.encodeFilter(ber, "");
-                    ber.beginSeq(Ber.ASN_SEQUENCE | Ber.ASN_CONSTRUCTOR);
-                        ber.encodeStringArray(attrs);
-                    ber.endSeq();
-                ber.endSeq();
-            ber.endSeq();
-            writeRequest(ber, i);
-            //System.err.println("wrote request " + i);
-            } catch (Exception ex) {
-            //System.err.println("ldap.search: Caught " + ex + " building req");
-            }
-
-        }
-    } */
 }

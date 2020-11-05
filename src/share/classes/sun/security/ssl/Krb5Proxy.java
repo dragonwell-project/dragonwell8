@@ -28,7 +28,6 @@ package sun.security.ssl;
 import java.security.AccessControlContext;
 import java.security.Permission;
 import java.security.Principal;
-import javax.crypto.SecretKey;
 import javax.security.auth.Subject;
 import javax.security.auth.login.LoginException;
 

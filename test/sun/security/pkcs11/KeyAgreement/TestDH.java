@@ -31,15 +31,16 @@
  * @run main/othervm -Djdk.crypto.KeyAgreement.legacyKDF=true TestDH sm
  */
 
-import java.io.*;
-import java.util.*;
-
-import java.security.*;
-
-import javax.crypto.*;
+import java.security.KeyPair;
+import java.security.KeyPairGenerator;
+import java.security.Provider;
+import java.util.Arrays;
+import javax.crypto.KeyAgreement;
+import javax.crypto.SecretKey;
 
 public class TestDH extends PKCS11Test {
 
+    @Override
     public void main(Provider p) throws Exception {
         if (p.getService("KeyAgreement", "DH") == null) {
             System.out.println("DH not supported, skipping");
@@ -93,8 +94,9 @@ public class TestDH extends PKCS11Test {
         testAlgorithm(ka2, kp2, ka1, kp1, "TlsPremasterSecret");
     }
 
-    private static void testAlgorithm(KeyAgreement ka1, KeyPair kp1, KeyAgreement ka2, KeyPair kp2, String algorithm) throws Exception {
-        SecretKey key1 = null;
+    private static void testAlgorithm(KeyAgreement ka1, KeyPair kp1,
+            KeyAgreement ka2, KeyPair kp2, String algorithm) throws Exception {
+        SecretKey key1;
 
         ka1.init(kp1.getPrivate());
         ka1.doPhase(kp2.getPublic(), true);
@@ -117,7 +119,7 @@ public class TestDH extends PKCS11Test {
     }
 
     public static void main(String[] args) throws Exception {
-        main(new TestDH());
+        main(new TestDH(), args);
     }
 
 }

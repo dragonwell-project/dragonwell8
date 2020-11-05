@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,17 +27,18 @@
  * @summary basic test for PKCS#11 SecureRandom
  * @author Andreas Sterbenz
  * @library ..
+ * @key randomness
+ * @run main/othervm Basic
+ * @run main/othervm Basic sm
  */
 
-import java.io.*;
-import java.util.*;
-
-import java.security.*;
-
-import javax.crypto.*;
+import java.security.NoSuchAlgorithmException;
+import java.security.Provider;
+import java.security.SecureRandom;
 
 public class Basic extends PKCS11Test {
 
+    @Override
     public void main(Provider p) throws Exception {
         SecureRandom random;
         try {
@@ -57,7 +58,7 @@ public class Basic extends PKCS11Test {
     }
 
     public static void main(String[] args) throws Exception {
-        main(new Basic());
+        main(new Basic(), args);
     }
 
 }

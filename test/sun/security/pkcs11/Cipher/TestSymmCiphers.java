@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008, 2011, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2008, 2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,21 +22,25 @@
  */
 
 /**
- * @test %I% %E%
+ * @test
  * @bug 4898461 6604496
  * @summary basic test for symmetric ciphers with padding
  * @author Valerie Peng
  * @library ..
+ * @key randomness
+ * @run main/othervm TestSymmCiphers
+ * @run main/othervm TestSymmCiphers sm
  */
-import java.io.*;
-import java.nio.*;
-import java.util.*;
 
-import java.security.*;
-import java.security.spec.AlgorithmParameterSpec;
-
-import javax.crypto.*;
-import javax.crypto.spec.IvParameterSpec;
+import java.io.ByteArrayOutputStream;
+import java.nio.ByteBuffer;
+import java.security.AlgorithmParameters;
+import java.security.NoSuchAlgorithmException;
+import java.security.Provider;
+import java.util.Random;
+import javax.crypto.Cipher;
+import javax.crypto.KeyGenerator;
+import javax.crypto.SecretKey;
 
 public class TestSymmCiphers extends PKCS11Test {
 
@@ -80,6 +84,7 @@ public class TestSymmCiphers extends PKCS11Test {
     };
     private static StringBuffer debugBuf = new StringBuffer();
 
+    @Override
     public void main(Provider p) throws Exception {
         // NSS reports CKR_DEVICE_ERROR when the data passed to
         // its EncryptUpdate/DecryptUpdate is not multiple of blocks
@@ -271,6 +276,6 @@ public class TestSymmCiphers extends PKCS11Test {
     }
 
     public static void main(String[] args) throws Exception {
-        main(new TestSymmCiphers());
+        main(new TestSymmCiphers(), args);
     }
 }

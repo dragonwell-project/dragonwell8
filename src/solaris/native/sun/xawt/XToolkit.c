@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2002, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -142,13 +142,6 @@ JNIEXPORT jlong JNICALL Java_sun_awt_X11_XToolkit_getDefaultXColormap
 
     return (jlong) defaultConfig->awt_cmap;
 }
-
-JNIEXPORT jlong JNICALL Java_sun_awt_X11_XToolkit_getDefaultScreenData
-  (JNIEnv *env, jclass clazz)
-{
-    return ptr_to_jlong(getDefaultConfig(DefaultScreen(awt_display)));
-}
-
 
 JNIEXPORT jint JNICALL
 JNI_OnLoad(JavaVM *vm, void *reserved)

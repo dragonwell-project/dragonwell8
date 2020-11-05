@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1996, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,22 +23,13 @@
  * questions.
  */
 
-
 package sun.security.ssl;
 
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.Socket;
-
-import java.security.AlgorithmConstraints;
-
-import java.util.*;
-
-import javax.net.ssl.SSLException;
-import javax.net.ssl.SSLServerSocket;
 import javax.net.ssl.SSLParameters;
-import javax.net.ssl.SNIMatcher;
-
+import javax.net.ssl.SSLServerSocket;
 
 /**
  * This class provides a simple way for servers to support conventional
@@ -62,301 +53,157 @@ import javax.net.ssl.SNIMatcher;
  *
  * @author David Brownell
  */
-final
-class SSLServerSocketImpl extends SSLServerSocket
-{
-    private SSLContextImpl      sslContext;
+final class SSLServerSocketImpl extends SSLServerSocket {
+    private final SSLContextImpl        sslContext;
+    private final SSLConfiguration      sslConfig;
 
-    /* Do newly accepted connections require clients to authenticate? */
-    private byte                doClientAuth = SSLEngineImpl.clauth_none;
+    SSLServerSocketImpl(SSLContextImpl sslContext) throws IOException {
 
-    /* Do new connections created here use the "server" mode of SSL? */
-    private boolean             useServerMode = true;
-
-    /* Can new connections created establish new sessions? */
-    private boolean             enableSessionCreation = true;
-
-    /* what cipher suites to use by default */
-    private CipherSuiteList     enabledCipherSuites = null;
-
-    /* which protocol to use by default */
-    private ProtocolList        enabledProtocols = null;
-
-    // the endpoint identification protocol to use by default
-    private String              identificationProtocol = null;
-
-    // The cryptographic algorithm constraints
-    private AlgorithmConstraints    algorithmConstraints = null;
-
-    // The server name indication
-    Collection<SNIMatcher>      sniMatchers =
-                                    Collections.<SNIMatcher>emptyList();
-
-    // Configured application protocol values
-    String[] applicationProtocols = new String[0];
-
-    /*
-     * Whether local cipher suites preference in server side should be
-     * honored during handshaking?
-     */
-    private boolean             preferLocalCipherSuites = false;
-
-    /**
-     * Create an SSL server socket on a port, using a non-default
-     * authentication context and a specified connection backlog.
-     *
-     * @param port the port on which to listen
-     * @param backlog how many connections may be pending before
-     *          the system should start rejecting new requests
-     * @param context authentication context for this server
-     */
-    SSLServerSocketImpl(int port, int backlog, SSLContextImpl context)
-    throws IOException, SSLException
-    {
-        super(port, backlog);
-        initServer(context);
-    }
-
-
-    /**
-     * Create an SSL server socket on a port, using a specified
-     * authentication context and a specified backlog of connections
-     * as well as a particular specified network interface.  This
-     * constructor is used on multihomed hosts, such as those used
-     * for firewalls or as routers, to control through which interface
-     * a network service is provided.
-     *
-     * @param port the port on which to listen
-     * @param backlog how many connections may be pending before
-     *          the system should start rejecting new requests
-     * @param address the address of the network interface through
-     *          which connections will be accepted
-     * @param context authentication context for this server
-     */
-    SSLServerSocketImpl(
-        int             port,
-        int             backlog,
-        InetAddress     address,
-        SSLContextImpl  context)
-        throws IOException
-    {
-        super(port, backlog, address);
-        initServer(context);
-    }
-
-
-    /**
-     * Creates an unbound server socket.
-     */
-    SSLServerSocketImpl(SSLContextImpl context) throws IOException {
         super();
-        initServer(context);
+        this.sslContext = sslContext;
+        this.sslConfig = new SSLConfiguration(sslContext, false);
+        this.sslConfig.isClientMode = false;
     }
 
+    SSLServerSocketImpl(SSLContextImpl sslContext,
+            int port, int backlog) throws IOException {
 
-    /**
-     * Initializes the server socket.
-     */
-    private void initServer(SSLContextImpl context) throws SSLException {
-        if (context == null) {
-            throw new SSLException("No Authentication context given");
-        }
-        sslContext = context;
-        enabledCipherSuites = sslContext.getDefaultCipherSuiteList(true);
-        enabledProtocols = sslContext.getDefaultProtocolList(true);
+        super(port, backlog);
+        this.sslContext = sslContext;
+        this.sslConfig = new SSLConfiguration(sslContext, false);
+        this.sslConfig.isClientMode = false;
     }
 
-    /**
-     * Returns the names of the cipher suites which could be enabled for use
-     * on an SSL connection.  Normally, only a subset of these will actually
-     * be enabled by default, since this list may include cipher suites which
-     * do not support the mutual authentication of servers and clients, or
-     * which do not protect data confidentiality.  Servers may also need
-     * certain kinds of certificates to use certain cipher suites.
-     *
-     * @return an array of cipher suite names
-     */
+    SSLServerSocketImpl(SSLContextImpl sslContext,
+            int port, int backlog, InetAddress address) throws IOException {
+
+        super(port, backlog, address);
+        this.sslContext = sslContext;
+        this.sslConfig = new SSLConfiguration(sslContext, false);
+        this.sslConfig.isClientMode = false;
+    }
+
+    @Override
+    public synchronized String[] getEnabledCipherSuites() {
+        return CipherSuite.namesOf(sslConfig.enabledCipherSuites);
+    }
+
+    @Override
+    public synchronized void setEnabledCipherSuites(String[] suites) {
+        sslConfig.enabledCipherSuites =
+                CipherSuite.validValuesOf(suites);
+    }
+
     @Override
     public String[] getSupportedCipherSuites() {
-        return sslContext.getSupportedCipherSuiteList().toStringArray();
-    }
-
-    /**
-     * Returns the list of cipher suites which are currently enabled
-     * for use by newly accepted connections.  A null return indicates
-     * that the system defaults are in effect.
-     */
-    @Override
-    synchronized public String[] getEnabledCipherSuites() {
-        return enabledCipherSuites.toStringArray();
-    }
-
-    /**
-     * Controls which particular SSL cipher suites are enabled for use
-     * by accepted connections.
-     *
-     * @param suites Names of all the cipher suites to enable; null
-     *  means to accept system defaults.
-     */
-    @Override
-    synchronized public void setEnabledCipherSuites(String[] suites) {
-        enabledCipherSuites = new CipherSuiteList(suites);
+        return CipherSuite.namesOf(sslContext.getSupportedCipherSuites());
     }
 
     @Override
     public String[] getSupportedProtocols() {
-        return sslContext.getSuportedProtocolList().toStringArray();
-    }
-
-    /**
-     * Controls which protocols are enabled for use.
-     * The protocols must have been listed by
-     * getSupportedProtocols() as being supported.
-     *
-     * @param protocols protocols to enable.
-     * @exception IllegalArgumentException when one of the protocols
-     *  named by the parameter is not supported.
-     */
-    @Override
-    synchronized public void setEnabledProtocols(String[] protocols) {
-        enabledProtocols = new ProtocolList(protocols);
+        return ProtocolVersion.toStringArray(
+                sslContext.getSupportedProtocolVersions());
     }
 
     @Override
-    synchronized public String[] getEnabledProtocols() {
-        return enabledProtocols.toStringArray();
-    }
-
-    /**
-     * Controls whether the connections which are accepted must include
-     * client authentication.
-     */
-    @Override
-    public void setNeedClientAuth(boolean flag) {
-        doClientAuth = (flag ?
-            SSLEngineImpl.clauth_required : SSLEngineImpl.clauth_none);
+    public synchronized String[] getEnabledProtocols() {
+        return ProtocolVersion.toStringArray(sslConfig.enabledProtocols);
     }
 
     @Override
-    public boolean getNeedClientAuth() {
-        return (doClientAuth == SSLEngineImpl.clauth_required);
-    }
+    public synchronized void setEnabledProtocols(String[] protocols) {
+        if (protocols == null) {
+            throw new IllegalArgumentException("Protocols cannot be null");
+        }
 
-    /**
-     * Controls whether the connections which are accepted should request
-     * client authentication.
-     */
-    @Override
-    public void setWantClientAuth(boolean flag) {
-        doClientAuth = (flag ?
-            SSLEngineImpl.clauth_requested : SSLEngineImpl.clauth_none);
+        sslConfig.enabledProtocols = ProtocolVersion.namesOf(protocols);
     }
 
     @Override
-    public boolean getWantClientAuth() {
-        return (doClientAuth == SSLEngineImpl.clauth_requested);
+    public synchronized void setNeedClientAuth(boolean need) {
+        sslConfig.clientAuthType =
+                (need ? ClientAuthType.CLIENT_AUTH_REQUIRED :
+                        ClientAuthType.CLIENT_AUTH_NONE);
     }
 
-    /**
-     * Makes the returned sockets act in SSL "client" mode, not the usual
-     * server mode.  The canonical example of why this is needed is for
-     * FTP clients, which accept connections from servers and should be
-     * rejoining the already-negotiated SSL connection.
-     */
     @Override
-    public void setUseClientMode(boolean flag) {
+    public synchronized boolean getNeedClientAuth() {
+        return (sslConfig.clientAuthType ==
+                        ClientAuthType.CLIENT_AUTH_REQUIRED);
+    }
+
+    @Override
+    public synchronized void setWantClientAuth(boolean want) {
+        sslConfig.clientAuthType =
+                (want ? ClientAuthType.CLIENT_AUTH_REQUESTED :
+                        ClientAuthType.CLIENT_AUTH_NONE);
+    }
+
+    @Override
+    public synchronized boolean getWantClientAuth() {
+        return (sslConfig.clientAuthType ==
+                        ClientAuthType.CLIENT_AUTH_REQUESTED);
+    }
+
+    @Override
+    public synchronized void setUseClientMode(boolean useClientMode) {
         /*
-         * If we need to change the socket mode and the enabled
-         * protocols haven't specifically been set by the user,
-         * change them to the corresponding default ones.
+         * If we need to change the client mode and the enabled
+         * protocols and cipher suites haven't specifically been
+         * set by the user, change them to the corresponding
+         * default ones.
          */
-        if (useServerMode != (!flag) &&
-                sslContext.isDefaultProtocolList(enabledProtocols)) {
-            enabledProtocols = sslContext.getDefaultProtocolList(!flag);
+        if (sslConfig.isClientMode != useClientMode) {
+            if (sslContext.isDefaultProtocolVesions(
+                    sslConfig.enabledProtocols)) {
+                sslConfig.enabledProtocols =
+                        sslContext.getDefaultProtocolVersions(!useClientMode);
+            }
+
+            if (sslContext.isDefaultCipherSuiteList(
+                    sslConfig.enabledCipherSuites)) {
+                sslConfig.enabledCipherSuites =
+                        sslContext.getDefaultCipherSuites(!useClientMode);
+            }
+
+            sslConfig.isClientMode = useClientMode;
         }
-
-        useServerMode = !flag;
     }
 
     @Override
-    public boolean getUseClientMode() {
-        return !useServerMode;
+    public synchronized boolean getUseClientMode() {
+        return sslConfig.isClientMode;
     }
 
-
-    /**
-     * Controls whether new connections may cause creation of new SSL
-     * sessions.
-     */
     @Override
-    public void setEnableSessionCreation(boolean flag) {
-        enableSessionCreation = flag;
+    public synchronized void setEnableSessionCreation(boolean flag) {
+        sslConfig.enableSessionCreation = flag;
     }
 
-    /**
-     * Returns true if new connections may cause creation of new SSL
-     * sessions.
-     */
     @Override
-    public boolean getEnableSessionCreation() {
-        return enableSessionCreation;
+    public synchronized boolean getEnableSessionCreation() {
+        return sslConfig.enableSessionCreation;
     }
 
-    /**
-     * Returns the SSLParameters in effect for newly accepted connections.
-     */
     @Override
-    synchronized public SSLParameters getSSLParameters() {
-        SSLParameters params = super.getSSLParameters();
-
-        // the super implementation does not handle the following parameters
-        params.setEndpointIdentificationAlgorithm(identificationProtocol);
-        params.setAlgorithmConstraints(algorithmConstraints);
-        params.setSNIMatchers(sniMatchers);
-        params.setUseCipherSuitesOrder(preferLocalCipherSuites);
-        params.setApplicationProtocols(applicationProtocols);
-
-        return params;
+    public synchronized SSLParameters getSSLParameters() {
+        return sslConfig.getSSLParameters();
     }
 
-    /**
-     * Applies SSLParameters to newly accepted connections.
-     */
     @Override
-    synchronized public void setSSLParameters(SSLParameters params) {
-        super.setSSLParameters(params);
-
-        // the super implementation does not handle the following parameters
-        identificationProtocol = params.getEndpointIdentificationAlgorithm();
-        algorithmConstraints = params.getAlgorithmConstraints();
-        preferLocalCipherSuites = params.getUseCipherSuitesOrder();
-        Collection<SNIMatcher> matchers = params.getSNIMatchers();
-        if (matchers != null) {
-            sniMatchers = params.getSNIMatchers();
-        }
-        applicationProtocols = params.getApplicationProtocols();
+    public synchronized void setSSLParameters(SSLParameters params) {
+        sslConfig.setSSLParameters(params);
     }
 
-    /**
-     * Accept a new SSL connection.  This server identifies itself with
-     * information provided in the authentication context which was
-     * presented during construction.
-     */
     @Override
     public Socket accept() throws IOException {
-        SSLSocketImpl s = new SSLSocketImpl(sslContext, useServerMode,
-            enabledCipherSuites, doClientAuth, enableSessionCreation,
-            enabledProtocols, identificationProtocol, algorithmConstraints,
-            sniMatchers, preferLocalCipherSuites, applicationProtocols);
+        SSLSocketImpl s = new SSLSocketImpl(sslContext, sslConfig);
 
         implAccept(s);
         s.doneConnect();
         return s;
     }
 
-    /**
-     * Provides a brief description of this SSL socket.
-     */
     @Override
     public String toString() {
         return "[SSL: "+ super.toString() + "]";

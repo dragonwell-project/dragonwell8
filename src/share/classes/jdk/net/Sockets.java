@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -36,6 +36,7 @@ import java.util.HashSet;
 import java.util.HashMap;
 import java.util.Collections;
 import sun.net.ExtendedOptionsImpl;
+import sun.net.ExtendedOptionsHelper;
 
 /**
  * Defines static methods to set and get socket options defined by the
@@ -363,6 +364,7 @@ public class Sockets {
         if (flowsupported) {
             set.add(ExtendedSocketOptions.SO_FLOW_SLA);
         }
+        set.addAll(ExtendedOptionsHelper.keepAliveOptions());
         set = Collections.unmodifiableSet(set);
         options.put(Socket.class, set);
 
@@ -372,6 +374,7 @@ public class Sockets {
         set.add(StandardSocketOptions.SO_RCVBUF);
         set.add(StandardSocketOptions.SO_REUSEADDR);
         set.add(StandardSocketOptions.IP_TOS);
+        set.addAll(ExtendedOptionsHelper.keepAliveOptions());
         set = Collections.unmodifiableSet(set);
         options.put(ServerSocket.class, set);
 
@@ -404,4 +407,5 @@ public class Sockets {
         set = Collections.unmodifiableSet(set);
         options.put(MulticastSocket.class, set);
     }
+
 }

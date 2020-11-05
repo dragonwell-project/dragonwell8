@@ -21,10 +21,10 @@
  * under the License.
  */
 /*
- * Copyright (c) 2005, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2018, Oracle and/or its affiliates. All rights reserved.
  */
 /*
- * $Id: DOMCanonicalXMLC14NMethod.java 1197150 2011-11-03 14:34:57Z coheigea $
+ * $Id: DOMCanonicalXMLC14NMethod.java 1788465 2017-03-24 15:10:51Z coheigea $
  */
 package org.jcp.xml.dsig.internal.dom;
 
@@ -41,7 +41,6 @@ import com.sun.org.apache.xml.internal.security.c14n.InvalidCanonicalizerExcepti
  * DOM-based implementation of CanonicalizationMethod for Canonical XML
  * (with or without comments). Uses Apache XML-Sec Canonicalizer.
  *
- * @author Sean Mullan
  */
 public final class DOMCanonicalXMLC14NMethod extends ApacheCanonicalizer {
 
@@ -65,6 +64,8 @@ public final class DOMCanonicalXMLC14NMethod extends ApacheCanonicalizer {
                 try {
                     apacheCanonicalizer = Canonicalizer.getInstance
                         (CanonicalizationMethod.INCLUSIVE);
+                    boolean secVal = Utils.secureValidation(xc);
+                    apacheCanonicalizer.setSecureValidation(secVal);
                 } catch (InvalidCanonicalizerException ice) {
                     throw new TransformException
                         ("Couldn't find Canonicalizer for: " +

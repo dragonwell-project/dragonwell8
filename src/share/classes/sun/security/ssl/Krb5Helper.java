@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2009, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -61,16 +61,9 @@ public final class Krb5Helper {
                 }
             }});
 
-    /**
-     * Returns true if Kerberos is available.
-     */
-    public static boolean isAvailable() {
-        return proxy != null;
-    }
-
     private static void ensureAvailable() {
         if (proxy == null)
-            throw new AssertionError("Kerberos should have been available");
+            throw new AssertionError("Kerberos should be available");
     }
 
     /**

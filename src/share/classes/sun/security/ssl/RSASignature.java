@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1996, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,7 +23,6 @@
  * questions.
  */
 
-
 package sun.security.ssl;
 
 import java.security.*;
@@ -46,70 +45,38 @@ import java.security.spec.AlgorithmParameterSpec;
  * getInternalInstance() method.
  *
  * This class is not thread safe.
- *
  */
 public final class RSASignature extends SignatureSpi {
-
     private final Signature rawRsa;
-    private MessageDigest md5, sha;
-
-    // flag indicating if the MessageDigests are in reset state
-    private boolean isReset;
+    private final MessageDigest mdMD5;
+    private final MessageDigest mdSHA;
 
     public RSASignature() throws NoSuchAlgorithmException {
         super();
         rawRsa = JsseJce.getSignature(JsseJce.SIGNATURE_RAWRSA);
-        isReset = true;
+        this.mdMD5 = JsseJce.getMessageDigest("MD5");
+        this.mdSHA = JsseJce.getMessageDigest("SHA");
     }
 
     /**
-     * Get an implementation for the RSA signature. Follows the standard
-     * JCA getInstance() model, so it return the implementation from the
-     * provider with the highest precedence, which may be this class.
+     * Get an implementation for the RSA signature.
+     *
+     * Follows the standard JCA getInstance() model, so it return the
+     * implementation from the  provider with the highest precedence,
+     * which may be this class.
      */
     static Signature getInstance() throws NoSuchAlgorithmException {
         return JsseJce.getSignature(JsseJce.SIGNATURE_SSLRSA);
     }
 
-    /**
-     * Get an internal implementation for the RSA signature. Used for RSA
-     * client authentication, which needs the ability to set the digests
-     * to externally provided values via the setHashes() method.
-     */
-    static Signature getInternalInstance()
-            throws NoSuchAlgorithmException, NoSuchProviderException {
-        return Signature.getInstance(JsseJce.SIGNATURE_SSLRSA, "SunJSSE");
-    }
-
-    /**
-     * Set the MD5 and SHA hashes to the provided objects.
-     */
-    static void setHashes(Signature sig, MessageDigest md5, MessageDigest sha) {
-        sig.setParameter("hashes", new MessageDigest[] {md5, sha});
-    }
-
-    /**
-     * Reset the MessageDigests unless they are already reset.
-     */
-    private void reset() {
-        if (isReset == false) {
-            md5.reset();
-            sha.reset();
-            isReset = true;
-        }
-    }
-
-    private static void checkNull(Key key) throws InvalidKeyException {
-        if (key == null) {
-            throw new InvalidKeyException("Key must not be null");
-        }
-    }
-
     @Override
     protected void engineInitVerify(PublicKey publicKey)
             throws InvalidKeyException {
-        checkNull(publicKey);
-        reset();
+        if (publicKey == null) {
+            throw new InvalidKeyException("Public key must not be null");
+        }
+        mdMD5.reset();
+        mdSHA.reset();
         rawRsa.initVerify(publicKey);
     }
 
@@ -122,42 +89,31 @@ public final class RSASignature extends SignatureSpi {
     @Override
     protected void engineInitSign(PrivateKey privateKey, SecureRandom random)
             throws InvalidKeyException {
-        checkNull(privateKey);
-        reset();
-        rawRsa.initSign(privateKey, random);
-    }
-
-    // lazily initialize the MessageDigests
-    private void initDigests() {
-        if (md5 == null) {
-            md5 = JsseJce.getMD5();
-            sha = JsseJce.getSHA();
+        if (privateKey == null) {
+            throw new InvalidKeyException("Private key must not be null");
         }
+        mdMD5.reset();
+        mdSHA.reset();
+        rawRsa.initSign(privateKey, random);
     }
 
     @Override
     protected void engineUpdate(byte b) {
-        initDigests();
-        isReset = false;
-        md5.update(b);
-        sha.update(b);
+        mdMD5.update(b);
+        mdSHA.update(b);
     }
 
     @Override
     protected void engineUpdate(byte[] b, int off, int len) {
-        initDigests();
-        isReset = false;
-        md5.update(b, off, len);
-        sha.update(b, off, len);
+        mdMD5.update(b, off, len);
+        mdSHA.update(b, off, len);
     }
 
     private byte[] getDigest() throws SignatureException {
         try {
-            initDigests();
             byte[] data = new byte[36];
-            md5.digest(data, 0, 16);
-            sha.digest(data, 16, 20);
-            isReset = true;
+            mdMD5.digest(data, 0, 16);
+            mdSHA.digest(data, 16, 20);
             return data;
         } catch (DigestException e) {
             // should never occur
@@ -184,19 +140,10 @@ public final class RSASignature extends SignatureSpi {
     }
 
     @Override
-    protected void engineSetParameter(String param, Object value)
-            throws InvalidParameterException {
-        if (param.equals("hashes") == false) {
-            throw new InvalidParameterException
-                ("Parameter not supported: " + param);
-        }
-        if (value instanceof MessageDigest[] == false) {
-            throw new InvalidParameterException
-                ("value must be MessageDigest[]");
-        }
-        MessageDigest[] digests = (MessageDigest[])value;
-        md5 = digests[0];
-        sha = digests[1];
+    @SuppressWarnings("deprecation")
+    protected void engineSetParameter(String param,
+            Object value) throws InvalidParameterException {
+        throw new InvalidParameterException("Parameters not supported");
     }
 
     @Override
@@ -208,8 +155,9 @@ public final class RSASignature extends SignatureSpi {
     }
 
     @Override
-    protected Object engineGetParameter(String param)
-            throws InvalidParameterException {
+    @SuppressWarnings("deprecation")
+    protected Object engineGetParameter(
+            String param) throws InvalidParameterException {
         throw new InvalidParameterException("Parameters not supported");
     }
 

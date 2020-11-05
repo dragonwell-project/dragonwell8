@@ -155,7 +155,7 @@ Java_sun_security_pkcs11_wrapper_PKCS11_getNativeKeyInfo
     jbyte* nativeKeyInfoArrayRawCkAttributes = NULL;
     jbyte* nativeKeyInfoArrayRawCkAttributesPtr = NULL;
     jbyte* nativeKeyInfoArrayRawDataPtr = NULL;
-    CK_MECHANISM ckMechanism;
+    CK_MECHANISM_PTR ckpMechanism = NULL;
     char iv[16] = {0x0};
     CK_ULONG ckWrappedKeyLength = 0U;
     jbyte* wrappedKeySizeWrappedKeyArrayPtr = NULL;
@@ -198,8 +198,8 @@ Java_sun_security_pkcs11_wrapper_PKCS11_getNativeKeyInfo
         TRACE0("DEBUG: override CKA_NETSCAPE_DB attr value to TRUE\n");
     }
 
-    ckpAttributes = (CK_ATTRIBUTE_PTR)malloc(
-            CK_ATTRIBUTES_TEMPLATE_LENGTH * sizeof(CK_ATTRIBUTE));
+    ckpAttributes = (CK_ATTRIBUTE_PTR) calloc(
+            CK_ATTRIBUTES_TEMPLATE_LENGTH, sizeof(CK_ATTRIBUTE));
     if (ckpAttributes == NULL) {
         throwOutOfMemoryError(env, 0);
         goto cleanup;
@@ -310,8 +310,8 @@ Java_sun_security_pkcs11_wrapper_PKCS11_getNativeKeyInfo
         // Key is sensitive. Need to extract it wrapped.
         if (jWrappingKeyHandle != 0) {
 
-            jMechanismToCKMechanism(env, jWrappingMech, &ckMechanism);
-            rv = (*ckpFunctions->C_WrapKey)(ckSessionHandle, &ckMechanism,
+            ckpMechanism = jMechanismToCKMechanismPtr(env, jWrappingMech);
+            rv = (*ckpFunctions->C_WrapKey)(ckSessionHandle, ckpMechanism,
                     jLongToCKULong(jWrappingKeyHandle), ckObjectHandle,
                     NULL_PTR, &ckWrappedKeyLength);
             if (ckWrappedKeyLength != 0) {
@@ -339,7 +339,7 @@ Java_sun_security_pkcs11_wrapper_PKCS11_getNativeKeyInfo
                 wrappedKeyBufferPtr =
                         (CK_BYTE_PTR) (wrappedKeySizeWrappedKeyArrayPtr +
                         sizeof(unsigned long));
-                rv = (*ckpFunctions->C_WrapKey)(ckSessionHandle, &ckMechanism,
+                rv = (*ckpFunctions->C_WrapKey)(ckSessionHandle, ckpMechanism,
                         jLongToCKULong(jWrappingKeyHandle),ckObjectHandle,
                         wrappedKeyBufferPtr, &ckWrappedKeyLength);
                 if (ckAssertReturnValueOK(env, rv) != CK_ASSERT_OK) {
@@ -382,6 +382,7 @@ cleanup:
             && returnValue != nativeKeyInfoWrappedKeyArray) {
         (*env)->DeleteLocalRef(env, nativeKeyInfoWrappedKeyArray);
     }
+    freeCKMechanismPtr(ckpMechanism);
 
     return returnValue;
 }
@@ -417,7 +418,7 @@ Java_sun_security_pkcs11_wrapper_PKCS11_createNativeKey
     unsigned long totalDataSize = 0UL;
     jbyte* wrappedKeySizePtr = NULL;
     unsigned int i = 0U;
-    CK_MECHANISM ckMechanism;
+    CK_MECHANISM_PTR ckpMechanism = NULL;
     char iv[16] = {0x0};
     CK_ULONG ckWrappedKeyLength = 0UL;
     CK_FUNCTION_LIST_PTR ckpFunctions = getFunctionList(env, obj);
@@ -468,8 +469,8 @@ Java_sun_security_pkcs11_wrapper_PKCS11_createNativeKey
                 jLongToCKULong(nativeKeyInfoCkAttributesCount), &ckObjectHandle);
     } else {
         // Wrapped key
-        jMechanismToCKMechanism(env, jWrappingMech, &ckMechanism);
-        rv = (*ckpFunctions->C_UnwrapKey)(ckSessionHandle, &ckMechanism,
+        ckpMechanism = jMechanismToCKMechanismPtr(env, jWrappingMech);
+        rv = (*ckpFunctions->C_UnwrapKey)(ckSessionHandle, ckpMechanism,
                 jLongToCKULong(jWrappingKeyHandle),
                 (CK_BYTE_PTR)(wrappedKeySizePtr + sizeof(unsigned long)),
                 ckWrappedKeyLength,
@@ -490,6 +491,7 @@ cleanup:
                 nativeKeyInfoArrayRaw, JNI_ABORT);
     }
 
+    freeCKMechanismPtr(ckpMechanism);
     return jObjectHandle;
 }
 #endif
@@ -510,9 +512,9 @@ JNIEXPORT jlong JNICALL Java_sun_security_pkcs11_wrapper_PKCS11_C_1GenerateKey
     (JNIEnv *env, jobject obj, jlong jSessionHandle, jobject jMechanism, jobjectArray jTemplate)
 {
     CK_SESSION_HANDLE ckSessionHandle;
-    CK_MECHANISM ckMechanism;
+    CK_MECHANISM_PTR ckpMechanism = NULL;
     CK_ATTRIBUTE_PTR ckpAttributes = NULL_PTR;
-    CK_ULONG ckAttributesLength;
+    CK_ULONG ckAttributesLength = 0;
     CK_OBJECT_HANDLE ckKeyHandle = 0;
     jlong jKeyHandle = 0L;
     CK_RV rv;
@@ -521,24 +523,21 @@ JNIEXPORT jlong JNICALL Java_sun_security_pkcs11_wrapper_PKCS11_C_1GenerateKey
     if (ckpFunctions == NULL) { return 0L; }
 
     ckSessionHandle = jLongToCKULong(jSessionHandle);
-    jMechanismToCKMechanism(env, jMechanism, &ckMechanism);
+    ckpMechanism = jMechanismToCKMechanismPtr(env, jMechanism);
     if ((*env)->ExceptionCheck(env)) { return 0L ; }
 
     jAttributeArrayToCKAttributeArray(env, jTemplate, &ckpAttributes, &ckAttributesLength);
     if ((*env)->ExceptionCheck(env)) {
-        if (ckMechanism.pParameter != NULL_PTR) {
-            free(ckMechanism.pParameter);
-        }
-        return 0L;
+        goto cleanup;
     }
 
-    rv = (*ckpFunctions->C_GenerateKey)(ckSessionHandle, &ckMechanism, ckpAttributes, ckAttributesLength, &ckKeyHandle);
+    rv = (*ckpFunctions->C_GenerateKey)(ckSessionHandle, ckpMechanism, ckpAttributes, ckAttributesLength, &ckKeyHandle);
 
     if (ckAssertReturnValueOK(env, rv) == CK_ASSERT_OK) {
         jKeyHandle = ckULongToJLong(ckKeyHandle);
 
         /* cheack, if we must give a initialization vector back to Java */
-        switch (ckMechanism.mechanism) {
+        switch (ckpMechanism->mechanism) {
         case CKM_PBE_MD2_DES_CBC:
         case CKM_PBE_MD5_DES_CBC:
         case CKM_PBE_MD5_CAST_CBC:
@@ -548,14 +547,12 @@ JNIEXPORT jlong JNICALL Java_sun_security_pkcs11_wrapper_PKCS11_C_1GenerateKey
         case CKM_PBE_SHA1_CAST128_CBC:
         /* case CKM_PBE_SHA1_CAST5_CBC: the same as CKM_PBE_SHA1_CAST128_CBC */
             /* we must copy back the initialization vector to the jMechanism object */
-            copyBackPBEInitializationVector(env, &ckMechanism, jMechanism);
+            copyBackPBEInitializationVector(env, ckpMechanism, jMechanism);
             break;
         }
     }
-
-    if (ckMechanism.pParameter != NULL_PTR) {
-        free(ckMechanism.pParameter);
-    }
+cleanup:
+    freeCKMechanismPtr(ckpMechanism);
     freeCKAttributeArray(ckpAttributes, ckAttributesLength);
 
     return jKeyHandle ;
@@ -582,14 +579,14 @@ JNIEXPORT jlongArray JNICALL Java_sun_security_pkcs11_wrapper_PKCS11_C_1Generate
      jobjectArray jPublicKeyTemplate, jobjectArray jPrivateKeyTemplate)
 {
     CK_SESSION_HANDLE ckSessionHandle;
-    CK_MECHANISM ckMechanism;
+    CK_MECHANISM_PTR ckpMechanism = NULL;
     CK_ATTRIBUTE_PTR ckpPublicKeyAttributes = NULL_PTR;
     CK_ATTRIBUTE_PTR ckpPrivateKeyAttributes = NULL_PTR;
-    CK_ULONG ckPublicKeyAttributesLength;
-    CK_ULONG ckPrivateKeyAttributesLength;
+    CK_ULONG ckPublicKeyAttributesLength = 0;
+    CK_ULONG ckPrivateKeyAttributesLength = 0;
     CK_OBJECT_HANDLE_PTR ckpPublicKeyHandle;  /* pointer to Public Key */
     CK_OBJECT_HANDLE_PTR ckpPrivateKeyHandle; /* pointer to Private Key */
-    CK_OBJECT_HANDLE_PTR ckpKeyHandles;     /* pointer to array with Public and Private Key */
+    CK_OBJECT_HANDLE_PTR ckpKeyHandles = NULL; /* pointer to array with Public and Private Key */
     jlongArray jKeyHandles = NULL;
     CK_RV rv;
 
@@ -597,40 +594,28 @@ JNIEXPORT jlongArray JNICALL Java_sun_security_pkcs11_wrapper_PKCS11_C_1Generate
     if (ckpFunctions == NULL) { return NULL; }
 
     ckSessionHandle = jLongToCKULong(jSessionHandle);
-    jMechanismToCKMechanism(env, jMechanism, &ckMechanism);
+    ckpMechanism = jMechanismToCKMechanismPtr(env, jMechanism);
     if ((*env)->ExceptionCheck(env)) { return NULL; }
 
-    ckpKeyHandles = (CK_OBJECT_HANDLE_PTR) malloc(2 * sizeof(CK_OBJECT_HANDLE));
+    ckpKeyHandles = (CK_OBJECT_HANDLE_PTR) calloc(2, sizeof(CK_OBJECT_HANDLE));
     if (ckpKeyHandles == NULL) {
-        if (ckMechanism.pParameter != NULL_PTR) {
-            free(ckMechanism.pParameter);
-        }
         throwOutOfMemoryError(env, 0);
-        return NULL;
+        goto cleanup;
     }
     ckpPublicKeyHandle = ckpKeyHandles;   /* first element of array is Public Key */
     ckpPrivateKeyHandle = (ckpKeyHandles + 1);  /* second element of array is Private Key */
 
     jAttributeArrayToCKAttributeArray(env, jPublicKeyTemplate, &ckpPublicKeyAttributes, &ckPublicKeyAttributesLength);
     if ((*env)->ExceptionCheck(env)) {
-        if (ckMechanism.pParameter != NULL_PTR) {
-            free(ckMechanism.pParameter);
-        }
-        free(ckpKeyHandles);
-        return NULL;
+        goto cleanup;
     }
 
     jAttributeArrayToCKAttributeArray(env, jPrivateKeyTemplate, &ckpPrivateKeyAttributes, &ckPrivateKeyAttributesLength);
     if ((*env)->ExceptionCheck(env)) {
-        if (ckMechanism.pParameter != NULL_PTR) {
-            free(ckMechanism.pParameter);
-        }
-        free(ckpKeyHandles);
-        freeCKAttributeArray(ckpPublicKeyAttributes, ckPublicKeyAttributesLength);
-        return NULL;
+        goto cleanup;
     }
 
-    rv = (*ckpFunctions->C_GenerateKeyPair)(ckSessionHandle, &ckMechanism,
+    rv = (*ckpFunctions->C_GenerateKeyPair)(ckSessionHandle, ckpMechanism,
                      ckpPublicKeyAttributes, ckPublicKeyAttributesLength,
                      ckpPrivateKeyAttributes, ckPrivateKeyAttributesLength,
                      ckpPublicKeyHandle, ckpPrivateKeyHandle);
@@ -639,13 +624,11 @@ JNIEXPORT jlongArray JNICALL Java_sun_security_pkcs11_wrapper_PKCS11_C_1Generate
         jKeyHandles = ckULongArrayToJLongArray(env, ckpKeyHandles, 2);
     }
 
-    if(ckMechanism.pParameter != NULL_PTR) {
-        free(ckMechanism.pParameter);
-    }
+cleanup:
+    freeCKMechanismPtr(ckpMechanism);
     free(ckpKeyHandles);
     freeCKAttributeArray(ckpPublicKeyAttributes, ckPublicKeyAttributesLength);
     freeCKAttributeArray(ckpPrivateKeyAttributes, ckPrivateKeyAttributesLength);
-
     return jKeyHandles ;
 }
 #endif
@@ -667,7 +650,7 @@ JNIEXPORT jbyteArray JNICALL Java_sun_security_pkcs11_wrapper_PKCS11_C_1WrapKey
     (JNIEnv *env, jobject obj, jlong jSessionHandle, jobject jMechanism, jlong jWrappingKeyHandle, jlong jKeyHandle)
 {
     CK_SESSION_HANDLE ckSessionHandle;
-    CK_MECHANISM ckMechanism;
+    CK_MECHANISM_PTR ckpMechanism = NULL;
     CK_OBJECT_HANDLE ckWrappingKeyHandle;
     CK_OBJECT_HANDLE ckKeyHandle;
     jbyteArray jWrappedKey = NULL;
@@ -680,33 +663,31 @@ JNIEXPORT jbyteArray JNICALL Java_sun_security_pkcs11_wrapper_PKCS11_C_1WrapKey
     if (ckpFunctions == NULL) { return NULL; }
 
     ckSessionHandle = jLongToCKULong(jSessionHandle);
-    jMechanismToCKMechanism(env, jMechanism, &ckMechanism);
+    ckpMechanism = jMechanismToCKMechanismPtr(env, jMechanism);
     if ((*env)->ExceptionCheck(env)) { return NULL; }
 
     ckWrappingKeyHandle = jLongToCKULong(jWrappingKeyHandle);
     ckKeyHandle = jLongToCKULong(jKeyHandle);
 
-    rv = (*ckpFunctions->C_WrapKey)(ckSessionHandle, &ckMechanism, ckWrappingKeyHandle, ckKeyHandle, ckpWrappedKey, &ckWrappedKeyLength);
+    rv = (*ckpFunctions->C_WrapKey)(ckSessionHandle, ckpMechanism, ckWrappingKeyHandle, ckKeyHandle, ckpWrappedKey, &ckWrappedKeyLength);
     if (rv == CKR_BUFFER_TOO_SMALL) {
-        ckpWrappedKey = (CK_BYTE_PTR) malloc(ckWrappedKeyLength);
+        ckpWrappedKey = (CK_BYTE_PTR)
+                calloc(ckWrappedKeyLength, sizeof(CK_BYTE));
         if (ckpWrappedKey == NULL) {
-            if (ckMechanism.pParameter != NULL_PTR) {
-                free(ckMechanism.pParameter);
-            }
             throwOutOfMemoryError(env, 0);
-            return NULL;
+            goto cleanup;
         }
 
-        rv = (*ckpFunctions->C_WrapKey)(ckSessionHandle, &ckMechanism, ckWrappingKeyHandle, ckKeyHandle, ckpWrappedKey, &ckWrappedKeyLength);
+        rv = (*ckpFunctions->C_WrapKey)(ckSessionHandle, ckpMechanism, ckWrappingKeyHandle, ckKeyHandle, ckpWrappedKey, &ckWrappedKeyLength);
     }
     if (ckAssertReturnValueOK(env, rv) == CK_ASSERT_OK) {
         jWrappedKey = ckByteArrayToJByteArray(env, ckpWrappedKey, ckWrappedKeyLength);
     }
 
+cleanup:
     if (ckpWrappedKey != BUF) { free(ckpWrappedKey); }
-    if (ckMechanism.pParameter != NULL_PTR) {
-        free(ckMechanism.pParameter);
-    }
+    freeCKMechanismPtr(ckpMechanism);
+
     return jWrappedKey ;
 }
 #endif
@@ -731,12 +712,12 @@ JNIEXPORT jlong JNICALL Java_sun_security_pkcs11_wrapper_PKCS11_C_1UnwrapKey
      jbyteArray jWrappedKey, jobjectArray jTemplate)
 {
     CK_SESSION_HANDLE ckSessionHandle;
-    CK_MECHANISM ckMechanism;
+    CK_MECHANISM_PTR ckpMechanism = NULL;
     CK_OBJECT_HANDLE ckUnwrappingKeyHandle;
     CK_BYTE_PTR ckpWrappedKey = NULL_PTR;
     CK_ULONG ckWrappedKeyLength;
     CK_ATTRIBUTE_PTR ckpAttributes = NULL_PTR;
-    CK_ULONG ckAttributesLength;
+    CK_ULONG ckAttributesLength = 0;
     CK_OBJECT_HANDLE ckKeyHandle = 0;
     jlong jKeyHandle = 0L;
     CK_RV rv;
@@ -745,29 +726,22 @@ JNIEXPORT jlong JNICALL Java_sun_security_pkcs11_wrapper_PKCS11_C_1UnwrapKey
     if (ckpFunctions == NULL) { return 0L; }
 
     ckSessionHandle = jLongToCKULong(jSessionHandle);
-    jMechanismToCKMechanism(env, jMechanism, &ckMechanism);
+    ckpMechanism = jMechanismToCKMechanismPtr(env, jMechanism);
     if ((*env)->ExceptionCheck(env)) { return 0L; }
 
     ckUnwrappingKeyHandle = jLongToCKULong(jUnwrappingKeyHandle);
     jByteArrayToCKByteArray(env, jWrappedKey, &ckpWrappedKey, &ckWrappedKeyLength);
     if ((*env)->ExceptionCheck(env)) {
-        if (ckMechanism.pParameter != NULL_PTR) {
-            free(ckMechanism.pParameter);
-        }
-        return 0L;
+        goto cleanup;
     }
 
     jAttributeArrayToCKAttributeArray(env, jTemplate, &ckpAttributes, &ckAttributesLength);
     if ((*env)->ExceptionCheck(env)) {
-        if (ckMechanism.pParameter != NULL_PTR) {
-            free(ckMechanism.pParameter);
-        }
-        free(ckpWrappedKey);
-        return 0L;
+        goto cleanup;
     }
 
 
-    rv = (*ckpFunctions->C_UnwrapKey)(ckSessionHandle, &ckMechanism, ckUnwrappingKeyHandle,
+    rv = (*ckpFunctions->C_UnwrapKey)(ckSessionHandle, ckpMechanism, ckUnwrappingKeyHandle,
                  ckpWrappedKey, ckWrappedKeyLength,
                  ckpAttributes, ckAttributesLength, &ckKeyHandle);
 
@@ -776,16 +750,14 @@ JNIEXPORT jlong JNICALL Java_sun_security_pkcs11_wrapper_PKCS11_C_1UnwrapKey
 
 #if 0
         /* cheack, if we must give a initialization vector back to Java */
-        if (ckMechanism.mechanism == CKM_KEY_WRAP_SET_OAEP) {
+        if (ckpMechanism->mechanism == CKM_KEY_WRAP_SET_OAEP) {
             /* we must copy back the unwrapped key info to the jMechanism object */
-            copyBackSetUnwrappedKey(env, &ckMechanism, jMechanism);
+            copyBackSetUnwrappedKey(env, ckpMechanism, jMechanism);
         }
 #endif
     }
-
-    if (ckMechanism.pParameter != NULL_PTR) {
-        free(ckMechanism.pParameter);
-    }
+cleanup:
+    freeCKMechanismPtr(ckpMechanism);
     freeCKAttributeArray(ckpAttributes, ckAttributesLength);
     free(ckpWrappedKey);
 
@@ -795,54 +767,10 @@ JNIEXPORT jlong JNICALL Java_sun_security_pkcs11_wrapper_PKCS11_C_1UnwrapKey
 
 #ifdef P11_ENABLE_C_DERIVEKEY
 
-static void freeMasterKeyDeriveParams(CK_SSL3_RANDOM_DATA *RandomInfo, CK_VERSION_PTR pVersion) {
-    if (RandomInfo->pClientRandom != NULL) {
-        free(RandomInfo->pClientRandom);
-    }
-    if (RandomInfo->pServerRandom != NULL) {
-        free(RandomInfo->pServerRandom);
-    }
-    if (pVersion != NULL) {
-        free(pVersion);
-    }
-}
-
-void ssl3FreeMasterKeyDeriveParams(CK_MECHANISM_PTR ckMechanism) {
-    CK_SSL3_MASTER_KEY_DERIVE_PARAMS *params = (CK_SSL3_MASTER_KEY_DERIVE_PARAMS *) ckMechanism->pParameter;
-    if (params == NULL) {
-        return;
-    }
-    freeMasterKeyDeriveParams(&(params->RandomInfo), params->pVersion);
-}
-
-void tls12FreeMasterKeyDeriveParams(CK_MECHANISM_PTR ckMechanism) {
-    CK_TLS12_MASTER_KEY_DERIVE_PARAMS *params =
-            (CK_TLS12_MASTER_KEY_DERIVE_PARAMS *)ckMechanism->pParameter;
-    if (params == NULL) {
-        return;
-    }
-    freeMasterKeyDeriveParams(&(params->RandomInfo), params->pVersion);
-}
-
-void freeEcdh1DeriveParams(CK_MECHANISM_PTR ckMechanism) {
-    CK_ECDH1_DERIVE_PARAMS *params =
-            (CK_ECDH1_DERIVE_PARAMS *)ckMechanism->pParameter;
-    if (params == NULL) {
-        return;
-    }
-
-    if (params->pSharedData != NULL) {
-        free(params->pSharedData);
-    }
-    if (params->pPublicData != NULL) {
-        free(params->pPublicData);
-    }
-}
-
 /*
  * Copy back the PRF output to Java.
  */
-void copyBackTLSPrfParams(JNIEnv *env, CK_MECHANISM *ckMechanism, jobject jMechanism)
+void copyBackTLSPrfParams(JNIEnv *env, CK_MECHANISM_PTR ckpMechanism, jobject jMechanism)
 {
     jclass jMechanismClass, jTLSPrfParamsClass;
     CK_TLS_PRF_PARAMS *ckTLSPrfParams;
@@ -863,13 +791,13 @@ void copyBackTLSPrfParams(JNIEnv *env, CK_MECHANISM *ckMechanism, jobject jMecha
     if (fieldID == NULL) { return; }
     jMechanismType = (*env)->GetLongField(env, jMechanism, fieldID);
     ckMechanismType = jLongToCKULong(jMechanismType);
-    if (ckMechanismType != ckMechanism->mechanism) {
+    if (ckMechanismType != ckpMechanism->mechanism) {
         /* we do not have maching types, this should not occur */
         return;
     }
 
     /* get the native CK_TLS_PRF_PARAMS */
-    ckTLSPrfParams = (CK_TLS_PRF_PARAMS *) ckMechanism->pParameter;
+    ckTLSPrfParams = (CK_TLS_PRF_PARAMS *) ckpMechanism->pParameter;
     if (ckTLSPrfParams != NULL_PTR) {
         /* get the Java CK_TLS_PRF_PARAMS object (pParameter) */
         fieldID = (*env)->GetFieldID(env, jMechanismClass, "pParameter", "Ljava/lang/Object;");
@@ -898,12 +826,6 @@ void copyBackTLSPrfParams(JNIEnv *env, CK_MECHANISM *ckMechanism, jobject jMecha
             /* copy back the Java buffer to the object */
             (*env)->ReleaseByteArrayElements(env, jOutput, jBytes, 0);
         }
-
-        // free malloc'd data
-        free(ckTLSPrfParams->pSeed);
-        free(ckTLSPrfParams->pLabel);
-        free(ckTLSPrfParams->pulOutputLen);
-        free(ckTLSPrfParams->pOutput);
     }
 }
 
@@ -923,10 +845,10 @@ JNIEXPORT jlong JNICALL Java_sun_security_pkcs11_wrapper_PKCS11_C_1DeriveKey
     (JNIEnv *env, jobject obj, jlong jSessionHandle, jobject jMechanism, jlong jBaseKeyHandle, jobjectArray jTemplate)
 {
     CK_SESSION_HANDLE ckSessionHandle;
-    CK_MECHANISM ckMechanism;
+    CK_MECHANISM_PTR ckpMechanism = NULL;
     CK_OBJECT_HANDLE ckBaseKeyHandle;
     CK_ATTRIBUTE_PTR ckpAttributes = NULL_PTR;
-    CK_ULONG ckAttributesLength;
+    CK_ULONG ckAttributesLength = 0;
     CK_OBJECT_HANDLE ckKeyHandle = 0;
     jlong jKeyHandle = 0L;
     CK_RV rv;
@@ -936,19 +858,16 @@ JNIEXPORT jlong JNICALL Java_sun_security_pkcs11_wrapper_PKCS11_C_1DeriveKey
     if (ckpFunctions == NULL) { return 0L; }
 
     ckSessionHandle = jLongToCKULong(jSessionHandle);
-    jMechanismToCKMechanism(env, jMechanism, &ckMechanism);
+    ckpMechanism = jMechanismToCKMechanismPtr(env, jMechanism);
     if ((*env)->ExceptionCheck(env)) { return 0L; }
 
     ckBaseKeyHandle = jLongToCKULong(jBaseKeyHandle);
     jAttributeArrayToCKAttributeArray(env, jTemplate, &ckpAttributes, &ckAttributesLength);
     if ((*env)->ExceptionCheck(env)) {
-        if (ckMechanism.pParameter != NULL_PTR) {
-            free(ckMechanism.pParameter);
-        }
-        return 0L;
+        goto cleanup;
     }
 
-    switch (ckMechanism.mechanism) {
+    switch (ckpMechanism->mechanism) {
     case CKM_SSL3_KEY_AND_MAC_DERIVE:
     case CKM_TLS_KEY_AND_MAC_DERIVE:
     case CKM_TLS12_KEY_AND_MAC_DERIVE:
@@ -962,60 +881,48 @@ JNIEXPORT jlong JNICALL Java_sun_security_pkcs11_wrapper_PKCS11_C_1DeriveKey
         break;
     }
 
-    rv = (*ckpFunctions->C_DeriveKey)(ckSessionHandle, &ckMechanism, ckBaseKeyHandle,
+    rv = (*ckpFunctions->C_DeriveKey)(ckSessionHandle, ckpMechanism, ckBaseKeyHandle,
                  ckpAttributes, ckAttributesLength, phKey);
 
     jKeyHandle = ckLongToJLong(ckKeyHandle);
 
-    freeCKAttributeArray(ckpAttributes, ckAttributesLength);
-
-    switch (ckMechanism.mechanism) {
+    switch (ckpMechanism->mechanism) {
     case CKM_SSL3_MASTER_KEY_DERIVE:
     case CKM_TLS_MASTER_KEY_DERIVE:
         /* we must copy back the client version */
-        ssl3CopyBackClientVersion(env, &ckMechanism, jMechanism);
-        ssl3FreeMasterKeyDeriveParams(&ckMechanism);
+        ssl3CopyBackClientVersion(env, ckpMechanism, jMechanism);
         break;
     case CKM_TLS12_MASTER_KEY_DERIVE:
-        tls12CopyBackClientVersion(env, &ckMechanism, jMechanism);
-        tls12FreeMasterKeyDeriveParams(&ckMechanism);
-        break;
-    case CKM_SSL3_MASTER_KEY_DERIVE_DH:
-    case CKM_TLS_MASTER_KEY_DERIVE_DH:
-        ssl3FreeMasterKeyDeriveParams(&ckMechanism);
-        break;
-    case CKM_TLS12_MASTER_KEY_DERIVE_DH:
-        tls12FreeMasterKeyDeriveParams(&ckMechanism);
+        tls12CopyBackClientVersion(env, ckpMechanism, jMechanism);
         break;
     case CKM_SSL3_KEY_AND_MAC_DERIVE:
     case CKM_TLS_KEY_AND_MAC_DERIVE:
         /* we must copy back the unwrapped key info to the jMechanism object */
-        ssl3CopyBackKeyMatParams(env, &ckMechanism, jMechanism);
+        ssl3CopyBackKeyMatParams(env, ckpMechanism, jMechanism);
         break;
     case CKM_TLS12_KEY_AND_MAC_DERIVE:
         /* we must copy back the unwrapped key info to the jMechanism object */
-        tls12CopyBackKeyMatParams(env, &ckMechanism, jMechanism);
+        tls12CopyBackKeyMatParams(env, ckpMechanism, jMechanism);
         break;
     case CKM_TLS_PRF:
-        copyBackTLSPrfParams(env, &ckMechanism, jMechanism);
-        break;
-    case CKM_ECDH1_DERIVE:
-        freeEcdh1DeriveParams(&ckMechanism);
+        copyBackTLSPrfParams(env, ckpMechanism, jMechanism);
         break;
     default:
         // empty
         break;
     }
-
-    if (ckMechanism.pParameter != NULL_PTR) {
-        free(ckMechanism.pParameter);
+    if (ckAssertReturnValueOK(env, rv) != CK_ASSERT_OK) {
+        jKeyHandle =0L;
     }
-    if (ckAssertReturnValueOK(env, rv) != CK_ASSERT_OK) { return 0L ; }
+
+cleanup:
+    freeCKMechanismPtr(ckpMechanism);
+    freeCKAttributeArray(ckpAttributes, ckAttributesLength);
 
     return jKeyHandle ;
 }
 
-static void copyBackClientVersion(JNIEnv *env, CK_MECHANISM *ckMechanism, jobject jMechanism,
+static void copyBackClientVersion(JNIEnv *env, CK_MECHANISM_PTR ckpMechanism, jobject jMechanism,
         CK_VERSION *ckVersion, const char *class_master_key_derive_params)
 {
     jclass jMasterKeyDeriveParamsClass, jMechanismClass, jVersionClass;
@@ -1032,7 +939,7 @@ static void copyBackClientVersion(JNIEnv *env, CK_MECHANISM *ckMechanism, jobjec
     if (fieldID == NULL) { return; }
     jMechanismType = (*env)->GetLongField(env, jMechanism, fieldID);
     ckMechanismType = jLongToCKULong(jMechanismType);
-    if (ckMechanismType != ckMechanism->mechanism) {
+    if (ckMechanismType != ckpMechanism->mechanism) {
         /* we do not have maching types, this should not occur */
         return;
     }
@@ -1075,14 +982,14 @@ static void copyBackClientVersion(JNIEnv *env, CK_MECHANISM *ckMechanism, jobjec
  * mechanisms when used for deriving a key.
  *
  */
-void ssl3CopyBackClientVersion(JNIEnv *env, CK_MECHANISM *ckMechanism,
+void ssl3CopyBackClientVersion(JNIEnv *env, CK_MECHANISM_PTR ckpMechanism,
         jobject jMechanism)
 {
     CK_SSL3_MASTER_KEY_DERIVE_PARAMS *ckSSL3MasterKeyDeriveParams;
     ckSSL3MasterKeyDeriveParams =
-            (CK_SSL3_MASTER_KEY_DERIVE_PARAMS *)ckMechanism->pParameter;
+            (CK_SSL3_MASTER_KEY_DERIVE_PARAMS *)ckpMechanism->pParameter;
     if (ckSSL3MasterKeyDeriveParams != NULL_PTR) {
-        copyBackClientVersion(env, ckMechanism, jMechanism,
+        copyBackClientVersion(env, ckpMechanism, jMechanism,
                 ckSSL3MasterKeyDeriveParams->pVersion,
                 CLASS_SSL3_MASTER_KEY_DERIVE_PARAMS);
     }
@@ -1094,20 +1001,20 @@ void ssl3CopyBackClientVersion(JNIEnv *env, CK_MECHANISM *ckMechanism,
  * CKM_TLS12_MASTER_KEY_DERIVE mechanism when used for deriving a key.
  *
  */
-void tls12CopyBackClientVersion(JNIEnv *env, CK_MECHANISM *ckMechanism,
+void tls12CopyBackClientVersion(JNIEnv *env, CK_MECHANISM_PTR ckpMechanism,
         jobject jMechanism)
 {
     CK_TLS12_MASTER_KEY_DERIVE_PARAMS *ckTLS12MasterKeyDeriveParams;
     ckTLS12MasterKeyDeriveParams =
-            (CK_TLS12_MASTER_KEY_DERIVE_PARAMS *)ckMechanism->pParameter;
+            (CK_TLS12_MASTER_KEY_DERIVE_PARAMS *)ckpMechanism->pParameter;
     if (ckTLS12MasterKeyDeriveParams != NULL_PTR) {
-        copyBackClientVersion(env, ckMechanism, jMechanism,
+        copyBackClientVersion(env, ckpMechanism, jMechanism,
                 ckTLS12MasterKeyDeriveParams->pVersion,
                 CLASS_TLS12_MASTER_KEY_DERIVE_PARAMS);
     }
 }
 
-static void copyBackKeyMatParams(JNIEnv *env, CK_MECHANISM *ckMechanism,
+static void copyBackKeyMatParams(JNIEnv *env, CK_MECHANISM_PTR ckpMechanism,
         jobject jMechanism, CK_SSL3_RANDOM_DATA *RandomInfo,
         CK_SSL3_KEY_MAT_OUT_PTR ckSSL3KeyMatOut, const char *class_key_mat_params)
 {
@@ -1130,17 +1037,9 @@ static void copyBackKeyMatParams(JNIEnv *env, CK_MECHANISM *ckMechanism,
     if (fieldID == NULL) { return; }
     jMechanismType = (*env)->GetLongField(env, jMechanism, fieldID);
     ckMechanismType = jLongToCKULong(jMechanismType);
-    if (ckMechanismType != ckMechanism->mechanism) {
+    if (ckMechanismType != ckpMechanism->mechanism) {
         /* we do not have maching types, this should not occur */
         return;
-    }
-
-    // free malloc'd data
-    if (RandomInfo->pClientRandom != NULL) {
-        free(RandomInfo->pClientRandom);
-    }
-    if (RandomInfo->pServerRandom != NULL) {
-        free(RandomInfo->pServerRandom);
     }
 
     if (ckSSL3KeyMatOut != NULL_PTR) {
@@ -1204,8 +1103,6 @@ static void copyBackKeyMatParams(JNIEnv *env, CK_MECHANISM *ckMechanism,
         /* copy back the Java buffer to the object */
         (*env)->ReleaseByteArrayElements(env, jIV, jBytes, 0);
       }
-      // free malloc'd data
-      free(ckSSL3KeyMatOut->pIVClient);
 
       /* copy back the server IV */
       fieldID = (*env)->GetFieldID(env, jSSL3KeyMatOutClass, "pIVServer", "[B");
@@ -1224,9 +1121,6 @@ static void copyBackKeyMatParams(JNIEnv *env, CK_MECHANISM *ckMechanism,
         /* copy back the Java buffer to the object */
         (*env)->ReleaseByteArrayElements(env, jIV, jBytes, 0);
       }
-      // free malloc'd data
-      free(ckSSL3KeyMatOut->pIVServer);
-      free(ckSSL3KeyMatOut);
     }
 }
 
@@ -1237,13 +1131,13 @@ static void copyBackKeyMatParams(JNIEnv *env, CK_MECHANISM *ckMechanism,
  * when used for deriving a key.
  *
  */
-void ssl3CopyBackKeyMatParams(JNIEnv *env, CK_MECHANISM *ckMechanism,
+void ssl3CopyBackKeyMatParams(JNIEnv *env, CK_MECHANISM_PTR ckpMechanism,
         jobject jMechanism)
 {
     CK_SSL3_KEY_MAT_PARAMS *ckSSL3KeyMatParam;
-    ckSSL3KeyMatParam = (CK_SSL3_KEY_MAT_PARAMS *)ckMechanism->pParameter;
+    ckSSL3KeyMatParam = (CK_SSL3_KEY_MAT_PARAMS *)ckpMechanism->pParameter;
     if (ckSSL3KeyMatParam != NULL_PTR) {
-        copyBackKeyMatParams(env, ckMechanism, jMechanism,
+        copyBackKeyMatParams(env, ckpMechanism, jMechanism,
                 &(ckSSL3KeyMatParam->RandomInfo),
                 ckSSL3KeyMatParam->pReturnedKeyMaterial,
                 CLASS_SSL3_KEY_MAT_PARAMS);
@@ -1256,13 +1150,13 @@ void ssl3CopyBackKeyMatParams(JNIEnv *env, CK_MECHANISM *ckMechanism,
  * CKM_TLS12_KEY_AND_MAC_DERIVE mechanism when used for deriving a key.
  *
  */
-void tls12CopyBackKeyMatParams(JNIEnv *env, CK_MECHANISM *ckMechanism,
+void tls12CopyBackKeyMatParams(JNIEnv *env, CK_MECHANISM_PTR ckpMechanism,
         jobject jMechanism)
 {
     CK_TLS12_KEY_MAT_PARAMS *ckTLS12KeyMatParam;
-    ckTLS12KeyMatParam = (CK_TLS12_KEY_MAT_PARAMS *) ckMechanism->pParameter;
+    ckTLS12KeyMatParam = (CK_TLS12_KEY_MAT_PARAMS *)ckpMechanism->pParameter;
     if (ckTLS12KeyMatParam != NULL_PTR) {
-        copyBackKeyMatParams(env, ckMechanism, jMechanism,
+        copyBackKeyMatParams(env, ckpMechanism, jMechanism,
                 &(ckTLS12KeyMatParam->RandomInfo),
                 ckTLS12KeyMatParam->pReturnedKeyMaterial,
                 CLASS_TLS12_KEY_MAT_PARAMS);

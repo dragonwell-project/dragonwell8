@@ -21,10 +21,10 @@
  * under the License.
  */
 /*
- * Copyright (c) 2005, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2018, Oracle and/or its affiliates. All rights reserved.
  */
 /*
- * $Id: DOMUtils.java 1333415 2012-05-03 12:03:51Z coheigea $
+ * $Id: DOMUtils.java 1788465 2017-03-24 15:10:51Z coheigea $
  */
 package org.jcp.xml.dsig.internal.dom;
 
@@ -35,6 +35,8 @@ import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
+
+import javax.xml.XMLConstants;
 import javax.xml.crypto.*;
 import javax.xml.crypto.dsig.*;
 import javax.xml.crypto.dsig.spec.*;
@@ -42,9 +44,8 @@ import javax.xml.crypto.dsig.spec.*;
 /**
  * Useful static DOM utility methods.
  *
- * @author Sean Mullan
  */
-public class DOMUtils {
+public final class DOMUtils {
 
     // class cannot be instantiated
     private DOMUtils() {}
@@ -61,6 +62,21 @@ public class DOMUtils {
         } else {
             return node.getOwnerDocument();
         }
+    }
+
+    /**
+     * Create a QName string from a prefix and local name.
+     *
+     * @param prefix    The prefix, if any. Can be either null or empty.
+     * @param localName The local name.
+     *
+     * @return The string for the qName, for example, "xsd:element".
+     */
+    public static String getQNameString(String prefix, String localName) {
+        String qName = prefix == null || prefix.length() == 0
+                ? localName : prefix + ":" + localName;
+
+        return qName;
     }
 
     /**
@@ -121,7 +137,7 @@ public class DOMUtils {
      * @param node the node
      * @return the first child element of the specified node, or null if there
      *    is no such element
-     * @throws NullPointerException if <code>node == null</code>
+     * @throws NullPointerException if {@code node == null}
      */
     public static Element getFirstChildElement(Node node) {
         Node child = node.getFirstChild();
@@ -141,10 +157,28 @@ public class DOMUtils {
      * @throws MarshalException if no such element or the local name is not
      *    equal to {@code localName}
      */
+    @Deprecated
     public static Element getFirstChildElement(Node node, String localName)
         throws MarshalException
     {
         return verifyElement(getFirstChildElement(node), localName);
+    }
+
+    /**
+     * Returns the first child element of the specified node and checks that
+     * the local name is equal to {@code localName} and the namespace is equal to
+     * {@code namespaceURI}
+     *
+     * @param node the node
+     * @return the first child element of the specified node
+     * @throws NullPointerException if {@code node == null}
+     * @throws MarshalException if no such element or the local name is not
+     *    equal to {@code localName}
+     */
+    public static Element getFirstChildElement(Node node, String localName, String namespaceURI)
+        throws MarshalException
+    {
+        return verifyElement(getFirstChildElement(node), localName, namespaceURI);
     }
 
     private static Element verifyElement(Element elem, String localName)
@@ -161,6 +195,22 @@ public class DOMUtils {
         return elem;
     }
 
+    private static Element verifyElement(Element elem, String localName, String namespaceURI)
+        throws MarshalException
+    {
+        if (elem == null) {
+            throw new MarshalException("Missing " + localName + " element");
+        }
+        String name = elem.getLocalName();
+        String namespace = elem.getNamespaceURI();
+        if (!name.equals(localName) || namespace == null && namespaceURI != null
+            || namespace != null && !namespace.equals(namespaceURI)) {
+            throw new MarshalException("Invalid element name: " +
+                namespace + ":" + name + ", expected " + namespaceURI + ":" + localName);
+        }
+        return elem;
+    }
+
     /**
      * Returns the last child element of the specified node, or null if there
      * is no such element.
@@ -168,7 +218,7 @@ public class DOMUtils {
      * @param node the node
      * @return the last child element of the specified node, or null if there
      *    is no such element
-     * @throws NullPointerException if <code>node == null</code>
+     * @throws NullPointerException if {@code node == null}
      */
     public static Element getLastChildElement(Node node) {
         Node child = node.getLastChild();
@@ -185,7 +235,7 @@ public class DOMUtils {
      * @param node the node
      * @return the next sibling element of the specified node, or null if there
      *    is no such element
-     * @throws NullPointerException if <code>node == null</code>
+     * @throws NullPointerException if {@code node == null}
      */
     public static Element getNextSiblingElement(Node node) {
         Node sibling = node.getNextSibling();
@@ -203,12 +253,30 @@ public class DOMUtils {
      * @return the next sibling element of the specified node
      * @throws NullPointerException if {@code node == null}
      * @throws MarshalException if no such element or the local name is not
-     *    equal to {@code localName}
+     * equal to {@code localName}
      */
+    @Deprecated
     public static Element getNextSiblingElement(Node node, String localName)
         throws MarshalException
     {
         return verifyElement(getNextSiblingElement(node), localName);
+    }
+
+    /**
+     * Returns the next sibling element of the specified node and checks that
+     * the local name is equal to {@code localName} and the namespace is equal to
+     * {@code namespaceURI}
+     *
+     * @param node the node
+     * @return the next sibling element of the specified node
+     * @throws NullPointerException if {@code node == null}
+     * @throws MarshalException if no such element or the local name is not
+     * equal to {@code localName}
+     */
+    public static Element getNextSiblingElement(Node node, String localName, String namespaceURI)
+        throws MarshalException
+    {
+        return verifyElement(getNextSiblingElement(node), localName, namespaceURI);
     }
 
     /**
@@ -217,7 +285,7 @@ public class DOMUtils {
      * the empty string if the attribute value is empty.
      *
      * <p>This works around a limitation of the DOM
-     * <code>Element.getAttributeNode</code> method, which does not distinguish
+     * {@code Element.getAttributeNode} method, which does not distinguish
      * between an unspecified attribute and an attribute with a value of
      * "" (it returns "" for both cases).
      *
@@ -231,8 +299,30 @@ public class DOMUtils {
     }
 
     /**
-     * Returns a Set of <code>Node</code>s, backed by the specified
-     * <code>NodeList</code>.
+     * Returns the attribute value for the attribute with the specified name.
+     * Returns null if there is no such attribute, or
+     * the empty string if the attribute value is empty.
+     *
+     * <p>This works around a limitation of the DOM
+     * {@code Element.getAttributeNode} method, which does not distinguish
+     * between an unspecified attribute and an attribute with a value of
+     * "" (it returns "" for both cases).
+     *
+     * @param elem the element containing the attribute
+     * @param name the name of the attribute
+     * @return the attribute value (may be null if unspecified)
+     */
+    public static <N> String getIdAttributeValue(Element elem, String name) {
+        Attr attr = elem.getAttributeNodeNS(null, name);
+        if (attr != null && !attr.isId()) {
+            elem.setIdAttributeNode(attr, true);
+        }
+        return (attr == null) ? null : attr.getValue();
+    }
+
+    /**
+     * Returns a Set of {@code Node}s, backed by the specified
+     * {@code NodeList}.
      *
      * @param nl the NodeList
      * @return a Set of Nodes
@@ -250,7 +340,7 @@ public class DOMUtils {
         public int size() { return nl.getLength(); }
         public Iterator<Node> iterator() {
             return new Iterator<Node>() {
-                int index = 0;
+                private int index;
 
                 public void remove() {
                     throw new UnsupportedOperationException();
@@ -262,7 +352,7 @@ public class DOMUtils {
                     return nl.item(index++);
                 }
                 public boolean hasNext() {
-                    return index < nl.getLength() ? true : false;
+                    return index < nl.getLength();
                 }
             };
         }
@@ -302,9 +392,11 @@ public class DOMUtils {
      * @param node the parent node whose children are to be removed
      */
     public static void removeAllChildren(Node node) {
-        NodeList children = node.getChildNodes();
-        for (int i = 0, length = children.getLength(); i < length; i++) {
-            node.removeChild(children.item(i));
+        Node firstChild = node.getFirstChild();
+        while (firstChild != null) {
+            Node nodeToRemove = firstChild;
+            firstChild = firstChild.getNextSibling();
+            node.removeChild(nodeToRemove);
         }
     }
 
@@ -396,8 +488,8 @@ public class DOMUtils {
     private static boolean paramsEqual(XPathFilterParameterSpec spec1,
                                        XPathFilterParameterSpec spec2)
     {
-        return (spec1.getXPath().equals(spec2.getXPath()) &&
-                spec1.getNamespaceMap().equals(spec2.getNamespaceMap()));
+        return spec1.getXPath().equals(spec2.getXPath()) &&
+                spec1.getNamespaceMap().equals(spec2.getNamespaceMap());
     }
 
     private static boolean paramsEqual(XSLTTransformParameterSpec spec1,
@@ -414,5 +506,15 @@ public class DOMUtils {
         Node stylesheetElem =
             ((javax.xml.crypto.dom.DOMStructure) stylesheet).getNode();
         return nodesEqual(stylesheetElem, ostylesheetElem);
+    }
+
+    public static boolean isNamespace(Node node)
+    {
+        final short nodeType = node.getNodeType();
+        if (nodeType == Node.ATTRIBUTE_NODE) {
+            final String namespaceURI = node.getNamespaceURI();
+            return XMLConstants.XMLNS_ATTRIBUTE_NS_URI.equals(namespaceURI);
+        }
+        return false;
     }
 }

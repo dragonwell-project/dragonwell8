@@ -651,9 +651,29 @@ GetJREPath(char *path, jint pathsize, const char * arch, jboolean speculative)
     }
 
     size_t indexOfLastPathComponent = pathLen - sizeOfLastPathComponent;
-    if (0 == strncmp(realPathToSelf + indexOfLastPathComponent, lastPathComponent, sizeOfLastPathComponent - 1)) {
+    if (0 == strncmp(realPathToSelf + indexOfLastPathComponent, lastPathComponent, sizeOfLastPathComponent)) {
         realPathToSelf[indexOfLastPathComponent + 1] = '\0';
         return JNI_TRUE;
+    }
+
+    // If libjli.dylib is loaded from a macos bundle MacOS dir, find the JRE dir
+    // in ../Home.
+    const char altLastPathComponent[] = "/MacOS/libjli.dylib";
+    size_t sizeOfAltLastPathComponent = sizeof(altLastPathComponent) - 1;
+    if (pathLen < sizeOfLastPathComponent) {
+        return JNI_FALSE;
+    }
+
+    size_t indexOfAltLastPathComponent = pathLen - sizeOfAltLastPathComponent;
+    if (0 == strncmp(realPathToSelf + indexOfAltLastPathComponent, altLastPathComponent, sizeOfAltLastPathComponent)) {
+        JLI_Snprintf(realPathToSelf + indexOfAltLastPathComponent, sizeOfAltLastPathComponent, "%s", "/Home/jre");
+        if (access(realPathToSelf, F_OK) == 0) {
+            return JNI_TRUE;
+        }
+        JLI_Snprintf(realPathToSelf + indexOfAltLastPathComponent, sizeOfAltLastPathComponent, "%s", "/Home");
+        if (access(realPathToSelf, F_OK) == 0) {
+            return JNI_TRUE;
+        }
     }
 
     if (!speculative)

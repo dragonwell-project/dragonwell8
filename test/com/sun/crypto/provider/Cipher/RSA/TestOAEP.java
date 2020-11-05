@@ -26,6 +26,7 @@
  * @bug 4894151 8146293
  * @summary encryption/decryption test for OAEP
  * @author Andreas Sterbenz
+ * @key randomness
  */
 
 import java.util.*;

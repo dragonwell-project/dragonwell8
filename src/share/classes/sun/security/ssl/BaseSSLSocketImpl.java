@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002, 2012, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2002, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,23 +26,23 @@
 package sun.security.ssl;
 
 import java.io.*;
-import java.nio.channels.SocketChannel;
 import java.net.*;
-
+import java.nio.channels.SocketChannel;
+import java.util.Set;
 import javax.net.ssl.*;
 
 /**
- * Abstract base class for SSLSocketImpl. Its purpose is to house code with
- * no SSL related logic (or no logic at all). This makes SSLSocketImpl shorter
- * and easier to read. It contains a few constants and static methods plus
- * overridden java.net.Socket methods.
+ * Abstract base class for SSLSocketImpl.
+ *
+ * Its purpose is to house code with no SSL related logic (or no logic at all).
+ * This makes SSLSocketImpl shorter and easier to read. It contains a few
+ * constants and static methods plus overridden java.net.Socket methods.
  *
  * Methods are defined final to ensure that they are not accidentally
  * overridden in SSLSocketImpl.
  *
  * @see javax.net.ssl.SSLSocket
  * @see SSLSocketImpl
- *
  */
 abstract class BaseSSLSocketImpl extends SSLSocket {
 
@@ -54,8 +54,8 @@ abstract class BaseSSLSocketImpl extends SSLSocket {
      * recurse infinitely ... e.g. close() calling itself, or doing
      * I/O in terms of our own streams.
      */
-    final private Socket self;
-    final private InputStream consumedInput;
+    private final Socket self;
+    private final InputStream consumedInput;
 
     BaseSSLSocketImpl() {
         super();
@@ -87,11 +87,11 @@ abstract class BaseSSLSocketImpl extends SSLSocket {
      *
      * The default is "false", i.e. tolerate the broken behavior.
      */
-    private final static String PROP_NAME =
+    private static final String PROP_NAME =
                                 "com.sun.net.ssl.requireCloseNotify";
 
-    final static boolean requireCloseNotify =
-                                Debug.getBooleanProperty(PROP_NAME, false);
+    static final boolean requireCloseNotify =
+                                Utilities.getBooleanProperty(PROP_NAME, false);
 
     //
     // MISC SOCKET METHODS
@@ -204,30 +204,35 @@ abstract class BaseSSLSocketImpl extends SSLSocket {
     //
 
     /**
-     * The semantics of shutdownInput is not supported in TLS 1.0
-     * spec. Thus when the method is called on an SSL socket, an
-     * UnsupportedOperationException will be thrown.
+     * Places the input stream for this socket at "end of stream".  Any data
+     * sent to the input stream side of the socket is acknowledged and then
+     * silently discarded.
      *
-     * @throws UnsupportedOperationException
+     * @see java.net.Socket#shutdownInput
      */
     @Override
-    public final void shutdownInput() throws IOException {
-        throw new UnsupportedOperationException("The method shutdownInput()" +
-                   " is not supported in SSLSocket");
+    public void shutdownInput() throws IOException {
+        if (self == this) {
+            super.shutdownInput();
+        } else {
+            self.shutdownInput();
+        }
     }
 
     /**
-     * The semantics of shutdownOutput is not supported in TLS 1.0
-     * spec. Thus when the method is called on an SSL socket, an
-     * UnsupportedOperationException will be thrown.
+     * Disables the output stream for this socket.  For a TCP socket, any
+     * previously written data will be sent followed by TCP's normal
+     * connection termination sequence.
      *
-     * @throws UnsupportedOperationException
+     * @see java.net.Socket#shutdownOutput
      */
     @Override
-    public final void shutdownOutput() throws IOException {
-        throw new UnsupportedOperationException("The method shutdownOutput()" +
-                   " is not supported in SSLSocket");
-
+    public void shutdownOutput() throws IOException {
+        if (self == this) {
+            super.shutdownOutput();
+        } else {
+            self.shutdownOutput();
+        }
     }
 
     /**
@@ -235,7 +240,7 @@ abstract class BaseSSLSocketImpl extends SSLSocket {
      * @see java.net.Socket#isInputShutdown
      */
     @Override
-    public final boolean isInputShutdown() {
+    public boolean isInputShutdown() {
         if (self == this) {
             return super.isInputShutdown();
         } else {
@@ -248,7 +253,7 @@ abstract class BaseSSLSocketImpl extends SSLSocket {
      * @see java.net.Socket#isOutputShutdown
      */
     @Override
-    public final boolean isOutputShutdown() {
+    public boolean isOutputShutdown() {
         if (self == this) {
             return super.isOutputShutdown();
         } else {
@@ -264,6 +269,7 @@ abstract class BaseSSLSocketImpl extends SSLSocket {
      * the penalty of prematurly killing SSL sessions.
      */
     @Override
+    @SuppressWarnings("deprecation")
     protected final void finalize() throws Throwable {
         try {
             close();
@@ -306,7 +312,7 @@ abstract class BaseSSLSocketImpl extends SSLSocket {
      * Gets the local address to which the socket is bound.
      *
      * @return the local address to which the socket is bound.
-     * @since   JDK1.1
+     * @since   1.1
      */
     @Override
     public final InetAddress getLocalAddress() {
@@ -617,7 +623,7 @@ abstract class BaseSSLSocketImpl extends SSLSocket {
     }
 
     @Override
-    public synchronized void close() throws IOException {
+    public void close() throws IOException {
         if (self == this) {
             super.close();
         } else {

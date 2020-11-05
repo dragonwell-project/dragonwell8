@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2002, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -32,9 +32,9 @@ import java.security.cert.*;
 
 import javax.security.auth.x500.X500Principal;
 import sun.security.action.GetBooleanAction;
-import sun.security.action.GetPropertyAction;
 import sun.security.provider.certpath.AlgorithmChecker;
 import sun.security.provider.certpath.PKIXExtendedParameters;
+import sun.security.util.SecurityProperties;
 
 /**
  * Validator implementation built on the PKIX CertPath API. This
@@ -66,14 +66,14 @@ public final class PKIXValidator extends Validator {
     private final static boolean TRY_VALIDATOR = true;
 
     /**
-     * System property that if set (or set to "true"), allows trust anchor
-     * certificates to be used if they do not have the proper CA extensions.
-     * Set to false if prop is not set, or set to any other value.
+     * System or security property that if set (or set to "true"), allows trust
+     * anchor certificates to be used if they do not have the proper CA
+     * extensions. Set to false if prop is not set, or set to any other value.
      */
     private static final boolean ALLOW_NON_CA_ANCHOR = allowNonCaAnchor();
     private static boolean allowNonCaAnchor() {
-        String prop = GetPropertyAction
-            .privilegedGetProperty("jdk.security.allowNonCaAnchor");
+        String prop = SecurityProperties
+                .privilegedGetOverridable("jdk.security.allowNonCaAnchor");
         return prop != null && (prop.isEmpty() || prop.equalsIgnoreCase("true"));
     }
 
@@ -215,6 +215,7 @@ public final class PKIXValidator extends Validator {
     @Override
     X509Certificate[] engineValidate(X509Certificate[] chain,
             Collection<X509Certificate> otherCerts,
+            List<byte[]> responseList,
             AlgorithmConstraints constraints,
             Object parameter) throws CertificateException {
         if ((chain == null) || (chain.length == 0)) {
@@ -239,6 +240,11 @@ public final class PKIXValidator extends Validator {
         if (constraints != null) {
             pkixParameters.addCertPathChecker(
                     new AlgorithmChecker(constraints, null, variant));
+        }
+
+        // attach it to the PKIXBuilderParameters.
+        if (!responseList.isEmpty()) {
+            addResponses(pkixParameters, chain, responseList);
         }
 
         if (TRY_VALIDATOR) {
@@ -448,6 +454,72 @@ public final class PKIXValidator extends Validator {
         } catch (GeneralSecurityException e) {
             throw new ValidatorException
                 ("PKIX path building failed: " + e.toString(), e);
+        }
+    }
+
+    /**
+     * For OCSP Stapling, add responses that came in during the handshake
+     * into a {@code PKIXRevocationChecker} so we can evaluate them.
+     *
+     * @param pkixParams the pkixParameters object that will be used in
+     * path validation.
+     * @param chain the chain of certificates to verify
+     * @param responseList a {@code List} of zero or more byte arrays, each
+     * one being a DER-encoded OCSP response (per RFC 6960).  Entries
+     * in the List must match the order of the certificates in the
+     * chain parameter.
+     */
+    private static void addResponses(PKIXBuilderParameters pkixParams,
+            X509Certificate[] chain, List<byte[]> responseList) {
+
+        if (pkixParams.isRevocationEnabled()) {
+            try {
+                // Make a modifiable copy of the CertPathChecker list
+                PKIXRevocationChecker revChecker = null;
+                List<PKIXCertPathChecker> checkerList =
+                        new ArrayList<>(pkixParams.getCertPathCheckers());
+
+                // Find the first PKIXRevocationChecker in the list
+                for (PKIXCertPathChecker checker : checkerList) {
+                    if (checker instanceof PKIXRevocationChecker) {
+                        revChecker = (PKIXRevocationChecker)checker;
+                        break;
+                    }
+                }
+
+                // If we still haven't found one, make one
+                if (revChecker == null) {
+                    revChecker = (PKIXRevocationChecker)CertPathValidator.
+                            getInstance("PKIX").getRevocationChecker();
+                    checkerList.add(revChecker);
+                }
+
+                // Each response in the list should be in parallel with
+                // the certificate list.  If there is a zero-length response
+                // treat it as being absent.  If the user has provided their
+                // own PKIXRevocationChecker with pre-populated responses, do
+                // not overwrite them with the ones from the handshake.
+                Map<X509Certificate, byte[]> responseMap =
+                        revChecker.getOcspResponses();
+                int limit = Integer.min(chain.length, responseList.size());
+                for (int idx = 0; idx < limit; idx++) {
+                    byte[] respBytes = responseList.get(idx);
+                    if (respBytes != null && respBytes.length > 0 &&
+                            !responseMap.containsKey(chain[idx])) {
+                        responseMap.put(chain[idx], respBytes);
+                    }
+                }
+
+                // Add the responses and push it all back into the
+                // PKIXBuilderParameters
+                revChecker.setOcspResponses(responseMap);
+                pkixParams.setCertPathCheckers(checkerList);
+            } catch (NoSuchAlgorithmException exc) {
+                // This should not occur, but if it does happen then
+                // stapled OCSP responses won't be part of revocation checking.
+                // Clients can still fall back to other means of revocation
+                // checking.
+            }
         }
     }
 }

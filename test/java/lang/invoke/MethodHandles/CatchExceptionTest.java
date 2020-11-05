@@ -41,6 +41,7 @@ import java.util.function.Supplier;
  * @library /lib/testlibrary/jsr292 /lib/testlibrary/
  * @compile CatchExceptionTest.java
  * @run main/othervm -esa test.java.lang.invoke.MethodHandles.CatchExceptionTest
+ * @key randomness
  */
 public class CatchExceptionTest {
 

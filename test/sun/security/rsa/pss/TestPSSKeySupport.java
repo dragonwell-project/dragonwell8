@@ -23,7 +23,7 @@
 
 /**
  * @test
- * @bug 8146293
+ * @bug 8146293 8242556
  * @summary Test RSASSA-PSS Key related support such as KeyPairGenerator
  * and KeyFactory of the SunRsaSign provider
  */
@@ -148,5 +148,8 @@ public class TestPSSKeySupport {
         KeyFactory kf = KeyFactory.getInstance(ALGO, "SunRsaSign");
         test(kf, kp.getPublic());
         test(kf, kp.getPrivate());
+        test(kf, kp2.getPublic());
+        test(kf, kp2.getPrivate());
+
     }
 }

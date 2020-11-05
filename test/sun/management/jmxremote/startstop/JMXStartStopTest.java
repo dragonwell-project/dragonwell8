@@ -55,6 +55,7 @@ import jdk.testlibrary.JDKToolLauncher;
  * @run main/othervm JMXStartStopTest
  * @summary Makes sure that enabling/disabling the management agent through
  *          JCMD achieves the desired results
+ * @key randomness
  */
 public class JMXStartStopTest {
     private static final String TEST_SRC = System.getProperty("test.src");

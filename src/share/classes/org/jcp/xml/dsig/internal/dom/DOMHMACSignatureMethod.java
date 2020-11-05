@@ -21,10 +21,10 @@
  * under the License.
  */
 /*
- * Copyright (c) 2005, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2018, Oracle and/or its affiliates. All rights reserved.
  */
 /*
- * $Id: DOMHMACSignatureMethod.java 1333415 2012-05-03 12:03:51Z coheigea $
+ * $Id: DOMHMACSignatureMethod.java 1788465 2017-03-24 15:10:51Z coheigea $
  */
 package org.jcp.xml.dsig.internal.dom;
 
@@ -50,20 +50,23 @@ import org.jcp.xml.dsig.internal.MacOutputStream;
 /**
  * DOM-based implementation of HMAC SignatureMethod.
  *
- * @author Sean Mullan
  */
 public abstract class DOMHMACSignatureMethod extends AbstractDOMSignatureMethod {
 
-    private static java.util.logging.Logger log =
-        java.util.logging.Logger.getLogger("org.jcp.xml.dsig.internal.dom");
+    private static final com.sun.org.slf4j.internal.Logger LOG =
+        com.sun.org.slf4j.internal.LoggerFactory.getLogger(DOMHMACSignatureMethod.class);
 
     // see RFC 4051 for these algorithm definitions
+    static final String HMAC_SHA224 =
+        "http://www.w3.org/2001/04/xmldsig-more#hmac-sha224";
     static final String HMAC_SHA256 =
         "http://www.w3.org/2001/04/xmldsig-more#hmac-sha256";
     static final String HMAC_SHA384 =
         "http://www.w3.org/2001/04/xmldsig-more#hmac-sha384";
     static final String HMAC_SHA512 =
         "http://www.w3.org/2001/04/xmldsig-more#hmac-sha512";
+    static final String HMAC_RIPEMD160 =
+        "http://www.w3.org/2001/04/xmldsig-more#hmac-ripemd160";
 
     private Mac hmac;
     private int outputLength;
@@ -71,9 +74,9 @@ public abstract class DOMHMACSignatureMethod extends AbstractDOMSignatureMethod 
     private SignatureMethodParameterSpec params;
 
     /**
-     * Creates a <code>DOMHMACSignatureMethod</code> with the specified params
+     * Creates a {@code DOMHMACSignatureMethod} with the specified params
      *
-     * @param params algorithm-specific parameters (may be <code>null</code>)
+     * @param params algorithm-specific parameters (may be {@code null})
      * @throws InvalidAlgorithmParameterException if params are inappropriate
      */
     DOMHMACSignatureMethod(AlgorithmParameterSpec params)
@@ -84,7 +87,7 @@ public abstract class DOMHMACSignatureMethod extends AbstractDOMSignatureMethod 
     }
 
     /**
-     * Creates a <code>DOMHMACSignatureMethod</code> from an element.
+     * Creates a {@code DOMHMACSignatureMethod} from an element.
      *
      * @param smElem a SignatureMethod element
      */
@@ -100,6 +103,7 @@ public abstract class DOMHMACSignatureMethod extends AbstractDOMSignatureMethod 
         }
     }
 
+    @Override
     void checkParams(SignatureMethodParameterSpec params)
         throws InvalidAlgorithmParameterException
     {
@@ -110,9 +114,7 @@ public abstract class DOMHMACSignatureMethod extends AbstractDOMSignatureMethod 
             }
             outputLength = ((HMACParameterSpec)params).getOutputLength();
             outputLengthSet = true;
-            if (log.isLoggable(java.util.logging.Level.FINE)) {
-                log.log(java.util.logging.Level.FINE, "Setting outputLength from HMACParameterSpec to: " + outputLength);
-            }
+            LOG.debug("Setting outputLength from HMACParameterSpec to: {}", outputLength);
         }
     }
 
@@ -123,11 +125,9 @@ public abstract class DOMHMACSignatureMethod extends AbstractDOMSignatureMethod 
     SignatureMethodParameterSpec unmarshalParams(Element paramsElem)
         throws MarshalException
     {
-        outputLength = Integer.valueOf(paramsElem.getFirstChild().getNodeValue()).intValue();
+        outputLength = Integer.parseInt(paramsElem.getFirstChild().getNodeValue());
         outputLengthSet = true;
-        if (log.isLoggable(java.util.logging.Level.FINE)) {
-            log.log(java.util.logging.Level.FINE, "unmarshalled outputLength: " + outputLength);
-        }
+        LOG.debug("unmarshalled outputLength: {}", outputLength);
         return new HMACParameterSpec(outputLength);
     }
 
@@ -164,7 +164,7 @@ public abstract class DOMHMACSignatureMethod extends AbstractDOMSignatureMethod 
             throw new XMLSignatureException
                 ("HMACOutputLength must not be less than " + getDigestLength());
         }
-        hmac.init((SecretKey)key);
+        hmac.init(key);
         ((DOMSignedInfo)si).canonicalize(context, new MacOutputStream(hmac));
         byte[] result = hmac.doFinal();
 
@@ -191,7 +191,7 @@ public abstract class DOMHMACSignatureMethod extends AbstractDOMSignatureMethod 
             throw new XMLSignatureException
                 ("HMACOutputLength must not be less than " + getDigestLength());
         }
-        hmac.init((SecretKey)key);
+        hmac.init(key);
         ((DOMSignedInfo)si).canonicalize(context, new MacOutputStream(hmac));
         return hmac.doFinal();
     }
@@ -205,7 +205,7 @@ public abstract class DOMHMACSignatureMethod extends AbstractDOMSignatureMethod 
         }
         HMACParameterSpec ospec = (HMACParameterSpec)spec;
 
-        return (outputLength == ospec.getOutputLength());
+        return outputLength == ospec.getOutputLength();
     }
 
     Type getAlgorithmType() {
@@ -233,6 +233,28 @@ public abstract class DOMHMACSignatureMethod extends AbstractDOMSignatureMethod 
         }
         int getDigestLength() {
             return 160;
+        }
+    }
+
+    static final class SHA224 extends DOMHMACSignatureMethod {
+        SHA224(AlgorithmParameterSpec params)
+            throws InvalidAlgorithmParameterException {
+            super(params);
+        }
+        SHA224(Element dmElem) throws MarshalException {
+            super(dmElem);
+        }
+        @Override
+        public String getAlgorithm() {
+            return HMAC_SHA224;
+        }
+        @Override
+        String getJCAAlgorithm() {
+            return "HmacSHA224";
+        }
+        @Override
+        int getDigestLength() {
+            return 224;
         }
     }
 
@@ -290,6 +312,28 @@ public abstract class DOMHMACSignatureMethod extends AbstractDOMSignatureMethod 
         }
         int getDigestLength() {
             return 512;
+        }
+    }
+
+    static final class RIPEMD160 extends DOMHMACSignatureMethod {
+        RIPEMD160(AlgorithmParameterSpec params)
+            throws InvalidAlgorithmParameterException {
+            super(params);
+        }
+        RIPEMD160(Element dmElem) throws MarshalException {
+            super(dmElem);
+        }
+        @Override
+        public String getAlgorithm() {
+            return HMAC_RIPEMD160;
+        }
+        @Override
+        String getJCAAlgorithm() {
+            return "HMACRIPEMD160";
+        }
+        @Override
+        int getDigestLength() {
+            return 160;
         }
     }
 }
