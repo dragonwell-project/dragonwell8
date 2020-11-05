@@ -39,7 +39,7 @@ subrepos="corba jaxp jaxws langtools jdk hotspot nashorn"
 GITURL="git@gitlab.alibaba-inc.com:dragonwell"
 REPO_PREFIX="jdk8u_"
 DEPTH=1000
-BRANCH="master"
+BRANCH="dragonwell-8.5.4_jdk8u272-b0"
 
 usage() {
       echo "usage: $0 [-h|--help] [-b|--branch branch_name] [-s|--site github|gitlab]"
@@ -105,10 +105,14 @@ for repo in ${subrepos}; do
   # checkout to specific branch
   if [ $BRANCH != "master" ]; then
     cd ${repo}
-    ${GIT} checkout -b ${BRANCH} origin/${BRANCH}
+    ${GIT} checkout origin/${BRANCH} -b ${BRANCH}
     result=$?
     if [ $result  != 0 ]; then
-      error "failed to checkout ${repo} to ${BRANCH}"
+      ${GIT} checkout tags/${BRANCH} -b ${BRANCH}
+      result=$?
+      if [ $result  != 0 ]; then
+        error "failed to checkout ${repo} to ${BRANCH}"
+      fi
     fi
     cd ..
   fi
