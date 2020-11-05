@@ -52,7 +52,7 @@ class JfrChunkWriter : public JfrChunkWriterBase {
   JfrChunkWriter();
   ~JfrChunkWriter();
 
-  intptr_t size_written() const;
+  int64_t size_written() const;
   int64_t last_checkpoint_offset() const;
   void set_last_checkpoint_offset(int64_t offset);
   void set_last_metadata_offset(int64_t offset);

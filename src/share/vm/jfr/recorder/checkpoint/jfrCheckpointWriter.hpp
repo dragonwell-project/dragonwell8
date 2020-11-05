@@ -49,8 +49,8 @@ typedef AcquireReleaseMemoryWriterHost<JfrCheckpointAdapter, StackObj > JfrTrans
 typedef EventWriterHost<BigEndianEncoder, CompressedIntegerEncoder, JfrTransactionalCheckpointWriter> JfrCheckpointWriterBase;
 
 struct JfrCheckpointContext {
-  jlong offset;
-  juint count;
+  int64_t offset;
+  u4 count;
 };
 
 class JfrCheckpointWriter : public JfrCheckpointWriterBase {
@@ -58,13 +58,13 @@ class JfrCheckpointWriter : public JfrCheckpointWriterBase {
   friend class JfrSerializerRegistration;
  private:
   JfrTicks _time;
-  jlong _offset;
-  juint _count;
+  int64_t _offset;
+  u4 _count;
   JfrCheckpointType _type;
   bool _header;
 
-  juint count() const;
-  void set_count(juint count);
+  u4 count() const;
+  void set_count(u4 count);
   void increment();
   const u1* session_data(size_t* size, bool move = false, const JfrCheckpointContext* ctx = NULL);
   void release();
@@ -75,7 +75,7 @@ class JfrCheckpointWriter : public JfrCheckpointWriterBase {
   ~JfrCheckpointWriter();
   void write_type(JfrTypeId type_id);
   void write_count(u4 nof_entries);
-  void write_count(u4 nof_entries, jlong offset);
+  void write_count(u4 nof_entries, int64_t offset);
   void write_key(u8 key);
   const JfrCheckpointContext context() const;
   void set_context(const JfrCheckpointContext ctx);

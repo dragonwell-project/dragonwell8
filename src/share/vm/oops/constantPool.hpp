@@ -134,7 +134,7 @@ class ConstantPool : public Metadata {
  private:
   intptr_t* base() const { return (intptr_t*) (((char*) this) + sizeof(ConstantPool)); }
 
-  CPSlot slot_at(int which) {
+  CPSlot slot_at(int which) const {
     assert(is_within_bounds(which), "index out of bounds");
     // Uses volatile because the klass slot changes without a lock.
     volatile intptr_t adr = (intptr_t)OrderAccess::load_ptr_acquire(obj_at_addr_raw(which));
@@ -376,7 +376,7 @@ class ConstantPool : public Metadata {
     return klass_at_impl(h_this, which, CHECK_NULL);
   }
 
-  Symbol* klass_name_at(int which);  // Returns the name, w/o resolving.
+  Symbol* klass_name_at(int which) const;  // Returns the name, w/o resolving.
 
   Klass* resolved_klass_at(int which) const {  // Used by Compiler
     guarantee(tag_at(which).is_klass(), "Corrupted constant pool");
@@ -846,8 +846,12 @@ class ConstantPool : public Metadata {
   static void resolve_string_constants_impl(constantPoolHandle this_oop, TRAPS);
 
   static oop resolve_constant_at_impl(constantPoolHandle this_oop, int index, int cache_index, TRAPS);
-  static void save_and_throw_exception(constantPoolHandle this_oop, int which, int tag_value, TRAPS);
   static oop resolve_bootstrap_specifier_at_impl(constantPoolHandle this_oop, int index, TRAPS);
+
+  // Exception handling
+  static void throw_resolution_error(constantPoolHandle this_oop, int which, TRAPS);
+  static Symbol* exception_message(constantPoolHandle this_oop, int which, constantTag tag, oop pending_exception);
+  static void save_and_throw_exception(constantPoolHandle this_oop, int which, constantTag tag, TRAPS);
 
  public:
   // Merging ConstantPool* support:

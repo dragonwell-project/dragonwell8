@@ -32,7 +32,6 @@
 class ClassLoaderData;
 class Klass;
 class Method;
-// XXX class PackageEntry;
 class Thread;
 
 /*
@@ -54,7 +53,6 @@ class Thread;
  *
  *   Klass (includes Method)
  *   ClassLoaderData
- *   XXX PackageEntry
  *
  * These classes have been extended to include a _traceid field (64-bits).
  *
@@ -78,7 +76,6 @@ class Thread;
 class JfrTraceId : public AllStatic {
  public:
   static void assign(const Klass* klass);
-  // XXX static void assign(const PackageEntry* package);
   static void assign(const ClassLoaderData* cld);
   static traceid assign_thread_id();
 
@@ -91,7 +88,6 @@ class JfrTraceId : public AllStatic {
   static traceid use(jclass jc);
   static traceid use(const Method* method);
   static traceid use(const Klass* klass, const Method* method);
-  // XXX static traceid use(const PackageEntry* package);
   static traceid use(const ClassLoaderData* cld);
 
   // leak profiler

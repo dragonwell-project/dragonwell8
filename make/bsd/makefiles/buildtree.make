@@ -113,7 +113,7 @@ TOPLEVEL_EXCLUDE_DIRS	= $(ALWAYS_EXCLUDE_DIRS) -o -name adlc -o -name opto -o -n
 endif
 endif
 
-ifeq ($(ENABLE_JFR),false)
+ifneq ($(ENABLE_JFR),true)
 ALWAYS_EXCLUDE_DIRS += -o -name jfr
 endif
 

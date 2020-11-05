@@ -100,12 +100,6 @@ inline traceid JfrTraceId::use(const Klass* klass, const Method* method) {
   return (METHOD_ID(klass, method));
 }
 
-// XXX
-//inline traceid JfrTraceId::use(const PackageEntry* package) {
-//  assert(package != NULL, "invariant");
-//  return set_used_and_get(package);
-//}
-
 inline traceid JfrTraceId::use(const ClassLoaderData* cld) {
   assert(cld != NULL, "invariant");
   return cld->is_anonymous() ? 0 : set_used_and_get(cld);

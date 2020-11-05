@@ -168,7 +168,6 @@ class JfrBuffer {
   void set_retired();
   void clear_retired();
 
-
   bool excluded() const;
   void set_excluded();
   void clear_excluded();

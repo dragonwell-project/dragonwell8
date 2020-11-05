@@ -143,7 +143,6 @@ class WriteContent : public StackObj {
   }
 };
 
-
 static intptr_t write_checkpoint_event_prologue(JfrChunkWriter& cw, u8 type_id) {
   const int64_t last_cp_offset = cw.last_checkpoint_offset();
   const int64_t delta_to_last_checkpoint = 0 == last_cp_offset ? 0 : last_cp_offset - cw.current_offset();

@@ -27,6 +27,7 @@
 
 #include "gc_implementation/g1/concurrentMark.hpp"
 #include "gc_implementation/g1/g1CollectedHeap.inline.hpp"
+#include "gc_implementation/g1/g1ConcurrentMarkObjArrayProcessor.inline.hpp"
 
 // Utility routine to set an exclusive range of cards on the given
 // card liveness bitmap
@@ -224,11 +225,11 @@ inline bool CMBitMap::parClear(HeapWord* addr) {
 
 inline void CMTask::push(oop obj) {
   HeapWord* objAddr = (HeapWord*) obj;
-  assert(_g1h->is_in_g1_reserved(objAddr), "invariant");
-  assert(!_g1h->is_on_master_free_list(
+  assert(G1CMObjArrayProcessor::is_array_slice(obj) || _g1h->is_in_g1_reserved(objAddr), "invariant");
+  assert(G1CMObjArrayProcessor::is_array_slice(obj) || !_g1h->is_on_master_free_list(
               _g1h->heap_region_containing((HeapWord*) objAddr)), "invariant");
-  assert(!_g1h->is_obj_ill(obj), "invariant");
-  assert(_nextMarkBitMap->isMarked(objAddr), "invariant");
+  assert(G1CMObjArrayProcessor::is_array_slice(obj) || !_g1h->is_obj_ill(obj), "invariant");
+  assert(G1CMObjArrayProcessor::is_array_slice(obj) || _nextMarkBitMap->isMarked(objAddr), "invariant");
 
   if (_cm->verbose_high()) {
     gclog_or_tty->print_cr("[%u] pushing " PTR_FORMAT, _worker_id, p2i((void*) obj));
@@ -363,6 +364,11 @@ inline void CMTask::deal_with_reference(oop obj) {
       }
     }
   }
+}
+
+inline size_t CMTask::scan_objArray(objArrayOop obj, MemRegion mr) {
+  obj->oop_iterate(_cm_oop_closure, mr);
+  return mr.word_size();
 }
 
 inline void ConcurrentMark::markPrev(oop p) {

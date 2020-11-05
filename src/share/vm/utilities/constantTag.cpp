@@ -76,6 +76,20 @@ jbyte constantTag::non_error_value() const {
 }
 
 
+jbyte constantTag::error_value() const {
+  switch (_tag) {
+  case JVM_CONSTANT_UnresolvedClass:
+    return JVM_CONSTANT_UnresolvedClassInError;
+  case JVM_CONSTANT_MethodHandle:
+    return JVM_CONSTANT_MethodHandleInError;
+  case JVM_CONSTANT_MethodType:
+    return JVM_CONSTANT_MethodTypeInError;
+  default:
+    ShouldNotReachHere();
+    return JVM_CONSTANT_Invalid;
+  }
+}
+
 const char* constantTag::internal_name() const {
   switch (_tag) {
     case JVM_CONSTANT_Invalid :

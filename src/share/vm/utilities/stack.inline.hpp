@@ -26,6 +26,7 @@
 #define SHARE_VM_UTILITIES_STACK_INLINE_HPP
 
 #include "utilities/stack.hpp"
+#include "utilities/copy.hpp"
 
 template <MEMFLAGS F> StackBase<F>::StackBase(size_t segment_size, size_t max_cache_size,
                      size_t max_size):
@@ -227,11 +228,7 @@ void Stack<E, F>::zap_segment(E* seg, bool zap_link_field) const
 {
   if (!ZapStackSegments) return;
   const size_t zap_bytes = segment_bytes() - (zap_link_field ? 0 : sizeof(E*));
-  uint32_t* cur = (uint32_t*)seg;
-  const uint32_t* end = cur + zap_bytes / sizeof(uint32_t);
-  while (cur < end) {
-    *cur++ = 0xfadfaded;
-  }
+  Copy::fill_to_bytes(seg, zap_bytes, badStackSegVal);
 }
 #endif
 

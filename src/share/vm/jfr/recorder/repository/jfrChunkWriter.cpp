@@ -243,7 +243,7 @@ void JfrChunkWriter::set_time_stamp() {
   _chunk->set_time_stamp();
 }
 
-intptr_t JfrChunkWriter::size_written() const {
+int64_t JfrChunkWriter::size_written() const {
   return this->is_valid() ? this->current_offset() : 0;
 }
 

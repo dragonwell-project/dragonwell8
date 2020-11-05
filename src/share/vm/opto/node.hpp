@@ -454,6 +454,9 @@ protected:
     return (this->uncast() == n->uncast());
   }
 
+  // Find out of current node that matches opcode.
+  Node* find_out_with(int opcode);
+
 private:
   static Node* uncast_helper(const Node* n);
 

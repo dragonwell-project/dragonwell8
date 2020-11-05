@@ -26,37 +26,30 @@
 #define SHARE_VM_CLASSFILE_ALTHASHING_HPP
 
 #include "prims/jni.h"
-#include "classfile/symbolTable.hpp"
+#include "memory/allocation.hpp"
 
 /**
- * Hashing utilities.
- *
- * Implementation of Murmur3 hashing.
- * This code was translated from src/share/classes/sun/misc/Hashing.java
- * code in the JDK.
+ * Implementation of alternate more secure hashing.
  */
 
 class AltHashing : AllStatic {
 
-  // utility function copied from java/lang/Integer
-  static juint Integer_rotateLeft(juint i, int distance) {
-    return (i << distance) | (i >> (32-distance));
-  }
-  static juint murmur3_32(const int* data, int len);
-  static juint murmur3_32(juint seed, const int* data, int len);
-
-#ifndef PRODUCT
-  // Hashing functions used for internal testing
-  static juint murmur3_32(const jbyte* data, int len);
-  static juint murmur3_32(const jchar* data, int len);
-  static void testMurmur3_32_ByteArray();
-  static void testEquivalentHashes();
-#endif // PRODUCT
-
+  // For the seed computation
+  static uint64_t halfsiphash_64(const uint32_t* data, int len);
+  static uint64_t halfsiphash_64(uint64_t seed, const uint32_t* data, int len);
+ #ifndef PRODUCT
+   // Hashing functions used for internal testing
+  static void testHalfsiphash_32_ByteArray();
+  static void testHalfsiphash_32_CharArray();
+  static void testHalfsiphash_64_FromReference();
+ #endif // PRODUCT
  public:
-  static juint compute_seed();
-  static juint murmur3_32(juint seed, const jbyte* data, int len);
-  static juint murmur3_32(juint seed, const jchar* data, int len);
+  static uint64_t compute_seed();
+
+  // For Symbols
+  static uint32_t halfsiphash_32(uint64_t seed, const uint8_t* data, int len);
+  // For Strings
+  static uint32_t halfsiphash_32(uint64_t seed, const uint16_t* data, int len);
   NOT_PRODUCT(static void test_alt_hash();)
 };
 #endif // SHARE_VM_CLASSFILE_ALTHASHING_HPP

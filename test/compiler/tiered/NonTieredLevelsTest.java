@@ -46,8 +46,7 @@ public class NonTieredLevelsTest extends CompLevelsTest {
         } else if (vmName.endsWith(" Client VM")
                 || vmName.endsWith(" Minimal VM")) {
             AVAILABLE_COMP_LEVEL = COMP_LEVEL_SIMPLE;
-            IS_AVAILABLE_COMPLEVEL = x -> x >= COMP_LEVEL_SIMPLE
-                    && x <= COMP_LEVEL_FULL_PROFILE;
+            IS_AVAILABLE_COMPLEVEL = x -> x == COMP_LEVEL_SIMPLE;
         } else {
             throw new RuntimeException("Unknown VM: " + vmName);
         }

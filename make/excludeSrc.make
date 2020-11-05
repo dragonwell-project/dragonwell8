@@ -95,6 +95,7 @@ ifeq ($(INCLUDE_ALL_GCS), false)
       gc_shared_keep :=							\
 	adaptiveSizePolicy.cpp						\
 	ageTable.cpp							\
+	ageTableTracer.cpp						\
 	collectorCounters.cpp						\
 	cSpaceCounters.cpp						\
 	gcId.cpp							\

@@ -210,7 +210,7 @@ const char* Symbol::as_klass_external_name() const {
 unsigned int Symbol::new_hash(juint seed) {
   ResourceMark rm;
   // Use alternate hashing algorithm on this symbol.
-  return AltHashing::murmur3_32(seed, (const jbyte*)as_C_string(), utf8_length());
+  return AltHashing::halfsiphash_32(seed, (const uint8_t*)as_C_string(), utf8_length());
 }
 
 void Symbol::increment_refcount() {

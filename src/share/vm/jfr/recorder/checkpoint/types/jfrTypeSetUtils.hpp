@@ -219,6 +219,7 @@ class JfrSymbolId : public JfrCHeapObj {
   typedef SymbolTable::HashEntry SymbolEntry;
   typedef CStringTable::HashEntry CStringEntry;
  private:
+  traceid _symbol_id_counter;
   SymbolTable* _sym_table;
   CStringTable* _cstring_table;
   CStringTable* _pkg_table;
@@ -226,7 +227,6 @@ class JfrSymbolId : public JfrCHeapObj {
   const CStringEntry* _cstring_list;
   const Symbol* _sym_query;
   const char* _cstring_query;
-  traceid _symbol_id_counter;
   bool _class_unload;
 
   // hashtable(s) callbacks

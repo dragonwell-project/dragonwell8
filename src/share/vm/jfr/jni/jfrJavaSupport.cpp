@@ -691,8 +691,11 @@ static bool check_exclusion_state_on_thread_start(JavaThread* jt) {
   return true;
 }
 
-jlong JfrJavaSupport::jfr_thread_id(jobject thread) {
-  JavaThread* native_thread = java_lang_Thread::thread(JNIHandles::resolve_non_null(thread));
+jlong JfrJavaSupport::jfr_thread_id(jobject target_thread) {
+//  ThreadsListHandle tlh;
+  // XXX is it correct and safe?
+  JavaThread* native_thread = java_lang_Thread::thread(JNIHandles::resolve_non_null(target_thread));
+//  (void)tlh.cv_internal_thread_to_JavaThread(target_thread, &native_thread, NULL);
   return native_thread != NULL ? JFR_THREAD_ID(native_thread) : 0;
 }
 

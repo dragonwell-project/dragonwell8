@@ -25,7 +25,6 @@
 #include "precompiled.hpp"
 #include "classfile/classLoaderData.hpp"
 #include "classfile/javaClasses.hpp"
-// XXX #include "classfile/packageEntry.hpp"
 #include "classfile/symbolTable.hpp"
 #include "jfr/jfr.hpp"
 #include "jfr/jni/jfrGetAllEventClasses.hpp"
@@ -45,7 +44,6 @@
 #include "utilities/bitMap.inline.hpp"
 
 typedef const Klass* KlassPtr;
-// XXX typedef const PackageEntry* PkgPtr;
 typedef const ClassLoaderData* CldPtr;
 typedef const Method* MethodPtr;
 typedef const Symbol* SymbolPtr;

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -185,12 +185,14 @@ Klass* SystemDictionary::resolve_or_fail(Symbol* class_name, Handle class_loader
   if (HAS_PENDING_EXCEPTION || klass == NULL) {
     KlassHandle k_h(THREAD, klass);
     // can return a null klass
-    klass = handle_resolution_exception(class_name, class_loader, protection_domain, throw_error, k_h, THREAD);
+    klass = handle_resolution_exception(class_name, throw_error, k_h, THREAD);
   }
   return klass;
 }
 
-Klass* SystemDictionary::handle_resolution_exception(Symbol* class_name, Handle class_loader, Handle protection_domain, bool throw_error, KlassHandle klass_h, TRAPS) {
+Klass* SystemDictionary::handle_resolution_exception(Symbol* class_name,
+                                                     bool throw_error,
+                                                     KlassHandle klass_h, TRAPS) {
   if (HAS_PENDING_EXCEPTION) {
     // If we have a pending exception we forward it to the caller, unless throw_error is true,
     // in which case we have to check whether the pending exception is a ClassNotFoundException,
@@ -431,7 +433,7 @@ Klass* SystemDictionary::resolve_super_or_fail(Symbol* child_name,
   }
   if (HAS_PENDING_EXCEPTION || superk_h() == NULL) {
     // can null superk
-    superk_h = KlassHandle(THREAD, handle_resolution_exception(class_name, class_loader, protection_domain, true, superk_h, THREAD));
+    superk_h = KlassHandle(THREAD, handle_resolution_exception(class_name, true, superk_h, THREAD));
   }
 
   return superk_h();
@@ -1113,6 +1115,18 @@ Klass* SystemDictionary::parse_stream(Symbol* class_name,
   return k();
 }
 
+static bool is_prohibited_package_slow(Symbol* class_name) {
+  // Caller has ResourceMark
+  int length;
+  jchar* unicode = class_name->as_unicode(length);
+  return (length >= 5 &&
+          unicode[0] == 'j' &&
+          unicode[1] == 'a' &&
+          unicode[2] == 'v' &&
+          unicode[3] == 'a' &&
+          unicode[4] == '/');
+}
+
 // Add a klass to the system from a stream (called by jni_DefineClass and
 // JVM_DefineClass).
 // Note: class_name can be NULL. In that case we do not know the name of
@@ -1160,24 +1174,33 @@ Klass* SystemDictionary::resolve_from_stream(Symbol* class_name,
   if (!HAS_PENDING_EXCEPTION &&
       !class_loader.is_null() &&
       parsed_name != NULL &&
-      parsed_name->utf8_length() >= (int)pkglen &&
-      !strncmp((const char*)parsed_name->bytes(), pkg, pkglen)) {
-    // It is illegal to define classes in the "java." package from
-    // JVM_DefineClass or jni_DefineClass unless you're the bootclassloader
+      parsed_name->utf8_length() >= (int)pkglen) {
     ResourceMark rm(THREAD);
-    char* name = parsed_name->as_C_string();
-    char* index = strrchr(name, '/');
-    assert(index != NULL, "must be");
-    *index = '\0'; // chop to just the package name
-    while ((index = strchr(name, '/')) != NULL) {
-      *index = '.'; // replace '/' with '.' in package name
+    bool prohibited;
+    const jbyte* base = parsed_name->base();
+    if ((base[0] | base[1] | base[2] | base[3] | base[4]) & 0x80) {
+      prohibited = is_prohibited_package_slow(parsed_name);
+    } else {
+      char* name = parsed_name->as_C_string();
+      prohibited = (strncmp(name, pkg, pkglen) == 0);
     }
-    const char* fmt = "Prohibited package name: %s";
-    size_t len = strlen(fmt) + strlen(name);
-    char* message = NEW_RESOURCE_ARRAY(char, len);
-    jio_snprintf(message, len, fmt, name);
-    Exceptions::_throw_msg(THREAD_AND_LOCATION,
-      vmSymbols::java_lang_SecurityException(), message);
+    if (prohibited) {
+      // It is illegal to define classes in the "java." package from
+      // JVM_DefineClass or jni_DefineClass unless you're the bootclassloader
+      char* name = parsed_name->as_C_string();
+      char* index = strrchr(name, '/');
+      assert(index != NULL, "must be");
+      *index = '\0'; // chop to just the package name
+      while ((index = strchr(name, '/')) != NULL) {
+        *index = '.'; // replace '/' with '.' in package name
+      }
+      const char* fmt = "Prohibited package name: %s";
+      size_t len = strlen(fmt) + strlen(name);
+      char* message = NEW_RESOURCE_ARRAY(char, len);
+      jio_snprintf(message, len, fmt, name);
+      Exceptions::_throw_msg(THREAD_AND_LOCATION,
+        vmSymbols::java_lang_SecurityException(), message);
+    }
   }
 
   if (!HAS_PENDING_EXCEPTION) {
@@ -2310,12 +2333,13 @@ bool SystemDictionary::add_loader_constraint(Symbol* class_name,
 
 // Add entry to resolution error table to record the error when the first
 // attempt to resolve a reference to a class has failed.
-void SystemDictionary::add_resolution_error(constantPoolHandle pool, int which, Symbol* error) {
+void SystemDictionary::add_resolution_error(constantPoolHandle pool, int which,
+                                            Symbol* error, Symbol* message) {
   unsigned int hash = resolution_errors()->compute_hash(pool, which);
   int index = resolution_errors()->hash_to_index(hash);
   {
     SystemDictLocker ml(SystemDictionary_lock, Thread::current());
-    resolution_errors()->add_entry(index, hash, pool, which, error);
+    resolution_errors()->add_entry(index, hash, pool, which, error, message);
   }
 }
 
@@ -2325,13 +2349,19 @@ void SystemDictionary::delete_resolution_error(ConstantPool* pool) {
 }
 
 // Lookup resolution error table. Returns error if found, otherwise NULL.
-Symbol* SystemDictionary::find_resolution_error(constantPoolHandle pool, int which) {
+Symbol* SystemDictionary::find_resolution_error(constantPoolHandle pool, int which,
+                                                Symbol** message) {
   unsigned int hash = resolution_errors()->compute_hash(pool, which);
   int index = resolution_errors()->hash_to_index(hash);
   {
     SystemDictLocker ml(SystemDictionary_lock, Thread::current());
     ResolutionErrorEntry* entry = resolution_errors()->find_entry(index, hash, pool, which);
-    return (entry != NULL) ? entry->error() : (Symbol*)NULL;
+    if (entry != NULL) {
+      *message = entry->message();
+      return entry->error();
+    } else {
+      return NULL;
+    }
   }
 }
 

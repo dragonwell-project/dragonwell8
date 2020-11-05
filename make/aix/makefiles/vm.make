@@ -147,7 +147,7 @@ CFLAGS += -DALLOW_OPERATOR_NEW_USAGE
 LIBJVM_DEBUGINFO   = lib$(JVM).debuginfo
 LIBJVM_DIZ         = lib$(JVM).diz
 
-ifeq ($(ENABLE_JFR),false)
+ifneq ($(ENABLE_JFR),true)
 EXCLUDE_JFR_PATHS:= -o -name jfr -prune
 endif
 

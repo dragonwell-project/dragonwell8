@@ -323,7 +323,6 @@ static ObsoleteFlag obsolete_jvm_flags[] = {
   { "AutoShutdownNMT",               JDK_Version::jdk_update(8, 40), JDK_Version::jdk(10) },
   { "CompilationRepeat",             JDK_Version::jdk(8), JDK_Version::jdk(9) },
   { "SegmentedHeapDumpThreshold",    JDK_Version::jdk_update(8, 252), JDK_Version::jdk(10) },
-  { "EnableJFR",                     JDK_Version::jdk_update(8, 262), JDK_Version::jdk(9) },
 #ifdef PRODUCT
   { "DesiredMethodLimit",
                            JDK_Version::jdk_update(7, 2), JDK_Version::jdk(8) },

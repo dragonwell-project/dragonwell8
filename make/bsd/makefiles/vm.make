@@ -165,7 +165,7 @@ else
   LIBJVM_DIZ         = lib$(JVM).diz
 endif
 
-ifeq ($(ENABLE_JFR),false)
+ifneq ($(ENABLE_JFR),true)
 EXCLUDE_JFR_PATHS:= -o -name jfr -prune
 endif
 SPECIAL_PATHS:=adlc c1 gc_implementation opto shark libadt
