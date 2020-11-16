@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -1249,8 +1249,12 @@ JVM_END
 //    ids - array of thread IDs; NULL indicates all live threads
 //    locked_monitors - if true, dump locked object monitors
 //    locked_synchronizers - if true, dump locked JSR-166 synchronizers
+//    maxDepth - the maximum depth of stack traces to be dumped:
+//               maxDepth == -1 requests to dump entire stack trace.
+//               maxDepth == 0  requests no stack trace.
 //
-JVM_ENTRY(jobjectArray, jmm_DumpThreads(JNIEnv *env, jlongArray thread_ids, jboolean locked_monitors, jboolean locked_synchronizers))
+JVM_ENTRY(jobjectArray, jmm_DumpThreadsMaxDepth(JNIEnv *env, jlongArray thread_ids, jboolean locked_monitors,
+                                                jboolean locked_synchronizers, jint maxDepth))
   ResourceMark rm(THREAD);
 
   if (JDK_Version::is_gte_jdk16x_version()) {
@@ -1273,14 +1277,14 @@ JVM_ENTRY(jobjectArray, jmm_DumpThreads(JNIEnv *env, jlongArray thread_ids, jboo
     do_thread_dump(&dump_result,
                    ids_ah,
                    num_threads,
-                   -1, /* entire stack */
+                   maxDepth, /* stack depth */
                    (locked_monitors ? true : false),      /* with locked monitors */
                    (locked_synchronizers ? true : false), /* with locked synchronizers */
                    CHECK_NULL);
   } else {
     // obtain thread dump of all threads
     VM_ThreadDump op(&dump_result,
-                     -1, /* entire stack */
+                     maxDepth, /* stack depth */
                      (locked_monitors ? true : false),     /* with locked monitors */
                      (locked_synchronizers ? true : false) /* with locked synchronizers */);
     VMThread::execute(&op);
@@ -1384,6 +1388,25 @@ JVM_ENTRY(jobjectArray, jmm_DumpThreads(JNIEnv *env, jlongArray thread_ids, jboo
   }
 
   return (jobjectArray) JNIHandles::make_local(env, result_h());
+JVM_END
+
+// Dump thread info for the specified threads.
+// It returns an array of ThreadInfo objects. Each element is the ThreadInfo
+// for the thread ID specified in the corresponding entry in
+// the given array of thread IDs; or NULL if the thread does not exist
+// or has terminated.
+//
+// Input parameter:
+//    ids - array of thread IDs; NULL indicates all live threads
+//    locked_monitors - if true, dump locked object monitors
+//    locked_synchronizers - if true, dump locked JSR-166 synchronizers
+//
+// This method exists only for compatbility with compiled binaries that call it.
+// The JDK library uses jmm_DumpThreadsMaxDepth.
+//
+JVM_ENTRY(jobjectArray, jmm_DumpThreads(JNIEnv *env, jlongArray thread_ids, jboolean locked_monitors,
+                                        jboolean locked_synchronizers))
+  return jmm_DumpThreadsMaxDepth(env, thread_ids, locked_monitors, locked_synchronizers, INT_MAX);
 JVM_END
 
 // Returns an array of Class objects.
@@ -2209,6 +2232,31 @@ jlong Management::ticks_to_ms(jlong ticks) {
 }
 #endif // INCLUDE_MANAGEMENT
 
+// Gets the amount of memory allocated on the Java heap for a single thread.
+// Returns -1 if the thread does not exist or has terminated.
+JVM_ENTRY(jlong, jmm_GetOneThreadAllocatedMemory(JNIEnv *env, jlong thread_id))
+  if (thread_id < 0) {
+    THROW_MSG_(vmSymbols::java_lang_IllegalArgumentException(),
+               "Invalid thread ID", -1);
+  }
+
+  if (thread_id == 0) {
+    // current thread
+    if (THREAD->is_Java_thread()) {
+      return ((JavaThread*)THREAD)->cooked_allocated_bytes();
+    }
+    return -1;
+  }
+
+  MutexLockerEx ml(Threads_lock);
+  JavaThread* java_thread = Threads::find_java_thread_from_java_tid(thread_id);
+
+  if (java_thread != NULL) {
+    return java_thread->cooked_allocated_bytes();
+  }
+  return -1;
+JVM_END
+
 // Gets an array containing the amount of memory allocated on the Java
 // heap for a set of threads (in bytes).  Each element of the array is
 // the amount of memory allocated for the thread ID specified in the
@@ -2325,7 +2373,7 @@ JVM_END
 #if INCLUDE_MANAGEMENT
 const struct jmmInterface_1_ jmm_interface = {
   NULL,
-  NULL,
+  jmm_GetOneThreadAllocatedMemory,
   jmm_GetVersion,
   jmm_GetOptionalSupport,
   jmm_GetInputArguments,
@@ -2357,7 +2405,7 @@ const struct jmmInterface_1_ jmm_interface = {
   jmm_DumpHeap0,
   jmm_FindDeadlockedThreads,
   jmm_SetVMGlobal,
-  NULL,
+  jmm_DumpThreadsMaxDepth,
   jmm_DumpThreads,
   jmm_SetGCNotificationEnabled,
   jmm_GetDiagnosticCommands,

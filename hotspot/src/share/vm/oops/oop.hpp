@@ -87,6 +87,7 @@ class oopDesc {
   narrowKlass* compressed_klass_addr();
 
   void set_klass(Klass* k);
+  void release_set_klass(Klass* k);
 
   // For klass field compression
   int klass_gap() const;

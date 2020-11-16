@@ -457,6 +457,7 @@ extern "C" {
     long long unsigned int oldval,
     long long unsigned int newval) {
     ShouldNotCallThis();
+    return 0; // silence compiler warnings
   }
 };
 #endif // !_LP64

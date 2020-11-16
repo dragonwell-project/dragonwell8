@@ -350,7 +350,7 @@ class ConstantPool : public Metadata {
 
   Klass* klass_at(int which, TRAPS) {
     constantPoolHandle h_this(THREAD, this);
-    return klass_at_impl(h_this, which, CHECK_NULL);
+    return klass_at_impl(h_this, which, THREAD);
   }
 
   Symbol* klass_name_at(int which) const;  // Returns the name, w/o resolving.

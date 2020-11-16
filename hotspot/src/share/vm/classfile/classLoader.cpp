@@ -1179,6 +1179,11 @@ instanceKlassHandle ClassLoader::load_classfile(Symbol* h_name, TRAPS) {
     ClassLoaderData* loader_data = ClassLoaderData::the_null_class_loader_data();
     Handle protection_domain;
     TempNewSymbol parsed_name = NULL;
+    // Callers are expected to declare a ResourceMark to determine
+    // the lifetime of any updated (resource) allocated under
+    // this call to parseClassFile
+    // We do not declare another ResourceMark here, reusing the one declared
+    // at the start of the method
     instanceKlassHandle result = parser.parseClassFile(h_name,
                                                        loader_data,
                                                        protection_domain,
@@ -1630,12 +1635,13 @@ static bool can_be_compiled(methodHandle m, int comp_level) {
 }
 
 void ClassLoader::compile_the_world_in(char* name, Handle loader, TRAPS) {
-  int len = (int)strlen(name);
+  size_t len = strlen(name);
   if (len > 6 && strcmp(".class", name + len - 6) == 0) {
     // We have a .class file
     char buffer[2048];
-    strncpy(buffer, name, len - 6);
-    buffer[len-6] = 0;
+    if (len-6 >= sizeof(buffer)) return;
+    strncpy(buffer, name, sizeof(buffer));
+    buffer[len-6] = 0; // Truncate ".class" suffix.
     // If the file has a period after removing .class, it's not really a
     // valid class file.  The class loader will check everything else.
     if (strchr(buffer, '.') == NULL) {
