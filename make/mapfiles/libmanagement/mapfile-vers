@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2005, 2013, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2005, 2020, Oracle and/or its affiliates. All rights reserved.
 # DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 #
 # This code is free software; you can redistribute it and/or modify it
@@ -85,6 +85,7 @@ SUNWprivate_1.1 {
 	    Java_sun_management_ThreadImpl_getThreadTotalCpuTime1;
 	    Java_sun_management_ThreadImpl_getThreadUserCpuTime0;
 	    Java_sun_management_ThreadImpl_getThreadUserCpuTime1;
+	    Java_sun_management_ThreadImpl_getThreadAllocatedMemory0;
 	    Java_sun_management_ThreadImpl_getThreadAllocatedMemory1;
 	    Java_sun_management_ThreadImpl_resetContentionTimes0;
 	    Java_sun_management_ThreadImpl_resetPeakThreadCount0;

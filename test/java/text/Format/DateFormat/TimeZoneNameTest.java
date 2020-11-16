@@ -26,7 +26,7 @@
  * @bug 4348864 4112924 4425386 4495052 4836940 4851113 8008577
  * @summary test time zone display names in en_US locale
  * @library /java/text/testlib
- * @run main/othervm -Djava.locale.providers=COMPAT,SPI TimeZoneNameTest
+ * @run main/othervm -Djava.locale.providers=JRE,SPI TimeZoneNameTest
  */
 
 import java.util.*;

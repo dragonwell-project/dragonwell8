@@ -1587,7 +1587,7 @@ public class Test {
 
     // miscellaneous bugs/rfes that don't fit in with the test framework
 
-    static void bugs() {
+    static void bugs() throws URISyntaxException {
         // 6339649 - include detail message from nested exception
         try {
             URI uri = URI.create("http://nowhere.net/should not be permitted");
@@ -1595,6 +1595,12 @@ public class Test {
             if ("".equals(e.getMessage()) || e.getMessage() == null) {
                 throw new RuntimeException ("No detail message");
             }
+        }
+
+        // 8051853 - getRawSchemeSpecificPart returns null
+        String rssp = new URI("x/").resolve("..").getRawSchemeSpecificPart();
+        if (!"".equals(rssp)) {
+            throw new RuntimeException("Incorrect RawSchemeSpecificPart: [" + rssp + "], must be an empty string");
         }
     }
 
