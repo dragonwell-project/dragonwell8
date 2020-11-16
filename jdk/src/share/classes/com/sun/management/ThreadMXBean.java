@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,6 +25,7 @@
 
 package com.sun.management;
 
+import java.lang.management.ThreadInfo;
 import java.util.Map;
 
 /**
@@ -62,7 +63,7 @@ public interface ThreadMXBean extends java.lang.management.ThreadMXBean {
      * @throws NullPointerException if {@code ids} is {@code null}
      * @throws IllegalArgumentException if any element in the input array
      *         {@code ids} is {@code <=} {@code 0}.
-     * @throws java.lang.UnsupportedOperationException if the Java
+     * @throws UnsupportedOperationException if the Java
      *         virtual machine implementation does not support CPU time
      *         measurement.
      *
@@ -96,7 +97,7 @@ public interface ThreadMXBean extends java.lang.management.ThreadMXBean {
      * @throws NullPointerException if {@code ids} is {@code null}
      * @throws IllegalArgumentException if any element in the input array
      *         {@code ids} is {@code <=} {@code 0}.
-     * @throws java.lang.UnsupportedOperationException if the Java
+     * @throws UnsupportedOperationException if the Java
      *         virtual machine implementation does not support CPU time
      *         measurement.
      *
@@ -110,13 +111,47 @@ public interface ThreadMXBean extends java.lang.management.ThreadMXBean {
 
     /**
      * Returns an approximation of the total amount of memory, in bytes,
-     * allocated in heap memory for the thread of the specified ID.
+     * allocated in heap memory for the current thread.
+     * The returned value is an approximation because some Java virtual machine
+     * implementations may use object allocation mechanisms that result in a
+     * delay between the time an object is allocated and the time its size is
+     * recorded.
+     *
+     * <p>
+     * This is a convenience method for local management use and is
+     * equivalent to calling:
+     * <blockquote><pre>
+     *   {@link #getThreadAllocatedBytes getThreadAllocatedBytes}(Thread.currentThread().getId());
+     * </pre></blockquote>
+     *
+     * @return an approximation of the total memory allocated, in bytes, in
+     * heap memory for the current thread
+     * if thread memory allocation measurement is enabled;
+     * {@code -1} otherwise.
+     *
+     * @throws UnsupportedOperationException if the Java virtual
+     *         machine implementation does not support thread memory allocation
+     *         measurement.
+     *
+     * @see #isThreadAllocatedMemorySupported
+     * @see #isThreadAllocatedMemoryEnabled
+     * @see #setThreadAllocatedMemoryEnabled
+     *
+     * @since 8u282
+     */
+    public default long getCurrentThreadAllocatedBytes() {
+        return getThreadAllocatedBytes(Thread.currentThread().getId());
+    }
+
+    /**
+     * Returns an approximation of the total amount of memory, in bytes,
+     * allocated in heap memory for the thread with the specified ID.
      * The returned value is an approximation because some Java virtual machine
      * implementations may use object allocation mechanisms that result in a
      * delay between the time an object is allocated and the time its size is
      * recorded.
      * <p>
-     * If the thread of the specified ID is not alive or does not exist,
+     * If the thread with the specified ID is not alive or does not exist,
      * this method returns {@code -1}. If thread memory allocation measurement
      * is disabled, this method returns {@code -1}.
      * A thread is alive if it has been started and has not yet died.
@@ -128,13 +163,13 @@ public interface ThreadMXBean extends java.lang.management.ThreadMXBean {
      *
      * @param id the thread ID of a thread
      * @return an approximation of the total memory allocated, in bytes, in
-     * heap memory for a thread of the specified ID
-     * if the thread of the specified ID exists, the thread is alive,
+     * heap memory for the thread with the specified ID
+     * if the thread with the specified ID exists, the thread is alive,
      * and thread memory allocation measurement is enabled;
      * {@code -1} otherwise.
      *
      * @throws IllegalArgumentException if {@code id} {@code <=} {@code 0}.
-     * @throws java.lang.UnsupportedOperationException if the Java virtual
+     * @throws UnsupportedOperationException if the Java virtual
      *         machine implementation does not support thread memory allocation
      *         measurement.
      *
@@ -166,7 +201,7 @@ public interface ThreadMXBean extends java.lang.management.ThreadMXBean {
      * @throws NullPointerException if {@code ids} is {@code null}
      * @throws IllegalArgumentException if any element in the input array
      *         {@code ids} is {@code <=} {@code 0}.
-     * @throws java.lang.UnsupportedOperationException if the Java virtual
+     * @throws UnsupportedOperationException if the Java virtual
      *         machine implementation does not support thread memory allocation
      *         measurement.
      *
@@ -195,7 +230,7 @@ public interface ThreadMXBean extends java.lang.management.ThreadMXBean {
      * @return {@code true} if thread memory allocation measurement is enabled;
      *         {@code false} otherwise.
      *
-     * @throws java.lang.UnsupportedOperationException if the Java virtual
+     * @throws UnsupportedOperationException if the Java virtual
      *         machine does not support thread memory allocation measurement.
      *
      * @see #isThreadAllocatedMemorySupported
@@ -209,14 +244,158 @@ public interface ThreadMXBean extends java.lang.management.ThreadMXBean {
      * @param enable {@code true} to enable;
      *               {@code false} to disable.
      *
-     * @throws java.lang.UnsupportedOperationException if the Java virtual
+     * @throws UnsupportedOperationException if the Java virtual
      *         machine does not support thread memory allocation measurement.
      *
-     * @throws java.lang.SecurityException if a security manager
+     * @throws SecurityException if a security manager
      *         exists and the caller does not have
      *         ManagementPermission("control").
      *
      * @see #isThreadAllocatedMemorySupported
      */
     public void setThreadAllocatedMemoryEnabled(boolean enable);
+
+    /**
+     * Returns the thread info for each thread whose ID
+     * is in the input array <tt>ids</tt>,
+     * with stack trace of the specified maximum number of elements
+     * and synchronization information.
+     * If <tt>maxDepth == 0</tt>, no stack trace of the thread
+     * will be dumped.
+     *
+     * <p>
+     * This method obtains a snapshot of the thread information
+     * for each thread including:
+     * <ul>
+     *    <li>stack trace of the specified maximum number of elements,</li>
+     *    <li>the object monitors currently locked by the thread
+     *        if <tt>lockedMonitors</tt> is <tt>true</tt>, and</li>
+     *    <li>the <a href="{@docRoot}/../api/java/lang/management/LockInfo.html#OwnableSynchronizer">
+     *        ownable synchronizers</a> currently locked by the thread
+     *        if <tt>lockedSynchronizers</tt> is <tt>true</tt>.</li>
+     * </ul>
+     * <p>
+     * This method returns an array of the <tt>ThreadInfo</tt> objects,
+     * each is the thread information about the thread with the same index
+     * as in the <tt>ids</tt> array.
+     * If a thread of the given ID is not alive or does not exist,
+     * <tt>null</tt> will be set in the corresponding element
+     * in the returned array.  A thread is alive if
+     * it has been started and has not yet died.
+     * <p>
+     * If a thread does not lock any object monitor or <tt>lockedMonitors</tt>
+     * is <tt>false</tt>, the returned <tt>ThreadInfo</tt> object will have an
+     * empty <tt>MonitorInfo</tt> array.  Similarly, if a thread does not
+     * lock any synchronizer or <tt>lockedSynchronizers</tt> is <tt>false</tt>,
+     * the returned <tt>ThreadInfo</tt> object
+     * will have an empty <tt>LockInfo</tt> array.
+     *
+     * <p>
+     * When both <tt>lockedMonitors</tt> and <tt>lockedSynchronizers</tt>
+     * parameters are <tt>false</tt>, it is equivalent to calling:
+     * <blockquote><pre>
+     *     {@link #getThreadInfo(long[], int)  getThreadInfo(ids, maxDepth)}
+     * </pre></blockquote>
+     *
+     * <p>
+     * This method is designed for troubleshooting use, but not for
+     * synchronization control.  It might be an expensive operation.
+     *
+     * <p>
+     * <b>MBeanServer access</b>:<br>
+     * The mapped type of <tt>ThreadInfo</tt> is
+     * <tt>CompositeData</tt> with attributes as specified in the
+     * {@link ThreadInfo#from ThreadInfo.from} method.
+     *
+     * @implSpec The default implementation throws
+     * <tt>UnsupportedOperationException</tt>.
+     *
+     * @param  ids an array of thread IDs.
+     * @param  lockedMonitors if <tt>true</tt>, retrieves all locked monitors.
+     * @param  lockedSynchronizers if <tt>true</tt>, retrieves all locked
+     *             ownable synchronizers.
+     * @param  maxDepth indicates the maximum number of
+     * {@link StackTraceElement} to be retrieved from the stack trace.
+     *
+     * @return an array of the {@link ThreadInfo} objects, each containing
+     * information about a thread whose ID is in the corresponding
+     * element of the input array of IDs.
+     *
+     * @throws IllegalArgumentException if <tt>maxDepth</tt> is negative.
+     * @throws java.lang.SecurityException if a security manager
+     *         exists and the caller does not have
+     *         ManagementPermission("monitor").
+     * @throws java.lang.UnsupportedOperationException
+     *         <ul>
+     *           <li>if <tt>lockedMonitors</tt> is <tt>true</tt> but
+     *               the Java virtual machine does not support monitoring
+     *               of {@linkplain #isObjectMonitorUsageSupported
+     *               object monitor usage}; or</li>
+     *           <li>if <tt>lockedSynchronizers</tt> is <tt>true</tt> but
+     *               the Java virtual machine does not support monitoring
+     *               of {@linkplain #isSynchronizerUsageSupported
+     *               ownable synchronizer usage}.</li>
+     *         </ul>
+     *
+     * @see #isObjectMonitorUsageSupported
+     * @see #isSynchronizerUsageSupported
+     *
+     * @since 8u282
+     */
+
+    public default ThreadInfo[] getThreadInfo(long[] ids, boolean lockedMonitors,
+                                              boolean lockedSynchronizers, int maxDepth) {
+        throw new UnsupportedOperationException();
+    }
+
+    /**
+     * Returns the thread info for all live threads
+     * with stack trace of the specified maximum number of elements
+     * and synchronization information.
+     * if <tt>maxDepth == 0</tt>, no stack trace of the thread
+     * will be dumped.
+     * Some threads included in the returned array
+     * may have been terminated when this method returns.
+     *
+     * <p>
+     * This method returns an array of {@link ThreadInfo} objects
+     * as specified in the {@link #getThreadInfo(long[], boolean, boolean, int)}
+     * method.
+     *
+     * @implSpec The default implementation throws
+     * <tt>UnsupportedOperationException</tt>.
+     *
+     * @param  lockedMonitors if <tt>true</tt>, dump all locked monitors.
+     * @param  lockedSynchronizers if <tt>true</tt>, dump all locked
+     *             ownable synchronizers.
+     * @param  maxDepth indicates the maximum number of
+     * {@link StackTraceElement} to be retrieved from the stack trace.
+     *
+     * @return an array of {@link ThreadInfo} for all live threads.
+     *
+     * @throws IllegalArgumentException if <tt>maxDepth</tt> is negative.
+     * @throws java.lang.SecurityException if a security manager
+     *         exists and the caller does not have
+     *         ManagementPermission("monitor").
+     * @throws java.lang.UnsupportedOperationException
+     *         <ul>
+     *           <li>if <tt>lockedMonitors</tt> is <tt>true</tt> but
+     *               the Java virtual machine does not support monitoring
+     *               of {@linkplain #isObjectMonitorUsageSupported
+     *               object monitor usage}; or</li>
+     *           <li>if <tt>lockedSynchronizers</tt> is <tt>true</tt> but
+     *               the Java virtual machine does not support monitoring
+     *               of {@linkplain #isSynchronizerUsageSupported
+     *               ownable synchronizer usage}.</li>
+     *         </ul>
+     *
+     * @see #isObjectMonitorUsageSupported
+     * @see #isSynchronizerUsageSupported
+     *
+     * @since 8u282
+     */
+    public default ThreadInfo[] dumpAllThreads(boolean lockedMonitors,
+                                               boolean lockedSynchronizers, int maxDepth) {
+        throw new UnsupportedOperationException();
+    }
 }

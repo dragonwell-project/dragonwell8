@@ -25,7 +25,7 @@
  * @test
  * @bug 4112090 8008577
  * @summary verify that MessageFormat can handle large numbers of arguments
- * @run main/othervm -Djava.locale.providers=COMPAT,SPI LargeMessageFormat
+ * @run main/othervm -Djava.locale.providers=JRE,SPI LargeMessageFormat
  */
 
 import java.text.MessageFormat;

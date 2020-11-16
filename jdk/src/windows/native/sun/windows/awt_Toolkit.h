@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1996, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -246,6 +246,8 @@ public:
         UINT cInputs, PTOUCHINPUT pInputs, int cbSize);
     BOOL TICloseTouchInputHandle(HTOUCHINPUT hTouchInput);
 
+    LRESULT InvokeInputMethodFunction(UINT msg, WPARAM wParam=0, LPARAM lParam=0);
+
     INLINE BOOL localPump() { return m_localPump; }
     INLINE BOOL VerifyComponents() { return FALSE; } // TODO: Use new DebugHelper class to set this flag
     INLINE HWND GetHWnd() { return m_toolkitHWnd; }
@@ -440,7 +442,8 @@ public:
     static BOOL activateKeyboardLayout(HKL hkl);
 
     HANDLE m_waitEvent;
-    DWORD eventNumber;
+    volatile DWORD eventNumber;
+    volatile BOOL isInDoDragDropLoop;
 private:
     HWND CreateToolkitWnd(LPCTSTR name);
 
@@ -499,6 +502,10 @@ private:
     HMODULE m_dllHandle;  /* The module handle. */
 
     CriticalSection m_Sync;
+    CriticalSection m_inputMethodLock;
+
+    HANDLE m_inputMethodWaitEvent;
+    LRESULT m_inputMethodData;
 
 /* track display changes - used by palette-updating code.
    This is a workaround for a windows bug that prevents

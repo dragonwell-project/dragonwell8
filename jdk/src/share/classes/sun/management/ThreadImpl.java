@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -30,6 +30,7 @@ import java.lang.management.ManagementFactory;
 import java.lang.management.ThreadInfo;
 
 import javax.management.ObjectName;
+import java.util.Objects;
 
 /**
  * Implementation class for the thread subsystem.
@@ -105,11 +106,15 @@ class ThreadImpl implements com.sun.management.ThreadMXBean {
         return cpuTimeEnabled;
     }
 
-    public boolean isThreadAllocatedMemoryEnabled() {
+    private void ensureThreadAllocatedMemorySupported() {
         if (!isThreadAllocatedMemorySupported()) {
             throw new UnsupportedOperationException(
-                "Thread allocated memory measurement is not supported");
+                "Thread allocated memory measurement is not supported.");
         }
+    }
+
+    public boolean isThreadAllocatedMemoryEnabled() {
+        ensureThreadAllocatedMemorySupported();
         return allocatedMemoryEnabled;
     }
 
@@ -144,16 +149,18 @@ class ThreadImpl implements com.sun.management.ThreadMXBean {
         return getThreadInfo(ids, 0);
     }
 
-    private void verifyThreadIds(long[] ids) {
-        if (ids == null) {
-            throw new NullPointerException("Null ids parameter.");
+    private void verifyThreadId(long id) {
+        if (id <= 0) {
+            throw new IllegalArgumentException(
+                "Invalid thread ID parameter: " + id);
         }
+    }
+
+    private void verifyThreadIds(long[] ids) {
+        Objects.requireNonNull(ids);
 
         for (int i = 0; i < ids.length; i++) {
-            if (ids[i] <= 0) {
-                throw new IllegalArgumentException(
-                    "Invalid thread ID parameter: " + ids[i]);
-            }
+            verifyThreadId(ids[i]);
         }
     }
 
@@ -324,26 +331,41 @@ class ThreadImpl implements com.sun.management.ThreadMXBean {
         }
     }
 
+    public long getCurrentThreadAllocatedBytes() {
+        if (isThreadAllocatedMemoryEnabled()) {
+            return getThreadAllocatedMemory0(0);
+        }
+        return -1;
+    }
+
+    private boolean verifyThreadAllocatedMemory(long id) {
+        verifyThreadId(id);
+        return isThreadAllocatedMemoryEnabled();
+    }
+
     public long getThreadAllocatedBytes(long id) {
-        long[] ids = new long[1];
-        ids[0] = id;
-        final long[] sizes = getThreadAllocatedBytes(ids);
-        return sizes[0];
+        boolean verified = verifyThreadAllocatedMemory(id);
+
+        if (verified) {
+            return getThreadAllocatedMemory0(
+                Thread.currentThread().getId() == id ? 0 : id);
+        }
+        return -1;
     }
 
     private boolean verifyThreadAllocatedMemory(long[] ids) {
         verifyThreadIds(ids);
-
-        // check if Thread allocated memory measurement is supported.
-        if (!isThreadAllocatedMemorySupported()) {
-            throw new UnsupportedOperationException(
-                "Thread allocated memory measurement is not supported.");
-        }
-
         return isThreadAllocatedMemoryEnabled();
     }
 
     public long[] getThreadAllocatedBytes(long[] ids) {
+        Objects.requireNonNull(ids);
+
+        if (ids.length == 1) {
+            long size = getThreadAllocatedBytes(ids[0]);
+            return new long[] { size };
+        }
+
         boolean verified = verifyThreadAllocatedMemory(ids);
 
         long[] sizes = new long[ids.length];
@@ -356,10 +378,7 @@ class ThreadImpl implements com.sun.management.ThreadMXBean {
     }
 
     public void setThreadAllocatedMemoryEnabled(boolean enable) {
-        if (!isThreadAllocatedMemorySupported()) {
-            throw new UnsupportedOperationException(
-                "Thread allocated memory measurement is not supported.");
-        }
+        ensureThreadAllocatedMemorySupported();
 
         Util.checkControlAccess();
         synchronized (this) {
@@ -439,19 +458,42 @@ class ThreadImpl implements com.sun.management.ThreadMXBean {
     public ThreadInfo[] getThreadInfo(long[] ids,
                                       boolean lockedMonitors,
                                       boolean lockedSynchronizers) {
+        return dumpThreads0(ids, lockedMonitors, lockedSynchronizers,
+                            Integer.MAX_VALUE);
+    }
+
+    public ThreadInfo[] getThreadInfo(long[] ids,
+                                      boolean lockedMonitors,
+                                      boolean lockedSynchronizers,
+                                      int maxDepth) {
+        if (maxDepth < 0) {
+            throw new IllegalArgumentException(
+                    "Invalid maxDepth parameter: " + maxDepth);
+        }
         verifyThreadIds(ids);
         // ids has been verified to be non-null
         // an empty array of ids should return an empty array of ThreadInfos
         if (ids.length == 0) return new ThreadInfo[0];
 
         verifyDumpThreads(lockedMonitors, lockedSynchronizers);
-        return dumpThreads0(ids, lockedMonitors, lockedSynchronizers);
+        return dumpThreads0(ids, lockedMonitors, lockedSynchronizers, maxDepth);
     }
 
     public ThreadInfo[] dumpAllThreads(boolean lockedMonitors,
                                        boolean lockedSynchronizers) {
+        return dumpAllThreads(lockedMonitors, lockedSynchronizers,
+                              Integer.MAX_VALUE);
+    }
+
+    public ThreadInfo[] dumpAllThreads(boolean lockedMonitors,
+                                       boolean lockedSynchronizers,
+                                       int maxDepth) {
+        if (maxDepth < 0) {
+            throw new IllegalArgumentException(
+                    "Invalid maxDepth parameter: " + maxDepth);
+        }
         verifyDumpThreads(lockedMonitors, lockedSynchronizers);
-        return dumpThreads0(null, lockedMonitors, lockedSynchronizers);
+        return dumpThreads0(null, lockedMonitors, lockedSynchronizers, maxDepth);
     }
 
     // VM support where maxDepth == -1 to request entire stack dump
@@ -463,6 +505,7 @@ class ThreadImpl implements com.sun.management.ThreadMXBean {
     private static native void getThreadTotalCpuTime1(long[] ids, long[] result);
     private static native long getThreadUserCpuTime0(long id);
     private static native void getThreadUserCpuTime1(long[] ids, long[] result);
+    private static native long getThreadAllocatedMemory0(long id);
     private static native void getThreadAllocatedMemory1(long[] ids, long[] result);
     private static native void setThreadCpuTimeEnabled0(boolean enable);
     private static native void setThreadAllocatedMemoryEnabled0(boolean enable);
@@ -472,7 +515,8 @@ class ThreadImpl implements com.sun.management.ThreadMXBean {
     private static native void resetPeakThreadCount0();
     private static native ThreadInfo[] dumpThreads0(long[] ids,
                                                     boolean lockedMonitors,
-                                                    boolean lockedSynchronizers);
+                                                    boolean lockedSynchronizers,
+                                                    int maxDepth);
 
     // tid == 0 to reset contention times for all threads
     private static native void resetContentionTimes0(long tid);
