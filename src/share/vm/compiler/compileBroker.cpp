@@ -2042,6 +2042,15 @@ void CompileBroker::invoke_compiler_on_method(CompileTask* task) {
         event.set_failureMessage(failure_reason);
         event.commit();
       }
+
+      if (AbortVMOnCompilationFailure) {
+        if (compilable == ciEnv::MethodCompilable_not_at_tier) {
+          fatal(err_msg("Not compilable at tier %d: %s", task_level, failure_reason));
+        }
+        if (compilable == ciEnv::MethodCompilable_never) {
+          fatal(err_msg("Never compilable: %s", failure_reason));
+        }
+      }
     } else {
       task->mark_success();
       task->set_num_inlined_bytecodes(ci_env.num_inlined_bytecodes());
