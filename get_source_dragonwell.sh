@@ -36,13 +36,14 @@ warning() {
 subrepos="corba jaxp jaxws langtools jdk hotspot nashorn"
 
 # default options
-GITURL="git@gitlab.alibaba-inc.com:dragonwell"
-REPO_PREFIX="jdk8u_"
+site="github"
+connect="https"
+REPO_PREFIX="dragonwell8_"
 DEPTH=1000
 BRANCH="master"
 
 usage() {
-      echo "usage: $0 [-h|--help] [-b|--branch branch_name] [-s|--site github|gitlab]"
+      echo "usage: $0 [-h|--help] [-b|--branch branch_name] [-s|--site github|gitlab] [-c|--connection https|ssh]"
       exit 1
 }
 
@@ -63,16 +64,22 @@ do
       shift;
       site=$1
       if [[ $site == "github" ]]; then
-        GITURL="https://github.com/alibaba"
         REPO_PREFIX="dragonwell8_"
       elif [[ $site == "gitlab" ]]; then
-        # inside alibaba
-        GITURL="git@gitlab.alibaba-inc.com:dragonwell"
         REPO_PREFIX="jdk8u_"
       else
         usage
       fi
       ;;
+
+    -c | --connection )
+      shift;
+      connect=$1
+      if [ "x$connect" != "xssh" -a "x$connect" != "xhttps" ]; then
+        usage
+      fi
+      ;;
+
 
     *)  # unknown option
       ;;
@@ -80,7 +87,19 @@ do
   shift
 done
 
-GIT=`command -v git`
+if [ "x$site" = "xgithub" -a "x$connect" = "xssh" ]; then
+    GITURL="git@github.com:alibaba"
+elif [ "x$site" = "xgithub" -a "x$connect" = "xhttps" ]; then
+    GITURL="https://github.com/alibaba"
+elif [ "x$site" = "xgitlab" -a "x$connect" = "xssh" ]; then
+    GITURL="git@gitlab.alibaba-inc.com:dragonwell"
+elif [ "x$site" = "xgitlab" -a "x$connect" = "xhttps" ]; then
+    GITURL="http://gitlab.alibaba-inc.com/dragonwell"
+else
+    usage
+fi
+
+GIT=$(command -v git)
 if [ "x$GIT" = "x" ]; then
   error "Could not locate git command"
 fi
