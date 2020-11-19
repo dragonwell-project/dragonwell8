@@ -81,4 +81,12 @@ public final class IOStatus {
         return ((n > EOF) || (n < UNSUPPORTED_CASE));
     }
 
+    /**
+     * Returns true if the error code is UNAVAILABLE or INTERRUPTED, the
+     * error codes to indicate that an I/O operation can be retried.
+     */
+    static boolean okayToRetry(long n) {
+        return (n == IOStatus.UNAVAILABLE) || (n == IOStatus.INTERRUPTED);
+    }
+
 }

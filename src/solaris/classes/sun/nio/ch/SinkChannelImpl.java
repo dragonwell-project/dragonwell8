@@ -25,6 +25,10 @@
 
 package sun.nio.ch;
 
+import com.alibaba.wisp.engine.WispEngine;
+import sun.misc.SharedSecrets;
+import sun.misc.WispEngineAccess;
+
 import java.io.*;
 import java.nio.ByteBuffer;
 import java.nio.channels.*;
@@ -35,6 +39,8 @@ class SinkChannelImpl
     extends Pipe.SinkChannel
     implements SelChImpl
 {
+    private static final WispEngineAccess WEA = SharedSecrets.getWispEngineAccess();
+
 
     // Used to make native read and write calls
     private static final NativeDispatcher nd = new FileDispatcherImpl();
@@ -80,6 +86,11 @@ class SinkChannelImpl
         this.fd = fd;
         this.fdVal = IOUtil.fdVal(fd);
         this.state = ST_INUSE;
+        try {
+            configureAsNonBlockingForWisp(fd);
+        } catch (IOException e) {
+            throw new UncheckedIOException("Unexpected error at configureAsNonBlockingForWisp", e);
+        }
     }
 
     protected void implCloseSelectableChannel() throws IOException {
@@ -165,6 +176,12 @@ class SinkChannelImpl
                 thread = NativeThread.current();
                 do {
                     n = IOUtil.write(fd, src, -1, nd);
+                    if (WispEngine.transparentWispSwitch() && isBlocking()) {
+                        while (IOStatus.okayToRetry(n) && isOpen()) {
+                            WEA.poll(this, Net.POLLOUT, -1);
+                            n = IOUtil.write(fd, src, -1, nd);
+                        }
+                    }
                 } while ((n == IOStatus.INTERRUPTED) && isOpen());
                 return IOStatus.normalize(n);
             } finally {
@@ -188,6 +205,12 @@ class SinkChannelImpl
                 thread = NativeThread.current();
                 do {
                     n = IOUtil.write(fd, srcs, nd);
+                    if (WispEngine.transparentWispSwitch() && isBlocking()) {
+                        while (IOStatus.okayToRetry(n) && isOpen()) {
+                            WEA.poll(this, Net.POLLOUT, -1);
+                            n = IOUtil.write(fd, srcs, nd);
+                        }
+                    }
                 } while ((n == IOStatus.INTERRUPTED) && isOpen());
                 return IOStatus.normalize(n);
             } finally {

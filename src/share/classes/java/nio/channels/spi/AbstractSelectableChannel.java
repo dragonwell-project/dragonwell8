@@ -25,6 +25,10 @@
 
 package java.nio.channels.spi;
 
+import com.alibaba.wisp.engine.WispEngine;
+import sun.nio.ch.IOUtil;
+
+import java.io.FileDescriptor;
 import java.io.IOException;
 import java.nio.channels.CancelledKeyException;
 import java.nio.channels.ClosedChannelException;
@@ -34,6 +38,8 @@ import java.nio.channels.IllegalSelectorException;
 import java.nio.channels.SelectableChannel;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
+import java.nio.channels.ServerSocketChannel;
+import java.nio.channels.SocketChannel;
 
 
 /**
@@ -267,6 +273,11 @@ public abstract class AbstractSelectableChannel
      */
     protected abstract void implCloseSelectableChannel() throws IOException;
 
+    protected void configureAsNonBlockingForWisp(FileDescriptor fd) throws IOException {
+        if (WispEngine.transparentWispSwitch()) {
+            IOUtil.configureBlocking(fd, false);
+        }
+    }
 
     // -- Blocking --
 
@@ -296,7 +307,10 @@ public abstract class AbstractSelectableChannel
             if (block != blocking) {
                 if (block && haveValidKeys())
                     throw new IllegalBlockingModeException();
-                implConfigureBlocking(block);
+                if (!(WispEngine.transparentWispSwitch()
+                        && (this instanceof ServerSocketChannel || this instanceof SocketChannel))) {
+                    implConfigureBlocking(block);
+                }
                 nonBlocking = !block;
             }
         }

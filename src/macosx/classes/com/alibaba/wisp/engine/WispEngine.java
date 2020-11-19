@@ -171,6 +171,11 @@ public class WispEngine {
             public void getCpuTime(long[] ids, long[] times) {
                 throw new UnsupportedOperationException();
             }
+
+            @Override
+            public int poll(SelectableChannel channel, int interestOps, long timeout) throws IOException {
+                throw new UnsupportedOperationException();
+            }
         });
     }
 

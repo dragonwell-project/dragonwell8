@@ -91,6 +91,7 @@ class ServerSocketChannelImpl
         this.fd =  Net.serverSocket(true);
         this.fdVal = IOUtil.fdVal(fd);
         this.state = ST_INUSE;
+        configureAsNonBlockingForWisp(fd);
     }
 
     ServerSocketChannelImpl(SelectorProvider sp,
@@ -104,6 +105,7 @@ class ServerSocketChannelImpl
         this.state = ST_INUSE;
         if (bound)
             localAddress = Net.localAddress(fd);
+        configureAsNonBlockingForWisp(fd);
     }
 
     public ServerSocket socket() {
@@ -245,31 +247,22 @@ class ServerSocketChannelImpl
             FileDescriptor newfd = new FileDescriptor();
             InetSocketAddress[] isaa = new InetSocketAddress[1];
 
-            final boolean wispAndBlocking = WispEngine.transparentWispSwitch() && isBlocking() &&
-                                            WEA.usingWispEpoll();
             try {
                 begin();
                 if (!isOpen())
                     return null;
                 thread = NativeThread.current();
-                if (wispAndBlocking) {
-                    IOUtil.configureBlocking(fd, false);
-                }
                 for (;;) {
                     n = accept(this.fd, newfd, isaa);
                     if ((n == IOStatus.INTERRUPTED) && isOpen())
                         continue;
-                    if (wispAndBlocking && n < 0) {
-                        WEA.registerEvent(this, SelectionKey.OP_ACCEPT);
-                        WEA.park(-1);
+                    if (WispEngine.transparentWispSwitch() && isBlocking() && IOStatus.okayToRetry(n)) {
+                        WEA.poll(this, Net.POLLIN, -1);
                         continue;
                     }
                     break;
                 }
             } finally {
-                if (wispAndBlocking) {
-                    IOUtil.configureBlocking(fd, true);
-                }
                 thread = 0;
                 end(n > 0);
                 assert IOStatus.check(n);
@@ -278,7 +271,7 @@ class ServerSocketChannelImpl
             if (n < 1)
                 return null;
 
-            IOUtil.configureBlocking(newfd, true);
+            configureAsNonBlockingForWisp(newfd);
             InetSocketAddress isa = isaa[0];
             sc = new SocketChannelImpl(provider(), newfd, isa);
             SecurityManager sm = System.getSecurityManager();
@@ -377,7 +370,11 @@ class ServerSocketChannelImpl
                         return 0;
                     thread = NativeThread.current();
                 }
-                n = Net.poll(fd, events, timeout);
+                if (WispEngine.transparentWispSwitch()) {
+                    n = WEA.poll(this, events, timeout);
+                } else {
+                    n = Net.poll(fd, events, timeout);
+                }
             } finally {
                 thread = 0;
                 end(n > 0);

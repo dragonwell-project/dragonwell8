@@ -82,4 +82,13 @@ public interface WispEngineAccess {
     StackTraceElement[] getStackTrace(WispTask task);
 
     void getCpuTime(long[] ids, long[] times);
+
+    /**
+     * @param channel Blocking SocketChannel waiting for interestOps
+     * @param interestOps Net.* enum constant interests
+     * @param timeout timeout in milliseconds
+     * @return active event count
+     * @throws IOException
+     */
+    int poll(SelectableChannel channel, int interestOps, long timeout) throws IOException;
 }

@@ -24,12 +24,14 @@ package com.alibaba.wisp.engine;
 import sun.misc.JavaLangAccess;
 import sun.misc.SharedSecrets;
 import sun.misc.WispEngineAccess;
+import sun.nio.ch.Net;
 
 import java.dyn.Coroutine;
 import java.dyn.CoroutineExitException;
 import java.dyn.CoroutineSupport;
 import java.io.IOException;
 import java.nio.channels.SelectableChannel;
+import java.nio.channels.SelectionKey;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -343,6 +345,37 @@ public class WispEngine extends AbstractExecutorService {
                         }
                     }
                 }
+            }
+
+            @Override
+            public int poll(SelectableChannel channel, int interestOps, long millsTimeOut) throws IOException {
+                assert interestOps == Net.POLLIN || interestOps == Net.POLLCONN || interestOps == Net.POLLOUT;
+                WispTask task = WispCarrier.current().getCurrentTask();
+                if (millsTimeOut > 0) {
+                    task.carrier.addTimer(System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(millsTimeOut),
+                            false);
+                }
+                try {
+                    task.carrier.registerEvent(channel, translateToSelectionKey(interestOps));
+                    park(-1);
+                    return millsTimeOut > 0 && task.timeOut.expired() ? 0 : 1;
+                } finally {
+                    if (millsTimeOut > 0) {
+                        task.carrier.cancelTimer();
+                    }
+                    unregisterEvent();
+                }
+            }
+
+            private int translateToSelectionKey(int event) {
+                if (Net.POLLIN == event) {
+                    return SelectionKey.OP_READ;
+                } else if (Net.POLLCONN == event) {
+                    return SelectionKey.OP_CONNECT;
+                } else if (Net.POLLOUT == event) {
+                    return SelectionKey.OP_WRITE;
+                }
+                return 0;
             }
         });
     }

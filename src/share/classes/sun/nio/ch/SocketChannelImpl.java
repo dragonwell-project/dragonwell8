@@ -32,6 +32,10 @@ import java.nio.ByteBuffer;
 import java.nio.channels.*;
 import java.nio.channels.spi.*;
 import java.util.*;
+
+import com.alibaba.wisp.engine.WispEngine;
+import sun.misc.SharedSecrets;
+import sun.misc.WispEngineAccess;
 import sun.net.NetHooks;
 import sun.net.ExtendedOptionsImpl;
 import sun.net.ExtendedOptionsHelper;
@@ -45,6 +49,7 @@ class SocketChannelImpl
     extends SocketChannel
     implements SelChImpl
 {
+    private static final WispEngineAccess WEA = SharedSecrets.getWispEngineAccess();
 
     // Used to make native read and write calls
     private static NativeDispatcher nd;
@@ -103,6 +108,7 @@ class SocketChannelImpl
         this.fd = Net.socket(true);
         this.fdVal = IOUtil.fdVal(fd);
         this.state = ST_UNCONNECTED;
+        configureAsNonBlockingForWisp(fd);
     }
 
     SocketChannelImpl(SelectorProvider sp,
@@ -116,6 +122,7 @@ class SocketChannelImpl
         this.state = ST_UNCONNECTED;
         if (bound)
             this.localAddress = Net.localAddress(fd);
+        configureAsNonBlockingForWisp(fd);
     }
 
     // Constructor for sockets obtained from server sockets
@@ -130,6 +137,7 @@ class SocketChannelImpl
         this.state = ST_CONNECTED;
         this.localAddress = Net.localAddress(fd);
         this.remoteAddress = remote;
+        configureAsNonBlockingForWisp(fd);
     }
 
     public Socket socket() {
@@ -382,6 +390,10 @@ class SocketChannelImpl
                         // is still open, so retry
                         continue;
                     }
+                    if (WispEngine.transparentWispSwitch() && isBlocking()  && IOStatus.okayToRetry(n)) {
+                        WEA.poll(this, Net.POLLIN, -1);
+                        continue;
+                    }
                     return IOStatus.normalize(n);
                 }
 
@@ -439,6 +451,10 @@ class SocketChannelImpl
                     n = IOUtil.read(fd, dsts, offset, length, nd);
                     if ((n == IOStatus.INTERRUPTED) && isOpen())
                         continue;
+                    if (WispEngine.transparentWispSwitch() && isBlocking()  && IOStatus.okayToRetry(n)) {
+                        WEA.poll(this, Net.POLLIN, -1);
+                        continue;
+                    }
                     return IOStatus.normalize(n);
                 }
             } finally {
@@ -470,6 +486,10 @@ class SocketChannelImpl
                     n = IOUtil.write(fd, buf, -1, nd);
                     if ((n == IOStatus.INTERRUPTED) && isOpen())
                         continue;
+                    if (WispEngine.transparentWispSwitch() && isBlocking()  && IOStatus.okayToRetry(n)) {
+                        WEA.poll(this, Net.POLLOUT, -1);
+                        continue;
+                    }
                     return IOStatus.normalize(n);
                 }
             } finally {
@@ -503,6 +523,10 @@ class SocketChannelImpl
                     n = IOUtil.write(fd, srcs, offset, length, nd);
                     if ((n == IOStatus.INTERRUPTED) && isOpen())
                         continue;
+                    if (WispEngine.transparentWispSwitch() && isBlocking()  && IOStatus.okayToRetry(n)) {
+                        WEA.poll(this, Net.POLLOUT, -1);
+                        continue;
+                    }
                     return IOStatus.normalize(n);
                 }
             } finally {
@@ -533,6 +557,10 @@ class SocketChannelImpl
                     n = sendOutOfBandData(fd, b);
                     if ((n == IOStatus.INTERRUPTED) && isOpen())
                         continue;
+                    if (WispEngine.transparentWispSwitch() && isBlocking()  && IOStatus.okayToRetry(n)) {
+                        WEA.poll(this, Net.POLLOUT, -1);
+                        continue;
+                    }
                     return IOStatus.normalize(n);
                 }
             } finally {
@@ -650,6 +678,10 @@ class SocketChannelImpl
                                 if (  (n == IOStatus.INTERRUPTED)
                                       && isOpen())
                                     continue;
+                                if (WispEngine.transparentWispSwitch() && isBlocking()  && IOStatus.okayToRetry(n)) {
+                                    WEA.poll(this, Net.POLLOUT, -1);
+                                    continue;
+                                }
                                 break;
                             }
 
@@ -950,7 +982,11 @@ class SocketChannelImpl
                         return 0;
                     readerThread = NativeThread.current();
                 }
-                n = Net.poll(fd, events, timeout);
+                if (WispEngine.transparentWispSwitch()) {
+                    n = WEA.poll(this, events, timeout);
+                } else {
+                    n = Net.poll(fd, events, timeout);
+                }
             } finally {
                 readerCleanup();
                 end(n > 0);
