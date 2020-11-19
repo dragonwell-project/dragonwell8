@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -33,6 +33,7 @@
  *     Master Secret Extension
  * @summary Increase the number of clones in the CloneableDigest
  * @library /javax/net/ssl/templates
+ * @library /lib/security
  * @compile DigestBase.java
  * @run main/othervm -Djdk.tls.client.protocols="TLSv1.3,TLSv1.2,TLSv1.1,TLSv1,SSLv3"
  *     HandshakeHashCloneExhaustion TLSv1.3 TLS_AES_128_GCM_SHA256
@@ -79,6 +80,10 @@ public class HandshakeHashCloneExhaustion extends SSLSocketTemplate {
         protocol = new String [] { args[0] };
         ciphersuite = new String[] { args[1] };
 
+        // Re-enable TLSv1.1 when test depends on it.
+        if (protocol[0].equals("TLSv1.1")) {
+            SecurityUtils.removeFromDisabledTlsAlgs(protocol[0]);
+        }
         (new HandshakeHashCloneExhaustion()).run();
     }
 
