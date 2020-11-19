@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -42,10 +42,11 @@ import java.util.Base64;
  * @bug 8211339 8234728
  * @summary Verify hostname returns an exception instead of null pointer when
  * creating a new engine
- * @run main NullHostnameCheck TLSv1
- * @run main NullHostnameCheck TLSv1.1
- * @run main NullHostnameCheck TLSv1.2
- * @run main NullHostnameCheck TLSv1.3
+ * @library /lib/security
+ * @run main/othervm NullHostnameCheck TLSv1
+ * @run main/othervm NullHostnameCheck TLSv1.1
+ * @run main/othervm NullHostnameCheck TLSv1.2
+ * @run main/othervm NullHostnameCheck TLSv1.3
  */
 
 
@@ -53,6 +54,12 @@ public final class NullHostnameCheck {
 
     public static void main(String[] args) throws Exception {
         String protocol = args[0];
+
+        // Re-enable TLSv1 or TLSv1.1 when test depends on it.
+        if (protocol.equals("TLSv1") || protocol.equals("TLSv1.1")) {
+            SecurityUtils.removeFromDisabledTlsAlgs(protocol);
+        }
+
         KeyStore keyStore = KeyStore.getInstance(KeyStore.getDefaultType());
         keyStore.load(
                 new ByteArrayInputStream(Base64.getDecoder().
