@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2011, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2010, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,6 +27,7 @@
  * @test
  * @bug 4873188
  * @summary Support TLS 1.1
+ * @library /lib/security
  * @run main/othervm GenericBlockCipher
  *
  *     SunJSSE does not support dynamic system properties, no way to re-use
@@ -160,6 +161,9 @@ public class GenericBlockCipher {
     volatile Exception clientException = null;
 
     public static void main(String[] args) throws Exception {
+        // Re-enable TLSv1.1 since test depends on it.
+        SecurityUtils.removeFromDisabledTlsAlgs("TLSv1.1");
+
         String keyFilename =
             System.getProperty("test.src", ".") + "/" + pathToStores +
                 "/" + keyStoreFile;
