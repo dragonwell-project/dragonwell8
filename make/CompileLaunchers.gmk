@@ -244,7 +244,7 @@ endif
 $(JDK_OUTPUTDIR)/bin$(OUTPUT_SUBDIR)/java$(DEBUGINFO_EXT): $(BUILD_LAUNCHER_java)
 	$(MKDIR) -p $(@D)
 	$(RM) $@
-	$(CP) $(JDK_OUTPUTDIR)/objs/java_objs$(OUTPUT_SUBDIR)/java$(DEBUGINFO_EXT) $@
+	$(CP) -R $(JDK_OUTPUTDIR)/objs/java_objs$(OUTPUT_SUBDIR)/java$(DEBUGINFO_EXT) $@
 
 BUILD_LAUNCHERS += $(JDK_OUTPUTDIR)/bin$(OUTPUT_SUBDIR)/java$(EXE_SUFFIX)
 ifeq ($(ENABLE_DEBUG_SYMBOLS), true)
