@@ -27,6 +27,7 @@ package jdk.internal.platform.cgroupv1;
 
 import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -110,6 +111,8 @@ public class SubSystem {
         } catch (PrivilegedActionException e) {
             Metrics.unwrapIOExceptionAndRethrow(e);
             throw new InternalError(e.getCause());
+        } catch (UncheckedIOException e) {
+            throw e.getCause();
         }
     }
 
@@ -140,6 +143,8 @@ public class SubSystem {
         } catch (PrivilegedActionException e) {
             Metrics.unwrapIOExceptionAndRethrow(e);
             throw new InternalError(e.getCause());
+        } catch (UncheckedIOException e) {
+            throw e.getCause();
         }
     }
 
@@ -193,8 +198,9 @@ public class SubSystem {
                                            .findFirst();
 
             return result.isPresent() ? Long.parseLong(result.get()) : 0L;
-        }
-        catch (IOException e) {
+        } catch (IOException e) {
+            return 0L;
+        } catch (UncheckedIOException e) {
             return 0L;
         }
     }
