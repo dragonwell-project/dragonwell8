@@ -5179,7 +5179,7 @@ jint os::init_2(void)
 
   Linux::capture_initial_stack(JavaThread::stack_size_at_create());
 
-#if defined(IA32)
+#if defined(IA32) && !defined(ZERO)
   workaround_expand_exec_shield_cs_limit();
 #endif
 
