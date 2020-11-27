@@ -92,15 +92,7 @@ public class AccessControlContext {
             testInherit();
             break;
         case "default":
-            // Case fails because of "JDK-8249846: Change of behavior after
-            // JDK-8237117: Better ForkJoinPool behavior".
-            System.out.println("Known to fail with AccessControlException since 8u262 (see JDK-8249846)");
-            try {
-                testDefault();
-                throw new RuntimeException("Pool thread has inherited permissions.");
-            } catch (AccessControlException e) {
-                System.out.println("PASSED: " + e);
-            }
+            testDefault();
             break;
         }
 
