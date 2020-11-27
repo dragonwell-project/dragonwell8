@@ -34,12 +34,15 @@
 
 bool  OSContainer::_is_initialized   = false;
 bool  OSContainer::_is_containerized = false;
+int   OSContainer::_active_processor_count = 1;
 julong _unlimited_memory;
 
 class CgroupSubsystem: CHeapObj<mtInternal> {
  friend class OSContainer;
 
  private:
+    volatile jlong _next_check_counter;
+
     /* mountinfo contents */
     char *_root;
     char *_mount_point;
@@ -52,6 +55,7 @@ class CgroupSubsystem: CHeapObj<mtInternal> {
       _root = os::strdup(root);
       _mount_point = os::strdup(mountpoint);
       _path = NULL;
+      _next_check_counter = min_jlong;
     }
 
     /*
@@ -101,6 +105,14 @@ class CgroupSubsystem: CHeapObj<mtInternal> {
     }
 
     char *subsystem_path() { return _path; }
+
+    bool cache_has_expired() {
+      return os::elapsed_counter() > _next_check_counter;
+    }
+
+    void set_cache_expiry_time(jlong timeout) {
+      _next_check_counter = os::elapsed_counter() + timeout;
+    }
 };
 
 CgroupSubsystem* memory = NULL;
@@ -584,6 +596,17 @@ int OSContainer::active_processor_count() {
   int cpu_count, limit_count;
   int result;
 
+  // We use a cache with a timeout to avoid performing expensive
+  // computations in the event this function is called frequently.
+  // [See 8227006].
+  if (!cpu->cache_has_expired()) {
+    if (PrintContainerInfo) {
+      tty->print_cr("OSContainer::active_processor_count (cached): %d", OSContainer::_active_processor_count);
+    }
+
+    return OSContainer::_active_processor_count;
+  }
+
   cpu_count = limit_count = os::Linux::active_processor_count();
   int quota  = cpu_quota();
   int period = cpu_period();
@@ -622,6 +645,11 @@ int OSContainer::active_processor_count() {
   if (PrintContainerInfo) {
     tty->print_cr("OSContainer::active_processor_count: %d", result);
   }
+
+  // Update the value and reset the cache timeout
+  OSContainer::_active_processor_count = result;
+  cpu->set_cache_expiry_time(OSCONTAINER_CACHE_TIMEOUT);
+
   return result;
 }
 
