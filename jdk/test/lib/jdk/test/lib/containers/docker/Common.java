@@ -53,7 +53,7 @@ public class Common {
     // create simple commonly used options
     public static DockerRunOptions newOpts(String imageNameAndTag) {
         return new DockerRunOptions(imageNameAndTag, "/jdk/bin/java", "-version")
-            .addJavaOpts("-Xlog:os+container=trace");
+            .addJavaOpts("-XX:+UnlockDiagnosticVMOptions", "-XX:+PrintContainerInfo");
     }
 
 
@@ -62,7 +62,8 @@ public class Common {
         DockerRunOptions opts =
             new DockerRunOptions(imageNameAndTag, "/jdk/bin/java", testClass);
         opts.addDockerOpts("--volume", Utils.TEST_CLASSES + ":/test-classes/");
-        opts.addJavaOpts("-Xlog:os+container=trace", "-cp", "/test-classes/");
+        opts.addJavaOpts("-XX:+UnlockDiagnosticVMOptions", "-XX:+PrintContainerInfo");
+        opts.addJavaOpts("-cp", "/test-classes/");
         return opts;
     }
 
