@@ -95,7 +95,6 @@ class ParScanThreadState {
 
   HeapWord *_young_old_boundary;
 
-  int _hash_seed;
   int _thread_num;
   ageTable _ageTable;
 
@@ -161,7 +160,6 @@ class ParScanThreadState {
   // Is new_obj a candidate for scan_partial_array_and_push_remainder method.
   inline bool should_be_partially_scanned(oop new_obj, oop old_obj) const;
 
-  int* hash_seed()  { return &_hash_seed; }
   int  thread_num() { return _thread_num; }
 
   // Allocate a to-space block of size "sz", or else return NULL.

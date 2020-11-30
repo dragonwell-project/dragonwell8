@@ -59,7 +59,6 @@ class G1ParScanThreadState : public StackObj {
 
   OopsInHeapRegionClosure*      _evac_failure_cl;
 
-  int  _hash_seed;
   uint _queue_num;
 
   size_t _term_attempts;
@@ -129,7 +128,6 @@ class G1ParScanThreadState : public StackObj {
 
   OopsInHeapRegionClosure* evac_failure_closure() { return _evac_failure_cl; }
 
-  int* hash_seed() { return &_hash_seed; }
   uint queue_num() { return _queue_num; }
 
   size_t term_attempts() const  { return _term_attempts; }

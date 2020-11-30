@@ -563,8 +563,6 @@ class CMSCollector: public CHeapObj<mtGC> {
   Stack<oop, mtGC>     _preserved_oop_stack;
   Stack<markOop, mtGC> _preserved_mark_stack;
 
-  int*             _hash_seed;
-
   // In support of multi-threaded concurrent phases
   YieldingFlexibleWorkGang* _conc_workers;
 
@@ -741,7 +739,6 @@ class CMSCollector: public CHeapObj<mtGC> {
   bool stop_world_and_do(CMS_op_type op);
 
   OopTaskQueueSet* task_queues() { return _task_queues; }
-  int*             hash_seed(int i) { return &_hash_seed[i]; }
   YieldingFlexibleWorkGang* conc_workers() { return _conc_workers; }
 
   // Support for parallelizing Eden rescan in CMS remark phase

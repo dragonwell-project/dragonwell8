@@ -131,7 +131,7 @@ inline void G1ParScanThreadState::dispatch_reference(StarTask ref) {
 
 void G1ParScanThreadState::steal_and_trim_queue(RefToScanQueueSet *task_queues) {
   StarTask stolen_task;
-  while (task_queues->steal(queue_num(), hash_seed(), stolen_task)) {
+  while (task_queues->steal(queue_num(), stolen_task)) {
     assert(verify_task(stolen_task), "sanity");
     dispatch_reference(stolen_task);
 

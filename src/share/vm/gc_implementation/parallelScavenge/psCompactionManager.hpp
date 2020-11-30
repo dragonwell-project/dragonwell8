@@ -177,16 +177,16 @@ private:
   // Access function for compaction managers
   static ParCompactionManager* gc_thread_compaction_manager(int index);
 
-  static bool steal(int queue_num, int* seed, oop& t) {
-    return stack_array()->steal(queue_num, seed, t);
+  static bool steal(int queue_num, oop& t) {
+    return stack_array()->steal(queue_num, t);
   }
 
-  static bool steal_objarray(int queue_num, int* seed, ObjArrayTask& t) {
-    return _objarray_queues->steal(queue_num, seed, t);
+  static bool steal_objarray(int queue_num, ObjArrayTask& t) {
+    return _objarray_queues->steal(queue_num, t);
   }
 
-  static bool steal(int queue_num, int* seed, size_t& region) {
-    return region_array()->steal(queue_num, seed, region);
+  static bool steal(int queue_num, size_t& region) {
+    return region_array()->steal(queue_num, region);
   }
 
   // Process tasks remaining on any marking stack

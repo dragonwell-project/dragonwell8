@@ -4429,7 +4429,7 @@ void CMTask::do_marking_step(double time_target_ms,
       oop obj;
       statsOnly( ++_steal_attempts );
 
-      if (_cm->try_stealing(_worker_id, &_hash_seed, obj)) {
+      if (_cm->try_stealing(_worker_id, obj)) {
         if (_cm->verbose_medium()) {
           gclog_or_tty->print_cr("[%u] stolen " PTR_FORMAT " successfully",
                                  _worker_id, p2i((void*) obj));
@@ -4612,7 +4612,7 @@ CMTask::CMTask(uint worker_id,
     _worker_id(worker_id), _cm(cm),
     _objArray_processor(this),
     _claimed(false),
-    _nextMarkBitMap(NULL), _hash_seed(17),
+    _nextMarkBitMap(NULL),
     _task_queue(task_queue),
     _task_queues(task_queues),
     _cm_oop_closure(NULL),

@@ -27,6 +27,7 @@
 
 #include "memory/allocation.hpp"
 #include "memory/allocation.inline.hpp"
+#include "memory/padded.hpp"
 #include "runtime/mutex.hpp"
 #include "runtime/orderAccess.inline.hpp"
 #include "utilities/globalDefinitions.hpp"
@@ -307,13 +308,55 @@ public:
   void oops_do(OopClosure* f);
 
 private:
+  DEFINE_PAD_MINUS_SIZE(0, DEFAULT_CACHE_LINE_SIZE, 0);
   // Element array.
   volatile E* _elems;
+
+  DEFINE_PAD_MINUS_SIZE(1, DEFAULT_CACHE_LINE_SIZE, sizeof(E*));
+  // Queue owner local variables. Not to be accessed by other threads.
+
+  static const uint InvalidQueueId = uint(-1);
+  uint _last_stolen_queue_id; // The id of the queue we last stole from
+
+  int _seed; // Current random seed used for selecting a random queue during stealing.
+
+  DEFINE_PAD_MINUS_SIZE(2, DEFAULT_CACHE_LINE_SIZE, sizeof(uint) + sizeof(int));
+public:
+  int next_random_queue_id();
+
+  void set_last_stolen_queue_id(uint id)     { _last_stolen_queue_id = id; }
+  uint last_stolen_queue_id() const          { return _last_stolen_queue_id; }
+  bool is_last_stolen_queue_id_valid() const { return _last_stolen_queue_id != InvalidQueueId; }
+  void invalidate_last_stolen_queue_id()     { _last_stolen_queue_id = InvalidQueueId; }
 };
 
 template<class E, MEMFLAGS F, unsigned int N>
-GenericTaskQueue<E, F, N>::GenericTaskQueue() {
+GenericTaskQueue<E, F, N>::GenericTaskQueue() : _last_stolen_queue_id(InvalidQueueId), _seed(17 /* random number */) {
   assert(sizeof(Age) == sizeof(size_t), "Depends on this.");
+}
+
+inline int randomParkAndMiller(int *seed0) {
+  const int a =      16807;
+  const int m = 2147483647;
+  const int q =     127773;  /* m div a */
+  const int r =       2836;  /* m mod a */
+  STATIC_ASSERT(sizeof(int) == 4);
+  int seed = *seed0;
+  int hi   = seed / q;
+  int lo   = seed % q;
+  int test = a * lo - r * hi;
+  if (test > 0) {
+    seed = test;
+  } else {
+    seed = test + m;
+  }
+  *seed0 = seed;
+  return seed;
+}
+
+template<class E, MEMFLAGS F, unsigned int N>
+int GenericTaskQueue<E, F, N>::next_random_queue_id() {
+  return randomParkAndMiller(&_seed);
 }
 
 template<class E, MEMFLAGS F, unsigned int N>
@@ -496,8 +539,6 @@ bool OverflowTaskQueue<E, F, N>::try_push_to_taskqueue(E t) {
   return taskqueue_t::push(t);
 }
 class TaskQueueSetSuper {
-protected:
-  static int randomParkAndMiller(int* seed0);
 public:
   // Returns "true" if some TaskQueue in the set contains a task.
   virtual bool peek() = 0;
@@ -515,26 +556,23 @@ private:
 public:
   typedef typename T::element_type E;
 
-  GenericTaskQueueSet(int n) : _n(n) {
+  GenericTaskQueueSet(uint n) : _n(n) {
     typedef T* GenericTaskQueuePtr;
     _queues = NEW_C_HEAP_ARRAY(GenericTaskQueuePtr, n, F);
-    for (int i = 0; i < n; i++) {
+    for (uint i = 0; i < n; i++) {
       _queues[i] = NULL;
     }
   }
 
-  bool steal_best_of_2(uint queue_num, int* seed, E& t);
+  bool steal_best_of_2(uint queue_num, E& t);
 
   void register_queue(uint i, T* q);
 
   T* queue(uint n);
 
-  // The thread with queue number "queue_num" (and whose random number seed is
-  // at "seed") is trying to steal a task from some other queue.  (It may try
-  // several queues, according to some configuration parameter.)  If some steal
-  // succeeds, returns "true" and sets "t" to the stolen task, otherwise returns
-  // false.
-  bool steal(uint queue_num, int* seed, E& t);
+  // Try to steal a task from some other queue than queue_num. It may perform several attempts at doing so.
+  // Returns if stealing succeeds, and sets "t" to the stolen task.
+  bool steal(uint queue_num, E& t);
 
   bool peek();
 };
@@ -551,9 +589,9 @@ GenericTaskQueueSet<T, F>::queue(uint i) {
 }
 
 template<class T, MEMFLAGS F> bool
-GenericTaskQueueSet<T, F>::steal(uint queue_num, int* seed, E& t) {
+GenericTaskQueueSet<T, F>::steal(uint queue_num, E& t) {
   for (uint i = 0; i < 2 * _n; i++) {
-    if (steal_best_of_2(queue_num, seed, t)) {
+    if (steal_best_of_2(queue_num, t)) {
       TASKQUEUE_STATS_ONLY(queue(queue_num)->stats.record_steal(true));
       return true;
     }
@@ -563,17 +601,46 @@ GenericTaskQueueSet<T, F>::steal(uint queue_num, int* seed, E& t) {
 }
 
 template<class T, MEMFLAGS F> bool
-GenericTaskQueueSet<T, F>::steal_best_of_2(uint queue_num, int* seed, E& t) {
+GenericTaskQueueSet<T, F>::steal_best_of_2(uint queue_num, E& t) {
   if (_n > 2) {
+    T* const local_queue = _queues[queue_num];
     uint k1 = queue_num;
-    while (k1 == queue_num) k1 = TaskQueueSetSuper::randomParkAndMiller(seed) % _n;
+
+    if (local_queue->is_last_stolen_queue_id_valid()) {
+      k1 = local_queue->last_stolen_queue_id();
+      assert(k1 != queue_num, "Should not be the same");
+    } else {
+      while (k1 == queue_num) {
+        k1 = local_queue->next_random_queue_id() % _n;
+      }
+    }
+
     uint k2 = queue_num;
-    while (k2 == queue_num || k2 == k1) k2 = TaskQueueSetSuper::randomParkAndMiller(seed) % _n;
+    while (k2 == queue_num || k2 == k1) {
+      k2 = local_queue->next_random_queue_id() % _n;
+    }
     // Sample both and try the larger.
     uint sz1 = _queues[k1]->size();
     uint sz2 = _queues[k2]->size();
-    if (sz2 > sz1) return _queues[k2]->pop_global(t);
-    else return _queues[k1]->pop_global(t);
+
+    uint sel_k = 0;
+    bool suc = false;
+
+    if (sz2 > sz1) {
+      sel_k = k2;
+      suc = _queues[k2]->pop_global(t);
+    } else if (sz1 > 0) {
+      sel_k = k1;
+      suc = _queues[k1]->pop_global(t);
+    }
+
+    if (suc) {
+      local_queue->set_last_stolen_queue_id(sel_k);
+    } else {
+      local_queue->invalidate_last_stolen_queue_id();
+    }
+
+    return suc;
   } else if (_n == 2) {
     // Just try the other one.
     uint k = (queue_num + 1) % 2;

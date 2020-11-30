@@ -164,8 +164,8 @@ class PSPromotionManager VALUE_OBJ_CLASS_SPEC {
   static PSPromotionManager* gc_thread_promotion_manager(int index);
   static PSPromotionManager* vm_thread_promotion_manager();
 
-  static bool steal_depth(int queue_num, int* seed, StarTask& t) {
-    return stack_array_depth()->steal(queue_num, seed, t);
+  static bool steal_depth(int queue_num, StarTask& t) {
+    return stack_array_depth()->steal(queue_num, t);
   }
 
   PSPromotionManager();

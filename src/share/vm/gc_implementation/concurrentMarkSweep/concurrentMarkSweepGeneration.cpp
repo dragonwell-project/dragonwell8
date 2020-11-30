@@ -679,11 +679,6 @@ CMSCollector::CMSCollector(ConcurrentMarkSweepGeneration* cmsGen,
         warning("task_queues allocation failure.");
         return;
       }
-      _hash_seed = NEW_C_HEAP_ARRAY(int, num_queues, mtGC);
-      if (_hash_seed == NULL) {
-        warning("_hash_seed array allocation failure");
-        return;
-      }
 
       typedef Padded<OopTaskQueue> PaddedOopTaskQueue;
       for (i = 0; i < num_queues; i++) {
@@ -696,7 +691,6 @@ CMSCollector::CMSCollector(ConcurrentMarkSweepGeneration* cmsGen,
       }
       for (i = 0; i < num_queues; i++) {
         _task_queues->queue(i)->initialize();
-        _hash_seed[i] = 17;  // copied from ParNew
       }
     }
   }
@@ -4358,7 +4352,6 @@ void CMSConcMarkingTask::do_work_steal(int i) {
   oop obj_to_scan;
   CMSBitMap* bm = &(_collector->_markBitMap);
   CMSMarkStack* ovflw = &(_collector->_markStack);
-  int* seed = _collector->hash_seed(i);
   Par_ConcMarkingClosure cl(_collector, this, work_q, bm, ovflw);
   while (true) {
     cl.trim_queue(0);
@@ -4368,7 +4361,7 @@ void CMSConcMarkingTask::do_work_steal(int i) {
       // overflow stack may already have been stolen from us.
       // assert(work_q->size() > 0, "Work from overflow stack");
       continue;
-    } else if (task_queues()->steal(i, seed, /* reference */ obj_to_scan)) {
+    } else if (task_queues()->steal(i, /* reference */ obj_to_scan)) {
       assert(obj_to_scan->is_oop(), "Should be an oop");
       assert(bm->isMarked((HeapWord*)obj_to_scan), "Grey object");
       obj_to_scan->oop_iterate(&cl);
@@ -5345,7 +5338,7 @@ class CMSParRemarkTask: public CMSParMarkTask {
                                   Par_MarkRefsIntoAndScanClosure* cl);
 
   // ... work stealing for the above
-  void do_work_steal(int i, Par_MarkRefsIntoAndScanClosure* cl, int* seed);
+  void do_work_steal(int i, Par_MarkRefsIntoAndScanClosure* cl);
 };
 
 class RemarkKlassClosure : public KlassClosure {
@@ -5515,7 +5508,7 @@ void CMSParRemarkTask::work(uint worker_id) {
   // ---------- ... and drain overflow list.
   _timer.reset();
   _timer.start();
-  do_work_steal(worker_id, &par_mrias_cl, _collector->hash_seed(worker_id));
+  do_work_steal(worker_id, &par_mrias_cl);
   _timer.stop();
   if (PrintCMSStatistics != 0) {
     gclog_or_tty->print_cr(
@@ -5673,8 +5666,7 @@ CMSParRemarkTask::do_dirty_card_rescan_tasks(
 
 // . see if we can share work_queues with ParNew? XXX
 void
-CMSParRemarkTask::do_work_steal(int i, Par_MarkRefsIntoAndScanClosure* cl,
-                                int* seed) {
+CMSParRemarkTask::do_work_steal(int i, Par_MarkRefsIntoAndScanClosure* cl) {
   OopTaskQueue* work_q = work_queue(i);
   NOT_PRODUCT(int num_steals = 0;)
   oop obj_to_scan;
@@ -5705,7 +5697,7 @@ CMSParRemarkTask::do_work_steal(int i, Par_MarkRefsIntoAndScanClosure* cl,
     // Verify that we have no work before we resort to stealing
     assert(work_q->size() == 0, "Have work, shouldn't steal");
     // Try to steal from other queues that have work
-    if (task_queues()->steal(i, seed, /* reference */ obj_to_scan)) {
+    if (task_queues()->steal(i, /* reference */ obj_to_scan)) {
       NOT_PRODUCT(num_steals++;)
       assert(obj_to_scan->is_oop(), "Oops, not an oop!");
       assert(bm->isMarked((HeapWord*)obj_to_scan), "Stole an unmarked oop?");
@@ -6130,8 +6122,7 @@ public:
 
   void do_work_steal(int i,
                      CMSParDrainMarkingStackClosure* drain,
-                     CMSParKeepAliveClosure* keep_alive,
-                     int* seed);
+                     CMSParKeepAliveClosure* keep_alive);
 
   virtual void work(uint worker_id);
 };
@@ -6149,8 +6140,7 @@ void CMSRefProcTaskProxy::work(uint worker_id) {
   CMSIsAliveClosure is_alive_closure(_span, _mark_bit_map);
   _task.work(worker_id, is_alive_closure, par_keep_alive, par_drain_stack);
   if (_task.marks_oops_alive()) {
-    do_work_steal(worker_id, &par_drain_stack, &par_keep_alive,
-                  _collector->hash_seed(worker_id));
+    do_work_steal(worker_id, &par_drain_stack, &par_keep_alive);
   }
   assert(work_queue(worker_id)->size() == 0, "work_queue should be empty");
   assert(_collector->_overflow_list == NULL, "non-empty _overflow_list");
@@ -6185,8 +6175,7 @@ CMSParKeepAliveClosure::CMSParKeepAliveClosure(CMSCollector* collector,
 // . see if we can share work_queues with ParNew? XXX
 void CMSRefProcTaskProxy::do_work_steal(int i,
   CMSParDrainMarkingStackClosure* drain,
-  CMSParKeepAliveClosure* keep_alive,
-  int* seed) {
+  CMSParKeepAliveClosure* keep_alive) {
   OopTaskQueue* work_q = work_queue(i);
   NOT_PRODUCT(int num_steals = 0;)
   oop obj_to_scan;
@@ -6215,7 +6204,7 @@ void CMSRefProcTaskProxy::do_work_steal(int i,
     // Verify that we have no work before we resort to stealing
     assert(work_q->size() == 0, "Have work, shouldn't steal");
     // Try to steal from other queues that have work
-    if (task_queues()->steal(i, seed, /* reference */ obj_to_scan)) {
+    if (task_queues()->steal(i, /* reference */ obj_to_scan)) {
       NOT_PRODUCT(num_steals++;)
       assert(obj_to_scan->is_oop(), "Oops, not an oop!");
       assert(_mark_bit_map->isMarked((HeapWord*)obj_to_scan), "Stole an unmarked oop?");
