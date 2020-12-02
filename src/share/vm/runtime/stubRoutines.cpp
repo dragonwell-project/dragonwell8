@@ -181,7 +181,6 @@ void StubRoutines::initialize1() {
   }
 }
 
-
 #ifdef ASSERT
 typedef void (*arraycopy_fn)(address src, address dst, int count);
 
@@ -218,7 +217,6 @@ static void test_arraycopy_func(address func, int alignment) {
   }
 }
 #endif
-
 
 void StubRoutines::initialize2() {
   if (_code2 == NULL) {

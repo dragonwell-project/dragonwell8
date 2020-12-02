@@ -1242,7 +1242,11 @@ bool InstructForm::check_branch_variant(ArchDesc &AD, InstructForm *short_branch
       !is_short_branch() &&     // Don't match another short branch variant
       reduce_result() != NULL &&
       strcmp(reduce_result(), short_branch->reduce_result()) == 0 &&
-      _matrule->equivalent(AD.globalNames(), short_branch->_matrule)) {
+      _matrule->equivalent(AD.globalNames(), short_branch->_matrule)
+#ifdef TARGET_ARCH_aarch64
+      && equivalent_predicates(this, short_branch)
+#endif
+      ) {
     // The instructions are equivalent.
 
     // Now verify that both instructions have the same parameters and

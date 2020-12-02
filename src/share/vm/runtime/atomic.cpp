@@ -41,6 +41,9 @@
 #endif
 
 #include "runtime/atomic.inline.hpp"
+#ifdef TARGET_OS_ARCH_linux_aarch64
+# include "atomic_linux_aarch64.inline.hpp"
+#endif
 
 jbyte Atomic::cmpxchg(jbyte exchange_value, volatile jbyte* dest, jbyte compare_value) {
   assert(sizeof(jbyte) == 1, "assumption.");

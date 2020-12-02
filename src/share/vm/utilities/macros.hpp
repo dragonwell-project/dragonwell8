@@ -354,6 +354,14 @@
 #define NOT_AMD64(code) code
 #endif
 
+#ifdef AARCH64
+#define AARCH64_ONLY(code) code
+#define NOT_AARCH64(code)
+#else
+#define AARCH64_ONLY(code)
+#define NOT_AARCH64(code) code
+#endif
+
 #ifdef SPARC
 #define SPARC_ONLY(code) code
 #define NOT_SPARC(code)

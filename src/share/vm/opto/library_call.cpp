@@ -2712,6 +2712,12 @@ bool LibraryCallKit::inline_unsafe_access(bool is_native_ptr, bool is_store, Bas
   // and it is not possible to fully distinguish unintended nulls
   // from intended ones in this API.
 
+  Node* p;
+#ifdef TARGET_ARCH_aarch64
+  Node* store = NULL;
+  Node* leading_membar = NULL;
+  p = NULL;
+#endif
   if (is_volatile) {
     // We need to emit leading and trailing CPU membars (see below) in
     // addition to memory membars when is_volatile. This is a little
@@ -2722,10 +2728,18 @@ bool LibraryCallKit::inline_unsafe_access(bool is_native_ptr, bool is_store, Bas
     need_mem_bar = true;
     // For Stores, place a memory ordering barrier now.
     if (is_store) {
+#ifdef TARGET_ARCH_aarch64
+      leading_membar = insert_mem_bar(Op_MemBarRelease);
+#else
       insert_mem_bar(Op_MemBarRelease);
+#endif
     } else {
       if (support_IRIW_for_not_multiple_copy_atomic_cpu) {
+#ifdef TARGET_ARCH_aarch64
+        leading_membar = insert_mem_bar(Op_MemBarVolatile);
+#else
         insert_mem_bar(Op_MemBarVolatile);
+#endif
       }
     }
   }
@@ -2742,7 +2756,7 @@ bool LibraryCallKit::inline_unsafe_access(bool is_native_ptr, bool is_store, Bas
     MemNode::MemOrd mo = is_volatile ? MemNode::acquire : MemNode::unordered;
     // To be valid, unsafe loads may depend on other conditions than
     // the one that guards them: pin the Load node
-    Node* p = make_load(control(), adr, value_type, type, adr_type, mo, LoadNode::Pinned, is_volatile, unaligned, mismatched);
+    p = make_load(control(), adr, value_type, type, adr_type, mo, LoadNode::Pinned, is_volatile, unaligned, mismatched);
     // load value
     switch (type) {
     case T_BOOLEAN:
@@ -2788,18 +2802,36 @@ bool LibraryCallKit::inline_unsafe_access(bool is_native_ptr, bool is_store, Bas
 
     MemNode::MemOrd mo = is_volatile ? MemNode::release : MemNode::unordered;
     if (type == T_OBJECT ) {
+#ifdef TARGET_ARCH_aarch64
+      store = store_oop_to_unknown(control(), heap_base_oop, adr, adr_type, val, type, mo, mismatched);
+#else
       (void) store_oop_to_unknown(control(), heap_base_oop, adr, adr_type, val, type, mo, mismatched);
+#endif
     } else {
-      (void) store_to_memory(control(), adr, val, type, adr_type, mo, is_volatile, unaligned, mismatched);
+#ifdef TARGET_ARCH_aarch64
+      store = store_to_memory(control(), adr, val, type, adr_type, mo, is_volatile, unaligned, mismatched);
+#else
+      store_to_memory(control(), adr, val, type, adr_type, mo, is_volatile, unaligned, mismatched);
+#endif
     }
   }
 
   if (is_volatile) {
     if (!is_store) {
+#ifdef TARGET_ARCH_aarch64
+      Node* mb = insert_mem_bar(Op_MemBarAcquire, p);
+      mb->as_MemBar()->set_trailing_load();
+#else
       insert_mem_bar(Op_MemBarAcquire);
+#endif
     } else {
       if (!support_IRIW_for_not_multiple_copy_atomic_cpu) {
+#ifdef TARGET_ARCH_aarch64
+        Node* mb = insert_mem_bar(Op_MemBarVolatile, store);
+        MemBarNode::set_store_pair(leading_membar->as_MemBar(), mb->as_MemBar());
+#else
         insert_mem_bar(Op_MemBarVolatile);
+#endif
       }
     }
   }
@@ -2999,7 +3031,11 @@ bool LibraryCallKit::inline_unsafe_load_store(BasicType type, LoadStoreKind kind
   // into actual barriers on most machines, but we still need rest of
   // compiler to respect ordering.
 
+#ifdef AARCH64
+  Node* leading_membar = insert_mem_bar(Op_MemBarRelease);
+#else
   insert_mem_bar(Op_MemBarRelease);
+#endif
   insert_mem_bar(Op_MemBarCPUOrder);
 
   // 4984716: MemBars must be inserted before this
@@ -3098,6 +3134,10 @@ bool LibraryCallKit::inline_unsafe_load_store(BasicType type, LoadStoreKind kind
   Node* proj = _gvn.transform(new (C) SCMemProjNode(load_store));
   set_memory(proj, alias_idx);
 
+#ifdef AARCH64
+  Node* access = load_store;
+#endif
+
   if (type == T_OBJECT && kind == LS_xchg) {
 #ifdef _LP64
     if (adr->bottom_type()->is_ptr_to_narrowoop()) {
@@ -3117,7 +3157,12 @@ bool LibraryCallKit::inline_unsafe_load_store(BasicType type, LoadStoreKind kind
 
   // Add the trailing membar surrounding the access
   insert_mem_bar(Op_MemBarCPUOrder);
+#ifdef AARCH64
+  Node* mb = insert_mem_bar(Op_MemBarAcquire, access);
+  MemBarNode::set_load_store_pair(leading_membar->as_MemBar(), mb->as_MemBar());
+#else
   insert_mem_bar(Op_MemBarAcquire);
+#endif
 
   assert(type2size[load_store->bottom_type()->basic_type()] == type2size[rtype], "result type should match");
   set_result(load_store);
@@ -6368,7 +6413,12 @@ Node * LibraryCallKit::load_field_from_object(Node * fromObj, const char * field
   // another volatile read.
   if (is_vol) {
     // Memory barrier includes bogus read of value to force load BEFORE membar
+#ifdef AARCH64
+    Node* mb = insert_mem_bar(Op_MemBarAcquire, loadedField);
+    mb->as_MemBar()->set_trailing_load();
+#else
     insert_mem_bar(Op_MemBarAcquire, loadedField);
+#endif
   }
   return loadedField;
 }

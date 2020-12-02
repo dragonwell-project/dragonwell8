@@ -30,6 +30,9 @@
 #include "opto/mulnode.hpp"
 #include "opto/phaseX.hpp"
 #include "opto/subnode.hpp"
+#ifdef AARCH64
+#include "utilities/macros.hpp"
+#endif
 
 // Portions of code courtesy of Clifford Click
 

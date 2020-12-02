@@ -477,7 +477,7 @@ void vframeArray::fill_in(JavaThread* thread,
   // Copy registers for callee-saved registers
   if (reg_map != NULL) {
     for(int i = 0; i < RegisterMap::reg_count; i++) {
-#ifdef AMD64
+#if defined(AMD64) || defined(AARCH64)
       // The register map has one entry for every int (32-bit value), so
       // 64-bit physical registers have two entries in the map, one for
       // each half.  Ignore the high halves of 64-bit registers, just like

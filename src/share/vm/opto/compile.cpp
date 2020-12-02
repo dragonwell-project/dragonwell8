@@ -73,6 +73,8 @@
 # include "adfiles/ad_x86_32.hpp"
 #elif defined TARGET_ARCH_MODEL_x86_64
 # include "adfiles/ad_x86_64.hpp"
+#elif defined TARGET_ARCH_MODEL_aarch64
+# include "adfiles/ad_aarch64.hpp"
 #elif defined TARGET_ARCH_MODEL_sparc
 # include "adfiles/ad_sparc.hpp"
 #elif defined TARGET_ARCH_MODEL_zero
@@ -2682,6 +2684,7 @@ void Compile::final_graph_reshaping_impl( Node *n, Final_Reshape_Counts &frc) {
             "raw memory operations should have control edge");
   }
 #endif
+
   // Count FPU ops and common calls, implements item (3)
   switch( nop ) {
   // Count all float operations that may use FPU

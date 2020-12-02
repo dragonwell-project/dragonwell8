@@ -3150,6 +3150,25 @@ void InstanceKlass::print_on(outputStream* st) const {
   assert(is_klass(), "must be klass");
   Klass::print_on(st);
 
+#ifdef AARCH64
+  st->print(BULLET"primary supers:    ");
+  for (juint i = 0; i < Klass::primary_super_limit(); i++) {
+    if (_primary_supers[i]) {
+      _primary_supers[i]->name()->print_value_on(st);
+      st->print("   ");
+    }
+  }
+  st->cr();
+
+  st->print(BULLET"secondary supers:    ");
+  int cnt = secondary_supers()->length();
+  for (int i = 0; i < cnt; i++) {
+    secondary_supers()->at(i)->print_value_on(st);
+      st->print("   ");
+  }
+  st->cr();
+#endif
+
   st->print(BULLET"instance size:     %d", size_helper());                        st->cr();
   st->print(BULLET"klass size:        %d", size());                               st->cr();
   st->print(BULLET"access:            "); access_flags().print_on(st);            st->cr();

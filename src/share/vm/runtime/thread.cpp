@@ -1083,6 +1083,7 @@ static void call_initializeTenantContainerClass(TRAPS) {
                                          vmSymbols::void_method_signature(), CHECK);
 }
 
+#if (defined(LINUX) && defined(AMD64))
 static void call_initializeJGroupClass(TRAPS) {
   assert(TenantCpuThrottling || TenantCpuAccounting, "TenantCpuThrottling or TenantCpuAccounting disabled");
   Klass* k =  SystemDictionary::resolve_or_fail(vmSymbols::com_alibaba_tenant_JGroup(), true, CHECK);
@@ -1092,6 +1093,7 @@ static void call_initializeJGroupClass(TRAPS) {
   JavaCalls::call_static(&result, klass, vmSymbols::initializeJGroupClass_name(),
                                          vmSymbols::void_method_signature(), CHECK);
 }
+#endif
 
 static void call_initializeWispClass(TRAPS) {
   Klass* k =  SystemDictionary::resolve_or_fail(vmSymbols::com_alibaba_wisp_engine_WispEngine(), true, CHECK);

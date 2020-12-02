@@ -335,6 +335,12 @@ class CollectedHeap : public CHeapObj<mtInternal> {
 
   inline static void post_allocation_install_obj_klass(KlassHandle klass,
                                                        oop obj);
+#ifdef TARGET_ARCH_aarch64
+  virtual uint oop_extra_words();
+#ifndef CC_INTERP
+  virtual void compile_prepare_oop(MacroAssembler* masm, Register obj);
+#endif
+#endif
 
   // Raw memory allocation facilities
   // The obj and array allocate methods are covers for these methods.

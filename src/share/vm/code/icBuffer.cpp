@@ -38,6 +38,9 @@
 #include "oops/oop.inline2.hpp"
 #include "runtime/mutexLocker.hpp"
 #include "runtime/stubRoutines.hpp"
+#ifdef TARGET_ARCH_aarch64
+# include "assembler_aarch64.inline.hpp"
+#endif
 
 PRAGMA_FORMAT_MUTE_WARNINGS_FOR_GCC
 

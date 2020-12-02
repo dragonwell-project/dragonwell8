@@ -210,7 +210,13 @@ void Runtime1::generate_blob_for(BufferBlob* buffer_blob, StubID id) {
 
     // All other stubs should have oopmaps
     default:
+#ifdef X86
       assert(oop_maps != NULL, "must have an oopmap");
+#else
+      // TODO add support for monitorexit_nofpu_proxy_id
+      assert(oop_maps != NULL || (id == monitorexit_nofpu_proxy_id) || (id == monitorexit_proxy_id), "must have an oopmap");
+      break;
+#endif
   }
 #endif
 
@@ -857,6 +863,11 @@ static Klass* resolve_field_return_klass(methodHandle caller, int bci, TRAPS) {
 JRT_ENTRY(void, Runtime1::patch_code(JavaThread* thread, Runtime1::StubID stub_id ))
   NOT_PRODUCT(_patch_code_slowcase_cnt++;)
 
+#ifdef AARCH64
+  // AArch64 does not patch C1-generated code.
+  ShouldNotReachHere();
+#endif
+
   ResourceMark rm(thread);
   RegisterMap reg_map(thread, false);
   frame runtime_frame = thread->last_frame();
@@ -1003,7 +1014,6 @@ JRT_ENTRY(void, Runtime1::patch_code(JavaThread* thread, Runtime1::StubID stub_i
   }
 
   // Now copy code back
-
   {
     MutexLockerEx ml_patch (Patching_lock, Mutex::_no_safepoint_check_flag);
     //
@@ -1219,7 +1229,6 @@ JRT_ENTRY(void, Runtime1::patch_code(JavaThread* thread, Runtime1::StubID stub_i
       }
     }
   }
-
   // If we are patching in a non-perm oop, make sure the nmethod
   // is on the right list.
   if (ScavengeRootsInCode && ((mirror.not_null() && mirror()->is_scavengable()) ||
@@ -1246,6 +1255,7 @@ JRT_END
 // completes we can check for deoptimization. This simplifies the
 // assembly code in the cpu directories.
 //
+#ifndef TARGET_ARCH_aarch64
 int Runtime1::move_klass_patching(JavaThread* thread) {
 //
 // NOTE: we are still in Java
@@ -1330,7 +1340,7 @@ int Runtime1::access_field_patching(JavaThread* thread) {
 
   return caller_is_deopted();
 JRT_END
-
+#endif
 
 JRT_LEAF(void, Runtime1::trace_block_entry(jint block_id))
   // for now we just print out the block id
@@ -1389,6 +1399,10 @@ JRT_LEAF(int, Runtime1::arraycopy(oopDesc* src, int src_pos, oopDesc* dst, int d
   if ((unsigned int) arrayOop(dst)->length() < (unsigned int)dst_pos + (unsigned int)length) return ac_failed;
 
   if (length == 0) return ac_ok;
+#ifdef AARCH64
+  oopDesc::bs()->read_barrier(src);
+  oopDesc::bs()->write_barrier(dst);
+#endif
   if (src->is_typeArray()) {
     Klass* klass_oop = src->klass();
     if (klass_oop != dst->klass()) return ac_failed;

@@ -35,7 +35,6 @@
 #include "compiler/compileLog.hpp"
 #include "c1/c1_RangeCheckElimination.hpp"
 
-
 typedef enum {
   _t_compile,
   _t_setup,

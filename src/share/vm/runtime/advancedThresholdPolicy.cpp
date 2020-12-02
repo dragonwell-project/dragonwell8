@@ -57,7 +57,7 @@ void AdvancedThresholdPolicy::initialize() {
   FLAG_SET_ERGO(intx, CICompilerCount, c1_count() + c2_count());
 
   // Some inlining tuning
-#ifdef X86
+#if defined(X86) || defined(AARCH64)
   if (FLAG_IS_DEFAULT(InlineSmallCode)) {
     FLAG_SET_DEFAULT(InlineSmallCode, 2000);
   }

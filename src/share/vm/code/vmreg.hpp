@@ -28,7 +28,6 @@
 #include "memory/allocation.hpp"
 #include "utilities/globalDefinitions.hpp"
 #include "asm/register.hpp"
-
 #ifdef COMPILER2
 #include "opto/adlcVMDeps.hpp"
 #include "utilities/ostream.hpp"
@@ -38,6 +37,8 @@
 # include "adfiles/adGlobals_x86_32.hpp"
 #elif defined TARGET_ARCH_MODEL_x86_64
 # include "adfiles/adGlobals_x86_64.hpp"
+#elif defined TARGET_ARCH_MODEL_aarch64
+# include "adfiles/adGlobals_aarch64.hpp"
 #elif defined TARGET_ARCH_MODEL_sparc
 # include "adfiles/adGlobals_sparc.hpp"
 #elif defined TARGET_ARCH_MODEL_zero
@@ -155,6 +156,9 @@ public:
 
 #ifdef TARGET_ARCH_x86
 # include "vmreg_x86.hpp"
+#endif
+#ifdef TARGET_ARCH_aarch64
+# include "vmreg_aarch64.hpp"
 #endif
 #ifdef TARGET_ARCH_sparc
 # include "vmreg_sparc.hpp"

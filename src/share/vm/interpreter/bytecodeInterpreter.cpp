@@ -45,6 +45,9 @@
 #include "runtime/sharedRuntime.hpp"
 #include "runtime/threadCritical.hpp"
 #include "utilities/exceptions.hpp"
+#ifdef TARGET_OS_ARCH_linux_aarch64
+# include "orderAccess_linux_aarch64.inline.hpp"
+#endif
 
 // no precompiled headers
 #ifdef CC_INTERP

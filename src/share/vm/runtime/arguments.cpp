@@ -47,6 +47,10 @@
 #if INCLUDE_JFR
 #include "jfr/jfr.hpp"
 #endif
+#ifdef AARCH64
+#include <ctype.h>
+#include <utilities/growableArray.hpp>
+#endif
 #ifdef TARGET_OS_FAMILY_linux
 # include "os_linux.inline.hpp"
 #endif
@@ -1161,12 +1165,19 @@ void Arguments::set_tiered_flags() {
   }
   // Increase the code cache size - tiered compiles a lot more.
   if (FLAG_IS_DEFAULT(ReservedCodeCacheSize)) {
-    FLAG_SET_DEFAULT(ReservedCodeCacheSize, ReservedCodeCacheSize * 5);
+    NOT_AARCH64(FLAG_SET_DEFAULT(ReservedCodeCacheSize, ReservedCodeCacheSize * 5));
+    AARCH64_ONLY(FLAG_SET_DEFAULT(ReservedCodeCacheSize,
+                                  MIN2(CODE_CACHE_DEFAULT_LIMIT, ReservedCodeCacheSize * 5)));
   }
   if (!UseInterpreter) { // -Xcomp
     Tier3InvokeNotifyFreqLog = 0;
     Tier4InvocationThreshold = 0;
   }
+#ifdef AARCH64
+  if (FLAG_IS_DEFAULT(NmethodSweepFraction)) {
+    FLAG_SET_DEFAULT(NmethodSweepFraction, 1 + ReservedCodeCacheSize / (16 * M));
+  }
+#endif
 }
 
 /**
@@ -1536,7 +1547,6 @@ void Arguments::set_use_compressed_oops() {
 #endif // _LP64
 #endif // ZERO
 }
-
 
 // NOTE: set_use_compressed_klass_ptrs() must be called after calling
 // set_use_compressed_oops().
@@ -2658,11 +2668,11 @@ bool Arguments::check_vm_args_consistency() {
                 "Invalid ReservedCodeCacheSize=%dK. Must be at least %uK.\n", ReservedCodeCacheSize/K,
                 min_code_cache_size/K);
     status = false;
-  } else if (ReservedCodeCacheSize > 2*G) {
-    // Code cache size larger than MAXINT is not supported.
+  } else if (ReservedCodeCacheSize > CODE_CACHE_SIZE_LIMIT) {
+    // Code cache size larger than CODE_CACHE_SIZE_LIMIT is not supported.
     jio_fprintf(defaultStream::error_stream(),
                 "Invalid ReservedCodeCacheSize=%dM. Must be at most %uM.\n", ReservedCodeCacheSize/M,
-                (2*G)/M);
+                CODE_CACHE_SIZE_LIMIT/M);
     status = false;
   }
 
