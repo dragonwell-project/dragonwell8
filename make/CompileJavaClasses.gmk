@@ -306,8 +306,8 @@ ifeq ($(OPENJDK_TARGET_OS),aix)
 endif
 
 LINUX_SRC_DIRS :=
-ifeq ($(OPENJDK_TARGET_OS), linux)
-    LINUX_SRC_DIRS += $(JDK_TOPDIR)/src/linux/classes
+ifeq ($(OPENJDK_TARGET_OS),linux)
+     LINUX_SRC_DIRS += $(JDK_TOPDIR)/src/linux/classes
 endif
 
 # The exception handling of swing beaninfo

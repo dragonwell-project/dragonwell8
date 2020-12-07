@@ -791,7 +791,7 @@
       <condition name="method-sampling-java-interval" true="1 ms">
         <test name="method-sampling-interval" operator="equal" value="ludicrous"/>
       </condition>
-      
+
       <condition name="method-sampling-native-interval" true="999 d">
         <test name="method-sampling-interval" operator="equal" value="off"/>
       </condition>
