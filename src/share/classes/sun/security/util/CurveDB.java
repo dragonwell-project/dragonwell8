@@ -23,7 +23,7 @@
  * questions.
  */
 
-package sun.security.ec;
+package sun.security.util;
 
 import java.math.BigInteger;
 
@@ -56,10 +56,10 @@ public class CurveDB {
 
     private static Collection<? extends NamedCurve> specCollection;
 
-    static final String SPLIT_PATTERN = ",|\\[|\\]";
+    public static final String SPLIT_PATTERN = ",|\\[|\\]";
 
     // Used by SunECEntries
-    static Collection<? extends NamedCurve>getSupportedCurves() {
+    public static Collection<? extends NamedCurve>getSupportedCurves() {
         return specCollection;
     }
 
