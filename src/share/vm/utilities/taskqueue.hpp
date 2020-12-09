@@ -545,6 +545,8 @@ class TaskQueueSetSuper {
 public:
   // Returns "true" if some TaskQueue in the set contains a task.
   virtual bool peek() = 0;
+  // Tasks in queue
+  virtual uint tasks() const = 0;
 };
 
 template <MEMFLAGS F> class TaskQueueSetSuperImpl: public CHeapObj<F>, public TaskQueueSetSuper {
@@ -578,6 +580,7 @@ public:
   bool steal(uint queue_num, E& t);
 
   bool peek();
+  uint tasks() const;
 };
 
 template<class T, MEMFLAGS F> void
@@ -662,6 +665,15 @@ bool GenericTaskQueueSet<T, F>::peek() {
       return true;
   }
   return false;
+}
+
+template<class T, MEMFLAGS F>
+uint GenericTaskQueueSet<T, F>::tasks() const {
+  uint n = 0;
+  for (uint j = 0; j < _n; j++) {
+    n += _queues[j]->size();
+  }
+  return n;
 }
 
 // When to terminate from the termination protocol.
