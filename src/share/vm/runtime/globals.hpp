@@ -4075,6 +4075,10 @@ class CommandLineFlags {
                                                                             \
   JFR_ONLY(product(bool, LogJFR, false,                                     \
           "Enable JFR logging (consider +Verbose)"))                        \
+                                                                            \
+  diagnostic(bool, UseOWSTTaskTerminator, true,                             \
+          "Use Optimized Work Stealing Threads task termination "           \
+          "protocol")                                                       \
 
 /*
  *  Macros for factoring of globals

@@ -131,7 +131,7 @@ class ParScanThreadState {
                      ObjToScanQueueSet* work_queue_set_,
                      Stack<oop, mtGC>* overflow_stacks_,
                      size_t desired_plab_sz_,
-                     ParallelTaskTerminator& term_);
+                     TaskTerminator& term_);
 
  public:
   ageTable* age_table() {return &_ageTable;}

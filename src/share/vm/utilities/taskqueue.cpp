@@ -24,6 +24,7 @@
 
 #include "precompiled.hpp"
 #include "oops/oop.inline.hpp"
+#include "gc_implementation/shared/owstTaskTerminator.hpp"
 #include "runtime/os.hpp"
 #include "runtime/thread.inline.hpp"
 #include "utilities/debug.hpp"
@@ -249,4 +250,25 @@ bool ObjArrayTask::is_valid() const {
 void ParallelTaskTerminator::reset_for_reuse(int n_threads) {
   reset_for_reuse();
   _n_threads = n_threads;
+}
+
+TaskTerminator::TaskTerminator(uint n_threads, TaskQueueSetSuper* queue_set) :
+  _terminator(UseOWSTTaskTerminator ? new OWSTTaskTerminator(n_threads, queue_set)
+                                    : new ParallelTaskTerminator(n_threads, queue_set)) {
+}
+
+TaskTerminator::~TaskTerminator() {
+  if (_terminator != NULL) {
+    delete _terminator;
+  }
+}
+
+// Move assignment
+TaskTerminator& TaskTerminator::operator=(const TaskTerminator& o) {
+  if (_terminator != NULL) {
+    delete _terminator;
+  }
+  _terminator = o.terminator();
+  const_cast<TaskTerminator&>(o)._terminator = NULL;
+  return *this;
 }

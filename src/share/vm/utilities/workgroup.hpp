@@ -97,11 +97,11 @@ public:
 
 class AbstractGangTaskWOopQueues : public AbstractGangTask {
   OopTaskQueueSet*       _queues;
-  ParallelTaskTerminator _terminator;
+  TaskTerminator         _terminator;
  public:
   AbstractGangTaskWOopQueues(const char* name, OopTaskQueueSet* queues) :
     AbstractGangTask(name), _queues(queues), _terminator(0, _queues) {}
-  ParallelTaskTerminator* terminator() { return &_terminator; }
+  ParallelTaskTerminator* terminator() { return _terminator.terminator(); }
   virtual void set_for_termination(int active_workers) {
     terminator()->reset_for_reuse(active_workers);
   }

@@ -549,7 +549,7 @@ ConcurrentMark::ConcurrentMark(G1CollectedHeap* g1h, G1RegionToSpaceMapper* prev
   // _active_tasks set in set_non_marking_state
   // _tasks set inside the constructor
   _task_queues(new CMTaskQueueSet((int) _max_worker_id)),
-  _terminator(ParallelTaskTerminator((int) _max_worker_id, _task_queues)),
+  _terminator((int) _max_worker_id, _task_queues),
 
   _has_overflown(false),
   _concurrent(false),
@@ -816,7 +816,7 @@ void ConcurrentMark::set_concurrency(uint active_tasks) {
   _active_tasks = active_tasks;
   // Need to update the three data structures below according to the
   // number of active threads for this phase.
-  _terminator   = ParallelTaskTerminator((int) active_tasks, _task_queues);
+  _terminator = TaskTerminator((int) active_tasks, _task_queues);
   _first_overflow_barrier_sync.set_n_workers((int) active_tasks);
   _second_overflow_barrier_sync.set_n_workers((int) active_tasks);
 }

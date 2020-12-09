@@ -2359,7 +2359,7 @@ void PSParallelCompact::marking_phase(ParCompactionManager* cm,
   uint parallel_gc_threads = heap->gc_task_manager()->workers();
   uint active_gc_threads = heap->gc_task_manager()->active_workers();
   TaskQueueSetSuper* qset = ParCompactionManager::stack_array();
-  ParallelTaskTerminator terminator(active_gc_threads, qset);
+  TaskTerminator terminator(active_gc_threads, qset);
 
   PSParallelCompact::MarkAndPushClosure mark_and_push_closure(cm);
   PSParallelCompact::FollowStackClosure follow_stack_closure(cm);
@@ -2388,7 +2388,7 @@ void PSParallelCompact::marking_phase(ParCompactionManager* cm,
 
     if (active_gc_threads > 1) {
       for (uint j = 0; j < active_gc_threads; j++) {
-        q->enqueue(new StealMarkingTask(&terminator));
+        q->enqueue(new StealMarkingTask(terminator.terminator()));
       }
     }
 
@@ -2696,12 +2696,12 @@ void PSParallelCompact::compact() {
   uint parallel_gc_threads = heap->gc_task_manager()->workers();
   uint active_gc_threads = heap->gc_task_manager()->active_workers();
   TaskQueueSetSuper* qset = ParCompactionManager::region_array();
-  ParallelTaskTerminator terminator(active_gc_threads, qset);
+  TaskTerminator terminator(active_gc_threads, qset);
 
   GCTaskQueue* q = GCTaskQueue::create();
   enqueue_region_draining_tasks(q, active_gc_threads);
   enqueue_dense_prefix_tasks(q, active_gc_threads);
-  enqueue_region_stealing_tasks(q, &terminator, active_gc_threads);
+  enqueue_region_stealing_tasks(q, terminator.terminator(), active_gc_threads);
 
   {
     GCTraceTime tm_pc("par compact", print_phases(), true, &_gc_timer, _gc_tracer.gc_id());

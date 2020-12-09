@@ -172,7 +172,7 @@ void RefProcTaskExecutor::execute(ProcessTask& task)
   uint parallel_gc_threads = heap->gc_task_manager()->workers();
   uint active_gc_threads = heap->gc_task_manager()->active_workers();
   OopTaskQueueSet* qset = ParCompactionManager::stack_array();
-  ParallelTaskTerminator terminator(active_gc_threads, qset);
+  TaskTerminator terminator(active_gc_threads, qset);
   GCTaskQueue* q = GCTaskQueue::create();
   for(uint i=0; i<parallel_gc_threads; i++) {
     q->enqueue(new RefProcTaskProxy(task, i));
@@ -180,7 +180,7 @@ void RefProcTaskExecutor::execute(ProcessTask& task)
   if (task.marks_oops_alive()) {
     if (parallel_gc_threads>1) {
       for (uint j=0; j<active_gc_threads; j++) {
-        q->enqueue(new StealMarkingTask(&terminator));
+        q->enqueue(new StealMarkingTask(terminator.terminator()));
       }
     }
   }

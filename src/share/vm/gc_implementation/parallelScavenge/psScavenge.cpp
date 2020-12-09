@@ -189,11 +189,11 @@ void PSRefProcTaskExecutor::execute(ProcessTask& task)
   for(uint i=0; i < manager->active_workers(); i++) {
     q->enqueue(new PSRefProcTaskProxy(task, i));
   }
-  ParallelTaskTerminator terminator(manager->active_workers(),
-                 (TaskQueueSetSuper*) PSPromotionManager::stack_array_depth());
+  TaskTerminator terminator(manager->active_workers(),
+                            (TaskQueueSetSuper*) PSPromotionManager::stack_array_depth());
   if (task.marks_oops_alive() && manager->active_workers() > 1) {
     for (uint j = 0; j < manager->active_workers(); j++) {
-      q->enqueue(new StealTask(&terminator));
+      q->enqueue(new StealTask(terminator.terminator()));
     }
   }
   manager->execute_and_wait(q);
@@ -422,12 +422,11 @@ bool PSScavenge::invoke_no_policy() {
       q->enqueue(new ScavengeRootsTask(ScavengeRootsTask::jvmti));
       q->enqueue(new ScavengeRootsTask(ScavengeRootsTask::code_cache));
 
-      ParallelTaskTerminator terminator(
-        active_workers,
-                  (TaskQueueSetSuper*) promotion_manager->stack_array_depth());
+      TaskTerminator terminator(active_workers,
+                                (TaskQueueSetSuper*) promotion_manager->stack_array_depth());
       if (active_workers > 1) {
         for (uint j = 0; j < active_workers; j++) {
-          q->enqueue(new StealTask(&terminator));
+          q->enqueue(new StealTask(terminator.terminator()));
         }
       }
 

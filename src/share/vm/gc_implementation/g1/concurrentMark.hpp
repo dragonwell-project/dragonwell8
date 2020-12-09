@@ -429,7 +429,7 @@ protected:
   uint                    _active_tasks; // task num currently active
   CMTask**                _tasks;        // task queue array (max_worker_id len)
   CMTaskQueueSet*         _task_queues;  // task queue set
-  ParallelTaskTerminator  _terminator;   // for termination
+  TaskTerminator          _terminator;   // for termination
 
   // Two sync barriers that are used to synchronise tasks when an
   // overflow occurs. The algorithm is the following. All tasks enter
@@ -532,7 +532,7 @@ protected:
   HeapWord*               finger()          { return _finger;   }
   bool                    concurrent()      { return _concurrent; }
   uint                    active_tasks()    { return _active_tasks; }
-  ParallelTaskTerminator* terminator()      { return &_terminator; }
+  ParallelTaskTerminator* terminator() const { return _terminator.terminator(); }
 
   // It claims the next available region to be scanned by a marking
   // task/thread. It might return NULL if the next region is empty or
