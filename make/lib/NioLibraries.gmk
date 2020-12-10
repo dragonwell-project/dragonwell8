@@ -169,6 +169,36 @@ ifeq ($(OPENJDK_TARGET_OS_API), posix)
 
   ifeq (, $(filter $(OPENJDK_TARGET_OS), macosx aix))
 
+    $(eval $(call SetupNativeCompilation,BUILD_LIBEXTNET, \
+        LIBRARY := extnet , \
+        OUTPUT_DIR := $(INSTALL_LIBRARIES_HERE), \
+        SRC := $(JDK_TOPDIR)/src/$(OPENJDK_TARGET_OS_API_DIR)/native/sun/nio/ch/rdma, \
+        LANG := C, \
+        OPTIMIZATION := LOW, \
+        CFLAGS := $(CFLAGS_JDKLIB) \
+            -I$(JDK_TOPDIR)/src/share/native/sun/nio/ch \
+            -I$(JDK_TOPDIR)/src/share/native/sun/nio/ch/rdma\
+            -I$(JDK_TOPDIR)/src/share/native/java/net \
+            -I$(JDK_TOPDIR)/src/$(OPENJDK_TARGET_OS_API_DIR)/native/sun/nio/ch \
+            -I$(JDK_TOPDIR)/src/$(OPENJDK_TARGET_OS_API_DIR)/native/java/net, \
+        MAPFILE := $(JDK_TOPDIR)/make/mapfiles/libextnet/mapfile-vers, \
+        LDFLAGS := $(LDFLAGS_JDKLIB) \
+            $(call SET_SHARED_LIBRARY_ORIGIN), \
+        LDFLAGS_SUFFIX_linux := $(LIBDL) -ljava -ljvm -lnet -lnio -lpthread -ldl, \
+        LDFLAGS_SUFFIX_solaris := -lsocket, \
+        OBJECT_DIR := $(JDK_OUTPUTDIR)/objs/libextnet, \
+        DEBUG_SYMBOLS := $(DEBUG_ALL_BINARIES)))
+
+    BUILD_LIBRARIES += $(BUILD_LIBEXTNET)
+
+    $(BUILD_LIBEXTNET): $(BUILD_LIBNIO)
+  endif
+endif
+
+ifeq ($(OPENJDK_TARGET_OS_API), posix)
+
+  ifeq (, $(filter $(OPENJDK_TARGET_OS), macosx aix))
+
     # Suppress unused parameters required by exported JNI functions.
     SCTP_WERROR := -Werror -Wno-error=unused-parameter
     ifeq ($(OPENJDK_TARGET_CPU_ARCH), ppc)

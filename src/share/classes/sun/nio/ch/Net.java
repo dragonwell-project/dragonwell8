@@ -33,6 +33,8 @@ import java.util.*;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
 import java.security.PrivilegedExceptionAction;
+
+import sun.misc.SharedSecrets;
 import sun.net.ExtendedOptionsImpl;
 import static jdk.net.ExtendedSocketOptions.TCP_KEEPCOUNT;
 import static jdk.net.ExtendedSocketOptions.TCP_KEEPIDLE;
@@ -683,5 +685,41 @@ public class Net {
         }
 
         fastLoopback = isFastTcpLoopbackRequested();
+
+        SharedSecrets.setNetAccess(new NetAccess() {
+            @Override
+            public boolean isIPv6Available() {
+                return Net.isIPv6Available();
+            }
+
+            @Override
+            public void translateToSocketException(Exception x)
+                    throws SocketException {
+                Net.translateToSocketException(x);
+            }
+
+            @Override
+            public void translateException(Exception x,
+                                    boolean unknownHostForUnresolved)
+                    throws IOException {
+                Net.translateException(x, unknownHostForUnresolved);
+            }
+
+            @Override
+            public void translateException(Exception x)
+                    throws IOException {
+                Net.translateException(x);
+            }
+
+            @Override
+            public InetSocketAddress getRevealedLocalAddress(InetSocketAddress addr) {
+                return Net.getRevealedLocalAddress(addr);
+            }
+
+            @Override
+            public String getRevealedLocalAddressAsString(InetSocketAddress addr) {
+                return Net.getRevealedLocalAddressAsString(addr);
+            }
+        });
     }
 }

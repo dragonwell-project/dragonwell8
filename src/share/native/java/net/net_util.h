@@ -38,6 +38,8 @@
 
 #define IPv4 1
 #define IPv6 2
+#define NET_NSEC_PER_MSEC 1000000
+
 
 #define NET_ERROR(env, ex, msg) \
 { if (!(*env)->ExceptionOccurred(env)) JNU_ThrowByName(env, ex, msg); }

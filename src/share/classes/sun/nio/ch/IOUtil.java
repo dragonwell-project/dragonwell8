@@ -25,6 +25,8 @@
 
 package sun.nio.ch;
 
+import sun.misc.SharedSecrets;
+
 import java.io.FileDescriptor;
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -365,6 +367,41 @@ public class IOUtil {
         initIDs();
 
         IOV_MAX = iovMax();
+        SharedSecrets.setIoUtilAccess(new IOUtilAccess() {
+            @Override
+            public int write(FileDescriptor fd, ByteBuffer src, long position,
+                      NativeDispatcher nd) throws IOException {
+                return IOUtil.write(fd, src, position, nd);
+            }
+
+            @Override
+            public long write(FileDescriptor fd, ByteBuffer[] bufs, NativeDispatcher nd) throws IOException {
+                return IOUtil.write(fd, bufs, nd);
+            }
+
+            @Override
+            public long write(FileDescriptor fd, ByteBuffer[] bufs, int offset, int length,
+                       NativeDispatcher nd) throws IOException {
+                return IOUtil.write(fd, bufs, offset, length, nd);
+            }
+
+            @Override
+            public int read(FileDescriptor fd, ByteBuffer dst, long position,
+                     NativeDispatcher nd) throws IOException {
+                return IOUtil.read(fd, dst, position, nd);
+            }
+
+            @Override
+            public long read(FileDescriptor fd, ByteBuffer[] bufs, NativeDispatcher nd) throws IOException {
+                return IOUtil.read(fd, bufs, nd);
+            }
+
+            @Override
+            public long read(FileDescriptor fd, ByteBuffer[] bufs, int offset, int length,
+                      NativeDispatcher nd) throws IOException {
+                return IOUtil.read(fd, bufs, offset, length, nd);
+            }
+        });
     }
 
 }

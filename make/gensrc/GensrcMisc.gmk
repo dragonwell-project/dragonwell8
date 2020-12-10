@@ -99,6 +99,10 @@ $(GENSRC_SOR_FILE): \
 GENSRC_MISC += $(GENSRC_SOR_FILE)
 
 ################################################################################
+GENSRC_MISC += $(JDK_OUTPUTDIR)/gensrc/sun/nio/ch/SocketOptionRegistry.java
+
+
+##########################################################################################
 
 ifneq ($(OPENJDK_TARGET_OS), windows)
 

@@ -58,7 +58,7 @@ class PollSelectorImpl
         fd0 = (int) (pipeFds >>> 32);
         fd1 = (int) pipeFds;
         try {
-            pollWrapper = new PollArrayWrapper(INIT_CAP);
+            pollWrapper = initWrapper(INIT_CAP);
             pollWrapper.initInterrupt(fd0, fd1);
             channelArray = new SelectionKeyImpl[INIT_CAP];
         } catch (Throwable t) {
@@ -123,4 +123,7 @@ class PollSelectorImpl
         return this;
     }
 
+    protected PollArrayWrapper initWrapper(int initialCapacity) {
+        return new PollArrayWrapper(initialCapacity);
+    }
 }

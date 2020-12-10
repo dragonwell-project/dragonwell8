@@ -28,6 +28,10 @@ package sun.misc;
 import javax.crypto.SealedObject;
 
 import sun.nio.ch.IOEventAccess;
+import sun.nio.ch.IOUtil;
+import sun.nio.ch.IOUtilAccess;
+import sun.nio.ch.NetAccess;
+import sun.nio.ch.Net;
 
 import java.util.jar.JarFile;
 import java.io.Console;
@@ -70,6 +74,8 @@ public class SharedSecrets {
     private static JavaSecuritySignatureAccess javaSecuritySignatureAccess;
     private static WispEngineAccess wispEngineAccess;
     private static IOEventAccess ioEventAccess;
+    private static IOUtilAccess ioUtilAccess;
+    private static NetAccess netAccess;
 
     public static JavaUtilJarAccess javaUtilJarAccess() {
         if (javaUtilJarAccess == null) {
@@ -293,5 +299,27 @@ public class SharedSecrets {
 
     public static void setIOEventAccess(IOEventAccess ioEventAccess) {
         SharedSecrets.ioEventAccess = ioEventAccess;
+    }
+
+    public static IOUtilAccess getIoUtilAccess() {
+        if (ioUtilAccess == null) {
+            unsafe.ensureClassInitialized(IOUtil.class);
+        }
+        return ioUtilAccess;
+    }
+
+    public static void setIoUtilAccess(IOUtilAccess ioUtilAccess) {
+        SharedSecrets.ioUtilAccess = ioUtilAccess;
+    }
+
+    public static NetAccess getNetAccess() {
+        if (netAccess == null) {
+            unsafe.ensureClassInitialized(Net.class);
+        }
+        return netAccess;
+    }
+
+    public static void setNetAccess(NetAccess netAccess) {
+        SharedSecrets.netAccess = netAccess;
     }
 }

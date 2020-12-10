@@ -193,4 +193,6 @@ abstract class AbstractPollSelectorImpl
         if (!selch.isOpen() && !selch.isRegistered())
             ((SelChImpl)selch).kill();
     }
+
+    abstract protected PollArrayWrapper initWrapper(int initialCapacity);
 }

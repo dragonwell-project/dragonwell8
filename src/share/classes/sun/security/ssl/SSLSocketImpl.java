@@ -1476,7 +1476,7 @@ public final class SSLSocketImpl
         // identification.  Use the application original specified
         // hostname or IP address instead.
 
-        // Get the original hostname via jdk.internal.misc.SharedSecrets
+        // Get the original hostname via sun.misc.SharedSecrets
         InetAddress inetAddress = getInetAddress();
         if (inetAddress == null) {      // not connected
             return;

@@ -1,0 +1,75 @@
+#
+# Copyright (c) 2001, 2018, Oracle and/or its affiliates. All rights reserved.
+# DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
+#
+# This code is free software; you can redistribute it and/or modify it
+# under the terms of the GNU General Public License version 2 only, as
+# published by the Free Software Foundation.  Oracle designates this
+# particular file as subject to the "Classpath" exception as provided
+# by Oracle in the LICENSE file that accompanied this code.
+#
+# This code is distributed in the hope that it will be useful, but WITHOUT
+# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+# FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+# version 2 for more details (a copy is included in the LICENSE file that
+# accompanied this code).
+#
+# You should have received a copy of the GNU General Public License version
+# 2 along with this work; if not, write to the Free Software Foundation,
+# Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.
+#
+# Please contact Oracle, 500 Oracle Parkway, Redwood Shores, CA 94065 USA
+# or visit www.oracle.com if you need additional information or have any
+# questions.
+#
+
+SUNWprivate_1.1 {
+	global:
+        Java_sun_nio_ch_rdma_LinuxRdmaSocketDispatcherImpl_init;
+        Java_sun_nio_ch_rdma_LinuxRdmaSocketDispatcherImpl_read0;
+        Java_sun_nio_ch_rdma_LinuxRdmaSocketDispatcherImpl_readv0;
+        Java_sun_nio_ch_rdma_LinuxRdmaSocketDispatcherImpl_write0;
+        Java_sun_nio_ch_rdma_LinuxRdmaSocketDispatcherImpl_writev0;
+        Java_sun_nio_ch_rdma_LinuxRdmaSocketDispatcherImpl_close0;
+        Java_sun_nio_ch_rdma_RdmaNet_isRdmaAvailable0;
+        Java_sun_nio_ch_rdma_RdmaNet_configureBlocking;
+        Java_sun_nio_ch_rdma_RdmaNet_initIDs;
+        Java_sun_nio_ch_rdma_RdmaNet_socket0;
+        Java_sun_nio_ch_rdma_RdmaNet_bind0;
+        Java_sun_nio_ch_rdma_RdmaNet_listen;
+        Java_sun_nio_ch_rdma_RdmaNet_connect0;
+        Java_sun_nio_ch_rdma_RdmaNet_localPort;
+        Java_sun_nio_ch_rdma_RdmaNet_localInetAddress;
+        Java_sun_nio_ch_rdma_RdmaNet_getIntOption0;
+        Java_sun_nio_ch_rdma_RdmaNet_setIntOption0;
+        Java_sun_nio_ch_rdma_RdmaNet_shutdown;
+        Java_sun_nio_ch_rdma_RdmaNet_poll;
+        Java_sun_nio_ch_rdma_RdmaSocketInputStream_init;
+        Java_sun_nio_ch_rdma_RdmaSocketInputStream_rdmaSocketRead0;
+        Java_sun_nio_ch_rdma_LinuxRdmaSocketOptions_init;
+        Java_sun_nio_ch_rdma_LinuxRdmaSocketOptions_setSockOpt;
+        Java_sun_nio_ch_rdma_LinuxRdmaSocketOptions_getSockOpt;
+        Java_sun_nio_ch_rdma_LinuxRdmaSocketOptions_rdmaSocketSupported;
+        Java_sun_nio_ch_rdma_RdmaServerSocketChannelImpl_initIDs;
+        Java_sun_nio_ch_rdma_RdmaServerSocketChannelImpl_checkAccept;
+        Java_sun_nio_ch_rdma_RdmaServerSocketChannelImpl_accept0;
+        Java_sun_nio_ch_rdma_RdmaSocketChannelImpl_initIDs;
+        Java_sun_nio_ch_rdma_RdmaSocketChannelImpl_checkConnect;
+        Java_sun_nio_ch_rdma_RdmaSocketChannelImpl_sendOutOfBandData;
+        Java_sun_nio_ch_rdma_RdmaSocketImpl_initProto;
+        Java_sun_nio_ch_rdma_RdmaSocketImpl_isRdmaAvailable0;
+        Java_sun_nio_ch_rdma_RdmaSocketImpl_rdmaSocketCreate;
+        Java_sun_nio_ch_rdma_RdmaSocketImpl_rdmaSocketConnect;
+        Java_sun_nio_ch_rdma_RdmaSocketImpl_rdmaSocketBind;
+        Java_sun_nio_ch_rdma_RdmaSocketImpl_rdmaSocketListen;
+        Java_sun_nio_ch_rdma_RdmaSocketImpl_rdmaSocketAccept;
+        Java_sun_nio_ch_rdma_RdmaSocketImpl_rdmaSocketClose;
+        Java_sun_nio_ch_rdma_RdmaSocketImpl_rdmaSocketShutdown;
+        Java_sun_nio_ch_rdma_RdmaSocketImpl_rdmaSocketSetOption;
+        Java_sun_nio_ch_rdma_RdmaSocketImpl_rdmaSocketGetOption;
+        Java_sun_nio_ch_rdma_RdmaSocketImpl_rdmaSocketSendUrgentData;
+        Java_sun_nio_ch_rdma_RdmaSocketOutputStream_init;
+        Java_sun_nio_ch_rdma_RdmaSocketOutputStream_rdmaSocketWrite0;
+	local:
+		*;
+};
