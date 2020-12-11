@@ -10,7 +10,7 @@ Over the years, Java has proliferated in Alibaba. Many applications are written 
 
 Alibaba Dragonwell, as a downstream version of OpenJDK, is the in-house OpenJDK implementation at Alibaba optimized for online e-commerce, financial, logistics applications running on 100,000+ servers. Alibaba Dragonwell is the engine that runs these distributed Java applications in extreme scaling.
 
-Alibaba Dragonwell is certified as compatible with the Java SE standard. The current release supports Linux/x86_64 platform only.
+The current release supports Linux/x86_64 platform only.
 
 Alibaba Dragonwell is clearly a "friendly fork" under the same licensing terms as the upstream OpenJDK project. Alibaba is committed to collaborate closely with OpenJDK community and intends to bring as many customized features as possible from Alibaba Dragonwell to the upstream.
 
