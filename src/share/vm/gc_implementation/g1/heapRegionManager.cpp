@@ -113,6 +113,11 @@ void HeapRegionManager::commit_region_memory(uint idx) {
   }
 
   _heap_mapper->par_commit_region_memory(idx);
+
+  // Only the bitmap needs on-commit operations for free regions
+  // It's safe to clear bitmap range of a region parallelly
+  _prev_bitmap_mapper->fire_on_commit(idx, 1, false);
+  _next_bitmap_mapper->fire_on_commit(idx, 1, false);
 }
 
 void HeapRegionManager::free_region_memory(uint idx) {

@@ -41,6 +41,7 @@ class G1MappingChangedListener VALUE_OBJ_CLASS_SPEC {
 // Maps region based commit/uncommit requests to the underlying page sized virtual
 // space.
 class G1RegionToSpaceMapper : public CHeapObj<mtGC> {
+ friend class HeapRegionManager;
  private:
   G1MappingChangedListener* _listener;
  protected:
