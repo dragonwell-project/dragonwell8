@@ -73,4 +73,115 @@
 # include "atomic_bsd_zero.inline.hpp"
 #endif
 
+#ifndef VM_HAS_SPECIALIZED_CMPXCHG_BYTE
+/*
+ * This is the default implementation of byte-sized cmpxchg. It emulates jbyte-sized cmpxchg
+ * in terms of jint-sized cmpxchg. Platforms may override this by defining their own inline definition
+ * as well as defining VM_HAS_SPECIALIZED_CMPXCHG_BYTE. This will cause the platform specific
+ * implementation to be used instead.
+ */
+inline jbyte Atomic::cmpxchg(jbyte exchange_value, volatile jbyte* dest,
+                             jbyte compare_value, cmpxchg_memory_order order) {
+  STATIC_ASSERT(sizeof(jbyte) == 1);
+  volatile jint* dest_int =
+      static_cast<volatile jint*>(align_ptr_down(dest, sizeof(jint)));
+  size_t offset = pointer_delta(dest, dest_int, 1);
+  jint cur = *dest_int;
+  jbyte* cur_as_bytes = reinterpret_cast<jbyte*>(&cur);
+
+  // current value may not be what we are looking for, so force it
+  // to that value so the initial cmpxchg will fail if it is different
+  cur_as_bytes[offset] = compare_value;
+
+  // always execute a real cmpxchg so that we get the required memory
+  // barriers even on initial failure
+  do {
+    // value to swap in matches current value ...
+    jint new_value = cur;
+    // ... except for the one jbyte we want to update
+    reinterpret_cast<jbyte*>(&new_value)[offset] = exchange_value;
+
+    jint res = cmpxchg(new_value, dest_int, cur, order);
+    if (res == cur) break; // success
+
+    // at least one jbyte in the jint changed value, so update
+    // our view of the current jint
+    cur = res;
+    // if our jbyte is still as cur we loop and try again
+  } while (cur_as_bytes[offset] == compare_value);
+
+  return cur_as_bytes[offset];
+}
+#endif // VM_HAS_SPECIALIZED_CMPXCHG_BYTE
+
+inline unsigned Atomic::xchg(unsigned int exchange_value, volatile unsigned int* dest) {
+  assert(sizeof(unsigned int) == sizeof(jint), "more work to do");
+  return (unsigned int)Atomic::xchg((jint)exchange_value, (volatile jint*)dest);
+}
+
+inline unsigned Atomic::cmpxchg(unsigned int exchange_value, volatile unsigned int* dest,
+                                unsigned int compare_value, cmpxchg_memory_order order) {
+  assert(sizeof(unsigned int) == sizeof(jint), "more work to do");
+  return (unsigned int)Atomic::cmpxchg((jint)exchange_value, (volatile jint*)dest,
+                                       (jint)compare_value, order);
+}
+
+inline julong Atomic::cmpxchg(julong exchange_value, volatile julong* dest,
+                              julong compare_value, cmpxchg_memory_order order) {
+  return (julong)Atomic::cmpxchg((jlong)exchange_value, (volatile jlong*)dest,
+                                 (jlong)compare_value, order);
+}
+
+inline julong Atomic::load(volatile julong* src) {
+  return (julong)load((volatile jlong*)src);
+}
+
+inline jlong Atomic::add(jlong    add_value, volatile jlong*    dest) {
+  jlong old = load(dest);
+  jlong new_value = old + add_value;
+  while (old != cmpxchg(new_value, dest, old)) {
+    old = load(dest);
+    new_value = old + add_value;
+  }
+  return old;
+}
+
+inline julong Atomic::add(julong    add_value, volatile julong*    dest) {
+  julong old = load(dest);
+  julong new_value = old + add_value;
+  while (old != cmpxchg(new_value, dest, old)) {
+    old = load(dest);
+    new_value = old + add_value;
+  }
+  return old;
+}
+
+inline void Atomic::inc(volatile short* dest) {
+  // Most platforms do not support atomic increment on a 2-byte value. However,
+  // if the value occupies the most significant 16 bits of an aligned 32-bit
+  // word, then we can do this with an atomic add of 0x10000 to the 32-bit word.
+  //
+  // The least significant parts of this 32-bit word will never be affected, even
+  // in case of overflow/underflow.
+  //
+  // Use the ATOMIC_SHORT_PAIR macro to get the desired alignment.
+#ifdef VM_LITTLE_ENDIAN
+  assert((intx(dest) & 0x03) == 0x02, "wrong alignment");
+  (void)Atomic::add(0x10000, (volatile int*)(dest-1));
+#else
+  assert((intx(dest) & 0x03) == 0x00, "wrong alignment");
+  (void)Atomic::add(0x10000, (volatile int*)(dest));
+#endif
+}
+
+inline void Atomic::dec(volatile short* dest) {
+#ifdef VM_LITTLE_ENDIAN
+  assert((intx(dest) & 0x03) == 0x02, "wrong alignment");
+  (void)Atomic::add(-0x10000, (volatile int*)(dest-1));
+#else
+  assert((intx(dest) & 0x03) == 0x00, "wrong alignment");
+  (void)Atomic::add(-0x10000, (volatile int*)(dest));
+#endif
+}
+
 #endif // SHARE_VM_RUNTIME_ATOMIC_INLINE_HPP

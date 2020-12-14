@@ -317,8 +317,8 @@ inline address_word  castable_address(void* x)                { return address_w
 // and then additions like
 //       ... top() + size ...
 // are safe because we know that top() is at least size below end().
-inline size_t pointer_delta(const void* left,
-                            const void* right,
+inline size_t pointer_delta(const volatile void* left,
+                            const volatile void* right,
                             size_t element_size) {
   return (((uintptr_t) left) - ((uintptr_t) right)) / element_size;
 }
@@ -512,6 +512,10 @@ inline void* align_ptr_up(void* ptr, size_t alignment) {
 
 inline void* align_ptr_down(void* ptr, size_t alignment) {
   return (void*)align_size_down((intptr_t)ptr, (intptr_t)alignment);
+}
+
+inline volatile void* align_ptr_down(volatile void* ptr, size_t alignment) {
+  return (volatile void*)align_size_down((intptr_t)ptr, (intptr_t)alignment);
 }
 
 // Align objects by rounding up their size, in HeapWord units.
