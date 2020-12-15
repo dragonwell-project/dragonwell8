@@ -3006,6 +3006,9 @@ ConcurrentMark::claim_region(uint worker_id) {
     // iterations) but it should not introduce and correctness issues.
     HeapRegion* curr_region = _g1h->heap_region_containing_raw(finger);
 
+    // Make sure that the reads below do not float before loading curr_region.
+    OrderAccess::loadload();
+
     // Above heap_region_containing_raw may return NULL as we always scan claim
     // until the end of the heap. In this case, just jump to the next region.
     HeapWord* end = curr_region != NULL ? curr_region->end() : finger + HeapRegion::GrainWords;
