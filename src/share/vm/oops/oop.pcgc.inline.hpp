@@ -54,7 +54,7 @@ inline void oopDesc::follow_contents(ParCompactionManager* cm) {
   klass()->oop_follow_contents(cm, this);
 }
 
-inline oop oopDesc::forward_to_atomic(oop p) {
+inline oop oopDesc::forward_to_atomic(oop p, cmpxchg_memory_order order) {
   assert(ParNewGeneration::is_legal_forward_ptr(p),
          "illegal forwarding pointer value.");
   markOop oldMark = mark();
@@ -65,7 +65,7 @@ inline oop oopDesc::forward_to_atomic(oop p) {
   assert(sizeof(markOop) == sizeof(intptr_t), "CAS below requires this.");
 
   while (!oldMark->is_marked()) {
-    curMark = (markOop)Atomic::cmpxchg_ptr(forwardPtrMark, &_mark, oldMark);
+    curMark = (markOop)Atomic::cmpxchg_ptr(forwardPtrMark, &_mark, oldMark, memory_order_relaxed);
     assert(is_forwarded(), "object should have been forwarded");
     if (curMark == oldMark) {
       return NULL;

@@ -261,7 +261,7 @@ oop G1ParScanThreadState::copy_to_survivor_space(InCSetState const state,
   Prefetch::write(obj_ptr, PrefetchCopyIntervalInBytes);
 
   const oop obj = oop(obj_ptr);
-  const oop forward_ptr = old->forward_to_atomic(obj);
+  const oop forward_ptr = old->forward_to_atomic(obj, memory_order_relaxed);
   if (forward_ptr == NULL) {
     Copy::aligned_disjoint_words((HeapWord*) old, obj_ptr, word_sz);
 

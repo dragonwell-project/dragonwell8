@@ -4544,7 +4544,7 @@ G1CollectedHeap::handle_evacuation_failure_par(G1ParScanThreadState* _par_scan_s
          err_msg("obj: " PTR_FORMAT " should still be in the CSet",
                  (HeapWord*) old));
   markOop m = old->mark();
-  oop forward_ptr = old->forward_to_atomic(old);
+  oop forward_ptr = old->forward_to_atomic(old, memory_order_relaxed);
   if (forward_ptr == NULL) {
     // Forward-to-self succeeded.
     assert(_par_scan_state != NULL, "par scan state");

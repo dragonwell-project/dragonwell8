@@ -1209,7 +1209,7 @@ oop ParNewGeneration::copy_to_survivor_space_avoiding_promotion_undo(
 
     // Attempt to install a null forwarding pointer (atomically),
     // to claim the right to install the real forwarding pointer.
-    forward_ptr = old->forward_to_atomic(ClaimedForwardPtr);
+    forward_ptr = old->forward_to_atomic(ClaimedForwardPtr, memory_order_relaxed);
     if (forward_ptr != NULL) {
       // someone else beat us to it.
         return real_forwardee(old);
@@ -1234,7 +1234,7 @@ oop ParNewGeneration::copy_to_survivor_space_avoiding_promotion_undo(
   } else {
     // Is in to-space; do copying ourselves.
     Copy::aligned_disjoint_words((HeapWord*)old, (HeapWord*)new_obj, sz);
-    forward_ptr = old->forward_to_atomic(new_obj);
+    forward_ptr = old->forward_to_atomic(new_obj, memory_order_relaxed);
     // Restore the mark word copied above.
     new_obj->set_mark(m);
     // Increment age if obj still in new generation
@@ -1340,7 +1340,7 @@ oop ParNewGeneration::copy_to_survivor_space_with_undo(
 
     if (new_obj == NULL) {
       // promotion failed, forward to self
-      forward_ptr = old->forward_to_atomic(old);
+      forward_ptr = old->forward_to_atomic(old, memory_order_relaxed);
       new_obj = old;
 
       if (forward_ptr != NULL) {
@@ -1378,7 +1378,7 @@ oop ParNewGeneration::copy_to_survivor_space_with_undo(
   // We have to copy the mark word before overwriting with forwarding
   // ptr, so we can restore it below in the copy.
   if (!failed_to_promote) {
-    forward_ptr = old->forward_to_atomic(new_obj);
+    forward_ptr = old->forward_to_atomic(new_obj, memory_order_relaxed);
   }
 
   if (forward_ptr == NULL) {

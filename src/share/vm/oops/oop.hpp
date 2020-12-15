@@ -339,7 +339,7 @@ class oopDesc {
   // Exactly one thread succeeds in inserting the forwarding pointer, and
   // this call returns "NULL" for that thread; any other thread has the
   // value of the forwarding pointer returned and does not modify "this".
-  oop forward_to_atomic(oop p);
+  oop forward_to_atomic(oop p, cmpxchg_memory_order order);
 #endif // INCLUDE_ALL_GCS
 
   oop forwardee() const;
