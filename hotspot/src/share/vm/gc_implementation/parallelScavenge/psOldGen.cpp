@@ -32,6 +32,7 @@
 #include "memory/gcLocker.inline.hpp"
 #include "oops/oop.inline.hpp"
 #include "runtime/java.hpp"
+#include "runtime/orderAccess.hpp"
 
 PRAGMA_FORMAT_MUTE_WARNINGS_FOR_GCC
 
@@ -401,7 +402,9 @@ void PSOldGen::post_resize() {
   start_array()->set_covered_region(new_memregion);
   Universe::heap()->barrier_set()->resize_covered_region(new_memregion);
 
-  // ALWAYS do this last!!
+  // Ensure the space bounds are updated and made visible to other
+  // threads after the other data structures have been resized.
+  OrderAccess::storestore();
   object_space()->initialize(new_memregion,
                              SpaceDecorator::DontClear,
                              SpaceDecorator::DontMangle);
