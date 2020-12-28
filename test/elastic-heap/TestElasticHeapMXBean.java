@@ -25,12 +25,14 @@ import javax.management.remote.*;
 import java.lang.management.ManagementFactory;
 import java.io.File;
 import java.util.*;
-import jdk.testlibrary.*;
-import static jdk.testlibrary.Asserts.assertTrue;
+import jdk.test.lib.*;
+import jdk.test.lib.process.OutputAnalyzer;
+import jdk.test.lib.process.ProcessTools;
+import static jdk.test.lib.Asserts.*;
 
 /* @test
  * @summary test elastic-heap MX bean
- * @library /lib/testlibrary
+ * @library /lib /
  * @compile TestElasticHeapMXBean.java
  * @run main/othervm/timeout=100 TestElasticHeapMXBean
  */

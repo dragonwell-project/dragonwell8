@@ -24,13 +24,15 @@ import javax.management.*;
 import javax.management.remote.*;
 import java.lang.management.ManagementFactory;
 import java.io.File;
-import jdk.testlibrary.*;
-import jdk.testlibrary.dcmd.*;
-import static jdk.testlibrary.Asserts.assertTrue;
+import jdk.test.lib.*;
+import jdk.test.lib.dcmd.*;
+import jdk.test.lib.process.OutputAnalyzer;
+import jdk.test.lib.process.ProcessTools;
+import static jdk.test.lib.Asserts.*;
 
 /* @test
  * @summary test elastic-heap error with multiple threads setting
- * @library /lib/testlibrary
+ * @library /lib /
  * @compile TestElasticHeapMTSetError.java
  * @run main/othervm/timeout=100 TestElasticHeapMTSetError
  */
