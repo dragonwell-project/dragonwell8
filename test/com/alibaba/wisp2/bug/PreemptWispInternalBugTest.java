@@ -31,22 +31,32 @@ import com.alibaba.wisp.engine.WispEngine;
 import sun.misc.SharedSecrets;
 
 import java.util.concurrent.FutureTask;
+import static jdk.testlibrary.Asserts.assertTrue;
+
 
 
 public class PreemptWispInternalBugTest {
     private static final int timeOut = 1000;
+    private static final int iteration = 10;
     private static String[] tasks = new String[] {"toString", "addTimer"};
 
     public static void main(String[] args) throws Exception {
         if (args.length == 0) {
-            for (int i = 0; i < tasks.length; i++) {
-                ProcessBuilder pb = jdk.testlibrary.ProcessTools.createJavaProcessBuilder(
-                        "-XX:+UnlockExperimentalVMOptions",
-                        "-XX:+UseWisp2", "-XX:+UnlockDiagnosticVMOptions", "-XX:+VerboseWisp", "-XX:-Inline",
-                        "-Xcomp", "-Dcom.alibaba.wisp.sysmonTickUs=100000",
-                        PreemptWispInternalBugTest.class.getName(), tasks[i]);
-                jdk.testlibrary.OutputAnalyzer output = new jdk.testlibrary.OutputAnalyzer(pb.start());
-                output.shouldContain("[WISP] preempt was blocked, because wisp internal method on the stack");
+            for (String task : tasks) {
+                int i;
+                for (i = 0; i < iteration; i++) {
+                    ProcessBuilder pb = jdk.testlibrary.ProcessTools.createJavaProcessBuilder(
+                            "-XX:+UnlockExperimentalVMOptions",
+                            "-XX:+UseWisp2", "-XX:+UnlockDiagnosticVMOptions", "-XX:+VerboseWisp", "-XX:-Inline",
+                            "-Xcomp", "-Dcom.alibaba.wisp.sysmonTickUs=100000",
+                            "-cp", System.getProperty("java.class.path"),
+                            PreemptWispInternalBugTest.class.getName(), task);
+                    jdk.testlibrary.OutputAnalyzer output = new jdk.testlibrary.OutputAnalyzer(pb.start());
+                    if (output.getStdout().contains("[WISP] preempt was blocked, because wisp internal method on the stack")) {
+                        break;
+                    }
+                }
+                assertTrue(i < iteration, "all iteration failed to preempt");
             }
             return;
         }
@@ -79,3 +89,4 @@ public class PreemptWispInternalBugTest {
         }
     }
 }
+

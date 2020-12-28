@@ -37,18 +37,18 @@ import java.util.concurrent.TimeUnit;
 public class BlockingAcceptTest {
     public static void main(String[] args) throws Exception {
         CountDownLatch latch = new CountDownLatch(1);
+        ServerSocketChannel ssc = ServerSocketChannel.open();
+        ssc.bind(new InetSocketAddress(0));
         Thread t = new Thread(() -> {
             try {
                 latch.await(1, TimeUnit.SECONDS);
                 Thread.sleep(200);
                 Socket s = new Socket();
-                s.connect(new InetSocketAddress(12388));
+                s.connect(ssc.getLocalAddress());
             } catch (Exception e) {
             }
         });
         t.start();
-        ServerSocketChannel ssc = ServerSocketChannel.open();
-        ssc.bind(new InetSocketAddress(12388));
         latch.countDown();
         ssc.accept();
     }

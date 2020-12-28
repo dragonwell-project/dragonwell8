@@ -2,7 +2,7 @@
  * @test
  * @library /lib/testlibrary
  * @summary test blocking accept
- * @run main/othervm -Dcom.alibaba.wisp.carrierEngines=1 -XX:+UseWisp2 BlockingNIOTest
+ * @run main/othervm -XX:+UnlockExperimentalVMOptions -Dcom.alibaba.wisp.carrierEngines=1 -XX:+UseWisp2 BlockingNIOTest
  */
 
 import com.alibaba.wisp.engine.WispEngine;
