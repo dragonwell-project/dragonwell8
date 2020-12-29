@@ -477,7 +477,6 @@ public class TenantContainer {
             throw new TenantException("Tenant is dead");
         }
         TenantContainer container = current();
-        assert container != null;
         if (container == this) {
             task.run();
         } else {

@@ -101,7 +101,7 @@ public class TestHierachicalTenants {
 
             // check result
             long sum = 0;
-            double acceptableDiffPercent = 0.2;
+            double acceptableDiffPercent = 0.4;
             for (int i = 0; i < counts.length - 1; ++i) {
                 assertLessThan(counts[i], counts[counts.length - 1]);
                 sum += counts[i];
