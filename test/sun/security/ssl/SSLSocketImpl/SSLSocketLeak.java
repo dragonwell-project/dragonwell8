@@ -31,7 +31,7 @@ import com.sun.management.UnixOperatingSystemMXBean;
 
 /*
  * @test
- * @bug 8256818
+ * @bug 8256818 8257670
  * @summary Test that creating and closing SSL Sockets without bind/connect
  *          will not leave leaking socket file descriptors
  * @run main/native/manual/othervm SSLSocketLeak
@@ -45,6 +45,7 @@ import com.sun.management.UnixOperatingSystemMXBean;
  *              /FeFileUtils.dll
  *          jtreg <...> -nativepath:. <path/to/jdk8u>\jdk\test\sun\security\ssl\SSLSocketImpl\SSLSocketLeak.java
  */
+// Note: this test is not reliable, run it manually.
 public class SSLSocketLeak {
 
     private static final int NUM_TEST_SOCK = 500;
