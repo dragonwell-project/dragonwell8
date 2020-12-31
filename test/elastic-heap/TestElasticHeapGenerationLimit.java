@@ -29,7 +29,7 @@ import com.oracle.java.testlibrary.*;
  * @library /testlibrary
  * @build TestElasticHeapGenerationLimit
  * @run main/othervm/timeout=500
-         -XX:+UseG1GC -XX:+G1ElasticHeap -Xmx1000m -Xms1000m
+         -XX:+UseG1GC -XX:+G1ElasticHeap -Xmx1000m -Xms1000m -XX:+AlwaysPreTouch
                 -XX:MaxNewSize=400m -XX:G1HeapRegionSize=1m
                 -XX:ElasticHeapYGCIntervalMinMillis=500
                 -verbose:gc -XX:+PrintGCDetails -XX:+PrintGCTimeStamps
