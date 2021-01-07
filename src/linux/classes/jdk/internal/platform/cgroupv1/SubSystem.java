@@ -119,7 +119,7 @@ public class SubSystem {
                                                      Function<String, Long> conversion) {
         long retval = Metrics.unlimited_minimum + 1; // default unlimited
         try {
-            List<String> lines = Files.readAllLines(Paths.get(subsystem.path(), param));
+            List<String> lines = subsystem.readMatchingLines(param);
             for (String line: lines) {
                 if (line.contains(match)) {
                     retval = conversion.apply(line);
@@ -130,6 +130,17 @@ public class SubSystem {
             // Ignore. Default is unlimited.
         }
         return retval;
+    }
+
+    private List<String> readMatchingLines(String param) throws IOException {
+        try {
+            PrivilegedExceptionAction<List<String>> pea = () ->
+                    Files.readAllLines(Paths.get(path(), param));
+            return AccessController.doPrivileged(pea);
+        } catch (PrivilegedActionException e) {
+            Metrics.unwrapIOExceptionAndRethrow(e);
+            throw new InternalError(e.getCause());
+        }
     }
 
     public static long getLongValue(SubSystem subsystem, String parm) {
@@ -246,6 +257,7 @@ public class SubSystem {
     public static class MemorySubSystem extends SubSystem {
 
         private boolean hierarchical;
+        private boolean swapenabled;
 
         public MemorySubSystem(String root, String mountPoint) {
             super(root, mountPoint);
@@ -257,6 +269,14 @@ public class SubSystem {
 
         void setHierarchical(boolean hierarchical) {
             this.hierarchical = hierarchical;
+        }
+
+        boolean isSwapEnabled() {
+            return swapenabled;
+        }
+
+        void setSwapEnabled(boolean swapenabled) {
+            this.swapenabled = swapenabled;
         }
 
     }
