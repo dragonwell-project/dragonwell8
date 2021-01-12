@@ -2,7 +2,7 @@
  * @test
  * @summary Test uncaught exception can be handled by thread's UncaughtExceptionHandler
  * @library /lib/testlibrary
- * @run main/othervm -XX:+UseWisp2  WispUncaughtExceptionTest
+ * @run main/othervm -XX:+UnlockExperimentalVMOptions -XX:+UseWisp2  WispUncaughtExceptionTest
  */
 
 import static jdk.testlibrary.Asserts.assertTrue;

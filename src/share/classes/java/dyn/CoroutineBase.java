@@ -69,7 +69,7 @@ public abstract class CoroutineBase {
             // threadSupport is fixed by steal()
             threadSupport.beforeResume(this);
 
-            threadSupport.terminateCoroutine();
+            threadSupport.terminateCoroutine(null);
         }
         assert threadSupport.getThread() == SharedSecrets.getJavaLangAccess().currentThread0();
     }

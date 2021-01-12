@@ -127,7 +127,7 @@ public class CoroutineSupport {
      * 2. we won't switch to a {@link Coroutine} that's being stolen
      * 3. we won't steal a running {@link Coroutine}
      * this function should only be called in
-     * {@link com.alibaba.wisp.engine.WispTask#switchTo(WispTask, WispTask)},
+     * {@link com.alibaba.wisp.engine.WispTask#switchTo(WispTask, WispTask, boolean)},
      * we skipped unnecessary lock to improve performance.
      * @param target
      */
@@ -190,22 +190,26 @@ public class CoroutineSupport {
         }
     }
 
-
     /**
      * terminate current coroutine and yield forward
      */
-    void terminateCoroutine() {
+    public void terminateCoroutine(Coroutine target) {
         assert currentCoroutine != threadCoroutine : "cannot exit thread coroutine";
         assert currentCoroutine != getNextCoroutine(currentCoroutine.nativeCoroutine) :
                 "last coroutine shouldn't call coroutineexit";
 
         lock();
         Coroutine old = currentCoroutine;
-        Coroutine forward = getNextCoroutine(old.nativeCoroutine);
+        Coroutine forward = target;
+        if (forward == null) {
+            forward = getNextCoroutine(old.nativeCoroutine);
+        }
         currentCoroutine = forward;
-
         unlockLater(forward);
         switchToAndTerminate(old, forward);
+
+        // should never run here.
+        assert false;
     }
 
     /**

@@ -56,6 +56,7 @@ class WispConfiguration {
 
     static final boolean WISP_HIGH_PRECISION_TIMER;
     static final int WISP_ENGINE_TASK_CACHE_SIZE;
+    static final int WISP_ENGINE_TASK_GLOBAL_CACHE_SIZE;
     static final int WISP_SCHEDULE_STEAL_RETRY;
     static final int WISP_SCHEDULE_PUSH_RETRY;
     static final int WISP_SCHEDULE_HELP_STEAL_RETRY;
@@ -117,6 +118,7 @@ class WispConfiguration {
         MONOLITHIC_POLL = parseBooleanParameter(p, "com.alibaba.wisp.monolithicPoll", true);
         WISP_HIGH_PRECISION_TIMER = parseBooleanParameter(p, "com.alibaba.wisp.highPrecisionTimer", false);
         WISP_ENGINE_TASK_CACHE_SIZE = parsePositiveIntegerParameter(p, "com.alibaba.wisp.engineTaskCache", 20);
+        WISP_ENGINE_TASK_GLOBAL_CACHE_SIZE = parsePositiveIntegerParameter(p, "com.alibaba.wisp.engineTaskGlobalCache", WORKER_COUNT * 10);
         WISP_SCHEDULE_STEAL_RETRY = parsePositiveIntegerParameter(p, "com.alibaba.wisp.schedule.stealRetry", Math.max(1, WORKER_COUNT / 2));
         WISP_SCHEDULE_PUSH_RETRY = parsePositiveIntegerParameter(p, "com.alibaba.wisp.schedule.pushRetry", WORKER_COUNT);
         WISP_SCHEDULE_HELP_STEAL_RETRY = parsePositiveIntegerParameter(p, "com.alibaba.wisp.schedule.helpStealRetry", Math.max(1, WORKER_COUNT / 4));
