@@ -637,12 +637,21 @@
   template(com_alibaba_wisp_engine_WispTask,           "com/alibaba/wisp/engine/WispTask")                        \
   template(com_alibaba_wisp_engine_WispTask_CacheableCoroutine,                                                   \
                                                        "com/alibaba/wisp/engine/WispTask$CacheableCoroutine")     \
+  template(com_alibaba_wisp_engine_WispControlGroup_signature,                                                    \
+                                                       "Lcom/alibaba/wisp/engine/WispControlGroup;")              \
+  template(com_alibaba_wisp_engine_WispControlGroup_CpuLimit_signature,                                           \
+                                                       "Lcom/alibaba/wisp/engine/WispControlGroup$CpuLimit;")     \
   template(com_alibaba_wisp_engine_WispEngine,         "com/alibaba/wisp/engine/WispEngine")                      \
   template(com_alibaba_wisp_engine_WispCarrier,        "com/alibaba/wisp/engine/WispCarrier")                     \
   template(com_alibaba_wisp_engine_WispEventPump,      "com/alibaba/wisp/engine/WispEventPump")                   \
   template(isInCritical_name,                          "isInCritical")                                            \
   template(jdkParkStatus_name,                         "jdkParkStatus")                                           \
   template(jvmParkStatus_name,                         "jvmParkStatus")                                           \
+  template(ttr_name,                                   "ttr")                                                     \
+  template(controlGroup_name,                          "controlGroup")                                            \
+  template(cpuLimit_name,                              "cpuLimit")                                                \
+  template(cfsPeriod_name,                             "cfsPeriod")                                               \
+  template(cfsQuota_name,                              "cfsQuota")                                                \
   template(id_name,                                    "id")                                                      \
   template(threadWrapper_name,                         "threadWrapper")                                           \
   template(activeCount_name,                           "activeCount")                                             \

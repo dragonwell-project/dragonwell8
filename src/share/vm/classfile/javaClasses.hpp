@@ -1521,6 +1521,8 @@ private:
   static int _stealCount_offset;
   static int _stealFailureCount_offset;
   static int _preemptCount_offset;
+  static int _controlGroup_offset;
+  static int _ttr_offset;
 public:
   static void set_jvmParkStatus(oop obj, jint status);
   static int  get_jvmParkStatus(oop obj);
@@ -1534,6 +1536,29 @@ public:
   static int  get_stealFailureCount(oop obj);
   static int  get_preemptCount(oop obj);
   static void set_preemptCount(oop obj, jint count);
+  static oop  get_controlGroup(oop obj);
+  static oop  get_cpuLimit(oop obj);
+  static long get_ttr(oop obj);
+
+  static void compute_offsets();
+};
+
+class com_alibaba_wisp_engine_WispControlGroup: AllStatic {
+private:
+  static int _cpuLimit_offset;
+public:
+  static oop  get_cpuLimit(oop obj);
+
+  static void compute_offsets();
+};
+
+class com_alibaba_wisp_engine_WispControlGroup_CpuLimit: AllStatic {
+private:
+  static int _cfsPeriod_offset;
+  static int _cfsQuota_offset;
+public:
+  static long get_cfsPeriod(oop obj);
+  static long get_cfsQuota(oop obj);
 
   static void compute_offsets();
 };

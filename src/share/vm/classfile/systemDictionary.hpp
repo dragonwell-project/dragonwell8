@@ -211,6 +211,10 @@ class SymbolPropertyTable;
   do_klass(com_alibaba_wisp_engine_WispTask_klass,      com_alibaba_wisp_engine_WispTask,          Opt                 ) \
   do_klass(com_alibaba_wisp_engine_WispTask_CacheableCoroutine_klass,                                                    \
                                                         com_alibaba_wisp_engine_WispTask_CacheableCoroutine, Opt       ) \
+  do_klass(com_alibaba_wisp_engine_WispControlGroup_klass,                                                               \
+                                                        com_alibaba_wisp_engine_WispControlGroup_signature, Opt        ) \
+  do_klass(com_alibaba_wisp_engine_WispControlGroup_CpuLimit_klass,                                                      \
+                                                        com_alibaba_wisp_engine_WispControlGroup_CpuLimit_signature, Opt ) \
   do_klass(com_alibaba_wisp_engine_WispEngine_klass,    com_alibaba_wisp_engine_WispEngine,        Opt                 ) \
   do_klass(com_alibaba_wisp_engine_WispCarrier_klass,   com_alibaba_wisp_engine_WispCarrier,       Opt                 ) \
   do_klass(com_alibaba_wisp_engine_WispEventPump_klass, com_alibaba_wisp_engine_WispEventPump,     Opt                 ) \
