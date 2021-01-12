@@ -50,7 +50,9 @@ import java.security.cert.CertStoreException;
 import java.security.cert.CRL;
 import java.security.cert.X509Certificate;
 import java.security.cert.CertificateException;
+import java.security.interfaces.ECKey;
 import java.security.spec.AlgorithmParameterSpec;
+import java.security.spec.ECParameterSpec;
 import java.text.Collator;
 import java.text.MessageFormat;
 import java.util.*;
@@ -71,6 +73,7 @@ import java.util.Base64;
 
 import sun.security.util.DisabledAlgorithmConstraints;
 import sun.security.util.KeyUtil;
+import sun.security.util.NamedCurve;
 import sun.security.util.ObjectIdentifier;
 import sun.security.pkcs10.PKCS10;
 import sun.security.pkcs10.PKCS10Attribute;
@@ -3089,6 +3092,17 @@ public final class Main {
         }
     }
 
+    private String fullDisplayAlgName(Key key) {
+        String result = key.getAlgorithm();
+        if (key instanceof ECKey) {
+            ECParameterSpec paramSpec = ((ECKey) key).getParams();
+            if (paramSpec instanceof NamedCurve) {
+                result += " (" + paramSpec.toString().split(" ")[0] + ")";
+            }
+        }
+        return result;
+    }
+
     private String withWeak(PublicKey key) {
         if (DISABLED_CHECK.permits(SIG_PRIMITIVE_SET, key)) {
             return String.format(rb.getString("key.bit"),
@@ -4361,7 +4375,7 @@ public final class Main {
                     rb.getString("whose.key.risk"),
                     label,
                     String.format(rb.getString("key.bit"),
-                            KeyUtil.getKeySize(key), key.getAlgorithm())));
+                            KeyUtil.getKeySize(key), fullDisplayAlgName(key))));
         }
     }
 
