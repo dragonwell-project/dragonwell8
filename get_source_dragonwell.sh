@@ -41,6 +41,7 @@ connect="https"
 REPO_PREFIX="dragonwell8_"
 DEPTH=1000
 BRANCH="master"
+RELEASE=""
 
 usage() {
       echo "usage: $0 [-h|--help] [-b|--branch branch_name] [-s|--site github|gitlab] [-c|--connection https|ssh]"
@@ -58,6 +59,11 @@ do
     -b | --branch )
       shift;
       BRANCH=$1
+      ;;
+
+    -r | --release )
+      shift;
+      RELEASE="true"
       ;;
 
     -s | --site )
@@ -130,7 +136,9 @@ for repo in ${subrepos}; do
       ${GIT} checkout tags/${BRANCH} -b ${BRANCH}
       result=$?
       if [ $result  != 0 ]; then
-        error "failed to checkout ${repo} to ${BRANCH}"
+        if [ -n "${RELEASE}" ]; then
+          error "failed to checkout ${repo} to ${BRANCH}"
+        fi
       fi
     fi
     cd ..
