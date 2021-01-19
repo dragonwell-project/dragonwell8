@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -234,7 +234,9 @@ class Heap$Type$Buffer$RW$
     public $Type$Buffer compact() {
 #if[rw]
         int pos = position();
-        int rem = limit() - pos;
+        int lim = limit();
+        assert (pos <= lim);
+        int rem = (pos <= lim ? lim - pos : 0);
         System.arraycopy(hb, ix(pos), hb, ix(0), rem);
         position(rem);
         limit(capacity());
