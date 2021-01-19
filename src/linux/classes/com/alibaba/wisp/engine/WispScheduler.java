@@ -161,7 +161,7 @@ class WispScheduler {
                     doExec(task);
                 }
 
-                if (carrier.engine.detached) {
+                if (carrier.engine.terminated) {
                     return;
                 } else if ((task = SCHEDULING_POLICY.steal(this, r = nextRandom(r))) != null) {
                     doExec(task);

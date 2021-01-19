@@ -518,6 +518,14 @@ public class WispTask implements Comparable<WispTask> {
         return interrupted != 0;
     }
 
+    boolean inDestoryedGroup() {
+        return controlGroup != null && controlGroup.destroyed;
+    }
+
+    boolean inheritedFromNonRootContainer() {
+        return WispEngine.JLA.getInheritedResourceContainer(threadWrapper) != ResourceContainer.root();
+    }
+
     boolean testInterruptedAndClear(boolean clear) {
         boolean nativeInterrupt = false;
         if (alreadyCheckNativeInterrupt == 0 && // only do it once

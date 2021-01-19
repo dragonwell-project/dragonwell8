@@ -40,6 +40,8 @@ import static jdk.testlibrary.Asserts.assertTrue;
 public class PreemptTest {
     public static void main(String[] args) throws Exception {
         doTest(PreemptTest::simpleLoop);
+        doTest(PreemptTest::jniLoop);
+        doTest(PreemptTest::voidLoop);
     }
 
     private static void doTest(Runnable r) throws Exception {
@@ -47,6 +49,7 @@ public class PreemptTest {
         CountDownLatch latch = new CountDownLatch(1);
         WispEngine.dispatch(latch::countDown);
         assertTrue(latch.await(5, TimeUnit.SECONDS));
+
     }
 
     private static void complexLoop() {
@@ -71,6 +74,20 @@ public class PreemptTest {
     }
 
     // TODO: handle safepoint consumed by state switch
+
+
+
+    private static void voidLoop() {
+        while (true) {}
+    }
+
+    private static void jniLoop() {
+        try {
+            while (true) { Thread.sleep(0);}
+        } catch (Exception e) {
+            assertTrue(false);
+        }
+    }
 
     volatile static int n;
 }

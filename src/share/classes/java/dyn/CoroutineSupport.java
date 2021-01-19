@@ -90,8 +90,8 @@ public class CoroutineSupport {
         return thread;
     }
 
-    public static void checkAndThrowException(Coroutine coroutine) {
-        checkAndThrowException0(coroutine.nativeCoroutine);
+    public static boolean checkAndThrowException(Coroutine coroutine) {
+        return shouldThrowException0(coroutine.nativeCoroutine);
     }
 
     public void drain() {
@@ -384,5 +384,4 @@ public class CoroutineSupport {
      */
     public static native StackTraceElement[] getCoroutineStack(long coroPtr);
 
-    private static native void checkAndThrowException0(long coroPtr);
-}
+    private static native boolean shouldThrowException0(long coroPtr);}

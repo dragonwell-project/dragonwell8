@@ -8,8 +8,10 @@ import com.alibaba.rcm.internal.AbstractResourceContainer;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.AbstractExecutorService;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 
 /**
  * WispControlGroup is used to limit a group of wisp threads'{@link WispTask}
@@ -36,6 +38,8 @@ class WispControlGroup extends AbstractExecutorService {
      */
     private static final int ESTIMATED_PERIOD = Math.max(MIN_PERIOD,
             Math.min(MAX_PERIOD, WispConfiguration.SYSMON_TICK_US * SCHEDULE_TIMES));
+    private static final AtomicReferenceFieldUpdater<WispControlGroup, Boolean> SHUTDOWN_UPDATER
+            = AtomicReferenceFieldUpdater.newUpdater(WispControlGroup.class, Boolean.class, "destroyed");
 
     private static int defaultCfsPeriod() {
         // prior to adopt configured cfs period.
@@ -80,6 +84,8 @@ class WispControlGroup extends AbstractExecutorService {
     private CpuLimit cpuLimit;
     private final AtomicLong currentPeriodStart;
     private final AtomicLong remainQuota;
+    volatile Boolean destroyed = false;
+    CountDownLatch destroyLatch = new CountDownLatch(1);
 
     private static class CpuLimit {
         long cfsPeriod;
@@ -149,7 +155,13 @@ class WispControlGroup extends AbstractExecutorService {
         task.controlGroup = this;
         long delay = checkCpuLimit(task, true);
         if (delay != 0) {
-            WispTask.jdkPark(delay);
+            try {
+                WispTask.jdkPark(delay);
+            } catch (ThreadDeath threadDeath) {
+                assert task.enterTs != 0;
+                detach();
+                throw threadDeath;
+            }
         }
         assert task.enterTs != 0;
     }
@@ -186,27 +198,29 @@ class WispControlGroup extends AbstractExecutorService {
 
     @Override
     public void shutdown() {
-        throw new UnsupportedOperationException("NYI");
+        if (SHUTDOWN_UPDATER.compareAndSet(this, false, true)) {
+            WispEngine.WISP_ROOT_ENGINE.shutdown(this);
+        }
     }
 
     @Override
     public List<Runnable> shutdownNow() {
-        return null;
+        throw new UnsupportedOperationException("not implemented");
     }
 
     @Override
     public boolean isShutdown() {
-        return false;
+        return destroyed;
     }
 
     @Override
     public boolean isTerminated() {
-        return false;
+        return destroyLatch.getCount() == 0;
     }
 
     @Override
     public boolean awaitTermination(long timeout, TimeUnit unit) throws InterruptedException {
-        return false;
+        return destroyLatch.await(timeout, unit);
     }
 
     @Override
