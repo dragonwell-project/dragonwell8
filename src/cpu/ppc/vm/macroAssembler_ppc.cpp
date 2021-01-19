@@ -2046,8 +2046,7 @@ void MacroAssembler::compiler_fast_lock_object(ConditionRegister flag, Register 
   // Check if the owner is self by comparing the value in the markOop of object
   // (current_header) with the stack pointer.
   sub(current_header, current_header, R1_SP);
-  load_const_optimized(temp, (address) (~(os::vm_page_size()-1) |
-                                        markOopDesc::lock_mask_in_place));
+  load_const_optimized(temp, ~(os::vm_page_size()-1) | markOopDesc::lock_mask_in_place);
 
   and_(R0/*==0?*/, current_header, temp);
   // If condition is true we are cont and hence we can store 0 as the
