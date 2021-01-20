@@ -580,6 +580,7 @@ void Coroutine::print_stack_on(outputStream* st) {
 bool WispThread::_wisp_booted = false;
 Method* WispThread::parkMethod = NULL;
 Method* WispThread::unparkMethod = NULL;
+Method* WispThread::yieldMethod = NULL;
 Method* WispThread::runOutsideWispMethod = NULL;
 GrowableArray<int>* WispThread::_proxy_unpark = NULL;
 
@@ -588,6 +589,7 @@ void WispThread::set_wisp_booted(Thread* thread) {
   // The flow should be changed.
   CallInfo callinfo;
   KlassHandle kh = KlassHandle(thread, SystemDictionary::com_alibaba_wisp_engine_WispTask_klass());
+  KlassHandle tkh = KlassHandle(thread, SystemDictionary::Thread_klass());
   LinkResolver::resolve_static_call(callinfo, kh,
       vmSymbols::park_name(), vmSymbols::long_void_signature(), KlassHandle(), false, true, thread);
   methodHandle method = callinfo.selected_method();
@@ -599,6 +601,12 @@ void WispThread::set_wisp_booted(Thread* thread) {
   method = callinfo.selected_method();
   assert(method.not_null(), "should have thrown exception");
   unparkMethod = method();
+
+  LinkResolver::resolve_static_call(callinfo, tkh,
+        vmSymbols::yield_name(), vmSymbols::void_method_signature(), KlassHandle(), false, true, thread);
+  method = callinfo.selected_method();
+  assert(method.not_null(), "should have thrown exception");
+  yieldMethod = method();
 
   LinkResolver::resolve_static_call(callinfo, kh,
       vmSymbols::runOutsideWisp_name(), vmSymbols::runnable_void_signature(), KlassHandle(), false, true, thread);
@@ -953,18 +961,39 @@ const char* WispThread::print_blocking_status(int status) {
 
 void Coroutine::after_safepoint(JavaThread* thread) {
   assert(Thread::current() == thread, "sanity check");
-  guarantee(thread->safepoint_state()->is_running(), "safepoint should finish");
+
+  //The only two entries are:
+  //1. SafepointSynchronize::handle_polling_page_exception(at_safepoint)
+  //2. InterpreterRuntime::at_safepoint(at_call_back)
+  //     call_back state would block in JavaCall -> ThreadState::trans
+  //     current yielding call triggers once safepoint ends.
+  if (thread->safepoint_state()->is_at_safepoint()) {
+      return;
+  }
+  // In InterpreterRuntime::at_safepoint: thread state is _thread_in_vm now.
+  // So VM Thread could make the safepoint state of current thread `running -> call_back`
+  // We should assert at first _running and then _call_back here.
+  assert(thread->safepoint_state()->is_running() ||
+         thread->safepoint_state()->is_at_call_back(), "illegal safepoint state");
 
   Coroutine* coroutine = thread->current_coroutine();
-  if (thread->thread_state() != _thread_in_Java ||
-      // indicates we're inside compiled code or interpreter.
-      // rather than thread state transition.
-      coroutine->_is_yielding || !thread->wisp_preempted() ||
-      thread->has_pending_exception() || thread->has_async_condition() ||
-      coroutine->in_critical(thread)) {
+  if (coroutine->_is_yielding || !thread->wisp_preempted()) {
     return;
   }
-
+  // filter unsupported state
+  JavaThreadState origin_thread_state = thread->thread_state();
+  if ((origin_thread_state != _thread_in_Java  && origin_thread_state != _thread_in_vm)
+    || thread->has_pending_exception() || thread->has_async_condition()) {
+    // clear preempted for next preempt
+    thread->set_wisp_preempted(false);
+    return;
+  }
+  // prevent preempting wisp internal
+  if (coroutine->in_critical(thread)) {
+    return;
+  }
+  // preempt only triggered by SafepointSynchronize::handle_polling_page_exception and
+  // InterpreterRuntime::at_safepoint.
   oop wisp_task = thread->current_coroutine()->_wisp_task;
   if (wisp_task != NULL) { // expose to perfCount and jstack
     int cnt = com_alibaba_wisp_engine_WispTask::get_preemptCount(wisp_task);
@@ -981,27 +1010,26 @@ void Coroutine::after_safepoint(JavaThread* thread) {
   // - The preempt mechanism should be enabled during "other" coroutines are executing
 
   thread->set_wisp_preempted(false);
-  ThreadInVMfromJava tiv(thread);
+  if (origin_thread_state == _thread_in_Java) {
+    ThreadStateTransition::transition_from_java(thread, _thread_in_vm);
+  }
+  assert(thread->thread_state() == _thread_in_vm, "illegal thread state");
   JavaValue result(T_VOID);
   JavaCallArguments args;
-  JavaCalls::call_static(&result,
-        KlassHandle(thread, SystemDictionary::Thread_klass()),
-        vmSymbols::yield_name(),
-        vmSymbols::void_method_signature(),
-        &args,
-        thread);
+  JavaCalls::call(&result, methodHandle(WispThread::yieldMethod), &args, thread);
+  if (origin_thread_state == _thread_in_Java) {
+    ThreadStateTransition::transition(thread, _thread_in_vm, _thread_in_Java);
+  }
+  assert(thread->thread_state() == origin_thread_state, "illegal thread state");
   coroutine->_is_yielding = false;
 
-  if (thread->has_pending_exception()
-  && (thread->pending_exception()->klass() == SystemDictionary::OutOfMemoryError_klass()
-   || thread->pending_exception()->klass() == SystemDictionary::StackOverflowError_klass())) {
-      // throw expected vm error
-      return;
-  }
-
-  if (thread->has_pending_exception() || thread->has_async_condition()) {
-    guarantee(thread->pending_exception()->klass() == SystemDictionary::ThreadDeath_klass(),
-        "thread_death expected");
+  if (thread->has_pending_exception()) {
+    guarantee(thread->pending_exception()->klass() == SystemDictionary::OutOfMemoryError_klass() ||
+      thread->pending_exception()->klass() == SystemDictionary::StackOverflowError_klass() ||
+      thread->pending_exception()->klass() == SystemDictionary::ThreadDeath_klass(),
+      "Only SOF/OOM/ThreadDeath/TenantDeath happens here");
+    // If it's a SOF / OOM / ThreadDeath / TenantDeath exception, we'd clear it
+    // because polling page stub shouldn't have a pending exception.
     thread->clear_pending_exception();
   }
 }

@@ -1062,6 +1062,9 @@ IRT_ENTRY(void, InterpreterRuntime::at_safepoint(JavaThread* thread))
     // then we may have JVMTI work to do.
     JvmtiExport::at_single_stepping_point(thread, method(thread), bcp(thread));
   }
+  if (EnableCoroutine) {
+    Coroutine::after_safepoint(thread);
+  }
 IRT_END
 
 IRT_ENTRY(void, InterpreterRuntime::post_field_access(JavaThread *thread, oopDesc* obj,

@@ -1481,7 +1481,7 @@ JVM_ENTRY(jboolean, CoroutineSupport_stealCoroutine(JNIEnv* env, jclass klass, j
   // The lock will also block coroutine switch operation,
   // so we must finish the steal operation as soon as possible.
   Coroutine* coro = (Coroutine*) coroPtr;
-  if (coro == NULL || coro->enable_steal_count() != coro->java_call_counter()) {
+  if (coro == NULL || coro->enable_steal_count() != coro->java_call_counter()|| coro->is_yielding()) {
       return false;       // an Exception throws and the coroutine being stealed is exited
   }
   assert(coro->thread() != thread, "steal from self");
@@ -1503,14 +1503,11 @@ JVM_ENTRY(jboolean, CoroutineSupport_stealCoroutine(JNIEnv* env, jclass klass, j
   return true;
 JVM_END
 
-JVM_ENTRY (void, CoroutineSupport_checkAndThrowException0(JNIEnv* env, jclass klass, jlong coroPtr))
+JVM_ENTRY (jboolean, CoroutineSupport_shouldThrowException0(JNIEnv* env, jclass klass, jlong coroPtr))
   assert(EnableCoroutine, "pre-condition");
   Coroutine* coro = (Coroutine*)coroPtr;
   assert(coro == thread->current_coroutine(), "coroutine is current");
-  if (!coro->is_yielding() && coro->clinit_call_count() == 0) {
-    ThreadToNativeFromVM ttnfv(thread);
-    throw_new(env, "ThreadDeath");
-  }
+  return !coro->is_yielding() && coro->clinit_call_count() == 0;
 JVM_END
 
 /// JVM_RegisterUnsafeMethods
@@ -1869,7 +1866,7 @@ JNINativeMethod coroutine_support_methods[] = {
     {CC"getNextCoroutine",        CC"(J)"COR,         FN_PTR(CoroutineSupport_getNextCoroutine)},
     {CC"moveCoroutine",           CC"(JJ)V",          FN_PTR(CoroutineSupport_moveCoroutine)},
     {CC"markThreadCoroutine",     CC"(J"COBA")V",     FN_PTR(CoroutineSupport_markThreadCoroutine)},
-    {CC"checkAndThrowException0", CC"(J)V",           FN_PTR(CoroutineSupport_checkAndThrowException0)},
+    {CC"shouldThrowException0", CC"(J)Z",           FN_PTR(CoroutineSupport_shouldThrowException0)},
 };
 
 #define COMPILE_CORO_METHODS_BEFORE (3)

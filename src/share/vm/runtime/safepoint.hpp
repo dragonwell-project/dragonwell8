@@ -231,6 +231,8 @@ class ThreadSafepointState: public CHeapObj<mtThread> {
   JavaThread*  thread() const         { return _thread; }
   suspend_type type() const           { return _type; }
   bool         is_running() const     { return (_type==_running); }
+  bool         is_at_safepoint() const{ return (_type == _at_safepoint);}
+  bool         is_at_call_back() const{ return (_type == _call_back);}
   JavaThreadState orig_thread_state() const { return _orig_thread_state; }
 
   // Support for safepoint timeout (debugging)

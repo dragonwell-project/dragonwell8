@@ -1166,6 +1166,10 @@ void ThreadSafepointState::handle_polling_page_exception() {
     SafepointSynchronize::block(thread());
     set_at_poll_safepoint(false);
 
+    if (EnableCoroutine) {
+        Coroutine::after_safepoint(thread());
+    }
+
     // If we have a pending async exception deoptimize the frame
     // as otherwise we may never deliver it.
     if (thread()->has_async_condition()) {
@@ -1189,9 +1193,6 @@ void ThreadSafepointState::handle_polling_page_exception() {
 
         fatal("Exception installed and deoptimization is pending");
       }
-    }
-    if (EnableCoroutine) {
-      Coroutine::after_safepoint(thread());
     }
   }
 }

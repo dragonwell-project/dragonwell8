@@ -346,6 +346,7 @@ class WispThread: public JavaThread {
   friend class Coroutine;
 private:
   static bool _wisp_booted;
+  static Method* yieldMethod;
   static Method* parkMethod;
   static Method* unparkMethod;
   static Method* runOutsideWispMethod;
