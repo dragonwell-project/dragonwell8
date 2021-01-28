@@ -474,14 +474,14 @@ public class Metrics implements jdk.internal.platform.Metrics {
     }
 
     public long getMemoryAndSwapFailCount() {
-        if (!memory.isSwapEnabled()) {
+        if (memory != null && !memory.isSwapEnabled()) {
             return getMemoryFailCount();
         }
         return SubSystem.getLongValue(memory, "memory.memsw.failcnt");
     }
 
     public long getMemoryAndSwapLimit() {
-        if (!memory.isSwapEnabled()) {
+        if (memory != null && !memory.isSwapEnabled()) {
             return getMemoryLimit();
         }
         long retval = SubSystem.getLongValue(memory, "memory.memsw.limit_in_bytes");
@@ -500,14 +500,14 @@ public class Metrics implements jdk.internal.platform.Metrics {
     }
 
     public long getMemoryAndSwapMaxUsage() {
-        if (!memory.isSwapEnabled()) {
+        if (memory != null && !memory.isSwapEnabled()) {
             return getMemoryMaxUsage();
         }
         return SubSystem.getLongValue(memory, "memory.memsw.max_usage_in_bytes");
     }
 
     public long getMemoryAndSwapUsage() {
-        if (!memory.isSwapEnabled()) {
+        if (memory != null && !memory.isSwapEnabled()) {
             return getMemoryUsage();
         }
         return SubSystem.getLongValue(memory, "memory.memsw.usage_in_bytes");
