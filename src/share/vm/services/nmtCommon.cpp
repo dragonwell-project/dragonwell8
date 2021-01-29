@@ -42,6 +42,8 @@ const char* NMTUtil::_memory_type_names[] = {
   "Tracing",
   "Tenant",
   "Wisp",
+  "CoroutineStack",
+  "Coroutine",
   "Unknown"
 };
 

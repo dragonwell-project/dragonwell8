@@ -110,7 +110,8 @@ void MemSummaryReporter::report() {
   for (int index = 0; index < mt_number_of_types; index ++) {
     MEMFLAGS flag = NMTUtil::index_to_flag(index);
     // thread stack is reported as part of thread category
-    if (flag == mtThreadStack) continue;
+    if ((flag == mtThreadStack) ||
+        (!EnableCoroutine && (flag == mtWisp || flag == mtCoroutine || flag == mtCoroutineStack)))           continue;
     MallocMemory* malloc_memory = _malloc_snapshot->by_type(flag);
     VirtualMemory* virtual_memory = _vm_snapshot->by_type(flag);
 

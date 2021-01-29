@@ -155,9 +155,12 @@ enum MemoryType {
   mtTest              = 0x0D,  // Test type for verifying NMT
   mtTracing           = 0x0E,  // memory used for Tracing
   mtTenant            = 0x0F,  // memory used by MultiTenant code
-  mtWisp              = 0x10,  // memory used by Wisp code
-  mtNone              = 0x11,  // undefined
-  mt_number_of_types  = 0x12   // number of memory types (mtDontTrack
+  mtWisp              = 0x10,  // memory used by Wisp code, such as WispResourceArea
+                               // _proxy_unpark SystemDictMonitor Coroutine CoroutineStack and so on
+  mtCoroutineStack    = 0x11,  // memory used by Wisp Coroutine Stack Space
+  mtCoroutine         = 0x12,  // memory used by Wisp Coroutine Wrapper
+  mtNone              = 0x13,  // undefined
+  mt_number_of_types  = 0x14   // number of memory types (mtDontTrack
                                  // is not included as validate type)
 };
 

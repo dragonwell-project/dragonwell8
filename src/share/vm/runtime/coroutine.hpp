@@ -81,7 +81,7 @@ public:
 class WispPostStealHandleUpdateMark;
 class WispResourceArea;
 
-class Coroutine: public CHeapObj<mtThread>, public DoublyLinkedList<Coroutine> {
+class Coroutine: public CHeapObj<mtCoroutine>, public DoublyLinkedList<Coroutine> {
 public:
   enum CoroutineState {
     _created    = 0x00000000,      // not inited
@@ -251,7 +251,7 @@ public:
   static ByteSize wisp_thread_offset()        { return byte_offset_of(Coroutine, _wisp_thread); }
 };
 
-class CoroutineStack: public CHeapObj<mtThread>, public DoublyLinkedList<CoroutineStack> {
+class CoroutineStack: public CHeapObj<mtCoroutine>, public DoublyLinkedList<CoroutineStack> {
 private:
   JavaThread*     _thread;
 

@@ -411,6 +411,8 @@ CoroutineStack* CoroutineStack::create_stack(JavaThread* thread, intptr_t size/*
   stack->_last_sp = NULL;
   stack->_default_size = default_size;
 
+  MemTracker::record_virtual_memory_type((address)stack->_reserved_space.base(), mtCoroutineStack);
+
   if (os::uses_stack_guard_pages()) {
     address low_addr = stack->stack_base() - stack->stack_size();
     size_t len = (StackYellowPages + StackRedPages) * os::vm_page_size();
