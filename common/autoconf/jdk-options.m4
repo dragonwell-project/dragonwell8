@@ -161,9 +161,6 @@ AC_DEFUN_ONCE([JDKOPT_SETUP_JVM_VARIANTS],
   if test "x$VAR_CPU" = xppc64 -o "x$VAR_CPU" = xppc64le ; then
     INCLUDE_SA=false
   fi
-  if test "x$OPENJDK_TARGET_CPU" = xaarch64; then
-    INCLUDE_SA=false
-  fi
   AC_SUBST(INCLUDE_SA)
 
   if test "x$OPENJDK_TARGET_OS" = "xmacosx"; then
