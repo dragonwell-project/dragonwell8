@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,11 +24,6 @@
  */
 package jdk.jfr.jvm;
 
-import java.io.IOException;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
-import java.io.InputStream;
-import java.io.OutputStream;
 import java.lang.reflect.Field;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -59,30 +54,9 @@ public class TestDumpOnCrash {
     private static final CharSequence LOG_FILE_EXTENSION = ".log";
     private static final CharSequence JFR_FILE_EXTENSION = ".jfr";
 
-    private static String readString(Path path) throws IOException {
-        try (InputStream in = new FileInputStream(path.toFile())) {
-            byte[] bytes = new byte[32];
-            int length = in.read(bytes);
-            Asserts.assertTrue(length < bytes.length, "bytes array to small");
-            if (length == -1) {
-                return null;
-            }
-            return new String(bytes, 0, length);
-        }
-    }
-
-    private static void writeString(Path path, String content) throws IOException {
-        try (OutputStream out = new FileOutputStream(path.toFile())) {
-            out.write(content.getBytes());
-        }
-    }
-
-    static class CrasherIllegalAccess {
+    static class Crasher {
         public static void main(String[] args) {
           try {
-            Path pidPath = Paths.get(args[1]);
-            writeString(pidPath, ProcessTools.getProcessId() + "@");
-
             Field theUnsafeRefLocation = Unsafe.class.getDeclaredField("theUnsafe");
             theUnsafeRefLocation.setAccessible(true);
             ((Unsafe)theUnsafeRefLocation.get(null)).putInt(0L, 0);
@@ -93,76 +67,44 @@ public class TestDumpOnCrash {
         }
     }
 
-    static class CrasherHalt {
-        public static void main(String[] args) throws Exception {
-            Path pidPath = Paths.get(args[1]);
-            writeString(pidPath, ProcessTools.getProcessId() + "@");
-
-            System.out.println("Running Runtime.getRuntime.halt");
-            Runtime.getRuntime().halt(17);
-        }
-    }
-
-    static class CrasherSig {
-        public static void main(String[] args) throws Exception {
-            long pid = Long.valueOf(ProcessTools.getProcessId());
-            Path pidPath = Paths.get(args[1]);
-            writeString(pidPath, pid + "@");
-
-            String signalName = args[0];
-            System.out.println("Sending SIG" + signalName + " to process " + pid);
-            Runtime.getRuntime().exec("kill -" + signalName + " " + pid).waitFor();
-        }
-    }
-
     public static void main(String[] args) throws Exception {
-        verify(runProcess(CrasherIllegalAccess.class.getName(), ""));
-        verify(runProcess(CrasherHalt.class.getName(), ""));
-
-        // Verification is excluded for the test case below until 8219680 is fixed
-        long pid = runProcess(CrasherSig.class.getName(), "FPE");
-        // @ignore 8219680
-        // verify(pid);
+        processOutput(runProcess());
     }
 
-    private static long runProcess(String crasher, String signal) throws Exception {
-        System.out.println("Test case for crasher " + crasher);
-        Path pidPath = Paths.get("pid-" + System.currentTimeMillis()).toAbsolutePath();
-        Process p = ProcessTools.createJavaProcessBuilder(true,
+    private static OutputAnalyzer runProcess() throws Exception {
+        return new OutputAnalyzer(
+            ProcessTools.createJavaProcessBuilder(true,
                 "-Xmx64m",
+                "-Xint",
                 "-XX:-TransmitErrorReport",
                 "-XX:-CreateMinidumpOnCrash",
                 /*"--add-exports=java.base/jdk.internal.misc=ALL-UNNAMED",*/
-                "-XX:StartFlightRecording",
-                crasher,
-                signal,
-                pidPath.toString())
-            .start();
-
-        OutputAnalyzer output = new OutputAnalyzer(p);
-        System.out.println("========== Crasher process output:");
-        System.out.println(output.getOutput());
-        System.out.println("==================================");
-
-        String pidStr;
-        do {
-            pidStr = readString(pidPath);
-        } while (pidStr == null || !pidStr.endsWith("@"));
-
-        return Long.valueOf(pidStr.substring(0, pidStr.length() - 1));
+                "-XX:StartFlightRecording=dumponexit=true",
+                Crasher.class.getName()).start());
     }
 
-    private static void verify(long pid) throws IOException {
-        String fileName = "hs_err_pid" + pid + ".jfr";
-        Path file = Paths.get(fileName).toAbsolutePath().normalize();
+    private static void processOutput(OutputAnalyzer output) throws Exception {
+        //output.shouldContain("CreateCoredumpOnCrash turned off, no core file dumped");
 
-        Asserts.assertTrue(Files.exists(file), "No emergency jfr recording file " + file + " exists");
-        Asserts.assertNotEquals(Files.size(file), 0L, "File length 0. Should at least be some bytes");
-        System.out.printf("File size=%d%n", Files.size(file));
+        final Path jfrEmergencyFilePath = getHsErrJfrPath(output);
+        Asserts.assertTrue(Files.exists(jfrEmergencyFilePath), "No emergency jfr recording file " + jfrEmergencyFilePath + " exists");
+        Asserts.assertNotEquals(Files.size(jfrEmergencyFilePath), 0L, "File length 0. Should at least be some bytes");
+        System.out.printf("File size=%d%n", Files.size(jfrEmergencyFilePath));
 
-        List<RecordedEvent> events = RecordingFile.readAllEvents(file);
+        List<RecordedEvent> events = RecordingFile.readAllEvents(jfrEmergencyFilePath);
         Asserts.assertFalse(events.isEmpty(), "No event found");
         System.out.printf("Found event %s%n", events.get(0).getEventType().getName());
+    }
+
+    private static Path getHsErrJfrPath(OutputAnalyzer output) throws Exception {
+        // extract to find hs-err_pid log file location
+        final String hs_err_pid_log_file = output.firstMatch("# *(\\S*hs_err_pid\\d+\\.log)", 1);
+        if (hs_err_pid_log_file == null) {
+            throw new RuntimeException("Did not find hs_err_pid.log file in output.\n");
+        }
+        // the dumped out jfr file should have the same name and location but with a .jfr extension
+        final String hs_err_pid_jfr_file = hs_err_pid_log_file.replace(LOG_FILE_EXTENSION, JFR_FILE_EXTENSION);
+        return Paths.get(hs_err_pid_jfr_file);
     }
 }
 
