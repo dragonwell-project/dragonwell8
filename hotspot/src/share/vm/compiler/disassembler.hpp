@@ -81,6 +81,9 @@ class Disassembler {
 #ifdef TARGET_ARCH_x86
 # include "disassembler_x86.hpp"
 #endif
+#ifdef TARGET_ARCH_aarch64
+# include "disassembler_aarch64.hpp"
+#endif
 #ifdef TARGET_ARCH_sparc
 # include "disassembler_sparc.hpp"
 #endif

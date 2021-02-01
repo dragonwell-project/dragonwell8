@@ -164,6 +164,9 @@ class Runtime1: public AllStatic {
   static int move_appendix_patching(JavaThread* thread);
 
   static void patch_code(JavaThread* thread, StubID stub_id);
+#ifdef TARGET_ARCH_aarch64
+  static void patch_code_aarch64(JavaThread* thread, StubID stub_id);
+#endif
 
  public:
   // initialization

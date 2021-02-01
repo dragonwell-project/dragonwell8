@@ -95,6 +95,19 @@ public class SHAOptionsBase extends CommandLineOptionTest {
                 default:
                     throw new Error("Unexpected option " + optionName);
             }
+        } else if (Platform.isAArch64()) {
+            switch (optionName) {
+                case SHAOptionsBase.USE_SHA_OPTION:
+                    return SHAOptionsBase.SHA_INSTRUCTIONS_ARE_NOT_AVAILABLE;
+                case SHAOptionsBase.USE_SHA1_INTRINSICS_OPTION:
+                    return SHAOptionsBase.SHA1_INSTRUCTION_IS_NOT_AVAILABLE;
+                case SHAOptionsBase.USE_SHA256_INTRINSICS_OPTION:
+                    return SHAOptionsBase.SHA256_INSTRUCTION_IS_NOT_AVAILABLE;
+                case SHAOptionsBase.USE_SHA512_INTRINSICS_OPTION:
+                    return SHAOptionsBase.SHA512_INSTRUCTION_IS_NOT_AVAILABLE;
+                default:
+                    throw new Error("Unexpected option " + optionName);
+            }
         } else {
             throw new Error("Support for CPUs other then X86 or SPARC is not "
                     + "implemented.");

@@ -53,6 +53,10 @@
 # include "register_ppc.hpp"
 # include "vm_version_ppc.hpp"
 #endif
+#ifdef TARGET_ARCH_aarch64
+# include "register_aarch64.hpp"
+# include "vm_version_aarch64.hpp"
+#endif
 
 // This file contains platform-independent assembler declarations.
 
@@ -447,6 +451,9 @@ class AbstractAssembler : public ResourceObj  {
 
 #ifdef TARGET_ARCH_x86
 # include "assembler_x86.hpp"
+#endif
+#ifdef TARGET_ARCH_aarch64
+# include "assembler_aarch64.hpp"
 #endif
 #ifdef TARGET_ARCH_sparc
 # include "assembler_sparc.hpp"

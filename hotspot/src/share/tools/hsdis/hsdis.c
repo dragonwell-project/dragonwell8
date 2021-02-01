@@ -492,6 +492,9 @@ static const char* native_arch_name() {
 #if defined(LIBARCH_ppc64) || defined(LIBARCH_ppc64le)
   res = "powerpc:common64";
 #endif
+#ifdef LIBARCH_aarch64
+  res = "aarch64";
+#endif
   if (res == NULL)
     res = "architecture not set in Makefile!";
   return res;
