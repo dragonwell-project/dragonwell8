@@ -44,6 +44,9 @@ InterpreterGenerator(StubQueue* _code);
 #ifdef TARGET_ARCH_x86
 # include "interpreterGenerator_x86.hpp"
 #endif
+#ifdef TARGET_ARCH_aarch64
+# include "interpreterGenerator_aarch64.hpp"
+#endif
 #ifdef TARGET_ARCH_sparc
 # include "interpreterGenerator_sparc.hpp"
 #endif

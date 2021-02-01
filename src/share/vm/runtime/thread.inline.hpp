@@ -59,7 +59,7 @@ inline jlong Thread::cooked_allocated_bytes() {
   return allocated_bytes;
 }
 
-#ifdef PPC64
+#if defined(PPC64) || defined (AARCH64)
 inline JavaThreadState JavaThread::thread_state() const    {
   return (JavaThreadState) OrderAccess::load_acquire((volatile jint*)&_thread_state);
 }

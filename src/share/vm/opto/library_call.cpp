@@ -2712,6 +2712,9 @@ bool LibraryCallKit::inline_unsafe_access(bool is_native_ptr, bool is_store, Bas
   // and it is not possible to fully distinguish unintended nulls
   // from intended ones in this API.
 
+  Node* load = NULL;
+  Node* store = NULL;
+  Node* leading_membar = NULL;
   if (is_volatile) {
     // We need to emit leading and trailing CPU membars (see below) in
     // addition to memory membars when is_volatile. This is a little
@@ -2722,10 +2725,10 @@ bool LibraryCallKit::inline_unsafe_access(bool is_native_ptr, bool is_store, Bas
     need_mem_bar = true;
     // For Stores, place a memory ordering barrier now.
     if (is_store) {
-      insert_mem_bar(Op_MemBarRelease);
+      leading_membar = insert_mem_bar(Op_MemBarRelease);
     } else {
       if (support_IRIW_for_not_multiple_copy_atomic_cpu) {
-        insert_mem_bar(Op_MemBarVolatile);
+        leading_membar = insert_mem_bar(Op_MemBarVolatile);
       }
     }
   }
@@ -2742,7 +2745,7 @@ bool LibraryCallKit::inline_unsafe_access(bool is_native_ptr, bool is_store, Bas
     MemNode::MemOrd mo = is_volatile ? MemNode::acquire : MemNode::unordered;
     // To be valid, unsafe loads may depend on other conditions than
     // the one that guards them: pin the Load node
-    Node* p = make_load(control(), adr, value_type, type, adr_type, mo, LoadNode::Pinned, is_volatile, unaligned, mismatched);
+    load = make_load(control(), adr, value_type, type, adr_type, mo, LoadNode::Pinned, is_volatile, unaligned, mismatched);
     // load value
     switch (type) {
     case T_BOOLEAN:
@@ -2756,13 +2759,13 @@ bool LibraryCallKit::inline_unsafe_access(bool is_native_ptr, bool is_store, Bas
       break;
     case T_OBJECT:
       if (need_read_barrier) {
-        insert_pre_barrier(heap_base_oop, offset, p, !(is_volatile || need_mem_bar));
+        insert_pre_barrier(heap_base_oop, offset, load, !(is_volatile || need_mem_bar));
       }
       break;
     case T_ADDRESS:
       // Cast to an int type.
-      p = _gvn.transform(new (C) CastP2XNode(NULL, p));
-      p = ConvX2UL(p);
+      load = _gvn.transform(new (C) CastP2XNode(NULL, load));
+      load = ConvX2UL(load);
       break;
     default:
       fatal(err_msg_res("unexpected type %d: %s", type, type2name(type)));
@@ -2772,7 +2775,7 @@ bool LibraryCallKit::inline_unsafe_access(bool is_native_ptr, bool is_store, Bas
     // following nodes will have the control of the MemBarCPUOrder inserted at
     // the end of this method.  So, pushing the load onto the stack at a later
     // point is fine.
-    set_result(p);
+    set_result(load);
   } else {
     // place effect of store into memory
     switch (type) {
@@ -2788,18 +2791,20 @@ bool LibraryCallKit::inline_unsafe_access(bool is_native_ptr, bool is_store, Bas
 
     MemNode::MemOrd mo = is_volatile ? MemNode::release : MemNode::unordered;
     if (type == T_OBJECT ) {
-      (void) store_oop_to_unknown(control(), heap_base_oop, adr, adr_type, val, type, mo, mismatched);
+      store = store_oop_to_unknown(control(), heap_base_oop, adr, adr_type, val, type, mo, mismatched);
     } else {
-      (void) store_to_memory(control(), adr, val, type, adr_type, mo, is_volatile, unaligned, mismatched);
+      store = store_to_memory(control(), adr, val, type, adr_type, mo, is_volatile, unaligned, mismatched);
     }
   }
 
   if (is_volatile) {
     if (!is_store) {
-      insert_mem_bar(Op_MemBarAcquire);
+      Node* mb = insert_mem_bar(Op_MemBarAcquire, load);
+      mb->as_MemBar()->set_trailing_load();
     } else {
       if (!support_IRIW_for_not_multiple_copy_atomic_cpu) {
-        insert_mem_bar(Op_MemBarVolatile);
+        Node* mb = insert_mem_bar(Op_MemBarVolatile, store);
+        MemBarNode::set_store_pair(leading_membar->as_MemBar(), mb->as_MemBar());
       }
     }
   }
@@ -2999,7 +3004,7 @@ bool LibraryCallKit::inline_unsafe_load_store(BasicType type, LoadStoreKind kind
   // into actual barriers on most machines, but we still need rest of
   // compiler to respect ordering.
 
-  insert_mem_bar(Op_MemBarRelease);
+  Node* leading_membar = insert_mem_bar(Op_MemBarRelease);
   insert_mem_bar(Op_MemBarCPUOrder);
 
   // 4984716: MemBars must be inserted before this
@@ -3098,6 +3103,8 @@ bool LibraryCallKit::inline_unsafe_load_store(BasicType type, LoadStoreKind kind
   Node* proj = _gvn.transform(new (C) SCMemProjNode(load_store));
   set_memory(proj, alias_idx);
 
+  Node* access = load_store;
+
   if (type == T_OBJECT && kind == LS_xchg) {
 #ifdef _LP64
     if (adr->bottom_type()->is_ptr_to_narrowoop()) {
@@ -3117,7 +3124,8 @@ bool LibraryCallKit::inline_unsafe_load_store(BasicType type, LoadStoreKind kind
 
   // Add the trailing membar surrounding the access
   insert_mem_bar(Op_MemBarCPUOrder);
-  insert_mem_bar(Op_MemBarAcquire);
+  Node* mb = insert_mem_bar(Op_MemBarAcquire, access);
+  MemBarNode::set_load_store_pair(leading_membar->as_MemBar(), mb->as_MemBar());
 
   assert(type2size[load_store->bottom_type()->basic_type()] == type2size[rtype], "result type should match");
   set_result(load_store);
@@ -6357,8 +6365,9 @@ Node * LibraryCallKit::load_field_from_object(Node * fromObj, const char * field
     type = Type::get_const_basic_type(bt);
   }
 
+  Node* leading_membar = NULL;
   if (support_IRIW_for_not_multiple_copy_atomic_cpu && is_vol) {
-    insert_mem_bar(Op_MemBarVolatile);   // StoreLoad barrier
+    leading_membar = insert_mem_bar(Op_MemBarVolatile);   // StoreLoad barrier
   }
   // Build the load.
   MemNode::MemOrd mo = is_vol ? MemNode::acquire : MemNode::unordered;
@@ -6368,7 +6377,8 @@ Node * LibraryCallKit::load_field_from_object(Node * fromObj, const char * field
   // another volatile read.
   if (is_vol) {
     // Memory barrier includes bogus read of value to force load BEFORE membar
-    insert_mem_bar(Op_MemBarAcquire, loadedField);
+    Node* mb = insert_mem_bar(Op_MemBarAcquire, loadedField);
+    mb->as_MemBar()->set_trailing_load();
   }
   return loadedField;
 }

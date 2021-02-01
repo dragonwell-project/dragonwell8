@@ -327,6 +327,8 @@ public:
                                const Type* limit_type) const
   { ShouldNotCallThis(); return NULL; }
 
+  virtual PhaseIterGVN *is_IterGVN() { return 0; }
+
 #ifndef PRODUCT
   void dump_old2new_map() const;
   void dump_new( uint new_lidx ) const;

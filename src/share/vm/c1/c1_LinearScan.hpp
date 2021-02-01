@@ -976,6 +976,9 @@ class LinearScanTimers : public StackObj {
 #ifdef TARGET_ARCH_x86
 # include "c1_LinearScan_x86.hpp"
 #endif
+#ifdef TARGET_ARCH_aarch64
+# include "c1_LinearScan_aarch64.hpp"
+#endif
 #ifdef TARGET_ARCH_sparc
 # include "c1_LinearScan_sparc.hpp"
 #endif

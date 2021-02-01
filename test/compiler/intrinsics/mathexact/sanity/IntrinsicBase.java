@@ -129,7 +129,7 @@ public abstract class IntrinsicBase extends CompilerWhiteBoxTest {
 
         @Override
         protected boolean isIntrinsicSupported() {
-            return isServerVM() && Boolean.valueOf(useMathExactIntrinsics) && (Platform.isX86() || Platform.isX64());
+            return isServerVM() && Boolean.valueOf(useMathExactIntrinsics) && (Platform.isX86() || Platform.isX64() ||  Platform.isAArch64());
         }
 
         @Override
@@ -145,7 +145,7 @@ public abstract class IntrinsicBase extends CompilerWhiteBoxTest {
 
         @Override
         protected boolean isIntrinsicSupported() {
-            return isServerVM() && Boolean.valueOf(useMathExactIntrinsics) && Platform.isX64();
+            return isServerVM() && Boolean.valueOf(useMathExactIntrinsics) && (Platform.isX64() || Platform.isAArch64());
         }
 
         @Override

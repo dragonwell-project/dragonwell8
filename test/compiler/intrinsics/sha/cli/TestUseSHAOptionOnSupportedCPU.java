@@ -38,6 +38,8 @@ public class TestUseSHAOptionOnSupportedCPU {
                 new GenericTestCaseForSupportedSparcCPU(
                         SHAOptionsBase.USE_SHA_OPTION),
                 new UseSHASpecificTestCaseForSupportedSparcCPU(
+                        SHAOptionsBase.USE_SHA_OPTION),
+                new GenericTestCaseForSupportedAArch64CPU(
                         SHAOptionsBase.USE_SHA_OPTION)).test();
     }
 }

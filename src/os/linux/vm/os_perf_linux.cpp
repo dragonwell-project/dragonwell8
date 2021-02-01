@@ -32,6 +32,9 @@
 #ifdef TARGET_ARCH_aarch32
 # include "vm_version_ext_aarch32.hpp"
 #endif
+#ifdef TARGET_ARCH_aarch64
+# include "vm_version_ext_aarch64.hpp"
+#endif
 #ifdef TARGET_ARCH_x86
 # include "vm_version_ext_x86.hpp"
 #endif

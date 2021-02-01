@@ -1607,6 +1607,11 @@ void LIRGenerator::CardTableModRef_post_barrier(LIR_OprDesc* addr, LIR_OprDesc* 
   } else {
     __ unsigned_shift_right(addr, CardTableModRefBS::card_shift, tmp);
   }
+
+  if (UseConcMarkSweepGC && CMSPrecleaningEnabled) {
+    __ membar_storestore();
+  }
+
   if (can_inline_as_constant(card_table_base)) {
     __ move(LIR_OprFact::intConst(0),
               new LIR_Address(tmp, card_table_base->as_jint(), T_BYTE));
@@ -2105,7 +2110,7 @@ void LIRGenerator::do_UnsafeGetRaw(UnsafeGetRaw* x) {
     assert(index_op->type() == T_INT, "only int constants supported");
     addr = new LIR_Address(base_op, index_op->as_jint(), dst_type);
   } else {
-#ifdef X86
+#if defined(X86) || defined(AARCH64)
     addr = new LIR_Address(base_op, index_op, LIR_Address::Scale(log2_scale), 0, dst_type);
 #elif defined(GENERATE_ADDRESS_IS_PREFERRED)
     addr = generate_address(base_op, index_op, log2_scale, 0, dst_type);
