@@ -27,6 +27,7 @@ package java.dyn;
 
 import com.alibaba.wisp.engine.WispTask;
 import sun.misc.Contended;
+import sun.misc.JavaLangAccess;
 import sun.misc.SharedSecrets;
 import sun.reflect.generics.reflectiveObjects.NotImplementedException;
 
@@ -39,7 +40,7 @@ public class CoroutineSupport {
     private static final boolean CHECK_LOCK = true;
     private static final int SPIN_BACKOFF_LIMIT = 2 << 8;
 
-    private static AtomicInteger idGen = new AtomicInteger();
+    private final static AtomicInteger idGen = new AtomicInteger();
 
     // The thread that this CoroutineSupport belongs to. There's only one CoroutineSupport per Thread
     private final Thread thread;
@@ -60,7 +61,8 @@ public class CoroutineSupport {
     }
 
     public CoroutineSupport(Thread thread) {
-        if (thread.getCoroutineSupport() != null) {
+        JavaLangAccess jla = SharedSecrets.getJavaLangAccess();
+        if (jla != null && jla.getCoroutineSupport(thread) != null) {
             throw new IllegalArgumentException("Cannot instantiate CoroutineThreadSupport for existing Thread");
         }
         id = idGen.incrementAndGet();
@@ -194,7 +196,8 @@ public class CoroutineSupport {
      */
     void terminateCoroutine() {
         assert currentCoroutine != threadCoroutine : "cannot exit thread coroutine";
-        assert currentCoroutine != getNextCoroutine(currentCoroutine.nativeCoroutine) : "last coroutine shouldn't call coroutineexit";
+        assert currentCoroutine != getNextCoroutine(currentCoroutine.nativeCoroutine) :
+                "last coroutine shouldn't call coroutineexit";
 
         lock();
         Coroutine old = currentCoroutine;
@@ -215,7 +218,8 @@ public class CoroutineSupport {
     Coroutine.StealResult steal(Coroutine coroutine, boolean failOnContention) {
         assert coroutine.threadSupport.threadCoroutine() != coroutine;
         CoroutineSupport source = this;
-        CoroutineSupport target = SharedSecrets.getJavaLangAccess().currentThread0().getCoroutineSupport();
+        JavaLangAccess jla = SharedSecrets.getJavaLangAccess();
+        CoroutineSupport target = jla.getCoroutineSupport(jla.currentThread0());
 
         if (source == target) {
             return Coroutine.StealResult.SUCCESS;
@@ -371,7 +375,7 @@ public class CoroutineSupport {
 
     /**
      * this will turn on a safepoint to stop all threads.
-     * @param coroPtr
+     * @param coroPtr coroutine pointer used in VM.
      * @return target coroutine's stack
      */
     public static native StackTraceElement[] getCoroutineStack(long coroPtr);

@@ -285,7 +285,7 @@ class Thread implements Runnable {
     volatile boolean wispIsAlive;
     // wispTask is set by carrier thread async, so we need additional flag
 
-    public CoroutineSupport getCoroutineSupport() {
+    CoroutineSupport getCoroutineSupport() {
         if (coroutineSupport != null) {
             return coroutineSupport;
         }
@@ -391,7 +391,7 @@ class Thread implements Runnable {
         }
     }
 
-    public static native void sleep0(long millis) throws InterruptedException;
+    private static native void sleep0(long millis) throws InterruptedException;
 
     /**
      * Causes the currently executing thread to sleep (temporarily cease

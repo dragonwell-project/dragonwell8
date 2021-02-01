@@ -108,7 +108,9 @@ class SocketChannelImpl
         this.fd = Net.socket(true);
         this.fdVal = IOUtil.fdVal(fd);
         this.state = ST_UNCONNECTED;
-        configureAsNonBlockingForWisp(fd);
+        if (WispEngine.transparentWispSwitch()) {
+            IOUtil.configureBlocking(fd, false);
+        }
     }
 
     SocketChannelImpl(SelectorProvider sp,
@@ -122,7 +124,9 @@ class SocketChannelImpl
         this.state = ST_UNCONNECTED;
         if (bound)
             this.localAddress = Net.localAddress(fd);
-        configureAsNonBlockingForWisp(fd);
+        if (WispEngine.transparentWispSwitch()) {
+            IOUtil.configureBlocking(fd, false);
+        }
     }
 
     // Constructor for sockets obtained from server sockets
@@ -137,7 +141,9 @@ class SocketChannelImpl
         this.state = ST_CONNECTED;
         this.localAddress = Net.localAddress(fd);
         this.remoteAddress = remote;
-        configureAsNonBlockingForWisp(fd);
+        if (WispEngine.transparentWispSwitch()) {
+            IOUtil.configureBlocking(fd, false);
+        }
     }
 
     public Socket socket() {

@@ -25,6 +25,8 @@
 
 package java.net;
 
+import sun.misc.JavaNetSocketAccess;
+import sun.misc.SharedSecrets;
 import sun.security.util.SecurityConstants;
 import com.alibaba.wisp.engine.WispEngine;
 import sun.nio.ch.WispSocketImpl;
@@ -95,7 +97,7 @@ class Socket implements java.io.Closeable {
         setImpl();
     }
 
-    public Socket(SocketChannel sc) {
+    private Socket(SocketChannel sc) {
         if (!WispEngine.transparentWispSwitch())
             throw new UnsupportedOperationException();
         asyncImpl = new WispSocketImpl(sc, this);
@@ -1930,5 +1932,14 @@ class Socket implements java.io.Closeable {
                                           int bandwidth)
     {
         /* Not implemented yet */
+    }
+
+    static {
+        SharedSecrets.setJavaNetSocketAccess(new JavaNetSocketAccess() {
+            @Override
+            public Socket createSocketFromChannel(SocketChannel channel) {
+                return new Socket(channel);
+            }
+        });
     }
 }

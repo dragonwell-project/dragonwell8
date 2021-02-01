@@ -321,7 +321,9 @@ public class WispTask implements Comparable<WispTask> {
         next.from = current;
         STEAL_LOCK_UPDATER.lazySet(next, 1);
         // store load barrier is not necessary
-        boolean res = current.carrier.thread.getCoroutineSupport().unsafeSymmetricYieldTo(next.ctx);
+        assert current.carrier.thread == WispEngine.JLA.currentThread0();
+        boolean res = WispEngine.JLA.getCoroutineSupport(current.carrier.thread)
+                .unsafeSymmetricYieldTo(next.ctx);
         assert current.stealLock != 0;
         STEAL_LOCK_UPDATER.lazySet(current.from, 0);
         assert WispCarrier.current() == current.carrier;

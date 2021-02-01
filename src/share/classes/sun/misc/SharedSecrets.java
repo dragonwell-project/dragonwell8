@@ -54,6 +54,7 @@ public class SharedSecrets {
     private static JavaLangRefAccess javaLangRefAccess;
     private static JavaIOAccess javaIOAccess;
     private static JavaNetAccess javaNetAccess;
+    private static JavaNetSocketAccess javaNetSocketAccess;
     private static JavaNetHttpCookieAccess javaNetHttpCookieAccess;
     private static JavaNioAccess javaNioAccess;
     private static JavaIOFileDescriptorAccess javaIOFileDescriptorAccess;
@@ -105,6 +106,14 @@ public class SharedSecrets {
 
     public static JavaNetAccess getJavaNetAccess() {
         return javaNetAccess;
+    }
+
+    public static void setJavaNetSocketAccess(JavaNetSocketAccess javaNetSocketAccess) {
+        SharedSecrets.javaNetSocketAccess = javaNetSocketAccess;
+    }
+
+    public static JavaNetSocketAccess getJavaNetSocketAccess() {
+        return javaNetSocketAccess;
     }
 
     public static void setJavaNetHttpCookieAccess(JavaNetHttpCookieAccess a) {

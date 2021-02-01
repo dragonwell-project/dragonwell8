@@ -87,7 +87,9 @@ class SinkChannelImpl
         this.fdVal = IOUtil.fdVal(fd);
         this.state = ST_INUSE;
         try {
-            configureAsNonBlockingForWisp(fd);
+            if (WispEngine.transparentWispSwitch()) {
+                IOUtil.configureBlocking(fd, false);
+            }
         } catch (IOException e) {
             throw new UncheckedIOException("Unexpected error at configureAsNonBlockingForWisp", e);
         }

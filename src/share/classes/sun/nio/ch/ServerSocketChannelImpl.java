@@ -91,7 +91,9 @@ class ServerSocketChannelImpl
         this.fd =  Net.serverSocket(true);
         this.fdVal = IOUtil.fdVal(fd);
         this.state = ST_INUSE;
-        configureAsNonBlockingForWisp(fd);
+        if (WispEngine.transparentWispSwitch()) {
+            IOUtil.configureBlocking(fd, false);
+        }
     }
 
     ServerSocketChannelImpl(SelectorProvider sp,
@@ -105,7 +107,9 @@ class ServerSocketChannelImpl
         this.state = ST_INUSE;
         if (bound)
             localAddress = Net.localAddress(fd);
-        configureAsNonBlockingForWisp(fd);
+        if (WispEngine.transparentWispSwitch()) {
+            IOUtil.configureBlocking(fd, false);
+        }
     }
 
     public ServerSocket socket() {
@@ -271,7 +275,9 @@ class ServerSocketChannelImpl
             if (n < 1)
                 return null;
 
-            configureAsNonBlockingForWisp(newfd);
+            if (WispEngine.transparentWispSwitch()) {
+                IOUtil.configureBlocking(fd, false);
+            }
             InetSocketAddress isa = isaa[0];
             sc = new SocketChannelImpl(provider(), newfd, isa);
             SecurityManager sm = System.getSecurityManager();

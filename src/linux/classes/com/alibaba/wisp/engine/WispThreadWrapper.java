@@ -45,15 +45,9 @@ class WispThreadWrapper extends Thread {
     }
 
     @Override
-    public CoroutineSupport getCoroutineSupport() {
-        return JLA.getWispTask(this).carrier.thread.getCoroutineSupport();
-    }
-
-    @Override
     public void start() {
         throw new UnsupportedOperationException();
     }
-
 
     @Override
     @Deprecated

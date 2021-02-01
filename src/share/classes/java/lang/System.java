@@ -24,6 +24,7 @@
  */
 package java.lang;
 
+import java.dyn.CoroutineSupport;
 import java.io.*;
 import java.lang.reflect.Executable;
 import java.lang.annotation.Annotation;
@@ -1320,8 +1321,15 @@ public final class System {
             public AbstractResourceContainer getInheritedResourceContainer(Thread thread) {
                 return thread.inheritedResourceContainer;
             }
+
+            @Override
             public Thread currentThread0() {
                 return Thread.currentThread0();
+            }
+
+            @Override
+            public CoroutineSupport getCoroutineSupport(Thread currentThread) {
+                return currentThread.getCoroutineSupport();
             }
 
             @Override

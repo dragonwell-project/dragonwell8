@@ -25,6 +25,7 @@
 
 package java.dyn;
 
+import sun.misc.JavaLangAccess;
 import sun.misc.SharedSecrets;
 
 public abstract class CoroutineBase {
@@ -37,9 +38,10 @@ public abstract class CoroutineBase {
     transient CoroutineSupport threadSupport;
 
     CoroutineBase() {
-        Thread thread = SharedSecrets.getJavaLangAccess().currentThread0();
-        assert thread.getCoroutineSupport() != null;
-        this.threadSupport = thread.getCoroutineSupport();
+        JavaLangAccess jla = SharedSecrets.getJavaLangAccess();
+        Thread thread = jla.currentThread0();
+        assert jla.getCoroutineSupport(thread) != null;
+        this.threadSupport = jla.getCoroutineSupport(thread);
     }
 
     // creates the initial coroutine for a new thread
@@ -88,6 +90,7 @@ public abstract class CoroutineBase {
     }
 
     public static CoroutineBase current() {
-        return SharedSecrets.getJavaLangAccess().currentThread0().getCoroutineSupport().getCurrent();
+        JavaLangAccess jla = SharedSecrets.getJavaLangAccess();
+        return jla.getCoroutineSupport(jla.currentThread0()).getCurrent();
     }
 }

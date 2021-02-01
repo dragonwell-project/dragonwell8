@@ -273,12 +273,6 @@ public abstract class AbstractSelectableChannel
      */
     protected abstract void implCloseSelectableChannel() throws IOException;
 
-    protected void configureAsNonBlockingForWisp(FileDescriptor fd) throws IOException {
-        if (WispEngine.transparentWispSwitch()) {
-            IOUtil.configureBlocking(fd, false);
-        }
-    }
-
     // -- Blocking --
 
     public final boolean isBlocking() {

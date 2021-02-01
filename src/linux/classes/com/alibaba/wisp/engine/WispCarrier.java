@@ -85,7 +85,7 @@ final class WispCarrier implements Comparable<WispCarrier> {
     private WispCarrier(WispEngine engine) {
         thread = WispEngine.JLA.currentThread0();
         this.engine = engine;
-        CoroutineSupport cs = thread.getCoroutineSupport();
+        CoroutineSupport cs = WispEngine.JLA.getCoroutineSupport(thread);
         current = threadTask = new WispTask(this,
                 cs == null ? null : cs.threadCoroutine(),
                 cs != null, true);

@@ -101,7 +101,7 @@ public class WispServerSocketImpl
                 }
             }
             res.configureBlocking(false);
-            return new Socket(res);
+            return SharedSecrets.getJavaNetSocketAccess().createSocketFromChannel(res);
 
         } catch (Exception x) {
             Net.translateException(x, true);

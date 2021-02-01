@@ -25,6 +25,7 @@
 
 package java.dyn;
 
+import sun.misc.JavaLangAccess;
 import sun.misc.SharedSecrets;
 
 /**
@@ -105,7 +106,8 @@ public class Coroutine extends CoroutineBase {
 
 
     public static void yieldTo(Coroutine target) {
-        SharedSecrets.getJavaLangAccess().currentThread0().getCoroutineSupport().symmetricYieldTo(target);
+        JavaLangAccess jla = SharedSecrets.getJavaLangAccess();
+        jla.getCoroutineSupport(jla.currentThread0()).symmetricYieldTo(target);
     }
 
     /**
@@ -116,7 +118,8 @@ public class Coroutine extends CoroutineBase {
      * @param target target coroutine
      */
     public static void unsafeYieldTo(Coroutine target) {
-        SharedSecrets.getJavaLangAccess().currentThread0().getCoroutineSupport().unsafeSymmetricYieldTo(target);
+        JavaLangAccess jla = SharedSecrets.getJavaLangAccess();
+        jla.getCoroutineSupport(jla.currentThread0()).unsafeSymmetricYieldTo(target);
     }
 
     /**
@@ -131,7 +134,8 @@ public class Coroutine extends CoroutineBase {
     }
 
     public void stop() {
-        SharedSecrets.getJavaLangAccess().currentThread0().getCoroutineSupport().symmetricStopCoroutine(this);
+        JavaLangAccess jla = SharedSecrets.getJavaLangAccess();
+        jla.getCoroutineSupport(jla.currentThread0()).symmetricStopCoroutine(this);
     }
 
     public void setWispTask(int id, Object task, Object engine) {

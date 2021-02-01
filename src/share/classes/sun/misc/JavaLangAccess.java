@@ -25,6 +25,7 @@
 
 package sun.misc;
 
+import java.dyn.CoroutineSupport;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Executable;
 import java.security.AccessControlContext;
@@ -157,6 +158,11 @@ public interface JavaLangAccess {
      * Returns a reference to the currently executing thread object.
      */
     Thread currentThread0();
+
+    /**
+     * Get the reference to the thread's coroutine support
+     */
+    CoroutineSupport getCoroutineSupport(Thread currentThread);
 
     void yield0();
 
