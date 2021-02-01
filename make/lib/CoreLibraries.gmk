@@ -173,7 +173,12 @@ ifeq ($(OPENJDK_TARGET_OS), windows)
 endif
 
 # Make it possible to override this variable
-LIBJAVA_MAPFILE ?= $(JDK_TOPDIR)/make/mapfiles/libjava/mapfile-vers
+ifeq ($(OPENJDK_TARGET_OS), linux)
+  # Linux-only symbol Java_jdk_internal_platform_cgroupv1_Metrics_isUseContainerSupport
+  LIBJAVA_MAPFILE ?= $(JDK_TOPDIR)/make/mapfiles/libjava/mapfile-linux
+else
+  LIBJAVA_MAPFILE ?= $(JDK_TOPDIR)/make/mapfiles/libjava/mapfile-vers
+endif
 
 LIBJAVA_CFLAGS := $(foreach dir, $(LIBJAVA_SRC_DIRS), -I$(dir)) \
     -I$(JDK_TOPDIR)/src/share/native/java/lang/fdlibm/include \
@@ -349,16 +354,6 @@ $(eval $(call SetupNativeCompilation,BUILD_LIBUNPACK, \
 $(BUILD_LIBUNPACK): $(BUILD_LIBJAVA)
 
 BUILD_LIBRARIES += $(BUILD_LIBUNPACK)
-
-ifeq ($(OPENJDK_TARGET_OS), windows)
-  $(INSTALL_LIBRARIES_HERE)/$(LIBRARY_PREFIX)unpack.map: $(BUILD_LIBUNPACK)
-	$(ECHO) Copying $(@F)
-	$(CP) $(patsubst %$(SHARED_LIBRARY_SUFFIX), %.map, $<) $@
-
-  $(INSTALL_LIBRARIES_HERE)/$(LIBRARY_PREFIX)unpack.pdb: $(BUILD_LIBUNPACK)
-	$(ECHO) Copying $(@F)
-	$(CP) $(patsubst %$(SHARED_LIBRARY_SUFFIX), %.pdb, $<) $@
-endif
 
 ##########################################################################################
 

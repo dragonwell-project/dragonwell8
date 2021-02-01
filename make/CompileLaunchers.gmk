@@ -231,7 +231,29 @@ $(JDK_OUTPUTDIR)/bin$(OUTPUT_SUBDIR)/java$(EXE_SUFFIX): $(BUILD_LAUNCHER_java)
 	$(RM) $@
 	$(CP) $(JDK_OUTPUTDIR)/objs/java_objs$(OUTPUT_SUBDIR)/java$(EXE_SUFFIX) $@
 
+ifeq ($(ZIP_DEBUGINFO_FILES), true)
+  DEBUGINFO_EXT := .diz
+else ifeq ($(OPENJDK_TARGET_OS), macosx)
+  DEBUGINFO_EXT := .dSYM
+else ifeq ($(OPENJDK_TARGET_OS), windows)
+  DEBUGINFO_EXT := .pdb
+else
+  DEBUGINFO_EXT := .debuginfo
+endif
+
+$(JDK_OUTPUTDIR)/bin$(OUTPUT_SUBDIR)/java$(DEBUGINFO_EXT): $(BUILD_LAUNCHER_java)
+	$(MKDIR) -p $(@D)
+	$(RM) $@
+	$(CP) -R $(JDK_OUTPUTDIR)/objs/java_objs$(OUTPUT_SUBDIR)/java$(DEBUGINFO_EXT) $@
+
 BUILD_LAUNCHERS += $(JDK_OUTPUTDIR)/bin$(OUTPUT_SUBDIR)/java$(EXE_SUFFIX)
+ifeq ($(ENABLE_DEBUG_SYMBOLS), true)
+  ifneq ($(POST_STRIP_CMD), )
+    ifneq ($(STRIP_POLICY), no_strip)
+      BUILD_LAUNCHERS += $(JDK_OUTPUTDIR)/bin$(OUTPUT_SUBDIR)/java$(DEBUGINFO_EXT)
+    endif
+  endif
+endif
 
 ifeq ($(OPENJDK_TARGET_OS), windows)
   $(eval $(call SetupLauncher,javaw, \
@@ -467,6 +489,7 @@ UNPACKEXE_LANG := C
 ifeq ($(OPENJDK_TARGET_OS), solaris)
   UNPACKEXE_LANG := C++
 endif
+UNPACKEXE_DEBUG_SYMBOLS := true
 # On windows, unpack200 is linked completely differently to all other
 # executables, using the compiler with the compiler arguments.
 # It's also linked incrementally, producing a .ilk file that needs to
@@ -475,6 +498,9 @@ ifeq ($(OPENJDK_TARGET_OS), windows)
   BUILD_UNPACKEXE_LDEXE := $(CC)
   EXE_OUT_OPTION_save := $(EXE_OUT_OPTION)
   EXE_OUT_OPTION := -Fe
+  # With the current way unpack200 is built, debug symbols aren't supported
+  # anyway.
+  UNPACKEXE_DEBUG_SYMBOLS :=
 endif
 
 # The linker on older SuSE distros (e.g. on SLES 10) complains with:
@@ -514,7 +540,7 @@ $(eval $(call SetupNativeCompilation,BUILD_UNPACKEXE, \
         -D "JDK_FNAME=unpack200.exe" \
         -D "JDK_INTERNAL_NAME=unpack200" \
         -D "JDK_FTYPE=0x1L", \
-    DEBUG_SYMBOLS := true, \
+    DEBUG_SYMBOLS := $(UNPACKEXE_DEBUG_SYMBOLS), \
     MANIFEST := $(JDK_TOPDIR)/src/windows/resource/unpack200_proto.exe.manifest))
 
 ifeq ($(OPENJDK_TARGET_OS), windows)
@@ -534,7 +560,17 @@ endif
 $(JDK_OUTPUTDIR)/bin$(OUTPUT_SUBDIR)/unpack200$(EXE_SUFFIX): $(BUILD_UNPACKEXE)
 	$(call install-file)
 
+$(JDK_OUTPUTDIR)/bin$(OUTPUT_SUBDIR)/unpack200$(DEBUGINFO_EXT): $(BUILD_UNPACKEXE)
+	$(call install-file)
+
 BUILD_LAUNCHERS += $(JDK_OUTPUTDIR)/bin$(OUTPUT_SUBDIR)/unpack200$(EXE_SUFFIX)
+ifeq ($(ENABLE_DEBUG_SYMBOLS), true)
+  ifneq ($(POST_STRIP_CMD), )
+    ifneq ($(STRIP_POLICY), no_strip)
+      BUILD_LAUNCHERS += $(JDK_OUTPUTDIR)/bin$(OUTPUT_SUBDIR)/unpack200$(DEBUGINFO_EXT)
+    endif
+  endif
+endif
 
 ##########################################################################################
 

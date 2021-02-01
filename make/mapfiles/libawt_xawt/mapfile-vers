@@ -278,7 +278,6 @@ SUNWprivate_1.1 {
         Java_sun_awt_X11_XlibWrapper_XQueryPointer;
         Java_sun_awt_X11_XlibWrapper_XFreeCursor;
         Java_sun_awt_X11_XToolkit_getDefaultXColormap;
-        Java_sun_awt_X11_XToolkit_getDefaultScreenData;
         Java_sun_awt_X11_XToolkit_getEnv;
         Java_sun_awt_X11_XlibWrapper_XCreateBitmapFromData;
         Java_sun_awt_X11_XlibWrapper_XFreePixmap;
