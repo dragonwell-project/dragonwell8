@@ -3499,6 +3499,9 @@ class CommandLineFlags {
   notproduct(bool, CIObjectFactoryVerify, false,                            \
           "enable potentially expensive verification in ciObjectFactory")   \
                                                                             \
+  diagnostic(bool, AbortVMOnCompilationFailure, false,                      \
+          "Abort VM when method had failed to compile.")                    \
+                                                                            \
   /* Priorities */                                                          \
   product_pd(bool, UseThreadPriorities,  "Use native thread priorities")    \
                                                                             \

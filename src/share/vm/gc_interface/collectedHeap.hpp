@@ -333,8 +333,6 @@ class CollectedHeap : public CHeapObj<mtInternal> {
     AllocTracer::send_allocation_outside_tlab_event(klass, obj, alloc_size, thread);
   }
 
-  inline static void post_allocation_install_obj_klass(KlassHandle klass,
-                                                       oop obj);
 #ifdef TARGET_ARCH_aarch64
   virtual uint oop_extra_words();
 #ifndef CC_INTERP

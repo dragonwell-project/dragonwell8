@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -285,8 +285,6 @@ HeapWord* CollectedHeap::allocate_from_tlab_slow(KlassHandle klass, Thread* thre
   if (obj == NULL) {
     return NULL;
   }
-
-  AllocTracer::send_allocation_in_new_tlab_event(klass, obj, new_tlab_size * HeapWordSize, size * HeapWordSize, Thread::current());
 
   if (ZeroTLAB) {
     // ..and clear it.

@@ -322,10 +322,6 @@ class JfrArtifactSet : public JfrCHeapObj {
 
   traceid markPackage(const char* const name, uintptr_t hash, bool leakp);
 
-  const JfrSymbolId::SymbolEntry* map_symbol(const Symbol* symbol) const;
-  const JfrSymbolId::SymbolEntry* map_symbol(uintptr_t hash) const;
-  const JfrSymbolId::CStringEntry* map_cstring(uintptr_t hash) const;
-
   bool has_klass_entries() const;
   int entries() const;
   size_t total_count() const;

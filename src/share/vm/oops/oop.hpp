@@ -84,10 +84,12 @@ class oopDesc {
 
   Klass* klass() const;
   Klass* klass_or_null() const volatile;
+  Klass* klass_or_null_acquire() const volatile;
   Klass** klass_addr();
   narrowKlass* compressed_klass_addr();
 
   void set_klass(Klass* k);
+  void release_set_klass(Klass* k);
 
   // For klass field compression
   int klass_gap() const;

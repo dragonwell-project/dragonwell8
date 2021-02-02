@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -38,14 +38,22 @@
 // Inline allocation implementations.
 
 void CollectedHeap::post_allocation_setup_common(KlassHandle klass,
-                                                 HeapWord* obj) {
-  post_allocation_setup_no_klass_install(klass, obj);
-  post_allocation_install_obj_klass(klass, oop(obj));
+                                                 HeapWord* obj_ptr) {
+  post_allocation_setup_no_klass_install(klass, obj_ptr);
+  oop obj = (oop)obj_ptr;
+#if ! INCLUDE_ALL_GCS
+  obj->set_klass(klass());
+#else
+  // Need a release store to ensure array/class length, mark word, and
+  // object zeroing are visible before setting the klass non-NULL, for
+  // concurrent collectors.
+  obj->release_set_klass(klass());
+#endif
 }
 
 void CollectedHeap::post_allocation_setup_no_klass_install(KlassHandle klass,
-                                                           HeapWord* objPtr) {
-  oop obj = (oop)objPtr;
+                                                           HeapWord* obj_ptr) {
+  oop obj = (oop)obj_ptr;
 
   assert(obj != NULL, "NULL object pointer");
   if (UseBiasedLocking && (klass() != NULL)) {
@@ -56,20 +64,22 @@ void CollectedHeap::post_allocation_setup_no_klass_install(KlassHandle klass,
   }
 }
 
-void CollectedHeap::post_allocation_install_obj_klass(KlassHandle klass,
-                                                   oop obj) {
-  // These asserts are kind of complicated because of klassKlass
-  // and the beginning of the world.
-  assert(klass() != NULL || !Universe::is_fully_initialized(), "NULL klass");
-  assert(klass() == NULL || klass()->is_klass(), "not a klass");
-  assert(obj != NULL, "NULL object pointer");
-  obj->set_klass(klass());
-  assert(!Universe::is_fully_initialized() || obj->klass() != NULL,
-         "missing klass");
+inline void send_jfr_allocation_event(KlassHandle klass, HeapWord* obj, size_t size) {
+  Thread* t = Thread::current();
+  ThreadLocalAllocBuffer& tlab = t->tlab();
+  if (obj == tlab.start()) {
+    // allocate in new TLAB
+    size_t new_tlab_size = tlab.hard_size_bytes();
+    AllocTracer::send_allocation_in_new_tlab_event(klass, obj, new_tlab_size, size * HeapWordSize, t);
+  } else if (!tlab.in_used(obj)) {
+    // allocate outside TLAB
+    AllocTracer::send_allocation_outside_tlab_event(klass, obj, size * HeapWordSize, t);
+  }
 }
 
-// Support for jvmti, jfr and dtrace
+// Support for jvmti, dtrace and jfr
 inline void post_allocation_notify(KlassHandle klass, oop obj, int size) {
+  send_jfr_allocation_event(klass, (HeapWord*)obj, size);
   // support low memory notifications (no-op if not enabled)
   LowMemoryDetector::detect_low_memory_for_collected_pools();
 
@@ -88,25 +98,26 @@ inline void post_allocation_notify(KlassHandle klass, oop obj, int size) {
 }
 
 void CollectedHeap::post_allocation_setup_obj(KlassHandle klass,
-                                              HeapWord* obj,
+                                              HeapWord* obj_ptr,
                                               int size) {
-  post_allocation_setup_common(klass, obj);
+  post_allocation_setup_common(klass, obj_ptr);
+  oop obj = (oop)obj_ptr;
   assert(Universe::is_bootstrapping() ||
-         !((oop)obj)->is_array(), "must not be an array");
-  // notify jvmti, jfr and dtrace
-  post_allocation_notify(klass, (oop)obj, size);
+         !obj->is_array(), "must not be an array");
+  // notify jvmti and dtrace
+  post_allocation_notify(klass, obj, size);
 }
 
 void CollectedHeap::post_allocation_setup_array(KlassHandle klass,
-                                                HeapWord* obj,
+                                                HeapWord* obj_ptr,
                                                 int length) {
-  // Set array length before setting the _klass field
-  // in post_allocation_setup_common() because the klass field
-  // indicates that the object is parsable by concurrent GC.
+  // Set array length before setting the _klass field because a
+  // non-NULL klass field indicates that the object is parsable by
+  // concurrent GC.
   assert(length >= 0, "length should be non-negative");
-  ((arrayOop)obj)->set_length(length);
-  post_allocation_setup_common(klass, obj);
-  oop new_obj = (oop)obj;
+  ((arrayOop)obj_ptr)->set_length(length);
+  post_allocation_setup_common(klass, obj_ptr);
+  oop new_obj = (oop)obj_ptr;
   assert(new_obj->is_array(), "must be an array");
   // notify jvmti, jfr and dtrace (must be after length is set for dtrace)
   post_allocation_notify(klass, new_obj, new_obj->size());
@@ -141,8 +152,6 @@ HeapWord* CollectedHeap::common_mem_allocate_noinit(KlassHandle klass, size_t si
     assert(!HAS_PENDING_EXCEPTION,
            "Unexpected exception, will result in uninitialized storage");
     THREAD->incr_allocated_bytes(size * HeapWordSize);
-
-    CollectedHeap::trace_allocation_outside_tlab(klass, result, size * HeapWordSize, THREAD);
 
     return result;
   }

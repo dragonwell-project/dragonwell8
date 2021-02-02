@@ -31,6 +31,7 @@
 #include "jfr/recorder/service/jfrRecorderService.hpp"
 #include "jfr/utilities/jfrTypes.hpp"
 #include "memory/resourceArea.hpp"
+#include "runtime/arguments.hpp"
 #include "runtime/atomic.hpp"
 #include "runtime/handles.hpp"
 #include "runtime/globals.hpp"
@@ -186,7 +187,7 @@ RepositoryIterator::RepositoryIterator(const char* repository, size_t repository
     _files = new GrowableArray<const char*>(10);
     DIR* dirp = os::opendir(_repo);
     if (dirp == NULL) {
-      if (LogJFR) tty->print_cr("Unable to open repository %s", _repo);
+      if (true) tty->print_cr("Unable to open repository %s", _repo);
       return;
     }
     struct dirent* dentry;
@@ -279,7 +280,8 @@ static const char* create_emergency_dump_path() {
     strncpy(emergency_dump_path, buffer, emergency_filename_length + 1);
   }
   if (emergency_dump_path != NULL) {
-    if (LogJFR) tty->print_cr("Attempting to recover JFR data, emergency jfr file: %s", emergency_dump_path);
+    if (LogJFR) tty->print_cr( // For user, should not be "jfr, system"
+      "Attempting to recover JFR data, emergency jfr file: %s", emergency_dump_path);
   }
   return emergency_dump_path;
 }
@@ -302,7 +304,7 @@ static const char* create_emergency_chunk_path(const char* repository_path) {
     return NULL;
   }
   // append the individual substrings
-  jio_snprintf(chunk_path, chunkname_max_len, "%s%s%s%s", repository_path, os::file_separator(), date_time_buffer, chunk_file_jfr_ext);
+  jio_snprintf(chunk_path, chunkname_max_len, "%s%s%s%s", repository_path_len, os::file_separator(), date_time_buffer, chunk_file_jfr_ext);
   return chunk_path;
 }
 
