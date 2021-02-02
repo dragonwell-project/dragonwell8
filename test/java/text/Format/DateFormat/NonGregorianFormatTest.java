@@ -25,7 +25,7 @@
  * @test
  * @bug 4833268 6253991 8008577
  * @summary Test formatting and parsing with non-Gregorian calendars
- * @run main/othervm -Djava.locale.providers=COMPAT,SPI NonGregorianFormatTest
+ * @run main/othervm -Djava.locale.providers=JRE,SPI NonGregorianFormatTest
  */
 
 import java.util.*;

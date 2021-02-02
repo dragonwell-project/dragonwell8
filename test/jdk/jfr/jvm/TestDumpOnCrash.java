@@ -25,10 +25,6 @@
 package jdk.jfr.jvm;
 
 import java.io.IOException;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
-import java.io.InputStream;
-import java.io.OutputStream;
 import java.lang.reflect.Field;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -59,30 +55,9 @@ public class TestDumpOnCrash {
     private static final CharSequence LOG_FILE_EXTENSION = ".log";
     private static final CharSequence JFR_FILE_EXTENSION = ".jfr";
 
-    private static String readString(Path path) throws IOException {
-        try (InputStream in = new FileInputStream(path.toFile())) {
-            byte[] bytes = new byte[32];
-            int length = in.read(bytes);
-            Asserts.assertTrue(length < bytes.length, "bytes array to small");
-            if (length == -1) {
-                return null;
-            }
-            return new String(bytes, 0, length);
-        }
-    }
-
-    private static void writeString(Path path, String content) throws IOException {
-        try (OutputStream out = new FileOutputStream(path.toFile())) {
-            out.write(content.getBytes());
-        }
-    }
-
     static class CrasherIllegalAccess {
         public static void main(String[] args) {
           try {
-            Path pidPath = Paths.get(args[1]);
-            writeString(pidPath, ProcessTools.getProcessId() + "@");
-
             Field theUnsafeRefLocation = Unsafe.class.getDeclaredField("theUnsafe");
             theUnsafeRefLocation.setAccessible(true);
             ((Unsafe)theUnsafeRefLocation.get(null)).putInt(0L, 0);
@@ -94,10 +69,7 @@ public class TestDumpOnCrash {
     }
 
     static class CrasherHalt {
-        public static void main(String[] args) throws Exception {
-            Path pidPath = Paths.get(args[1]);
-            writeString(pidPath, ProcessTools.getProcessId() + "@");
-
+        public static void main(String[] args) {
             System.out.println("Running Runtime.getRuntime.halt");
             Runtime.getRuntime().halt(17);
         }
@@ -105,13 +77,9 @@ public class TestDumpOnCrash {
 
     static class CrasherSig {
         public static void main(String[] args) throws Exception {
-            long pid = Long.valueOf(ProcessTools.getProcessId());
-            Path pidPath = Paths.get(args[1]);
-            writeString(pidPath, pid + "@");
-
             String signalName = args[0];
-            System.out.println("Sending SIG" + signalName + " to process " + pid);
-            Runtime.getRuntime().exec("kill -" + signalName + " " + pid).waitFor();
+            System.out.println("Sending SIG" + signalName + " to process " + ProcessTools.getProcessId());
+            Runtime.getRuntime().exec("kill -" + signalName + " " + ProcessTools.getProcessId()).waitFor();
         }
     }
 
@@ -130,7 +98,6 @@ public class TestDumpOnCrash {
     private static long runProcess(String crasher, String signal, boolean disk) throws Exception {
         System.out.println("Test case for crasher " + crasher);
         final String flightRecordingOptions = "dumponexit=true,disk=" + Boolean.toString(disk);
-        Path pidPath = Paths.get("pid-" + System.currentTimeMillis()).toAbsolutePath();
         Process p = ProcessTools.createJavaProcessBuilder(true,
                 "-Xmx64m",
                 "-XX:-TransmitErrorReport",
@@ -138,8 +105,7 @@ public class TestDumpOnCrash {
                 /*"--add-exports=java.base/jdk.internal.misc=ALL-UNNAMED",*/
                 "-XX:StartFlightRecording=" + flightRecordingOptions,
                 crasher,
-                signal,
-                pidPath.toString())
+                signal)
             .start();
 
         OutputAnalyzer output = new OutputAnalyzer(p);
@@ -147,12 +113,7 @@ public class TestDumpOnCrash {
         System.out.println(output.getOutput());
         System.out.println("==================================");
 
-        String pidStr;
-        do {
-            pidStr = readString(pidPath);
-        } while (pidStr == null || !pidStr.endsWith("@"));
-
-        return Long.valueOf(pidStr.substring(0, pidStr.length() - 1));
+        return getPid(output);
     }
 
     private static void verify(long pid) throws IOException {
@@ -166,6 +127,14 @@ public class TestDumpOnCrash {
         List<RecordedEvent> events = RecordingFile.readAllEvents(file);
         Asserts.assertFalse(events.isEmpty(), "No event found");
         System.out.printf("Found event %s%n", events.get(0).getEventType().getName());
+    }
+
+    private static long getPid(OutputAnalyzer output) {
+        final String pid = output.firstMatch("Use jcmd (\\d+) JFR.dump", 1);
+        if (pid == null) {
+            throw new RuntimeException("Did not find pid in output.\n");
+        }
+        return Long.parseLong(pid);
     }
 }
 

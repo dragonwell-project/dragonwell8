@@ -32,7 +32,7 @@ import java.io.*;
  * 4134203 4138203 4148168 4151631 4151706 4153860 4162071 4182066 4209272 4210209
  * 4213086 4250359 4253490 4266432 4406615 4413980 8008577
  * @library /java/text/testlib
- * @run main/othervm -Djava.locale.providers=COMPAT,SPI DateFormatRegression
+ * @run main/othervm -Djava.locale.providers=JRE,SPI DateFormatRegression
  */
 public class DateFormatRegression extends IntlTest {
 

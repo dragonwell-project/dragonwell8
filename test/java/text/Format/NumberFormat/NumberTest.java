@@ -28,7 +28,7 @@
  * @library /java/text/testlib
  * @modules java.base/sun.util.resources
  * @compile -XDignore.symbol.file NumberTest.java
- * @run main/othervm -Djava.locale.providers=COMPAT,SPI NumberTest
+ * @run main/othervm -Djava.locale.providers=JRE,SPI NumberTest
  */
 
 import java.util.*;
