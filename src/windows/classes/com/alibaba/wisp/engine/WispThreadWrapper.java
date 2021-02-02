@@ -29,15 +29,9 @@ import java.dyn.CoroutineSupport;
 class WispThreadWrapper extends Thread {
 
     @Override
-    public CoroutineSupport getCoroutineSupport() {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
     public void start() {
         throw new UnsupportedOperationException();
     }
-
 
     @Override
     @Deprecated
