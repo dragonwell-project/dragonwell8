@@ -193,6 +193,7 @@ Address LIR_Assembler::as_Address(LIR_Address* addr, Register tmp) {
 	return Address(base, index, Address::lsl(addr->scale()));
       default:
 	ShouldNotReachHere();
+        return Address();
       }
   } else  {
     intptr_t addr_offset = intptr_t(addr->disp());
