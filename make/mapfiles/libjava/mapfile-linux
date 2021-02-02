@@ -299,6 +299,17 @@ SUNWprivate_1.1 {
 		Canonicalize;
 		JDK_GetVersionInfo0;
 
+  # Dragonwell interfaces
+    Java_com_alibaba_tenant_NativeDispatcher_registerNatives0;
+    Java_com_alibaba_tenant_NativeDispatcher_getThreadsAllocatedMemory;
+    Java_com_alibaba_jwarmup_JWarmUp_registerNatives;
+    Java_com_alibaba_tenant_TenantGlobals_getTenantFlags;
+    Java_com_alibaba_jvm_gc_ElasticHeapMXBeanImpl_registerNatives;
+    Java_com_alibaba_wisp_engine_WispEngine_registerNatives;
+    Java_com_alibaba_wisp_engine_WispSysmon_registerNatives;
+    Java_com_alibaba_wisp_engine_WispTask_registerNatives;
+    Java_java_dyn_Coroutine_registerNatives;
+
 	local:
 		*;
 };
