@@ -44,19 +44,19 @@ public class JStackWispControlGroupTest {
             ctx = WispTask.class.getDeclaredField("ctx");
             ctx.setAccessible(true);
         } catch (NoSuchFieldException e) {
-            fail(e.getMessage());
+            fail();
         }
         try {
             data = CoroutineBase.class.getDeclaredField("nativeCoroutine");
             data.setAccessible(true);
         } catch (NoSuchFieldException e) {
-            fail(e.getMessage());
+            fail();
         }
         try {
             ttr = WispTask.class.getDeclaredField("ttr");
             ttr.setAccessible(true);
         } catch (NoSuchFieldException e) {
-            fail(e.getMessage());
+            fail();
         }
         try {
             WispControlGroupClazz = Class.forName("com.alibaba.wisp.engine.WispControlGroup");
@@ -70,7 +70,7 @@ public class JStackWispControlGroupTest {
             cfsQuota = CpuLimitClazz.getDeclaredField("cfsQuota");
             cfsQuota.setAccessible(true);
         } catch (NoSuchFieldException | ClassNotFoundException e) {
-            fail(e.getMessage());
+            fail();
         }
     }
 
@@ -105,7 +105,7 @@ public class JStackWispControlGroupTest {
                         latch0.countDown();
                         latch1.await();
                     } catch (InterruptedException e) {
-                        fail(e.getMessage());
+                        fail();
                     }
                 }
             });
@@ -141,7 +141,7 @@ public class JStackWispControlGroupTest {
         if (matcher.find()) {
             return matcher.group(1);
         }
-        fail("ShouldNotReachHere");
+        fail();
         return null;
     }
 
@@ -151,7 +151,7 @@ public class JStackWispControlGroupTest {
         if (matcher.find()) {
             return matcher.group(1);
         }
-        fail("ShouldNotReachHere");
+        fail();
         return null;
     }
 
@@ -161,7 +161,7 @@ public class JStackWispControlGroupTest {
         if (matcher.find()) {
             return matcher.group(1);
         }
-        fail("ShouldNotReachHere");
+        fail();
         return null;
     }
 
@@ -171,7 +171,7 @@ public class JStackWispControlGroupTest {
         if (matcher.find()) {
             return matcher.group(1);
         }
-        fail("ShouldNotReachHere");
+        fail();
         return null;
     }
 

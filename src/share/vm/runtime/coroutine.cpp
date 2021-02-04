@@ -518,11 +518,15 @@ oop Coroutine::print_stack_header_on(outputStream* st) {
       cfsPeriod = com_alibaba_wisp_engine_WispControlGroup_CpuLimit::get_cfsPeriod(cpuLimit);
       cfsQuota  = com_alibaba_wisp_engine_WispControlGroup_CpuLimit::get_cfsQuota(cpuLimit);
     }
-    st->print(" \"%s\" #%d active=%d steal=%d steal_fail=%d preempt=%d park=%d/%d cg=%ld/%ld ttr=%ld", buf,
+    st->print(" \"%s\" #%d active=%d steal=%d steal_fail=%d ", buf,
         com_alibaba_wisp_engine_WispTask::get_id(_wisp_task),
         com_alibaba_wisp_engine_WispTask::get_activeCount(_wisp_task),
         com_alibaba_wisp_engine_WispTask::get_stealCount(_wisp_task),
-        com_alibaba_wisp_engine_WispTask::get_stealFailureCount(_wisp_task),
+        com_alibaba_wisp_engine_WispTask::get_stealFailureCount(_wisp_task));
+    if (VerboseWisp) {
+      st->print("es=%d jc=%d ", enable_steal_count(), java_call_counter());
+    }
+    st->print("preempt=%d park=%d/%d cg=%ld/%ld ttr=%ld",
         com_alibaba_wisp_engine_WispTask::get_preemptCount(_wisp_task),
         com_alibaba_wisp_engine_WispTask::get_jvmParkStatus(_wisp_task),
         com_alibaba_wisp_engine_WispTask::get_jdkParkStatus(_wisp_task),

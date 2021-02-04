@@ -24,7 +24,7 @@
  * @library /testlibrary
  * @summary Test jstack steal counter
  * @requires os.family == "linux"
- * @run main/othervm -XX:+UnlockExperimentalVMOptions -XX:+EnableCoroutine -XX:+UseWispMonitor -Dcom.alibaba.transparentAsync=true -XX:ActiveProcessorCount=2 JStackTest
+ * @run main/othervm -XX:+UnlockExperimentalVMOptions -XX:+EnableCoroutine -XX:+UseWispMonitor -Dcom.alibaba.transparentAsync=true -XX:ActiveProcessorCount=2 -XX:+UnlockDiagnosticVMOptions -XX:+VerboseWisp JStackTest
  */
 
 import com.alibaba.wisp.engine.WispEngine;
@@ -122,6 +122,10 @@ public class JStackTest {
                 assertTrue(map.get(coroutine) == stealCount);
                 int jvmParkStatus = Integer.parseInt(matchParkStatus(str));
                 assertTrue(jvmMap.get(coroutine) == jvmParkStatus);
+                int enableStealCount = Integer.valueOf(matchEnableStealCount(str));
+                assertTrue(enableStealCount == 1);
+                int javaCallCount = Integer.valueOf(matchJavaCallCount(str));
+                assertTrue(javaCallCount == 1);
             }
         }
     }
@@ -137,6 +141,25 @@ public class JStackTest {
 
     private static String matchStealCount(String str) {
         Pattern pattern = Pattern.compile(".*steal=(\\d+).*");
+        Matcher matcher = pattern.matcher(str);
+        if (matcher.find()) {
+            return matcher.group(1);
+        }
+        throw new RuntimeException("ShouldNotReachHere");
+    }
+
+    private static String matchEnableStealCount(String str) {
+        Pattern pattern = Pattern.compile(".*es=(\\d+).*");
+        Matcher matcher = pattern.matcher(str);
+        if (matcher.find()) {
+            return matcher.group(1);
+        }
+        throw new RuntimeException("ShouldNotReachHere");
+    }
+
+    private static String matchJavaCallCount(String str) {
+        Pattern pattern = Pattern.compile(".*jc=(\\d+).*");
+
         Matcher matcher = pattern.matcher(str);
         if (matcher.find()) {
             return matcher.group(1);
