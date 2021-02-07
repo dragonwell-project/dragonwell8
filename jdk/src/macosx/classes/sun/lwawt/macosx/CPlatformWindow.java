@@ -102,7 +102,8 @@ public class CPlatformWindow extends CFRetainedResource implements PlatformWindo
     public static final String WINDOW_FADE_IN = "apple.awt._windowFadeIn";
     public static final String WINDOW_FADE_OUT = "apple.awt._windowFadeOut";
     public static final String WINDOW_FULLSCREENABLE = "apple.awt.fullscreenable";
-
+    public static final String WINDOW_FULL_CONTENT = "apple.awt.fullWindowContent";
+    public static final String WINDOW_TRANSPARENT_TITLE_BAR = "apple.awt.transparentTitleBar";
 
     // Yeah, I know. But it's easier to deal with ints from JNI
     static final int MODELESS = 0;
@@ -129,8 +130,10 @@ public class CPlatformWindow extends CFRetainedResource implements PlatformWindo
     static final int IS_DIALOG = 1 << 25;
     static final int IS_MODAL = 1 << 26;
     static final int IS_POPUP = 1 << 27;
+    static final int FULL_WINDOW_CONTENT = 1 << 14;
 
-    static final int _STYLE_PROP_BITMASK = DECORATED | TEXTURED | UNIFIED | UTILITY | HUD | SHEET | CLOSEABLE | MINIMIZABLE | RESIZABLE;
+    static final int _STYLE_PROP_BITMASK = DECORATED | TEXTURED | UNIFIED | UTILITY | HUD | SHEET | CLOSEABLE
+                                             | MINIMIZABLE | RESIZABLE | FULL_WINDOW_CONTENT;
 
     // corresponds to method-based properties
     static final int HAS_SHADOW = 1 << 10;
@@ -141,8 +144,11 @@ public class CPlatformWindow extends CFRetainedResource implements PlatformWindo
     static final int DRAGGABLE_BACKGROUND = 1 << 19;
     static final int DOCUMENT_MODIFIED = 1 << 21;
     static final int FULLSCREENABLE = 1 << 23;
+    static final int TRANSPARENT_TITLE_BAR = 1 << 18;
 
-    static final int _METHOD_PROP_BITMASK = RESIZABLE | HAS_SHADOW | ZOOMABLE | ALWAYS_ON_TOP | HIDES_ON_DEACTIVATE | DRAGGABLE_BACKGROUND | DOCUMENT_MODIFIED | FULLSCREENABLE;
+    static final int _METHOD_PROP_BITMASK = RESIZABLE | HAS_SHADOW | ZOOMABLE | ALWAYS_ON_TOP | HIDES_ON_DEACTIVATE
+                                              | DRAGGABLE_BACKGROUND | DOCUMENT_MODIFIED | FULLSCREENABLE
+                                              | TRANSPARENT_TITLE_BAR;
 
     // corresponds to callback-based properties
     static final int SHOULD_BECOME_KEY = 1 << 12;
@@ -197,7 +203,19 @@ public class CPlatformWindow extends CFRetainedResource implements PlatformWindo
 
             final String filename = ((java.io.File)value).getAbsolutePath();
             c.execute(ptr->nativeSetNSWindowRepresentedFilename(ptr, filename));
-        }}
+        }},
+        new Property<CPlatformWindow>(WINDOW_FULL_CONTENT) {
+            public void applyProperty(final CPlatformWindow c, final Object value) {
+                boolean isFullWindowContent = Boolean.parseBoolean(value.toString());
+                c.setStyleBits(FULL_WINDOW_CONTENT, isFullWindowContent);
+            }
+        },
+        new Property<CPlatformWindow>(WINDOW_TRANSPARENT_TITLE_BAR) {
+            public void applyProperty(final CPlatformWindow c, final Object value) {
+                boolean isTransparentTitleBar = Boolean.parseBoolean(value.toString());
+                c.setStyleBits(TRANSPARENT_TITLE_BAR, isTransparentTitleBar);
+            }
+        }
     }) {
         public CPlatformWindow convertJComponentToTarget(final JRootPane p) {
             Component root = SwingUtilities.getRoot(p);
@@ -416,6 +434,16 @@ public class CPlatformWindow extends CFRetainedResource implements PlatformWindo
             prop = rootpane.getClientProperty(WINDOW_DRAGGABLE_BACKGROUND);
             if (prop != null) {
                 styleBits = SET(styleBits, DRAGGABLE_BACKGROUND, Boolean.parseBoolean(prop.toString()));
+            }
+
+            prop = rootpane.getClientProperty(WINDOW_FULL_CONTENT);
+            if (prop != null) {
+                styleBits = SET(styleBits, FULL_WINDOW_CONTENT, Boolean.parseBoolean(prop.toString()));
+            }
+
+            prop = rootpane.getClientProperty(WINDOW_TRANSPARENT_TITLE_BAR);
+            if (prop != null) {
+                styleBits = SET(styleBits, TRANSPARENT_TITLE_BAR, Boolean.parseBoolean(prop.toString()));
             }
         }
 
