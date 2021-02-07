@@ -23,6 +23,7 @@
 package demo;
 
 import com.alibaba.rcm.Constraint;
+import com.alibaba.rcm.ResourceType;
 import com.alibaba.rcm.internal.AbstractResourceContainer;
 
 import java.util.ArrayList;
@@ -64,5 +65,10 @@ public class MyResourceContainer extends AbstractResourceContainer {
     @Override
     public void destroy() {
         dead = true;
+    }
+
+    @Override
+    public Long getConsumedAmount(ResourceType resourceType) {
+        return null;
     }
 }

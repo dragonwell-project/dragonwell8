@@ -24,7 +24,10 @@ package com.alibaba.rcm.internal;
 
 import com.alibaba.rcm.Constraint;
 import com.alibaba.rcm.ResourceContainer;
+import com.alibaba.rcm.ResourceContainerMonitor;
+import com.alibaba.rcm.ResourceType;
 import sun.misc.SharedSecrets;
+import sun.misc.VM;
 
 import java.util.Collections;
 
@@ -40,14 +43,21 @@ import java.util.Collections;
 public abstract class AbstractResourceContainer implements ResourceContainer {
 
     protected final static AbstractResourceContainer ROOT = new RootContainer();
+    final long id;
+
+    protected AbstractResourceContainer() {
+        id = ResourceContainerMonitor.register(this);
+    }
 
     public static AbstractResourceContainer root() {
         return ROOT;
     }
 
     public static AbstractResourceContainer current() {
-        if (!sun.misc.VM.isBooted()) {
-            return root();
+        if (!VM.isBooted()) {
+            // JLA will be available only after full VM bootstrap.
+            // before that stage, we assume VM is running in ROOT container.
+            return ROOT;
         }
         return SharedSecrets.getJavaLangAccess().getResourceContainer(Thread.currentThread());
     }
@@ -60,17 +70,17 @@ public abstract class AbstractResourceContainer implements ResourceContainer {
         ResourceContainer container = current();
         if (container == this) {
             command.run();
-            return;
-        }
-        if (container != root()) {
-            throw new IllegalStateException("must be in root container " +
-                    "before running into non-root container.");
-        }
-        attach();
-        try {
-            command.run();
-        } finally {
-            detach();
+        } else {
+            if (container != ROOT) {
+                throw new IllegalStateException("must be in root container " +
+                        "before running into non-root container.");
+            }
+            attach();
+            try {
+                command.run();
+            } finally {
+                detach();
+            }
         }
     }
 
@@ -84,6 +94,11 @@ public abstract class AbstractResourceContainer implements ResourceContainer {
      */
     protected void attach() {
         SharedSecrets.getJavaLangAccess().setResourceContainer(Thread.currentThread(), this);
+    }
+
+    @Override
+    public Long getId() {
+        return id;
     }
 
     /**
@@ -100,7 +115,7 @@ public abstract class AbstractResourceContainer implements ResourceContainer {
         @Override
         public void run(Runnable command) {
             AbstractResourceContainer container = current();
-            if (container == root()) {
+            if (container == ROOT) {
                 command.run();
                 return;
             }
@@ -140,6 +155,16 @@ public abstract class AbstractResourceContainer implements ResourceContainer {
         @Override
         public void destroy() {
             throw new UnsupportedOperationException("destroy() is not supported by root container");
+        }
+
+        @Override
+        public Long getId() {
+            return id;
+        }
+
+        @Override
+        public Long getConsumedAmount(ResourceType resourceType) {
+            return 0L;
         }
     }
 }

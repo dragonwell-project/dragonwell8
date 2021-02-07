@@ -40,7 +40,8 @@ import static jdk.testlibrary.Asserts.assertTrue;
 
 public class TestSkeletalAttach {
     public static void main(String[] args) {
-        MyResourceContainer rc = (MyResourceContainer) MyResourceFactory.INSTANCE.createContainer(Collections.emptyList());
+        MyResourceContainer rc = (MyResourceContainer) MyResourceFactory.INSTANCE
+                .createContainer(Collections.emptyList());
         rc.run(() -> {
             assertListEQ(Collections.singletonList("attach"), rc.operations);
         });

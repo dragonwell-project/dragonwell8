@@ -32,7 +32,7 @@ import demo.MyResourceFactory;
 
 import java.util.Collections;
 
-import static jdk.testlibrary.Asserts.*;
+import static jdk.testlibrary.Asserts.assertEQ;
 
 
 public class TestState {

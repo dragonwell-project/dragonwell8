@@ -1,26 +1,23 @@
 /*
  * @test
  * @library /lib/testlibrary
+ * @build RcmUpdateTest RcmUtils
  * @summary test RCM updating API.
  * @run main/othervm -XX:+UnlockExperimentalVMOptions -XX:+UseWisp2 -XX:ActiveProcessorCount=4 RcmUpdateTest
  */
 
-import java.lang.Long;
-import java.lang.reflect.Field;
-
+import com.alibaba.rcm.RcmUtils;
 import com.alibaba.rcm.ResourceContainer;
 import com.alibaba.rcm.ResourceType;
 import com.alibaba.rcm.internal.AbstractResourceContainer;
 
-import java.util.Collections;
+import java.security.MessageDigest;
 import java.util.concurrent.Callable;
-import java.util.concurrent.FutureTask;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.FutureTask;
 
-import java.security.MessageDigest;
-
-import static jdk.testlibrary.Asserts.*;
+import static jdk.testlibrary.Asserts.assertLT;
 
 public class RcmUpdateTest {
 
@@ -43,11 +40,7 @@ public class RcmUpdateTest {
     }
 
     public static void main(String[] args) throws Exception {
-        Field f = Class.forName("com.alibaba.wisp.engine.WispConfiguration").getDeclaredField("ENABLE_THREAD_AS_WISP");
-        f.setAccessible(true);
-        boolean isWispEnabled = f.getBoolean(null);
-        ResourceContainer rc0 = isWispEnabled ? WispResourceContainerFactory.instance()
-        .createContainer(Collections.singletonList(ResourceType.CPU_PERCENT.newConstraint(40))) : null;
+        ResourceContainer rc0 = RcmUtils.createContainer(ResourceType.CPU_PERCENT.newConstraint(40));
 
         Callable<Long> task0 = taskFactory(2_000_000);
         FutureTask<Long> futureTask0 = new FutureTask<Long>(task0);
@@ -66,8 +59,10 @@ public class RcmUpdateTest {
             });
         });
         Long duration1 = futureTask1.get();
+        es.shutdownNow();
 
         double ratio = (double) duration1.longValue() / duration0.longValue();
-        assertLT(Math.abs(ratio - 0.5), 0.1, "deviation is out of reasonable scope");
+        assertLT(Math.abs(ratio - 0.5), 0.1, "deviation is out of reasonable scope:"
+                + duration0.longValue() + "/" + duration1.longValue());
     }
 }

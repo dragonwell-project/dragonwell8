@@ -35,9 +35,7 @@ import java.util.Set;
 import javax.management.MBeanServerConnection;
 import javax.management.ObjectName;
 
-import com.alibaba.management.TenantContainerMXBean;
-import com.alibaba.management.ElasticHeapMXBean;
-import com.alibaba.management.WispCounterMXBean;
+import com.alibaba.management.*;
 import com.sun.management.HotSpotDiagnosticMXBean;
 import com.sun.management.UnixOperatingSystemMXBean;
 
@@ -307,6 +305,20 @@ enum PlatformComponent {
         }),
 
     /**
+     * Resource Container.
+     */
+    RESOURCE_CONTAINER(
+            "com.alibaba.management.ResourceContainerMXBean",
+            "com.alibaba.management", "ResourceContainerMXBean", defaultKeyProperties(),
+            true,
+            new MXBeanFetcher<ResourceContainerMXBean>() {
+                public List<ResourceContainerMXBean> getMXBeans() {
+                    return Collections.singletonList(ManagementFactoryHelper.getResourceContainerMXBean());
+                }
+            }),
+
+
+     /**
      * Wisp Counter.
      */
     WISP_COUNTER(

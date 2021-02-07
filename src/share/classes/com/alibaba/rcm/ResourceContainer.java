@@ -207,4 +207,8 @@ public interface ResourceContainer {
      * Then the container state will become {@link State#DEAD}.
      */
     void destroy();
+
+    Long getId();
+
+    Long getConsumedAmount(ResourceType resourceType);
 }

@@ -1,32 +1,28 @@
 /*
  * @test
  * @library /lib/testlibrary
+ * @build RcmRootTest RcmUtils
  * @summary test RCM root API.
  * @run main/othervm -XX:+UnlockExperimentalVMOptions -XX:+UseWisp2 -Dcom.alibaba.wisp.carrierEngines=4 RcmRootTest
  */
 
-import sun.misc.SharedSecrets;
-import java.lang.reflect.Field;
-
+import com.alibaba.rcm.RcmUtils;
 import com.alibaba.rcm.ResourceContainer;
-import com.alibaba.rcm.ResourceType;
 import com.alibaba.rcm.internal.AbstractResourceContainer;
+import sun.misc.SharedSecrets;
 
-import java.util.Collections;
-import java.util.concurrent.FutureTask;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.FutureTask;
 
-import static jdk.testlibrary.Asserts.*;
+import static jdk.testlibrary.Asserts.assertFalse;
+import static jdk.testlibrary.Asserts.assertTrue;
 
 public class RcmRootTest {
 
     public static void main(String[] args) throws Exception {
-        Field f = Class.forName("com.alibaba.wisp.engine.WispConfiguration").getDeclaredField("ENABLE_THREAD_AS_WISP");
-        f.setAccessible(true);
-        boolean isWispEnabled = f.getBoolean(null);
-        ResourceContainer rc0 = isWispEnabled ? WispResourceContainerFactory.instance().createContainer(Collections.singletonList(ResourceType.CPU_PERCENT.newConstraint(80))) : null;
-        ResourceContainer rc1 = isWispEnabled ? WispResourceContainerFactory.instance().createContainer(Collections.singletonList(ResourceType.CPU_PERCENT.newConstraint(80))) : null;
+        ResourceContainer rc0 = RcmUtils.createContainer();
+        ResourceContainer rc1 = RcmUtils.createContainer();;
 
         FutureTask future0 = new FutureTask<>(() -> {
             boolean isException = false;

@@ -85,6 +85,10 @@ class WispControlGroup extends AbstractExecutorService {
     private final AtomicLong currentPeriodStart;
     private final AtomicLong remainQuota;
     volatile Boolean destroyed = false;
+    /**
+     * totalConsume provides a rough calculation for total cpu time consumed in this group
+     */
+    private long totalConsume = 0;
     CountDownLatch destroyLatch = new CountDownLatch(1);
 
     private static class CpuLimit {
@@ -142,6 +146,7 @@ class WispControlGroup extends AbstractExecutorService {
         long usage = System.nanoTime() - task.enterTs;
         remainQuota.addAndGet(-usage);
         task.enterTs = 0;
+        totalConsume += usage;
         return usage;
     }
 
@@ -274,6 +279,13 @@ class WispControlGroup extends AbstractExecutorService {
                         throw new InternalError(e);
                     }
                 }
+            }
+
+            @Override
+            public Long getConsumedAmount(ResourceType resourceType) {
+                if (resourceType != ResourceType.CPU_PERCENT)
+                    return 0L;
+                return totalConsume;
             }
 
             @Override

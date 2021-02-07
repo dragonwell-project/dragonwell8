@@ -39,9 +39,8 @@ import java.security.AccessController;
 import java.security.PrivilegedActionException;
 import java.security.PrivilegedExceptionAction;
 
-import com.alibaba.management.TenantContainerMXBean;
-import com.alibaba.management.ElasticHeapMXBean;
-import com.alibaba.management.WispCounterMXBean;
+import com.alibaba.management.*;
+import com.alibaba.rcm.ResourceContainerMXBeanImpl;
 import com.alibaba.tenant.TenantContainerMXBeanImpl;
 import com.alibaba.jvm.gc.ElasticHeapMXBeanImpl;
 import com.alibaba.wisp.engine.WispCounterMXBeanImpl;
@@ -74,6 +73,7 @@ public class ManagementFactoryHelper {
     private static TenantContainerMXBeanImpl tenantContainerMBean = null;
     private static ElasticHeapMXBeanImpl     elasticHeapMXBean = null;
     private static WispCounterMXBeanImpl     wispCounterMBean = null;
+    private static ResourceContainerMXBean resourceContainerMXBean = null;
 
     public static synchronized ClassLoadingMXBean getClassLoadingMXBean() {
         if (classMBean == null) {
@@ -136,6 +136,12 @@ public class ManagementFactoryHelper {
             wispCounterMBean = new WispCounterMXBeanImpl();
         }
         return wispCounterMBean;
+    }
+    public static synchronized ResourceContainerMXBean getResourceContainerMXBean() {
+        if (resourceContainerMXBean == null) {
+            resourceContainerMXBean = new ResourceContainerMXBeanImpl();
+        }
+        return resourceContainerMXBean;
     }
 
     public static List<MemoryPoolMXBean> getMemoryPoolMXBeans() {

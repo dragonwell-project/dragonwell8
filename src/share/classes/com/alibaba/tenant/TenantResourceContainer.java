@@ -148,6 +148,11 @@ class TenantResourceContainer extends AbstractResourceContainer {
         throw new UnsupportedOperationException("Should not call TenantResourceContainer::destroy() directly");
     }
 
+    @Override
+    public Long getConsumedAmount(ResourceType resourceType) {
+        throw new UnsupportedOperationException();
+    }
+
     void destroyImpl() {
         if (jgroup != null) {
             jgroup.destory();
