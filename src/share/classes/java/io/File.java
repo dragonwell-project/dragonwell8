@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1994, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1994, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -1123,14 +1123,7 @@ public class File
      *          the directory
      */
     public String[] list() {
-        SecurityManager security = System.getSecurityManager();
-        if (security != null) {
-            security.checkRead(path);
-        }
-        if (isInvalid()) {
-            return null;
-        }
-        return fs.list(this);
+        return normalizedList();
     }
 
     /**
@@ -1150,8 +1143,15 @@ public class File
      *          the directory
      */
     private final String[] normalizedList() {
-        String[] s = list();
-        if (getClass() != File.class) {
+        SecurityManager security = System.getSecurityManager();
+        if (security != null) {
+            security.checkRead(path);
+        }
+        if (isInvalid()) {
+            return null;
+        }
+        String[] s = fs.list(this);
+        if (s != null && getClass() != File.class) {
             String[] normalized = new String[s.length];
             for (int i = 0; i < s.length; i++) {
                 normalized[i] = fs.normalize(s[i]);
