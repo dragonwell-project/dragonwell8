@@ -161,6 +161,7 @@ final class WispCarrier implements Comparable<WispCarrier> {
     void taskExit() { // and exit
         current.countExecutionTime(switchTimestamp);
         switchTimestamp = 0;
+        current.setEpollArray(0);
 
         unregisterEvent();
         boolean cached = returnTaskToCache(current);
