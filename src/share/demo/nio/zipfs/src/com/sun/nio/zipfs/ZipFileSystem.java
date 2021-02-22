@@ -83,7 +83,7 @@ public class ZipFileSystem extends FileSystem {
     private final ZipPath defaultdir;
     private boolean readOnly = false;
     private final Path zfpath;
-    private final ZipCoder zc;
+    final ZipCoder zc;
 
     // configurable by env map
     private final String  defaultDir;    // default dir for the file system
@@ -183,7 +183,7 @@ public class ZipFileSystem extends FileSystem {
             }
             path = sb.toString();
         }
-        return new ZipPath(this, getBytes(path));
+        return new ZipPath(this, path);
     }
 
     @Override
