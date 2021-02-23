@@ -1325,11 +1325,30 @@ class PrintFreeListsClosure : public AscendTreeCensusClosure<Chunk_t, FreeList_t
 };
 
 template <class Chunk_t, class FreeList_t>
+class FreeListsDoClosure : public AscendTreeCensusClosure<Chunk_t, FreeList_t> {
+ private:
+  FreeListClosure<FreeList_t>& _closure;
+
+ public:
+  FreeListsDoClosure(FreeListClosure<FreeList_t>& closure) : _closure(closure) {}
+
+  void do_list(FreeList_t* fl) {
+    _closure.do_list(fl);
+  }
+};
+
+template <class Chunk_t, class FreeList_t>
 void BinaryTreeDictionary<Chunk_t, FreeList_t>::print_free_lists(outputStream* st) const {
 
   FreeList_t::print_labels_on(st, "size");
   PrintFreeListsClosure<Chunk_t, FreeList_t> pflc(st);
   pflc.do_tree(root());
+}
+
+template <class Chunk_t, class FreeList_t>
+void BinaryTreeDictionary<Chunk_t, FreeList_t>::free_lists_do(FreeListClosure<FreeList_t>& closure) {
+  FreeListsDoClosure<Chunk_t, FreeList_t> free_lists_closure(closure);
+  free_lists_closure.do_tree(root());
 }
 
 // Verify the following tree invariants:

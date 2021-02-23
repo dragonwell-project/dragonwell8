@@ -100,6 +100,8 @@
   template(ClassLoaderStatsOperation)             \
   template(DestroyG1TenantAllocationContext)      \
   template(JFROldObject)                          \
+  template(MetaspaceTraverse)                     \
+  template(MetaspaceDump)                         \
 
 class VM_Operation: public CHeapObj<mtInternal> {
  public:

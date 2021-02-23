@@ -33,6 +33,7 @@
 #include "gc_interface/collectedHeap.hpp"
 #include "gc_interface/collectedHeap.inline.hpp"
 #include "memory/metaspace.hpp"
+#include "memory/metaspaceDumper.hpp"
 #include "oops/oop.inline.hpp"
 #include "oops/instanceMirrorKlass.hpp"
 #include "runtime/init.hpp"
@@ -575,6 +576,11 @@ void CollectedHeap::pre_full_gc_dump(GCTimer* timer) {
     VM_GC_HeapInspection inspector(gclog_or_tty, false /* ! full gc */);
     inspector.doit();
   }
+
+  if (MetaspaceDumpBeforeFullGC && _gc_cause == GCCause::_metadata_GC_threshold) {
+    GCTraceTime tt("Metaspace Dump (before full gc): ", PrintGCDetails, false, timer, GCId::create());
+    MetaspaceDumper::dump(MetaspaceDumper::BeforeFullGC);
+  }
 }
 
 void CollectedHeap::post_full_gc_dump(GCTimer* timer) {
@@ -586,6 +592,11 @@ void CollectedHeap::post_full_gc_dump(GCTimer* timer) {
     GCTraceTime tt("Class Histogram (after full gc): ", PrintGCDetails, true, timer, GCId::create());
     VM_GC_HeapInspection inspector(gclog_or_tty, false /* ! full gc */);
     inspector.doit();
+  }
+
+  if (MetaspaceDumpAfterFullGC && _gc_cause == GCCause::_metadata_GC_threshold) {
+    GCTraceTime tt("Metaspace Dump (after full gc): ", PrintGCDetails, false, timer, GCId::create());
+    MetaspaceDumper::dump(MetaspaceDumper::AfterFullGC);
   }
 }
 

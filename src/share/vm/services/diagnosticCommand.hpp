@@ -480,4 +480,23 @@ public:
   virtual void execute(DCmdSource source, TRAPS);
 };
 
+class MetaspaceDumpDCmd : public DCmdWithParser {
+protected:
+  DCmdArgument<char *> _filename;
+
+public:
+  MetaspaceDumpDCmd(outputStream* output, bool heap_allocated);
+  static const char* name() {
+    return "Metaspace.dump";
+  }
+  static const char* description() {
+    return "Generate a dump of the metasapce.";
+  }
+  static const char* impact() {
+    return "High: Depends on Metaspace size and content.";
+  }
+  static int num_arguments();
+  virtual void execute(DCmdSource source, TRAPS);
+};
+
 #endif // SHARE_VM_SERVICES_DIAGNOSTICCOMMAND_HPP

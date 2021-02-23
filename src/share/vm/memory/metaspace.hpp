@@ -29,6 +29,8 @@
 #include "memory/metaspaceChunkFreeListSummary.hpp"
 #include "runtime/virtualspace.hpp"
 #include "utilities/exceptions.hpp"
+#include "memory/freeList.hpp"
+#include "memory/metachunk.hpp"
 
 // Metaspace
 //
@@ -67,6 +69,8 @@ class Mutex;
 class outputStream;
 class SpaceManager;
 class VirtualSpaceList;
+template <class FreeList_t>
+class FreeListClosure;
 
 // Metaspaces each have a  SpaceManager and allocations
 // are done by the SpaceManager.  Allocations are done
@@ -87,6 +91,7 @@ class Metaspace : public CHeapObj<mtClass> {
   friend class VM_CollectForMetadataAllocation;
   friend class MetaspaceGC;
   friend class MetaspaceAux;
+  friend class MetaspaceDumper;
 
  public:
   enum MetadataType {
@@ -277,6 +282,23 @@ class Metaspace : public CHeapObj<mtClass> {
     return mdType == ClassType && using_class_space();
   }
 
+  class VirtualSpaceClosure : public StackObj {
+  public:
+   virtual void do_space(VirtualSpace *space, bool current, MetaWord *top) = 0;
+  };
+
+  static void spaces_do(Metaspace::MetadataType metadataType, VirtualSpaceClosure *closure);
+
+  static void free_chunks_do(Metaspace::MetadataType metadataType, FreeListClosure<FreeList<Metachunk> > *closure);
+
+  class InUsedChunkClosure : public StackObj {
+  public:
+   virtual void do_chunk(Metachunk *chunk, bool current) = 0;
+  };
+
+  void in_used_chunks_do(Metaspace::MetadataType metadataType, InUsedChunkClosure *closure);
+
+  void free_blocks_do(Metaspace::MetadataType metadataType, FreeListClosure<FreeList<Metablock> > *closure);
 };
 
 class MetaspaceAux : AllStatic {

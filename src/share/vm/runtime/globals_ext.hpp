@@ -136,6 +136,25 @@
   manageable(uintx, HugeObjectAllocationThreshold, 128*M,                   \
           "The size of the used heap of the instance must occupy to "       \
           "generate a jfr event")                                           \
+                                                                            \
+  manageable(bool, MetaspaceDumpBeforeFullGC, false,                        \
+             "Dump metaspace to file before full gc caused by metaspace")   \
+                                                                            \
+  manageable(bool, MetaspaceDumpAfterFullGC, false,                         \
+             "Dump metaspace to file after full gc caused by metaspace")    \
+                                                                            \
+  manageable(bool, MetaspaceDumpOnOutOfMemoryError, false,                  \
+             "Dump metaspace to file when java.lang.OutOfMemoryError "      \
+             "caused by metaspace exhausted")                               \
+                                                                            \
+  manageable(ccstr, MetaspaceDumpPath, NULL,                                \
+          "Specify the path (filename or directory) of the "                \
+          "metaspace dump file (defaults to java_pid<pid>.mprof "           \
+          "in the working directory)")                                      \
+                                                                            \
+  diagnostic(ccstr, ClassLoaderModuleFieldName, "moduleName",               \
+          "For distinguishing the instances of class loader")               \
+
   //add new AJVM specific flags here
 
 

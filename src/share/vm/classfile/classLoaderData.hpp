@@ -60,6 +60,7 @@ class ClassLoaderDataGraph : public AllStatic {
   friend class ClassLoaderDataGraphMetaspaceIterator;
   friend class ClassLoaderDataGraphKlassIteratorAtomic;
   friend class VMStructs;
+  friend class MetaspaceDumper;
  private:
   // All CLDs (except the null CLD) can be reached by walking _head->_next->...
   static ClassLoaderData* _head;
@@ -122,6 +123,7 @@ class ClassLoaderDataGraph : public AllStatic {
 
 class ClassLoaderData : public CHeapObj<mtClass> {
   friend class VMStructs;
+  friend class MetaspaceDumper;
  private:
   class Dependencies VALUE_OBJ_CLASS_SPEC {
     objArrayOop _list_head;

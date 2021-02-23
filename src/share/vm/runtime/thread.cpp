@@ -1115,47 +1115,60 @@ static void call_startWispDaemons(TRAPS) {
 
 char java_runtime_name[128] = "";
 char java_runtime_version[128] = "";
+char java_distro_name[128] = "";
+char java_distro_version[128] = "";
 
-// extract the JRE name from sun.misc.Version.java_runtime_name
-static const char* get_java_runtime_name(TRAPS) {
-  Klass* k = SystemDictionary::find(vmSymbols::sun_misc_Version(),
-                                      Handle(), Handle(), CHECK_AND_CLEAR_NULL);
+static const char* get_class_field_as_utf8_string(Symbol* clazz, Symbol* field, char* buf, size_t buf_len, TRAPS) {
+  Klass* k = SystemDictionary::find(clazz, Handle(), Handle(), CHECK_AND_CLEAR_NULL);
   fieldDescriptor fd;
   bool found = k != NULL &&
-               InstanceKlass::cast(k)->find_local_field(vmSymbols::java_runtime_name_name(),
+               InstanceKlass::cast(k)->find_local_field(field,
                                                         vmSymbols::string_signature(), &fd);
   if (found) {
     oop name_oop = k->java_mirror()->obj_field(fd.offset());
     if (name_oop == NULL)
       return NULL;
-    const char* name = java_lang_String::as_utf8_string(name_oop,
-                                                        java_runtime_name,
-                                                        sizeof(java_runtime_name));
+    const char* name = java_lang_String::as_utf8_string(name_oop, buf, buf_len);
     return name;
   } else {
     return NULL;
   }
 }
 
+// extract the JRE name from sun.misc.Version.java_runtime_name
+static const char* get_java_runtime_name(TRAPS) {
+  return get_class_field_as_utf8_string(vmSymbols::sun_misc_Version(),
+                                        vmSymbols::java_runtime_name_name(),
+                                        java_runtime_name,
+                                        sizeof(java_runtime_name),
+                                        THREAD);
+}
+
 // extract the JRE version from sun.misc.Version.java_runtime_version
 static const char* get_java_runtime_version(TRAPS) {
-  Klass* k = SystemDictionary::find(vmSymbols::sun_misc_Version(),
-                                      Handle(), Handle(), CHECK_AND_CLEAR_NULL);
-  fieldDescriptor fd;
-  bool found = k != NULL &&
-               InstanceKlass::cast(k)->find_local_field(vmSymbols::java_runtime_version_name(),
-                                                        vmSymbols::string_signature(), &fd);
-  if (found) {
-    oop name_oop = k->java_mirror()->obj_field(fd.offset());
-    if (name_oop == NULL)
-      return NULL;
-    const char* name = java_lang_String::as_utf8_string(name_oop,
-                                                        java_runtime_version,
-                                                        sizeof(java_runtime_version));
-    return name;
-  } else {
-    return NULL;
-  }
+  return get_class_field_as_utf8_string(vmSymbols::sun_misc_Version(),
+                                        vmSymbols::java_runtime_version_name(),
+                                        java_runtime_version,
+                                        sizeof(java_runtime_version),
+                                        THREAD);
+}
+
+// extract the JRE name from sun.misc.Version.java_distro_name
+static const char* get_java_distro_name(TRAPS) {
+  return get_class_field_as_utf8_string(vmSymbols::sun_misc_Version(),
+                                        vmSymbols::java_distro_name_name(),
+                                        java_distro_name,
+                                        sizeof(java_distro_name),
+                                        THREAD);
+}
+
+// extract the JRE name from sun.misc.Version.java_distro_version
+static const char* get_java_distro_version(TRAPS) {
+  return get_class_field_as_utf8_string(vmSymbols::sun_misc_Version(),
+                                        vmSymbols::java_distro_version_name(),
+                                        java_distro_version,
+                                        sizeof(java_distro_version),
+                                        THREAD);
 }
 
 // General purpose hook into Java code, run once when the VM is initialized.
@@ -3881,6 +3894,8 @@ jint Threads::create_vm(JavaVMInitArgs* args, bool* canTryAgain) {
     // get the Java runtime name after java.lang.System is initialized
     JDK_Version::set_runtime_name(get_java_runtime_name(THREAD));
     JDK_Version::set_runtime_version(get_java_runtime_version(THREAD));
+    JDK_Version::set_distro_name(get_java_distro_name(THREAD));
+    JDK_Version::set_distro_version(get_java_distro_version(THREAD));
 
     // an instance of OutOfMemory exception has been allocated earlier
     initialize_class(vmSymbols::java_lang_OutOfMemoryError(), CHECK_0);

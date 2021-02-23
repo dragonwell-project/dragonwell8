@@ -96,6 +96,8 @@ class Metabase VALUE_OBJ_CLASS_SPEC {
 
 class Metachunk : public Metabase<Metachunk> {
   friend class TestMetachunk;
+  friend class MetaspaceDumper;
+  friend class InUsedChunkDumpClosure;
   // The VirtualSpaceNode containing this chunk.
   VirtualSpaceNode* _container;
 

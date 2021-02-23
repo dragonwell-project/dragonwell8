@@ -35,6 +35,9 @@
 #include "utilities/macros.hpp"
 #include "oops/objArrayOop.hpp"
 #include "gc_implementation/g1/elasticHeap.hpp"
+#include "utilities/ticks.hpp"
+#include "memory/metaspace.hpp"
+#include "memory/metaspaceDumper.hpp"
 
 PRAGMA_FORMAT_MUTE_WARNINGS_FOR_GCC
 
@@ -65,6 +68,7 @@ void DCmdRegistrant::register_dcmds(){
   DCmdFactory::register_DCmdFactory(new DCmdFactoryImpl<RotateGCLogDCmd>(full_export, true, false));
   DCmdFactory::register_DCmdFactory(new DCmdFactoryImpl<ClassLoaderStatsDCmd>(full_export, true, false));
   DCmdFactory::register_DCmdFactory(new DCmdFactoryImpl<JWarmupDCmd>(full_export, true, false));
+  DCmdFactory::register_DCmdFactory(new DCmdFactoryImpl<MetaspaceDumpDCmd>(full_export, true, false));
 
   // Enhanced JMX Agent Support
   // These commands won't be exported via the DiagnosticCommandMBean until an
@@ -961,4 +965,55 @@ void ElasticHeapDCmd::print_info() {
       output()->print_cr("[GC.elastic_heap: young generation commit percent %d, uncommitted memory %ld B]", percent, uncommitted_bytes);
       break;
   }
+}
+
+MetaspaceDumpDCmd::MetaspaceDumpDCmd(outputStream *output, bool heap_allocated) :
+  DCmdWithParser(output, heap_allocated),
+  _filename("filename", "Name of the dump file", "STRING", true, "./metaspace_%p.log") {
+  _dcmdparser.add_dcmd_option(&_filename);
+}
+
+int MetaspaceDumpDCmd::num_arguments() {
+  ResourceMark rm;
+  int num_args = 0;
+  MetaspaceDumpDCmd* dcmd = new MetaspaceDumpDCmd(NULL, false);
+
+  if (dcmd != NULL) {
+    DCmdMark mark(dcmd);
+    num_args = dcmd->_dcmdparser.num_arguments();
+  }
+
+  return num_args;
+}
+
+void MetaspaceDumpDCmd::execute(DCmdSource source, TRAPS) {
+  if (!is_init_completed()) {
+    warning("JDK is not fully initialized. Please try it later.");
+    return;
+  }
+
+  ResourceMark rm;
+  char* real_path_buf = (char*)os::malloc(JVM_MAXPATHLEN, mtInternal);
+  guarantee(real_path_buf != NULL, "could not allocate memory");
+  assert(_filename.has_value(), "dump file name must be specified");
+  char* path = _filename.value();
+  bool success = Arguments::copy_expand_pid(path, strlen(path), real_path_buf, JVM_MAXPATHLEN);
+  if (!success) {
+    warning("filename is too long.");
+    return;
+  }
+
+  Ticks start_time = Ticks::now();
+
+  MetaspaceDumper::dump(real_path_buf, MetaspaceDumper::JCMD);
+
+  Ticks end_time = Ticks::now();
+
+  Tickspan duration = end_time - start_time;
+  long ms = TimeHelper::counter_to_milliseconds(duration.value());
+  if (output() != NULL) {
+    output()->print_cr("It took %lu milliseconds to dump the metaspace.", ms);
+  }
+
+  os::free(real_path_buf, mtInternal);
 }

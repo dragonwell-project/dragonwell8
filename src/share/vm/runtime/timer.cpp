@@ -48,6 +48,12 @@ double TimeHelper::counter_to_seconds(jlong counter) {
   return counter/freq;
 }
 
+double TimeHelper::counter_to_milliseconds(jlong counter) {
+  double count = (double) counter;
+  double freq  = (double) os::elapsed_frequency() / (double) 1000;
+  return counter/freq;
+}
+
 void elapsedTimer::add(elapsedTimer t) {
   _counter += t._counter;
 }

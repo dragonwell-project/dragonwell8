@@ -172,6 +172,11 @@ class TreeChunk : public Chunk_t {
   void assert_is_mangled() const;
 };
 
+template <class FreeList_t>
+class FreeListClosure : public StackObj {
+  public:
+    virtual void do_list(FreeList_t* fl) = 0;
+};
 
 template <class Chunk_t, class FreeList_t>
 class BinaryTreeDictionary: public FreeBlockDictionary<Chunk_t> {
@@ -326,6 +331,8 @@ class BinaryTreeDictionary: public FreeBlockDictionary<Chunk_t> {
   // print out summaries.
   void       print_dict_census(void) const;
   void       print_free_lists(outputStream* st) const;
+
+  void       free_lists_do(FreeListClosure<FreeList_t>& closure);
 
   // For debugging.  Returns the sum of the _returned_bytes for
   // all lists in the tree.

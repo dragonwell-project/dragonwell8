@@ -32,6 +32,7 @@
 #include "memory/gcLocker.hpp"
 #include "memory/metachunk.hpp"
 #include "memory/metaspace.hpp"
+#include "memory/metaspaceDumper.hpp"
 #include "memory/metaspaceGCThresholdUpdater.hpp"
 #include "memory/metaspaceShared.hpp"
 #include "memory/metaspaceTracer.hpp"
@@ -47,6 +48,7 @@
 #include "services/memoryService.hpp"
 #include "utilities/copy.hpp"
 #include "utilities/debug.hpp"
+#include "classfile/classLoader.hpp"
 
 PRAGMA_FORMAT_MUTE_WARNINGS_FOR_GCC
 
@@ -253,6 +255,8 @@ class ChunkManager : public CHeapObj<mtInternal> {
 // Used to manage the free list of Metablocks (a block corresponds
 // to the allocation of a quantum of metadata).
 class BlockFreelist VALUE_OBJ_CLASS_SPEC {
+  friend class Metaspace;
+
   BlockTreeDictionary* _dictionary;
 
   // Only allocate and split from freelist if the size of the allocation
@@ -483,6 +487,7 @@ uint VirtualSpaceNode::container_count_slow() {
 // List of VirtualSpaces for metadata allocation.
 class VirtualSpaceList : public CHeapObj<mtClass> {
   friend class VirtualSpaceNode;
+  friend class Metaspace;
 
   enum VirtualSpaceSizes {
     VirtualSpaceSize = 256 * K
@@ -3650,6 +3655,15 @@ size_t Metaspace::class_chunk_size(size_t word_size) {
   return class_vsm()->calc_chunk_size(word_size);
 }
 
+static void metaspace_dump_on_oome(const char* space, MetaspaceDumper::OOMEMetaspaceArea area,
+                                   ClassLoaderData* loader_data) {
+  static jint out_of_memory_count = 0;
+  if (MetaspaceDumpOnOutOfMemoryError && Atomic::cmpxchg(1, &out_of_memory_count, 0) == 0) {
+    tty->print_cr("java.lang.OutOfMemoryError: %s", space);
+    MetaspaceDumper::dump(MetaspaceDumper::OnOutOfMemoryError, area, loader_data);
+  }
+}
+
 void Metaspace::report_metadata_oome(ClassLoaderData* loader_data, size_t word_size, MetaspaceObj::Type type, MetadataType mdtype, TRAPS) {
   tracer()->report_metadata_oom(loader_data, word_size, type, mdtype);
 
@@ -3676,6 +3690,9 @@ void Metaspace::report_metadata_oome(ClassLoaderData* loader_data, size_t word_s
   const char* space_string = out_of_compressed_class_space ?
     "Compressed class space" : "Metaspace";
 
+  metaspace_dump_on_oome(space_string,
+                         out_of_compressed_class_space ? MetaspaceDumper::Class : MetaspaceDumper::NonClass,
+                         loader_data);
   report_java_out_of_memory(space_string);
 
   if (JvmtiExport::should_post_resource_exhausted()) {
@@ -3825,6 +3842,43 @@ void Metaspace::dump(outputStream* const out) const {
   if (using_class_space()) {
     out->print_cr("\nClass space manager: " INTPTR_FORMAT, class_vsm());
     class_vsm()->dump(out);
+  }
+}
+
+void Metaspace::spaces_do(Metaspace::MetadataType metadataType, VirtualSpaceClosure *closure) {
+  VirtualSpaceList* list = Metaspace::get_space_list(metadataType);
+  VirtualSpaceList::VirtualSpaceListIterator iter(list->virtual_space_list());
+  while (iter.repeat()) {
+    VirtualSpaceNode* node = iter.get_next();
+    VirtualSpace* vs = node->virtual_space();
+    closure->do_space(vs, node == list->current_virtual_space(), node->top());
+  }
+}
+
+void Metaspace::free_chunks_do(Metaspace::MetadataType metadataType, FreeListClosure<FreeList<Metachunk> > *closure) {
+  ChunkManager* chunk_manager = Metaspace::get_chunk_manager(metadataType);
+  for (ChunkIndex i = ZeroIndex; i < NumberOfFreeLists; i = next_chunk_index(i)) {
+    FreeList<Metachunk>* free_list = chunk_manager->free_chunks(i);
+    if (free_list != NULL && free_list->count() > 0) {
+      closure->do_list(free_list);
+    }
+  }
+  chunk_manager->humongous_dictionary()->free_lists_do(*closure);
+}
+
+void Metaspace::in_used_chunks_do(Metaspace::MetadataType metadataType, InUsedChunkClosure *closure) {
+  SpaceManager* manager = get_space_manager(metadataType);
+  for (ChunkIndex index = ZeroIndex; index < NumberOfInUseLists; index = next_chunk_index(index)) {
+    for (Metachunk* chunk = manager->chunks_in_use(index); chunk != NULL; chunk = chunk->next()) {
+      closure->do_chunk(chunk, chunk == manager->current_chunk());
+    }
+  }
+}
+
+void Metaspace::free_blocks_do(Metaspace::MetadataType metadataType, FreeListClosure<FreeList<Metablock> > *closure) {
+  BlockTreeDictionary* dic = get_space_manager(metadataType)->block_freelists()->dictionary();
+  if (dic != NULL) {
+    dic->free_lists_do(*closure);
   }
 }
 

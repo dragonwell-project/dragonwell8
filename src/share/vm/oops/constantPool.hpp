@@ -89,6 +89,7 @@ class ConstantPool : public Metadata {
   friend class VMStructs;
   friend class BytecodeInterpreter;  // Directly extracts an oop in the pool for fast instanceof/checkcast
   friend class Universe;             // For null constructor
+  friend class MetaspaceDumper;
  private:
   Array<u1>*           _tags;        // the tag array describing the constant pool's contents
   ConstantPoolCache*   _cache;       // the cache holding interpreter runtime information
