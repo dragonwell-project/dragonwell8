@@ -94,6 +94,7 @@ VtableStub* VtableStubs::create_vtable_stub(int vtable_index) {
 
   __ lookup_virtual_method(r16, vtable_index, rmethod);
 
+#ifndef PRODUCT
   if (DebugVtables) {
     Label L;
     __ cbz(rmethod, L);
@@ -102,6 +103,8 @@ VtableStub* VtableStubs::create_vtable_stub(int vtable_index) {
     __ stop("Vtable entry is NULL");
     __ bind(L);
   }
+#endif // PRODUCT
+
   // r0: receiver klass
   // rmethod: Method*
   // r2: receiver
@@ -130,6 +133,11 @@ VtableStub* VtableStubs::create_itable_stub(int itable_index) {
   // returned by pd_code_size_limit!
   const int code_length = VtableStub::pd_code_size_limit(false);
   VtableStub* s = new(code_length) VtableStub(false, itable_index);
+  // Can be NULL if there is no free space in the code cache.
+  if (s == NULL) {
+    return NULL;
+  }
+
   ResourceMark rm;
   CodeBuffer cb(s->entry_point(), code_length);
   MacroAssembler* masm = new MacroAssembler(&cb);
@@ -139,7 +147,7 @@ VtableStub* VtableStubs::create_itable_stub(int itable_index) {
     __ lea(r10, ExternalAddress((address) SharedRuntime::nof_megamorphic_calls_addr()));
     __ incrementw(Address(r10));
   }
-#endif
+#endif // PRODUCT
 
   // Entry arguments:
   //  rscratch2: CompiledICHolder
@@ -182,7 +190,7 @@ VtableStub* VtableStubs::create_itable_stub(int itable_index) {
   // method (rmethod): Method*
   // j_rarg0: receiver
 
-#ifdef ASSERT
+#ifndef PRODUCT
   if (DebugVtables) {
     Label L2;
     __ cbz(rmethod, L2);
@@ -191,7 +199,7 @@ VtableStub* VtableStubs::create_itable_stub(int itable_index) {
     __ stop("compiler entrypoint is null");
     __ bind(L2);
   }
-#endif // ASSERT
+#endif // PRODUCT
 
   // rmethod: Method*
   // j_rarg0: receiver
@@ -218,14 +226,10 @@ VtableStub* VtableStubs::create_itable_stub(int itable_index) {
 
 
 int VtableStub::pd_code_size_limit(bool is_vtable_stub) {
-  int size = DebugVtables ? 216 : 0;
-  if (CountCompiledCalls)
-    size += 6 * 4;
-  // FIXME: vtable stubs only need 36 bytes
-  if (is_vtable_stub)
-    size += 52;
-  else
-    size += 176;
+  if (TraceJumps || DebugVtables || CountCompiledCalls || VerifyOops) {
+    return 1000;
+  }
+  int size = is_vtable_stub ? 60 : 192; // Plain + safety
   return size;
 
   // In order to tune these parameters, run the JVM with VM options
