@@ -244,19 +244,31 @@ class CastIINode: public ConstraintCastNode {
   private:
   // Can this node be removed post CCP or does it carry a required dependency?
   const bool _carry_dependency;
+  // Is this node dependent on a range check?
+  const bool _range_check_dependency;
 
   protected:
   virtual uint cmp( const Node &n ) const;
   virtual uint size_of() const;
 
 public:
-  CastIINode(Node *n, const Type *t, bool carry_dependency = false)
-    : ConstraintCastNode(n,t), _carry_dependency(carry_dependency) {}
+  CastIINode(Node *n, const Type *t, bool carry_dependency = false, bool range_check_dependency = false)
+    : ConstraintCastNode(n,t), _carry_dependency(carry_dependency), _range_check_dependency(range_check_dependency) {
+    init_class_id(Class_CastII);
+  }
   virtual int Opcode() const;
   virtual uint ideal_reg() const { return Op_RegI; }
   virtual Node *Identity( PhaseTransform *phase );
   virtual const Type *Value( PhaseTransform *phase ) const;
   virtual Node *Ideal_DU_postCCP( PhaseCCP * );
+  const bool has_range_check() {
+ #ifdef _LP64
+     return _range_check_dependency;
+ #else
+     assert(!_range_check_dependency, "Should not have range check dependency");
+     return false;
+ #endif
+   }
 #ifndef PRODUCT
   virtual void dump_spec(outputStream *st) const;
 #endif
