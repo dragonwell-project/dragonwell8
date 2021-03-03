@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -148,6 +148,7 @@ class ISO_8859_1
         private final Surrogate.Parser sgp = new Surrogate.Parser();
 
         // JVM may replace this method with intrinsic code.
+        // don't pass len value <= 0
         private static int encodeISOArray(char[] sa, int sp,
                                           byte[] da, int dp, int len)
         {
@@ -180,7 +181,7 @@ class ISO_8859_1
             int slen = sl - sp;
             int len  = (dlen < slen) ? dlen : slen;
             try {
-                int ret = encodeISOArray(sa, sp, da, dp, len);
+                int ret = (len <= 0) ? 0 : encodeISOArray(sa, sp, da, dp, len);
                 sp = sp + ret;
                 dp = dp + ret;
                 if (ret != len) {
@@ -240,7 +241,8 @@ class ISO_8859_1
             int slen = Math.min(len, dst.length);
             int sl = sp + slen;
             while (sp < sl) {
-                int ret = encodeISOArray(src, sp, dst, dp, slen);
+                int ret =
+                    (slen <= 0) ? 0 : encodeISOArray(src, sp, dst, dp, slen);
                 sp = sp + ret;
                 dp = dp + ret;
                 if (ret != slen) {

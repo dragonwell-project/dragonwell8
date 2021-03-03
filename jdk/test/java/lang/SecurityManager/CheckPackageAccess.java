@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -74,6 +74,8 @@ public class CheckPackageAccess {
         "com.sun.org.apache.xalan.internal.xsltc.trax.",
         "com.sun.org.apache.xalan.internal.xsltc.util.",
         "com.sun.org.apache.xml.internal.res.",
+        "com.sun.org.apache.xml.internal.resolver.helpers.",
+        "com.sun.org.apache.xml.internal.resolver.readers.",
         "com.sun.org.apache.xml.internal.security.",
         "com.sun.org.apache.xml.internal.serializer.utils.",
         "com.sun.org.apache.xml.internal.utils.",
