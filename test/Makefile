@@ -50,6 +50,22 @@ else \
 fi
 endef
 
+# Macro to print a summary for a given test subdirectory
+define SUBDIR_SUMMARY # subdirectory to print summary
+if [ -d $1 ] ; then \
+  if [ -r $1/Stats.txt ] ; then \
+    cat $1/Stats.txt; \
+    echo ""; \
+  else \
+    echo "ERROR: File does not exist: $1/Stats.txt"; \
+    exit 1; \
+  fi; \
+else \
+  echo "WARNING: Expected directory does not exist: $1"; \
+  echo "         Test summary might be incorrect."; \
+fi
+endef
+
 # Default test target (core)
 default: jdk_core langtools_jtreg
 
@@ -58,13 +74,42 @@ all: jdk_all langtools_all
 
 # Test targets
 langtools_% :
-	@$(NO_STOPPING)$(call SUBDIR_TEST, $(LANGTOOLS_DIR), JT_JAVA=$(PRODUCT_HOME) JTREG_HOME=$(JT_HOME) TEST="$(subst langtools_,,$@)" $(subst langtools_,,$@))
+	@$(NO_STOPPING)$(call SUBDIR_TEST, $(LANGTOOLS_DIR), JT_JAVA=$(PRODUCT_HOME) JTREG_HOME=$(JT_HOME) UNIQUE_DIR="$@" TEST="$(subst langtools_,,$@)" $(subst langtools_,,$@))
 
 jdk_% core_%s svc_%:
 	@$(NO_STOPPING)$(call SUBDIR_TEST, $(JDK_DIR), TEST="$@" $@)
 
 hotspot_%:
 	@$(NO_STOPPING)$(call SUBDIR_TEST, $(HOTSPOT_DIR), TEST="$@" $@)
+
+# Variables for tier1 testing
+TIER1_TESTOUTPUT="$(ALT_OUTPUTDIR)/testoutput"
+TIER1_STATUS_FILE="$(TIER1_TESTOUTPUT)/tier1_exitcode.txt"
+
+# Note: Test failures are handled via summary_tier1 as the
+#       tier1 targets are never aborted even if tests fail.
+tier1: prep_tier1 jdk_tier1 langtools_tier1 hotspot_tier1 summary_tier1
+
+prep_tier1:
+	@rm -rf $(TIER1_STATUS_FILE)
+
+# This relies on jdk_tier1, langtools_tier1, hotspot_tier1 producing
+# Stats.txt (summary) and exitcode.txt files.
+summary_tier1:
+	@(EXIT_VAL=0; \
+	  echo ""; \
+	  echo "-------------- Test Summary ------------"; \
+	  echo ""; \
+	  for test_dir in $$(find "$(ALT_OUTPUTDIR)" -type d -name \*_tier1); do \
+	    $(call SUBDIR_SUMMARY, $${test_dir}); \
+	    EXIT_VAL=$$(expr $${EXIT_VAL} + $$(cat $${test_dir}/exitcode.txt)); \
+	  done; \
+	  echo $${EXIT_VAL} > $(TIER1_STATUS_FILE); \
+	  echo "For details see:"; \
+	  echo $(TIER1_TESTOUTPUT); \
+	  echo ""; \
+	  echo "-------------- Test Summary ------------"; \
+	  echo "")
 
 #
 # jtreg_tests
@@ -95,6 +140,6 @@ jtreg_tests:
 ################################################################
 
 # Phony targets (e.g. these are not filenames)
-.PHONY: all clean
+.PHONY: all clean summary_tier1 prep_tier1
 
 ################################################################

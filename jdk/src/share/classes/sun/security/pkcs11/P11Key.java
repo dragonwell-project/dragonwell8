@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -29,7 +29,6 @@ import java.io.*;
 import java.lang.ref.*;
 import java.math.BigInteger;
 import java.util.*;
-
 import java.security.*;
 import java.security.interfaces.*;
 import java.security.spec.*;
@@ -43,10 +42,14 @@ import sun.security.rsa.RSAPublicKeyImpl;
 import sun.security.internal.interfaces.TlsMasterSecret;
 
 import sun.security.pkcs11.wrapper.*;
+
+import static sun.security.pkcs11.TemplateManager.O_GENERATE;
 import static sun.security.pkcs11.wrapper.PKCS11Constants.*;
 
 import sun.security.util.DerValue;
 import sun.security.util.Length;
+
+import sun.security.jca.JCAUtil;
 
 /**
  * Key implementation classes.
@@ -79,23 +82,38 @@ abstract class P11Key implements Key, Length {
     // algorithm name, returned by getAlgorithm(), etc.
     final String algorithm;
 
-    // key id
-    final long keyID;
-
     // effective key length of the key, e.g. 56 for a DES key
     final int keyLength;
 
     // flags indicating whether the key is a token object, sensitive, extractable
     final boolean tokenObject, sensitive, extractable;
 
-    // phantom reference notification clean up for session keys
-    private final SessionKeyRef sessionKeyRef;
+    private final NativeKeyHolder keyIDHolder;
+
+    private static final boolean DISABLE_NATIVE_KEYS_EXTRACTION;
+
+    /**
+     * {@systemProperty sun.security.pkcs11.disableKeyExtraction} property
+     * indicating whether or not cryptographic keys within tokens are
+     * extracted to a Java byte array for memory management purposes.
+     *
+     * Key extraction affects NSS PKCS11 library only.
+     *
+     */
+    static {
+        PrivilegedAction<String> getKeyExtractionProp =
+                () -> System.getProperty(
+                        "sun.security.pkcs11.disableKeyExtraction", "false");
+        String disableKeyExtraction =
+                AccessController.doPrivileged(getKeyExtractionProp);
+        DISABLE_NATIVE_KEYS_EXTRACTION =
+                "true".equalsIgnoreCase(disableKeyExtraction);
+    }
 
     P11Key(String type, Session session, long keyID, String algorithm,
             int keyLength, CK_ATTRIBUTE[] attributes) {
         this.type = type;
         this.token = session.token;
-        this.keyID = keyID;
         this.algorithm = algorithm;
         this.keyLength = keyLength;
         boolean tokenObject = false;
@@ -115,11 +133,21 @@ abstract class P11Key implements Key, Length {
         this.tokenObject = tokenObject;
         this.sensitive = sensitive;
         this.extractable = extractable;
-        if (tokenObject == false) {
-            sessionKeyRef = new SessionKeyRef(this, keyID, session);
-        } else {
-            sessionKeyRef = null;
-        }
+        char[] tokenLabel = this.token.tokenInfo.label;
+        boolean isNSS = (tokenLabel[0] == 'N' && tokenLabel[1] == 'S'
+                && tokenLabel[2] == 'S');
+        boolean extractKeyInfo = (!DISABLE_NATIVE_KEYS_EXTRACTION && isNSS &&
+                extractable && !tokenObject);
+        this.keyIDHolder = new NativeKeyHolder(this, keyID, session, extractKeyInfo,
+            tokenObject);
+    }
+
+    public long getKeyID() {
+        return keyIDHolder.getKeyID();
+    }
+
+    public void releaseKeyID() {
+        keyIDHolder.releaseKeyID();
     }
 
     // see JCA spec
@@ -204,8 +232,7 @@ abstract class P11Key implements Key, Length {
         token.ensureValid();
         String s1 = token.provider.getName() + " " + algorithm + " " + type
                 + " key, " + keyLength + " bits";
-        s1 += " (id " + keyID + ", "
-                + (tokenObject ? "token" : "session") + " object";
+        s1 += (tokenObject ? "token" : "session") + " object";
         if (isPublic()) {
             s1 += ")";
         } else {
@@ -237,12 +264,15 @@ abstract class P11Key implements Key, Length {
 
     void fetchAttributes(CK_ATTRIBUTE[] attributes) {
         Session tempSession = null;
+        long keyID = this.getKeyID();
         try {
             tempSession = token.getOpSession();
-            token.p11.C_GetAttributeValue(tempSession.id(), keyID, attributes);
+            token.p11.C_GetAttributeValue(tempSession.id(), keyID,
+                        attributes);
         } catch (PKCS11Exception e) {
             throw new ProviderException(e);
         } finally {
+            this.releaseKeyID();
             token.releaseSession(tempSession);
         }
     }
@@ -289,7 +319,8 @@ abstract class P11Key implements Key, Length {
             new CK_ATTRIBUTE(CKA_SENSITIVE),
             new CK_ATTRIBUTE(CKA_EXTRACTABLE),
         });
-        return new P11SecretKey(session, keyID, algorithm, keyLength, attributes);
+        return new P11SecretKey(session, keyID, algorithm, keyLength,
+                attributes);
     }
 
     static SecretKey masterSecretKey(Session session, long keyID, String algorithm,
@@ -299,8 +330,9 @@ abstract class P11Key implements Key, Length {
             new CK_ATTRIBUTE(CKA_SENSITIVE),
             new CK_ATTRIBUTE(CKA_EXTRACTABLE),
         });
-        return new P11TlsMasterSecretKey
-                (session, keyID, algorithm, keyLength, attributes, major, minor);
+        return new P11TlsMasterSecretKey(
+                session, keyID, algorithm, keyLength, attributes, major,
+                minor);
     }
 
     // we assume that all components of public keys are always accessible
@@ -308,17 +340,17 @@ abstract class P11Key implements Key, Length {
             int keyLength, CK_ATTRIBUTE[] attributes) {
         switch (algorithm) {
             case "RSA":
-                return new P11RSAPublicKey
-                    (session, keyID, algorithm, keyLength, attributes);
+                return new P11RSAPublicKey(session, keyID, algorithm,
+                        keyLength, attributes);
             case "DSA":
-                return new P11DSAPublicKey
-                    (session, keyID, algorithm, keyLength, attributes);
+                return new P11DSAPublicKey(session, keyID, algorithm,
+                        keyLength, attributes);
             case "DH":
-                return new P11DHPublicKey
-                    (session, keyID, algorithm, keyLength, attributes);
+                return new P11DHPublicKey(session, keyID, algorithm,
+                        keyLength, attributes);
             case "EC":
-                return new P11ECPublicKey
-                    (session, keyID, algorithm, keyLength, attributes);
+                return new P11ECPublicKey(session, keyID, algorithm,
+                        keyLength, attributes);
             default:
                 throw new ProviderException
                     ("Unknown public key algorithm " + algorithm);
@@ -355,21 +387,21 @@ abstract class P11Key implements Key, Length {
                         crtKey = false;
                     }
                     if (crtKey) {
-                        return new P11RSAPrivateKey
-                                (session, keyID, algorithm, keyLength, attributes);
+                        return new P11RSAPrivateKey(session, keyID, algorithm,
+                                keyLength, attributes);
                     } else {
-                        return new P11RSAPrivateNonCRTKey
-                                (session, keyID, algorithm, keyLength, attributes);
+                        return new P11RSAPrivateNonCRTKey(session, keyID,
+                                algorithm, keyLength, attributes);
                     }
                 case "DSA":
-                    return new P11DSAPrivateKey
-                            (session, keyID, algorithm, keyLength, attributes);
+                    return new P11DSAPrivateKey(session, keyID, algorithm,
+                            keyLength, attributes);
                 case "DH":
-                    return new P11DHPrivateKey
-                            (session, keyID, algorithm, keyLength, attributes);
+                    return new P11DHPrivateKey(session, keyID, algorithm,
+                            keyLength, attributes);
                 case "EC":
-                    return new P11ECPrivateKey
-                            (session, keyID, algorithm, keyLength, attributes);
+                    return new P11ECPrivateKey(session, keyID, algorithm,
+                            keyLength, attributes);
                 default:
                     throw new ProviderException
                             ("Unknown private key algorithm " + algorithm);
@@ -423,17 +455,19 @@ abstract class P11Key implements Key, Length {
                     b = encoded;
                     if (b == null) {
                         Session tempSession = null;
+                        long keyID = this.getKeyID();
                         try {
                             tempSession = token.getOpSession();
                             CK_ATTRIBUTE[] attributes = new CK_ATTRIBUTE[] {
                                 new CK_ATTRIBUTE(CKA_VALUE),
                             };
                             token.p11.C_GetAttributeValue
-                                (tempSession.id(), keyID, attributes);
+                                    (tempSession.id(), keyID, attributes);
                             b = attributes[0].getByteArray();
                         } catch (PKCS11Exception e) {
                             throw new ProviderException(e);
                         } finally {
+                            this.releaseKeyID();
                             token.releaseSession(tempSession);
                         }
                         encoded = b;
@@ -1091,17 +1125,207 @@ abstract class P11Key implements Key, Length {
     }
 }
 
+final class NativeKeyHolder {
+
+    private static long nativeKeyWrapperKeyID = 0;
+    private static CK_MECHANISM nativeKeyWrapperMechanism = null;
+    private static long nativeKeyWrapperRefCount = 0;
+    private static Session nativeKeyWrapperSession = null;
+
+    private final P11Key p11Key;
+    private final byte[] nativeKeyInfo;
+    private boolean wrapperKeyUsed;
+
+    // destroyed and recreated when refCount toggles to 1
+    private long keyID;
+
+    // phantom reference notification clean up for session keys
+    private SessionKeyRef ref;
+
+    private int refCount;
+
+    private static void createNativeKeyWrapper(Token token)
+            throws PKCS11Exception {
+        assert(nativeKeyWrapperKeyID == 0);
+        assert(nativeKeyWrapperRefCount == 0);
+        assert(nativeKeyWrapperSession == null);
+        // Create a global wrapping/unwrapping key
+        CK_ATTRIBUTE[] wrappingAttributes = token.getAttributes(O_GENERATE,
+                        CKO_SECRET_KEY, CKK_AES, new CK_ATTRIBUTE[] {
+                                new CK_ATTRIBUTE(CKA_CLASS, CKO_SECRET_KEY),
+                                new CK_ATTRIBUTE(CKA_VALUE_LEN, 256 >> 3)});
+        Session s = null;
+        try {
+            s = token.getObjSession();
+            nativeKeyWrapperKeyID = token.p11.C_GenerateKey(
+                    s.id(), new CK_MECHANISM(CKM_AES_KEY_GEN),
+                    wrappingAttributes);
+            nativeKeyWrapperSession = s;
+            nativeKeyWrapperSession.addObject();
+            byte[] iv = new byte[16];
+            JCAUtil.getSecureRandom().nextBytes(iv);
+            nativeKeyWrapperMechanism = new CK_MECHANISM(CKM_AES_CBC_PAD, iv);
+        } catch (PKCS11Exception e) {
+            // best effort
+        } finally {
+            token.releaseSession(s);
+        }
+    }
+
+    private static void deleteNativeKeyWrapper() {
+        Token token = nativeKeyWrapperSession.token;
+        if (token.isValid()) {
+            Session s = null;
+            try {
+                s = token.getOpSession();
+                token.p11.C_DestroyObject(s.id(), nativeKeyWrapperKeyID);
+                nativeKeyWrapperSession.removeObject();
+            } catch (PKCS11Exception e) {
+                // best effort
+            } finally {
+                token.releaseSession(s);
+            }
+        }
+        nativeKeyWrapperKeyID = 0;
+        nativeKeyWrapperMechanism = null;
+        nativeKeyWrapperSession = null;
+    }
+
+    static void decWrapperKeyRef() {
+        synchronized(NativeKeyHolder.class) {
+            assert(nativeKeyWrapperKeyID != 0);
+            assert(nativeKeyWrapperRefCount > 0);
+            nativeKeyWrapperRefCount--;
+            if (nativeKeyWrapperRefCount == 0) {
+                deleteNativeKeyWrapper();
+            }
+        }
+    }
+
+    NativeKeyHolder(P11Key p11Key, long keyID, Session keySession,
+            boolean extractKeyInfo, boolean isTokenObject) {
+        this.p11Key = p11Key;
+        this.keyID = keyID;
+        this.refCount = -1;
+        byte[] ki = null;
+        if (isTokenObject) {
+            this.ref = null;
+        } else {
+            // Try extracting key info, if any error, disable it
+            Token token = p11Key.token;
+            if (extractKeyInfo) {
+                try {
+                    if (p11Key.sensitive) {
+                        // p11Key native key information has to be wrapped
+                        synchronized(NativeKeyHolder.class) {
+                            if (nativeKeyWrapperKeyID == 0) {
+                                createNativeKeyWrapper(token);
+                            }
+                            // If a wrapper-key was successfully created or
+                            // already exists, increment its reference
+                            // counter to keep it alive while native key
+                            // information is being held.
+                            if (nativeKeyWrapperKeyID != 0) {
+                                nativeKeyWrapperRefCount++;
+                                wrapperKeyUsed = true;
+                            }
+                        }
+                    }
+                    Session opSession = null;
+                    try {
+                        opSession = token.getOpSession();
+                        ki = p11Key.token.p11.getNativeKeyInfo(opSession.id(),
+                                keyID, nativeKeyWrapperKeyID,
+                                nativeKeyWrapperMechanism);
+                    } catch (PKCS11Exception e) {
+                        // best effort
+                    } finally {
+                        token.releaseSession(opSession);
+                    }
+                } catch (PKCS11Exception e) {
+                    // best effort
+                }
+            }
+            this.ref = new SessionKeyRef(p11Key, keyID, wrapperKeyUsed,
+                    keySession);
+        }
+        this.nativeKeyInfo = ((ki == null || ki.length == 0)? null : ki);
+    }
+
+    long getKeyID() throws ProviderException {
+        if (this.nativeKeyInfo != null) {
+            synchronized(this.nativeKeyInfo) {
+                if (this.refCount == -1) {
+                    this.refCount = 0;
+                }
+                int cnt = (this.refCount)++;
+                if (keyID == 0) {
+                    if (cnt != 0) {
+                        throw new RuntimeException(
+                                "Error: null keyID with non-zero refCount " + cnt);
+                    }
+                    Token token = p11Key.token;
+                    // Create keyID using nativeKeyInfo
+                    Session session = null;
+                    try {
+                        session = token.getObjSession();
+                        this.keyID = token.p11.createNativeKey(session.id(),
+                                nativeKeyInfo, nativeKeyWrapperKeyID,
+                                nativeKeyWrapperMechanism);
+                        this.ref.registerNativeKey(this.keyID, session);
+                    } catch (PKCS11Exception e) {
+                        this.refCount--;
+                        throw new ProviderException("Error recreating native key", e);
+                    } finally {
+                        token.releaseSession(session);
+                    }
+                } else {
+                    if (cnt < 0) {
+                        throw new RuntimeException("ERROR: negative refCount");
+                    }
+                }
+            }
+        }
+        return keyID;
+    }
+
+    void releaseKeyID() {
+        if (this.nativeKeyInfo != null) {
+            synchronized(this.nativeKeyInfo) {
+                if (this.refCount == -1) {
+                    throw new RuntimeException("Error: miss match getKeyID call");
+                }
+                int cnt = --(this.refCount);
+                if (cnt == 0) {
+                    // destroy
+                    if (this.keyID == 0) {
+                        throw new RuntimeException("ERROR: null keyID can't be destroyed");
+                    }
+
+                    // destroy
+                    this.keyID = 0;
+                    this.ref.removeNativeKey();
+                } else {
+                    if (cnt < 0) {
+                        // should never happen as we start count at 1 and pair get/release calls
+                        throw new RuntimeException("wrong refCount value: " + cnt);
+                    }
+                }
+            }
+        }
+    }
+}
+
 /*
  * NOTE: Must use PhantomReference here and not WeakReference
  * otherwise the key maybe cleared before other objects which
  * still use these keys during finalization such as SSLSocket.
  */
-final class SessionKeyRef extends PhantomReference<P11Key>
-    implements Comparable<SessionKeyRef> {
+final class SessionKeyRef extends PhantomReference<P11Key> {
     private static ReferenceQueue<P11Key> refQueue =
         new ReferenceQueue<P11Key>();
-    private static Set<SessionKeyRef> refList =
-        Collections.synchronizedSortedSet(new TreeSet<SessionKeyRef>());
+    private static Set<SessionKeyRef> refSet =
+        Collections.synchronizedSet(new HashSet<SessionKeyRef>());
 
     static ReferenceQueue<P11Key> referenceQueue() {
         return refQueue;
@@ -1115,42 +1339,71 @@ final class SessionKeyRef extends PhantomReference<P11Key>
         }
     }
 
-    // handle to the native key
+    // handle to the native key and the session it is generated under
     private long keyID;
     private Session session;
+    private boolean wrapperKeyUsed;
 
-    SessionKeyRef(P11Key key , long keyID, Session session) {
-        super(key, refQueue);
-        this.keyID = keyID;
-        this.session = session;
-        this.session.addObject();
-        refList.add(this);
+    SessionKeyRef(P11Key p11Key, long keyID, boolean wrapperKeyUsed,
+            Session session) {
+        super(p11Key, refQueue);
+        if (session == null) {
+            throw new ProviderException("key must be associated with a session");
+        }
+        registerNativeKey(keyID, session);
+        this.wrapperKeyUsed = wrapperKeyUsed;
+
+        refSet.add(this);
         // TBD: run at some interval and not every time?
         drainRefQueueBounded();
     }
 
-    private void dispose() {
-        refList.remove(this);
-        if (session.token.isValid()) {
-            Session newSession = null;
-            try {
-                newSession = session.token.getOpSession();
-                session.token.p11.C_DestroyObject(newSession.id(), keyID);
-            } catch (PKCS11Exception e) {
-                // ignore
-            } finally {
-                this.clear();
-                session.token.releaseSession(newSession);
-                session.removeObject();
-            }
-        }
+    void registerNativeKey(long newKeyID, Session newSession) {
+        assert(newKeyID != 0);
+        assert(newSession != null);
+        updateNativeKey(newKeyID, newSession);
     }
 
-    public int compareTo(SessionKeyRef other) {
-        if (this.keyID == other.keyID) {
-            return 0;
+    void removeNativeKey() {
+        assert(session != null);
+        updateNativeKey(0, null);
+    }
+
+    private void updateNativeKey(long newKeyID, Session newSession) {
+        if (newKeyID == 0) {
+            assert(newSession == null);
+            Token token = session.token;
+            // If the token is still valid, try to remove the key object
+            if (token.isValid()) {
+                Session s = null;
+                try {
+                    s = token.getOpSession();
+                    token.p11.C_DestroyObject(s.id(), this.keyID);
+                } catch (PKCS11Exception e) {
+                    // best effort
+                } finally {
+                    token.releaseSession(s);
+                }
+            }
+            session.removeObject();
         } else {
-            return (this.keyID < other.keyID) ? -1 : 1;
+            newSession.addObject();
         }
+        keyID = newKeyID;
+        session = newSession;
+    }
+
+    // Called when the GC disposes a p11Key
+    void dispose() {
+        if (wrapperKeyUsed) {
+            // Wrapper-key no longer needed for
+            // p11Key native key information
+            NativeKeyHolder.decWrapperKeyRef();
+        }
+        if (keyID != 0) {
+            removeNativeKey();
+        }
+        refSet.remove(this);
+        this.clear();
     }
 }
