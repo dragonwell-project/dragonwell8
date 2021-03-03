@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2002, 2014, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2002, 2018, Oracle and/or its affiliates. All rights reserved.
 # DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 #
 # This code is free software; you can redistribute it and/or modify it
@@ -174,6 +174,7 @@ SUNWprivate_1.1 {
         Java_sun_awt_UNIXToolkit_load_1gtk_1icon;
         Java_sun_awt_UNIXToolkit_nativeSync;
         Java_sun_awt_UNIXToolkit_gtkCheckVersionImpl;
+        Java_sun_awt_UNIXToolkit_get_1gtk_1version;
         Java_java_awt_AWTEvent_initIDs;
         Java_java_awt_event_InputEvent_initIDs;
         Java_java_awt_event_KeyEvent_initIDs;

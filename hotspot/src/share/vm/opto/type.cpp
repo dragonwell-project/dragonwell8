@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -884,6 +884,13 @@ void Type::dump_on(outputStream *st) const {
   } else if (is_ptr_to_narrowklass()) {
     st->print(" [narrowklass]");
   }
+}
+
+//-----------------------------------------------------------------------------
+const char* Type::str(const Type* t) {
+  stringStream ss;
+  t->dump_on(&ss);
+  return ss.as_string();
 }
 #endif
 
