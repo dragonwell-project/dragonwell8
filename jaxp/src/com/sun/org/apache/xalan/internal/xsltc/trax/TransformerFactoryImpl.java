@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2007, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2007, 2016, Oracle and/or its affiliates. All rights reserved.
  */
 /*
  * Licensed to the Apache Software Foundation (ASF) under one or more
@@ -16,9 +16,6 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- */
-/*
- * $Id: TransformerFactoryImpl.java,v 1.8 2007/04/09 21:30:41 joehw Exp $
  */
 
 package com.sun.org.apache.xalan.internal.xsltc.trax;
@@ -48,6 +45,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.util.ArrayList;
 import java.util.Enumeration;
 import java.util.Map;
 import java.util.Properties;
@@ -592,7 +590,7 @@ public class TransformerFactoryImpl
         }
 
         // Inefficient, but array is small
-        for (int i =0; i < features.length; i++) {
+        for (int i = 0; i < features.length; i++) {
             if (name.equals(features[i])) {
                 return true;
             }
@@ -799,7 +797,7 @@ public class TransformerFactoryImpl
     /**
      * Pass warning messages from the compiler to the error listener
      */
-    private void passWarningsToListener(Vector messages)
+    private void passWarningsToListener(ArrayList<ErrorMsg> messages)
         throws TransformerException
     {
         if (_errorListener == null || messages == null) {
@@ -808,7 +806,7 @@ public class TransformerFactoryImpl
         // Pass messages to listener, one by one
         final int count = messages.size();
         for (int pos = 0; pos < count; pos++) {
-            ErrorMsg msg = (ErrorMsg)messages.elementAt(pos);
+            ErrorMsg msg = messages.get(pos);
             // Workaround for the TCK failure ErrorListener.errorTests.error001.
             if (msg.isWarningError())
                 _errorListener.error(
@@ -822,7 +820,7 @@ public class TransformerFactoryImpl
     /**
      * Pass error messages from the compiler to the error listener
      */
-    private void passErrorsToListener(Vector messages) {
+    private void passErrorsToListener(ArrayList<ErrorMsg> messages) {
         try {
             if (_errorListener == null || messages == null) {
                 return;
@@ -830,7 +828,7 @@ public class TransformerFactoryImpl
             // Pass messages to listener, one by one
             final int count = messages.size();
             for (int pos = 0; pos < count; pos++) {
-                String message = messages.elementAt(pos).toString();
+                String message = messages.get(pos).toString();
                 _errorListener.error(new TransformerException(message));
             }
         }
@@ -1004,40 +1002,39 @@ public class TransformerFactoryImpl
         }
 
         // Check that the transformation went well before returning
-    if (bytecodes == null) {
-        Vector errs = xsltc.getErrors();
-        ErrorMsg err;
-        if (errs != null) {
-            err = (ErrorMsg)errs.elementAt(errs.size()-1);
-        } else {
-            err = new ErrorMsg(ErrorMsg.JAXP_COMPILE_ERR);
-        }
-        Throwable cause = err.getCause();
-        TransformerConfigurationException exc;
-        if (cause != null) {
-            exc =  new TransformerConfigurationException(cause.getMessage(), cause);
-        } else {
-            exc =  new TransformerConfigurationException(err.toString());
-        }
-
-        // Pass compiler errors to the error listener
-        if (_errorListener != null) {
-            passErrorsToListener(xsltc.getErrors());
-
-            // As required by TCK 1.2, send a fatalError to the
-            // error listener because compilation of the stylesheet
-            // failed and no further processing will be possible.
-            try {
-                _errorListener.fatalError(exc);
-            } catch (TransformerException te) {
-                // well, we tried.
+        if (bytecodes == null) {
+            ArrayList<ErrorMsg> errs = xsltc.getErrors();
+            ErrorMsg err;
+            if (errs != null) {
+                err = errs.get(errs.size() - 1);
+            } else {
+                err = new ErrorMsg(ErrorMsg.JAXP_COMPILE_ERR);
             }
+            Throwable cause = err.getCause();
+            TransformerConfigurationException exc;
+            if (cause != null) {
+                exc =  new TransformerConfigurationException(cause.getMessage(), cause);
+            } else {
+                exc =  new TransformerConfigurationException(err.toString());
+            }
+
+            // Pass compiler errors to the error listener
+            if (_errorListener != null) {
+                passErrorsToListener(xsltc.getErrors());
+
+                // As required by TCK 1.2, send a fatalError to the
+                // error listener because compilation of the stylesheet
+                // failed and no further processing will be possible.
+                try {
+                    _errorListener.fatalError(exc);
+                } catch (TransformerException te) {
+                    // well, we tried.
+                }
+            } else {
+                xsltc.printErrors();
+            }
+            throw exc;
         }
-        else {
-            xsltc.printErrors();
-        }
-        throw exc;
-    }
 
         return new TemplatesImpl(bytecodes, transletName,
             xsltc.getOutputProperties(), _indentNumber, this);
