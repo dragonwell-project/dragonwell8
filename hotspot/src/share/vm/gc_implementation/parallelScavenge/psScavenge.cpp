@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2002, 2014, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -466,10 +466,12 @@ bool PSScavenge::invoke_no_policy() {
       }
     }
 
-    GCTraceTime tm("StringTable", false, false, &_gc_timer);
-    // Unlink any dead interned Strings and process the remaining live ones.
-    PSScavengeRootsClosure root_closure(promotion_manager);
-    StringTable::unlink_or_oops_do(&_is_alive_closure, &root_closure);
+    {
+      GCTraceTime tm("StringTable", false, false, &_gc_timer);
+      // Unlink any dead interned Strings and process the remaining live ones.
+      PSScavengeRootsClosure root_closure(promotion_manager);
+      StringTable::unlink_or_oops_do(&_is_alive_closure, &root_closure);
+    }
 
     // Finally, flush the promotion_manager's labs, and deallocate its stacks.
     promotion_failure_occurred = PSPromotionManager::post_scavenge(_gc_tracer);
@@ -527,8 +529,19 @@ bool PSScavenge::invoke_no_policy() {
           counters->update_survivor_overflowed(_survivor_overflow);
         }
 
+        size_t max_young_size = young_gen->max_size();
+
+        // Deciding a free ratio in the young generation is tricky, so if
+        // MinHeapFreeRatio or MaxHeapFreeRatio are in use (implicating
+        // that the old generation size may have been limited because of them) we
+        // should then limit our young generation size using NewRatio to have it
+        // follow the old generation size.
+        if (MinHeapFreeRatio != 0 || MaxHeapFreeRatio != 100) {
+          max_young_size = MIN2(old_gen->capacity_in_bytes() / NewRatio, young_gen->max_size());
+        }
+
         size_t survivor_limit =
-          size_policy->max_survivor_size(young_gen->max_size());
+          size_policy->max_survivor_size(max_young_size);
         _tenuring_threshold =
           size_policy->compute_survivor_space_size_and_threshold(
                                                            _survivor_overflow,
@@ -551,8 +564,7 @@ bool PSScavenge::invoke_no_policy() {
         // Do call at minor collections?
         // Don't check if the size_policy is ready at this
         // level.  Let the size_policy check that internally.
-        if (UseAdaptiveSizePolicy &&
-            UseAdaptiveGenerationSizePolicyAtMinorCollection &&
+        if (UseAdaptiveGenerationSizePolicyAtMinorCollection &&
             ((gc_cause != GCCause::_java_lang_system_gc) ||
               UseAdaptiveSizePolicyWithSystemGC)) {
 
@@ -566,7 +578,7 @@ bool PSScavenge::invoke_no_policy() {
           size_t eden_live = young_gen->eden_space()->used_in_bytes();
           size_t cur_eden = young_gen->eden_space()->capacity_in_bytes();
           size_t max_old_gen_size = old_gen->max_gen_size();
-          size_t max_eden_size = young_gen->max_size() -
+          size_t max_eden_size = max_young_size -
             young_gen->from_space()->capacity_in_bytes() -
             young_gen->to_space()->capacity_in_bytes();
 
