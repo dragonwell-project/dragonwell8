@@ -254,7 +254,7 @@ public class ErrorMessages_de extends ListResourceBundle {
          * text.
          */
         {ErrorMsg.ILLEGAL_ATTRIBUTE_ERR,
-        "Ung\u00FCltiges Attribut \"{0}\"."},
+        "Unzul\u00E4ssiges Attribut \"{0}\"."},
 
         /*
          * Note to translators:  "import" and "include" are keywords that should
@@ -307,7 +307,7 @@ public class ErrorMessages_de extends ListResourceBundle {
          * function has too many or too few arguments.
          */
         {ErrorMsg.ILLEGAL_ARG_ERR,
-        "Ung\u00FCltige Argumente f\u00FCr Funktionsaufruf."},
+        "Unzul\u00E4ssige Argumente f\u00FCr Funktionsaufruf."},
 
         /*
          * Note to translators:  "document()" is the name of function and must
