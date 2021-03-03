@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1996, 2014, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -93,7 +93,7 @@ public class MsgAppletViewer_pt_BR extends ListResourceBundle {
             {"appletviewer.main.nosecmgr", "Advert\u00EAncia: SecurityManager n\u00E3o instalado!"},
             {"appletviewer.main.warning", "Advert\u00EAncia: Nenhum applet iniciado. Certifique-se de que a entrada contenha uma tag <applet>."},
             {"appletviewer.main.warn.prop.overwrite", "Advert\u00EAncia: Substituindo a propriedade do sistema temporariamente a pedido do usu\u00E1rio: chave: {0} valor antigo: {1} valor novo: {2}"},
-            {"appletviewer.main.warn.cantreadprops", "Advert\u00EAncia: N\u00E3o \u00E9 poss\u00EDvel ler o arquivo de propriedades AppletViewer: {0} Usando defaults."},
+            {"appletviewer.main.warn.cantreadprops", "Advert\u00EAncia: N\u00E3o \u00E9 poss\u00EDvel ler o arquivo de propriedades AppletViewer: {0} Usando padr\u00F5es."},
             {"appletioexception.loadclass.throw.interrupted", "carregamento de classe interrompido: {0}"},
             {"appletioexception.loadclass.throw.notloaded", "classe n\u00E3o carregada: {0}"},
             {"appletclassloader.loadcode.verbose", "Fluxo de abertura para: {0} para obter {1}"},
