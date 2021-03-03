@@ -1212,8 +1212,7 @@ $(SCTPAPI_PACKAGES_FILE): $(DIRECTORY_CACHE) $(call PackageDependencies,$(SCTPAP
 # jaccessdocs - Java Accessibility Utilities
 #
 
-# Disable generation for now due to build break of nightly
-#ALL_OTHER_TARGETS += jaccessdocs
+ALL_OTHER_TARGETS += jaccessdocs
 
 JACCESSAPI_DOCDIR := $(JRE_API_DOCSDIR)/accessibility/jaccess/spec
 JACCESSAPI2COREAPI := ../../../$(JDKJRE2COREAPI)

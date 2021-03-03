@@ -96,13 +96,15 @@ public class UnpackerImpl extends TLGlobals implements Pack200.Unpacker {
     //Driver routines
 
     // The unpack worker...
+
     /**
      * Takes a packed-stream InputStream, and writes to a JarOutputStream. Internally
      * the entire buffer must be read, it may be more efficient to read the packed-stream
      * to a file and pass the File object, in the alternate method described below.
      * <p>
      * Closes its input but not its output.  (The output can accumulate more elements.)
-     * @param in an InputStream.
+     *
+     * @param in  an InputStream.
      * @param out a JarOutputStream.
      * @exception IOException if an error is encountered.
      */
@@ -113,19 +115,19 @@ public class UnpackerImpl extends TLGlobals implements Pack200.Unpacker {
         if (out == null) {
             throw new NullPointerException("null output");
         }
-        assert(Utils.currentInstance.get() == null);
-        TimeZone tz = (props.getBoolean(Utils.PACK_DEFAULT_TIMEZONE))
-                      ? null
-                      : TimeZone.getDefault();
-
+        assert (Utils.currentInstance.get() == null);
+        boolean needUTC = !props.getBoolean(Utils.PACK_DEFAULT_TIMEZONE);
         try {
             Utils.currentInstance.set(this);
-            if (tz != null) TimeZone.setDefault(TimeZone.getTimeZone("UTC"));
+            if (needUTC) {
+                Utils.changeDefaultTimeZoneToUtc();
+            }
             final int verbose = props.getInteger(Utils.DEBUG_VERBOSE);
             BufferedInputStream in0 = new BufferedInputStream(in);
             if (Utils.isJarMagic(Utils.readMagic(in0))) {
-                if (verbose > 0)
+                if (verbose > 0) {
                     Utils.log.info("Copying unpacked JAR file...");
+                }
                 Utils.copyJarFile(new JarInputStream(in0), out);
             } else if (props.getBoolean(Utils.DEBUG_DISABLE_NATIVE)) {
                 (new DoUnpack()).run(in0, out);
@@ -144,7 +146,9 @@ public class UnpackerImpl extends TLGlobals implements Pack200.Unpacker {
         } finally {
             _nunp = null;
             Utils.currentInstance.set(null);
-            if (tz != null) TimeZone.setDefault(tz);
+            if (needUTC) {
+                Utils.restoreDefaultTimeZone();
+            }
         }
     }
 
@@ -152,7 +156,8 @@ public class UnpackerImpl extends TLGlobals implements Pack200.Unpacker {
      * Takes an input File containing the pack file, and generates a JarOutputStream.
      * <p>
      * Does not close its output.  (The output can accumulate more elements.)
-     * @param in a File.
+     *
+     * @param in  a File.
      * @param out a JarOutputStream.
      * @exception IOException if an error is encountered.
      */

@@ -40,7 +40,6 @@ if (!$OPTIONS._fx) {
 var ChangeListener = Java.type("javafx.beans.value.ChangeListener");
 var Scene     = Java.type("javafx.scene.Scene");
 var WebView   = Java.type("javafx.scene.web.WebView");
-var EventListener = Java.type("org.w3c.dom.events.EventListener");
 
 // JavaFX start method
 function start(stage) {
