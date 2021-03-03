@@ -91,14 +91,14 @@ public class ErrorMessages_it extends ListResourceBundle {
          * is a class name.  Used for internal errors in the processor.
          */
         {BasisLibrary.RUN_TIME_INTERNAL_ERR,
-        "Errore interno in fase di esecuzione in ''{0}''"},
+        "Errore interno in runtime in ''{0}''"},
 
         /*
          * Note to translators:  <xsl:copy> is a keyword that should not be
          * translated.
          */
         {BasisLibrary.RUN_TIME_COPY_ERR,
-        "Errore in fase di esecuzione durante l'esecuzione di <xsl:copy>."},
+        "Errore in runtime durante l'esecuzione di <xsl:copy>."},
 
         /*
          * Note to translators:  The substitution text refers to data types.
@@ -252,7 +252,7 @@ public class ErrorMessages_it extends ListResourceBundle {
          * the name of the translet class.
          */
         {BasisLibrary.UNKNOWN_TRANSLET_VERSION_ERR,
-        "Il translet specificato ''{0}'' \u00E8 stato creato utilizzando una versione di XSLTC pi\u00F9 recente di quella della fase di esecuzione XSLTC in uso. Ricompilare il foglio di stile o utilizzare una versione pi\u00F9 recente di XSLTC per eseguire questo translet."},
+        "Il translet specificato ''{0}'' \u00E8 stato creato utilizzando una versione di XSLTC pi\u00F9 recente di quella della fase di runtime XSLTC in uso. Ricompilare il foglio di stile o utilizzare una versione pi\u00F9 recente di XSLTC per eseguire questo translet."},
 
         /*
          * Note to translators:  An attribute whose effective value is required
