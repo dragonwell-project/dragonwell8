@@ -43,6 +43,7 @@ import static jdk.nashorn.internal.runtime.arrays.ArrayIndex.isValidArrayIndex;
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodType;
+import java.lang.invoke.SwitchPoint;
 import java.util.AbstractMap;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -65,6 +66,7 @@ import jdk.nashorn.internal.lookup.Lookup;
 import jdk.nashorn.internal.lookup.MethodHandleFactory;
 import jdk.nashorn.internal.objects.AccessorPropertyDescriptor;
 import jdk.nashorn.internal.objects.DataPropertyDescriptor;
+import jdk.nashorn.internal.objects.Global;
 import jdk.nashorn.internal.runtime.arrays.ArrayData;
 import jdk.nashorn.internal.runtime.arrays.ArrayIndex;
 import jdk.nashorn.internal.runtime.linker.Bootstrap;
@@ -88,7 +90,7 @@ import jdk.nashorn.internal.runtime.linker.NashornGuards;
  * </ul>
  */
 
-public abstract class ScriptObject extends PropertyListenerManager implements PropertyAccess {
+public abstract class ScriptObject implements PropertyAccess {
     /** __proto__ special property name */
     public static final String PROTO_PROPERTY_NAME   = "__proto__";
 
@@ -106,9 +108,6 @@ public abstract class ScriptObject extends PropertyListenerManager implements Pr
 
     /** Per ScriptObject flag - is this an arguments object? */
     public static final int IS_ARGUMENTS   = 0b0000_0100;
-
-    /** Is this a prototype PropertyMap? */
-    public static final int IS_PROTOTYPE   = 0b0000_1000;
 
     /** Is length property not-writable? */
     public static final int IS_LENGTH_NOT_WRITABLE = 0b0001_0000;
@@ -133,7 +132,8 @@ public abstract class ScriptObject extends PropertyListenerManager implements Pr
 
     static final MethodHandle GETPROTO           = findOwnMH("getProto", ScriptObject.class);
     static final MethodHandle SETPROTOCHECK      = findOwnMH("setProtoCheck", void.class, Object.class);
-    static final MethodHandle MEGAMORPHIC_GET    = findOwnMH("megamorphicGet", Object.class, String.class, boolean.class);
+    static final MethodHandle MEGAMORPHIC_GET    = findOwnMH("megamorphicGet", Object.class, String.class, boolean.class, boolean.class);
+    static final MethodHandle GLOBALFILTER       = findOwnMH("globalFilter", Object.class, Object.class);
 
     static final MethodHandle SETFIELD           = findOwnMH("setField",         void.class, CallSiteDescriptor.class, PropertyMap.class, PropertyMap.class, MethodHandle.class, Object.class, Object.class);
     static final MethodHandle SETSPILL           = findOwnMH("setSpill",         void.class, CallSiteDescriptor.class, PropertyMap.class, PropertyMap.class, int.class, Object.class, Object.class);
@@ -142,6 +142,8 @@ public abstract class ScriptObject extends PropertyListenerManager implements Pr
 
     private static final MethodHandle TRUNCATINGFILTER   = findOwnMH("truncatingFilter", Object[].class, int.class, Object[].class);
     private static final MethodHandle KNOWNFUNCPROPGUARD = findOwnMH("knownFunctionPropertyGuard", boolean.class, Object.class, PropertyMap.class, MethodHandle.class, Object.class, ScriptFunction.class);
+
+    private static final ArrayList<MethodHandle> protoFilters = new ArrayList<>();
 
     /** Method handle for getting a function argument at a given index. Used from MapCreator */
     public static final Call GET_ARGUMENT       = virtualCall(MethodHandles.lookup(), ScriptObject.class, "getArgument", Object.class, int.class);
@@ -153,7 +155,7 @@ public abstract class ScriptObject extends PropertyListenerManager implements Pr
     public static final Call GET_PROTO          = virtualCallNoLookup(ScriptObject.class, "getProto", ScriptObject.class);
 
     /** Method handle for setting the proto of a ScriptObject */
-    public static final Call SET_PROTO          = virtualCallNoLookup(ScriptObject.class, "setProto", void.class, ScriptObject.class);
+    public static final Call SET_PROTO          = virtualCallNoLookup(ScriptObject.class, "setInitialProto", void.class, ScriptObject.class);
 
     /** Method handle for setting the proto of a ScriptObject after checking argument */
     public static final Call SET_PROTO_CHECK    = virtualCallNoLookup(ScriptObject.class, "setProtoCheck", void.class, Object.class);
@@ -199,10 +201,6 @@ public abstract class ScriptObject extends PropertyListenerManager implements Pr
         this.arrayData = ArrayData.EMPTY_ARRAY;
         this.setMap(map == null ? PropertyMap.newMap() : map);
         this.proto = proto;
-
-        if (proto != null) {
-            proto.setIsPrototype();
-        }
     }
 
     /**
@@ -229,8 +227,9 @@ public abstract class ScriptObject extends PropertyListenerManager implements Pr
             final Property oldProp = newMap.findProperty(key);
             if (oldProp == null) {
                 if (property instanceof UserAccessorProperty) {
+                    // Note: we copy accessor functions to this object which is semantically different from binding.
                     final UserAccessorProperty prop = this.newUserAccessors(key, property.getFlags(), property.getGetterFunction(source), property.getSetterFunction(source));
-                    newMap = newMap.addProperty(prop);
+                    newMap = newMap.addPropertyNoHistory(prop);
                 } else {
                     newMap = newMap.addPropertyBind((AccessorProperty)property, source);
                 }
@@ -326,18 +325,18 @@ public abstract class ScriptObject extends PropertyListenerManager implements Pr
       * @return property descriptor
       */
     public final PropertyDescriptor toPropertyDescriptor() {
-        final GlobalObject global = (GlobalObject) Context.getGlobalTrusted();
+        final Global global = Context.getGlobal();
 
         final PropertyDescriptor desc;
         if (isDataDescriptor()) {
             if (has(SET) || has(GET)) {
-                throw typeError((ScriptObject)global, "inconsistent.property.descriptor");
+                throw typeError(global, "inconsistent.property.descriptor");
             }
 
             desc = global.newDataDescriptor(UNDEFINED, false, false, false);
         } else if (isAccessorDescriptor()) {
             if (has(VALUE) || has(WRITABLE)) {
-                throw typeError((ScriptObject)global, "inconsistent.property.descriptor");
+                throw typeError(global, "inconsistent.property.descriptor");
             }
 
             desc = global.newAccessorDescriptor(UNDEFINED, UNDEFINED, false, false);
@@ -356,7 +355,7 @@ public abstract class ScriptObject extends PropertyListenerManager implements Pr
      *
      * @return property descriptor
      */
-    public static PropertyDescriptor toPropertyDescriptor(final ScriptObject global, final Object obj) {
+    public static PropertyDescriptor toPropertyDescriptor(final Global global, final Object obj) {
         if (obj instanceof ScriptObject) {
             return ((ScriptObject)obj).toPropertyDescriptor();
         }
@@ -375,7 +374,7 @@ public abstract class ScriptObject extends PropertyListenerManager implements Pr
     public Object getOwnPropertyDescriptor(final String key) {
         final Property property = getMap().findProperty(key);
 
-        final GlobalObject global = (GlobalObject)Context.getGlobalTrusted();
+        final Global global = Context.getGlobal();
 
         if (property != null) {
             final ScriptFunction get   = property.getGetterFunction(this);
@@ -440,7 +439,7 @@ public abstract class ScriptObject extends PropertyListenerManager implements Pr
      * @return true if property was successfully defined
      */
     public boolean defineOwnProperty(final String key, final Object propertyDesc, final boolean reject) {
-        final ScriptObject       global  = Context.getGlobalTrusted();
+        final Global             global  = Context.getGlobal();
         final PropertyDescriptor desc    = toPropertyDescriptor(global, propertyDesc);
         final Object             current = getOwnPropertyDescriptor(key);
         final String             name    = JSType.toString(key);
@@ -467,7 +466,7 @@ public abstract class ScriptObject extends PropertyListenerManager implements Pr
             return true;
         }
 
-        if (currentDesc.equals(newDesc)) {
+        if (newDesc.hasAndEquals(currentDesc)) {
             // every descriptor field of the new is same as the current
             return true;
         }
@@ -594,23 +593,16 @@ public abstract class ScriptObject extends PropertyListenerManager implements Pr
     }
 
     /**
-     * Spec. mentions use of [[DefineOwnProperty]] for indexed properties in
-     * certain places (eg. Array.prototype.map, filter). We can not use ScriptObject.set
-     * method in such cases. This is because set method uses inherited setters (if any)
-     * from any object in proto chain such as Array.prototype, Object.prototype.
-     * This method directly sets a particular element value in the current object.
+     * Almost like defineOwnProperty(int,Object) for arrays this one does
+     * not add 'gap' elements (like the array one does).
      *
      * @param index key for property
      * @param value value to define
      */
-    public final void defineOwnProperty(final int index, final Object value) {
+    public void defineOwnProperty(final int index, final Object value) {
         assert isValidArrayIndex(index) : "invalid array index";
         final long longIndex = ArrayIndex.toLongIndex(index);
-        if (longIndex >= getArray().length()) {
-            // make array big enough to hold..
-            setArray(getArray().ensure(longIndex));
-        }
-        setArray(getArray().set(index, value, false));
+        setValueAtArrayIndex(longIndex, index, value, false);
     }
 
     private void checkIntegerKey(final String key) {
@@ -638,7 +630,7 @@ public abstract class ScriptObject extends PropertyListenerManager implements Pr
         final int propFlags = Property.toFlags(pdesc);
 
         if (pdesc.type() == PropertyDescriptor.GENERIC) {
-            final GlobalObject global = (GlobalObject) Context.getGlobalTrusted();
+            final Global global = Context.getGlobal();
             final PropertyDescriptor dDesc = global.newDataDescriptor(UNDEFINED, false, false, false);
 
             dDesc.fillFrom((ScriptObject)pdesc);
@@ -873,8 +865,6 @@ public abstract class ScriptObject extends PropertyListenerManager implements Pr
             newProperty = newUserAccessors(oldProperty.getKey(), propertyFlags, getter, setter);
         }
 
-        notifyPropertyModified(this, oldProperty, newProperty);
-
         return modifyOwnProperty(oldProperty, newProperty);
     }
 
@@ -981,17 +971,6 @@ public abstract class ScriptObject extends PropertyListenerManager implements Pr
     }
 
     /**
-      * Get the object value of a property
-      *
-      * @param find {@link FindProperty} lookup result
-      *
-      * @return the value of the property
-      */
-    protected static Object getObjectValue(final FindProperty find) {
-        return find.getObjectValue();
-    }
-
-    /**
      * Return methodHandle of value function for call.
      *
      * @param find      data from find property.
@@ -1001,7 +980,7 @@ public abstract class ScriptObject extends PropertyListenerManager implements Pr
      * @return value of property as a MethodHandle or null.
      */
     protected MethodHandle getCallMethodHandle(final FindProperty find, final MethodType type, final String bindName) {
-        return getCallMethodHandle(getObjectValue(find), type, bindName);
+        return getCallMethodHandle(find.getObjectValue(), type, bindName);
     }
 
     /**
@@ -1025,7 +1004,7 @@ public abstract class ScriptObject extends PropertyListenerManager implements Pr
      * @return Value of property.
      */
     public final Object getWithProperty(final Property property) {
-        return getObjectValue(new FindProperty(this, this, property));
+        return new FindProperty(this, this, property).getObjectValue();
     }
 
     /**
@@ -1118,26 +1097,30 @@ public abstract class ScriptObject extends PropertyListenerManager implements Pr
      */
     public synchronized final void setProto(final ScriptObject newProto) {
         final ScriptObject oldProto = proto;
-        map = map.changeProto(oldProto, newProto);
 
-        if (newProto != null) {
-            newProto.setIsPrototype();
-        }
+        if (oldProto != newProto) {
+            proto = newProto;
 
-        proto = newProto;
-
-        if (isPrototype()) {
-            // tell listeners that my __proto__ has been changed
-            notifyProtoChanged(this, oldProto, newProto);
-
-            if (oldProto != null) {
-                oldProto.removePropertyListener(this);
+            // Let current listeners know that the protototype has changed and set our map
+            final PropertyListeners listeners = getMap().getListeners();
+            if (listeners != null) {
+                listeners.protoChanged();
             }
-
-            if (newProto != null) {
-                newProto.addPropertyListener(this);
-            }
+            // Replace our current allocator map with one that is associated with the new prototype.
+            setMap(getMap().changeProto(newProto));
         }
+    }
+
+    /**
+     * Set the initial __proto__ of this object. This should be used instead of
+     * {@link #setProto} if it is known that the current property map will not be
+     * used on a new object with any other parent property map, so we can pass over
+     * property map invalidation/evolution.
+     *
+     * @param initialProto the initial __proto__ to set.
+     */
+    public void setInitialProto(final ScriptObject initialProto) {
+        this.proto = initialProto;
     }
 
     /**
@@ -1160,7 +1143,7 @@ public abstract class ScriptObject extends PropertyListenerManager implements Pr
             }
             setProto((ScriptObject)newProto);
         } else {
-            final ScriptObject global = Context.getGlobalTrusted();
+            final Global global = Context.getGlobal();
             final Object  newProtoObject = JSType.toScriptObject(global, newProto);
 
             if (newProtoObject instanceof ScriptObject) {
@@ -1250,11 +1233,11 @@ public abstract class ScriptObject extends PropertyListenerManager implements Pr
      * @return the default value
      */
     public Object getDefaultValue(final Class<?> typeHint) {
-        // We delegate to GlobalObject, as the implementation uses dynamic call sites to invoke object's "toString" and
+        // We delegate to Global, as the implementation uses dynamic call sites to invoke object's "toString" and
         // "valueOf" methods, and in order to avoid those call sites from becoming megamorphic when multiple contexts
         // are being executed in a long-running program, we move the code and their associated dynamic call sites
         // (Global.TO_STRING and Global.VALUE_OF) into per-context code.
-        return ((GlobalObject)Context.getGlobalTrusted()).getDefaultValue(this, typeHint);
+        return Context.getGlobal().getDefaultValue(this, typeHint);
     }
 
     /**
@@ -1327,25 +1310,6 @@ public abstract class ScriptObject extends PropertyListenerManager implements Pr
      */
     public final void setIsArguments() {
         flags |= IS_ARGUMENTS;
-    }
-
-    /**
-     * Check if this object is a prototype
-     *
-     * @return {@code true} if is prototype
-     */
-    public final boolean isPrototype() {
-        return (flags & IS_PROTOTYPE) != 0;
-    }
-
-    /**
-     * Flag this object as having a prototype.
-     */
-    public final void setIsPrototype() {
-        if (proto != null && !isPrototype()) {
-            proto.addPropertyListener(this);
-        }
-        flags |= IS_PROTOTYPE;
     }
 
     /**
@@ -1712,6 +1676,44 @@ public abstract class ScriptObject extends PropertyListenerManager implements Pr
     }
 
     /**
+     * Test whether this object contains in its prototype chain or is itself a with-object.
+     * @return true if a with-object was found
+     */
+    final boolean hasWithScope() {
+        if (isScope()) {
+            for (ScriptObject obj = this; obj != null; obj = obj.getProto()) {
+                if (obj instanceof WithObject) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Add a filter to the first argument of {@code methodHandle} that calls its {@link #getProto()} method
+     * {@code depth} times.
+     * @param methodHandle a method handle
+     * @param depth        distance to target prototype
+     * @return the filtered method handle
+     */
+    static MethodHandle addProtoFilter(final MethodHandle methodHandle, final int depth) {
+        if (depth == 0) {
+            return methodHandle;
+        }
+        final int listIndex = depth - 1; // We don't need 0-deep walker
+        MethodHandle filter = listIndex < protoFilters.size() ? protoFilters.get(listIndex) : null;
+
+        if(filter == null) {
+            filter = addProtoFilter(GETPROTO, depth - 1);
+            protoFilters.add(null);
+            protoFilters.set(listIndex, filter);
+        }
+
+        return MH.filterArguments(methodHandle, 0, filter.asType(filter.type().changeReturnType(methodHandle.type().parameterType(0))));
+    }
+
+    /**
      * Find the appropriate GET method for an invoke dynamic call.
      *
      * @param desc     the call site descriptor
@@ -1722,8 +1724,8 @@ public abstract class ScriptObject extends PropertyListenerManager implements Pr
      */
     protected GuardedInvocation findGetMethod(final CallSiteDescriptor desc, final LinkRequest request, final String operator) {
         final String name = desc.getNameToken(CallSiteDescriptor.NAME_OPERAND);
-        if (request.isCallSiteUnstable()) {
-            return findMegaMorphicGetMethod(desc, name, "getMethod".equals(operator));
+        if (request.isCallSiteUnstable() || hasWithScope()) {
+            return findMegaMorphicGetMethod(desc, name, "getMethod".equals(operator), isScope() && NashornCallSiteDescriptor.isScope(desc));
         }
 
         final FindProperty find = findProperty(name, true);
@@ -1748,40 +1750,43 @@ public abstract class ScriptObject extends PropertyListenerManager implements Pr
         final Property property = find.getProperty();
         methodHandle = find.getGetter(returnType);
 
-        // getMap() is fine as we have the prototype switchpoint depending on where the property was found
-        final MethodHandle guard = NashornGuards.getMapGuard(getMap());
+        // Get the appropriate guard for this callsite and property.
+        final MethodHandle guard = NashornGuards.getGuard(this, property, desc);
+        final ScriptObject owner = find.getOwner();
 
         if (methodHandle != null) {
             assert methodHandle.type().returnType().equals(returnType);
             if (find.isSelf()) {
-                return new GuardedInvocation(methodHandle, ObjectClassGenerator.OBJECT_FIELDS_ONLY &&
-                        NashornCallSiteDescriptor.isFastScope(desc) && !property.canChangeType() ? null : guard);
+                return new GuardedInvocation(methodHandle, guard);
             }
 
-            final ScriptObject prototype = find.getOwner();
-
-            if (!property.hasGetterFunction(prototype)) {
-                methodHandle = bindTo(methodHandle, prototype);
+            if (!property.hasGetterFunction(owner)) {
+                // Add a filter that replaces the self object with the prototype owning the property.
+                methodHandle = addProtoFilter(methodHandle, find.getProtoChainLength());
             }
-            return new GuardedInvocation(methodHandle, getMap().getProtoGetSwitchPoint(proto, name), guard);
+            return new GuardedInvocation(methodHandle, guard == null ? null : getProtoSwitchPoint(name, owner), guard);
         }
 
         assert !NashornCallSiteDescriptor.isFastScope(desc);
-        return new GuardedInvocation(Lookup.emptyGetter(returnType), getMap().getProtoGetSwitchPoint(proto, name), guard);
+        return new GuardedInvocation(Lookup.emptyGetter(returnType), getProtoSwitchPoint(name, owner), guard);
     }
 
-    private static GuardedInvocation findMegaMorphicGetMethod(final CallSiteDescriptor desc, final String name, final boolean isMethod) {
-        final MethodHandle invoker = MH.insertArguments(MEGAMORPHIC_GET, 1, name, isMethod);
+    private static GuardedInvocation findMegaMorphicGetMethod(final CallSiteDescriptor desc, final String name,
+                                                              final boolean isMethod, final boolean isScope) {
+        final MethodHandle invoker = MH.insertArguments(MEGAMORPHIC_GET, 1, name, isMethod, isScope);
         final MethodHandle guard = getScriptObjectGuard(desc.getMethodType());
         return new GuardedInvocation(invoker, guard);
     }
 
     @SuppressWarnings("unused")
-    private Object megamorphicGet(final String key, final boolean isMethod) {
+    private Object megamorphicGet(final String key, final boolean isMethod, final boolean isScope) {
         final FindProperty find = findProperty(key, true);
 
         if (find != null) {
-            return getObjectValue(find);
+            return find.getObjectValue();
+        }
+        if (isScope) {
+            throw referenceError("not.defined", key);
         }
 
         return isMethod ? getNoSuchMethod(key) : invokeNoSuchProperty(key);
@@ -1824,6 +1829,28 @@ public abstract class ScriptObject extends PropertyListenerManager implements Pr
     }
 
     /**
+     * Get a switch point for a property with the given {@code name} that will be invalidated when
+     * the property definition is changed in this object's prototype chain. Returns {@code null} if
+     * the property is defined in this object itself.
+     *
+     * @param name the property name
+     * @param owner the property owner, null if property is not defined
+     * @return a SwitchPoint or null
+     */
+    public final SwitchPoint getProtoSwitchPoint(final String name, final ScriptObject owner) {
+        if (owner == this || getProto() == null) {
+            return null;
+        }
+
+        for (ScriptObject obj = this; obj != owner && obj.getProto() != null; obj = obj.getProto()) {
+            ScriptObject parent = obj.getProto();
+            parent.getMap().addListener(name, obj.getMap());
+        }
+
+        return getMap().getSwitchPoint(name);
+    }
+
+    /**
      * Find the appropriate SET method for an invoke dynamic call.
      *
      * @param desc    the call site descriptor
@@ -1833,7 +1860,7 @@ public abstract class ScriptObject extends PropertyListenerManager implements Pr
      */
     protected GuardedInvocation findSetMethod(final CallSiteDescriptor desc, final LinkRequest request) {
         final String name = desc.getNameToken(CallSiteDescriptor.NAME_OPERAND);
-        if (request.isCallSiteUnstable()) {
+        if (request.isCallSiteUnstable() || hasWithScope()) {
             return findMegaMorphicSetMethod(desc, name);
         }
 
@@ -1879,8 +1906,7 @@ public abstract class ScriptObject extends PropertyListenerManager implements Pr
                throw typeError(strictErrorMessage, name, ScriptRuntime.safeToString((this)));
            }
            assert canBeFastScope || !NashornCallSiteDescriptor.isFastScope(desc);
-           final PropertyMap myMap = getMap();
-           return new GuardedInvocation(Lookup.EMPTY_SETTER, myMap.getProtoGetSwitchPoint(proto, name), NashornGuards.getMapGuard(myMap));
+           return new GuardedInvocation(Lookup.EMPTY_SETTER, getProtoSwitchPoint(name, null), NashornGuards.getMapGuard(getMap()));
     }
 
     @SuppressWarnings("unused")
@@ -1888,7 +1914,9 @@ public abstract class ScriptObject extends PropertyListenerManager implements Pr
         final ScriptObject obj = (ScriptObject)self;
         final boolean isStrict = NashornCallSiteDescriptor.isStrict(desc);
         if (!obj.isExtensible()) {
-            throw typeError("object.non.extensible", desc.getNameToken(2), ScriptRuntime.safeToString(obj));
+            if (isStrict) {
+                throw typeError("object.non.extensible", desc.getNameToken(2), ScriptRuntime.safeToString(obj));
+            }
         } else if (obj.compareAndSetMap(oldMap, newMap)) {
             setter.invokeExact(self, value);
         } else {
@@ -1953,6 +1981,15 @@ public abstract class ScriptObject extends PropertyListenerManager implements Pr
         }
     }
 
+    @SuppressWarnings("unused")
+    private static Object globalFilter(final Object object) {
+        ScriptObject sobj = (ScriptObject) object;
+        while (sobj != null && !(sobj instanceof Global)) {
+            sobj = sobj.getProto();
+        }
+        return sobj;
+    }
+
     private static GuardedInvocation findMegaMorphicSetMethod(final CallSiteDescriptor desc, final String name) {
         final MethodType type = desc.getMethodType().insertParameterTypes(1, Object.class);
         final GuardedInvocation inv = findSetIndexMethod(type, NashornCallSiteDescriptor.isStrict(desc));
@@ -1998,7 +2035,7 @@ public abstract class ScriptObject extends PropertyListenerManager implements Pr
             return noSuchProperty(desc, request);
         }
 
-        final Object value = getObjectValue(find);
+        final Object value = find.getObjectValue();
         if (! (value instanceof ScriptFunction)) {
             return createEmptyGetter(desc, name);
         }
@@ -2024,7 +2061,7 @@ public abstract class ScriptObject extends PropertyListenerManager implements Pr
         final boolean scopeAccess = isScope() && NashornCallSiteDescriptor.isScope(desc);
 
         if (find != null) {
-            final Object   value        = getObjectValue(find);
+            final Object   value        = find.getObjectValue();
             ScriptFunction func         = null;
             MethodHandle   methodHandle = null;
 
@@ -2038,7 +2075,7 @@ public abstract class ScriptObject extends PropertyListenerManager implements Pr
                     methodHandle = bindTo(methodHandle, UNDEFINED);
                 }
                 return new GuardedInvocation(methodHandle,
-                        find.isInherited()? getMap().getProtoGetSwitchPoint(proto, NO_SUCH_PROPERTY_NAME) : null,
+                        getProtoSwitchPoint(NO_SUCH_PROPERTY_NAME, find.getOwner()),
                         getKnownFunctionPropertyGuard(getMap(), find.getGetter(Object.class), find.getOwner(), func));
             }
         }
@@ -2049,16 +2086,17 @@ public abstract class ScriptObject extends PropertyListenerManager implements Pr
 
         return createEmptyGetter(desc, name);
     }
+
     /**
      * Invoke fall back if a property is not found.
      * @param name Name of property.
      * @return Result from call.
      */
-    private Object invokeNoSuchProperty(final String name) {
+    protected Object invokeNoSuchProperty(final String name) {
         final FindProperty find = findProperty(NO_SUCH_PROPERTY_NAME, true);
 
         if (find != null) {
-            final Object func = getObjectValue(find);
+            final Object func = find.getObjectValue();
 
             if (func instanceof ScriptFunction) {
                 return ScriptRuntime.apply((ScriptFunction)func, this, name);
@@ -2080,7 +2118,7 @@ public abstract class ScriptObject extends PropertyListenerManager implements Pr
             return invokeNoSuchProperty(name);
         }
 
-        final Object value = getObjectValue(find);
+        final Object value = find.getObjectValue();
         if (! (value instanceof ScriptFunction)) {
             return UNDEFINED;
         }
@@ -2089,7 +2127,8 @@ public abstract class ScriptObject extends PropertyListenerManager implements Pr
     }
 
     private GuardedInvocation createEmptyGetter(final CallSiteDescriptor desc, final String name) {
-        return new GuardedInvocation(Lookup.emptyGetter(desc.getMethodType().returnType()), getMap().getProtoGetSwitchPoint(proto, name), NashornGuards.getMapGuard(getMap()));
+        return new GuardedInvocation(Lookup.emptyGetter(desc.getMethodType().returnType()),
+                getProtoSwitchPoint(name, null), NashornGuards.getMapGuard(getMap()));
     }
 
     private abstract static class ScriptObjectIterator <T extends Object> implements Iterator<T> {
@@ -2170,12 +2209,10 @@ public abstract class ScriptObject extends PropertyListenerManager implements Pr
 
         if (fieldCount < fieldMaximum) {
             property = new AccessorProperty(key, propertyFlags & ~Property.IS_SPILL, getClass(), fieldCount);
-            notifyPropertyAdded(this, property);
             property = addOwnProperty(property);
         } else {
             int i = getMap().getSpillLength();
             property = new AccessorProperty(key, propertyFlags | Property.IS_SPILL, i);
-            notifyPropertyAdded(this, property);
             property = addOwnProperty(property);
             i = property.getSlot();
 
@@ -2621,7 +2658,7 @@ public abstract class ScriptObject extends PropertyListenerManager implements Pr
                     final FindProperty find = object.findProperty(key, false, false, this);
 
                     if (find != null) {
-                        return getObjectValue(find);
+                        return find.getObjectValue();
                     }
                 }
 
@@ -2639,7 +2676,7 @@ public abstract class ScriptObject extends PropertyListenerManager implements Pr
             final FindProperty find = findProperty(key, true);
 
             if (find != null) {
-                return getObjectValue(find);
+                return find.getObjectValue();
             }
         }
 
@@ -2703,9 +2740,7 @@ public abstract class ScriptObject extends PropertyListenerManager implements Pr
      * @param strict are we in strict mode
      */
     private void doesNotHave(final int index, final Object value, final boolean strict) {
-        final long oldLength = getArray().length();
         final long longIndex = ArrayIndex.toLongIndex(index);
-
         if (getMap().containsArrayKeys()) {
             final String key = JSType.toString(longIndex);
             final FindProperty find = findProperty(key, true);
@@ -2716,6 +2751,18 @@ public abstract class ScriptObject extends PropertyListenerManager implements Pr
             }
         }
 
+        setValueAtArrayIndex(longIndex, index, value, strict);
+    }
+
+    /**
+     * Handle when an array doesn't have a slot - possibly grow and/or convert array.
+     *
+     * @param index  key as index
+     * @param value  element value
+     * @param strict are we in strict mode
+     */
+    private void setValueAtArrayIndex(final long longIndex, final int index, final Object value, final boolean strict) {
+        final long oldLength = getArray().length();
         if (longIndex >= oldLength) {
             if (!isExtensible()) {
                 if (strict) {
@@ -2759,7 +2806,8 @@ public abstract class ScriptObject extends PropertyListenerManager implements Pr
     public final void setObject(final FindProperty find, final boolean strict, final String key, final Object value) {
         FindProperty f = find;
 
-        if (f != null && f.isInherited() && !(f.getProperty() instanceof UserAccessorProperty)) {
+        if (f != null && f.isInherited() && !(f.getProperty() instanceof UserAccessorProperty) && !isScope()) {
+            // Setting a property should not modify the property in prototype unless this is a scope object.
             f = null;
         }
 
@@ -2779,7 +2827,15 @@ public abstract class ScriptObject extends PropertyListenerManager implements Pr
                 throw typeError("object.non.extensible", key, ScriptRuntime.safeToString(this));
             }
         } else {
-            spill(key, value);
+            ScriptObject sobj = this;
+            // undefined scope properties are set in the global object.
+            if (isScope()) {
+                while (sobj != null && !(sobj instanceof Global)) {
+                    sobj = sobj.getProto();
+                }
+                assert sobj != null : "no parent global object in scope";
+            }
+            sobj.spill(key, value);
         }
     }
 
@@ -3228,7 +3284,6 @@ public abstract class ScriptObject extends PropertyListenerManager implements Pr
         }
 
         final Property prop = find.getProperty();
-        notifyPropertyDeleted(this, prop);
         deleteOwnProperty(prop);
 
         return true;
