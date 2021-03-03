@@ -1,21 +1,21 @@
 /*
  * Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
- * 
+ *
  * This code is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 only, as
  * published by the Free Software Foundation.
- * 
+ *
  * This code is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
  * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
  * version 2 for more details (a copy is included in the LICENSE file that
  * accompanied this code).
- * 
+ *
  * You should have received a copy of the GNU General Public License version
  * 2 along with this work; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.
- * 
+ *
  * Please contact Oracle, 500 Oracle Parkway, Redwood Shores, CA 94065 USA
  * or visit www.oracle.com if you need additional information or have any
  * questions.
@@ -37,11 +37,7 @@ var DebuggerValueDesc = Java.type("jdk.nashorn.internal.runtime.DebuggerSupport.
 
 var valueDescFields = DebuggerValueDesc.class.declaredFields;
 Arrays.sort(valueDescFields, function(f1, f2) f1.name.compareTo(f2.name));
-var keyField;
 for each (var f in valueDescFields) {
-    if (f.name == "key") {
-        keyField = f;
-    }
     f.accessible = true;
 }
 
@@ -92,22 +88,18 @@ for each (var f in valueDescFields) {
 
 // valueInfos
 var infos = valueInfosMethod.invoke(null, Object, true);
-Arrays.sort(infos, function (i1, i2) keyField.get(i1).compareTo(keyField.get(i2)));
-
 for each (var info in infos) {
     for each (var f in valueDescFields) {
         print(f.name, "=", f.get(info));
-    }  
+    }
 }
 
 // valueInfos - user defined object
 var infos = valueInfosMethod.invoke(null, { foo: 34, bar: "hello" }, true);
-Arrays.sort(infos, function (i1, i2) keyField.get(i1).compareTo(keyField.get(i2)));
-
 for each (var info in infos) {
     for each (var f in valueDescFields) {
         print(f.name, "=", f.get(info));
-    }  
+    }
 }
 
 // valueAsString
