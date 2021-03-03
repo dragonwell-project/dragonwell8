@@ -23,6 +23,9 @@
 # questions.
 #
 
+# Include custom extensions if available.
+-include $(CUSTOM_MAKE_DIR)/lib/CoreLibraries.gmk
+
 WIN_VERIFY_LIB := $(JDK_OUTPUTDIR)/objs/libverify/verify.lib
 
 ##########################################################################################
@@ -114,7 +117,8 @@ BUILD_LIBRARIES += $(BUILD_LIBVERIFY)
 
 ##########################################################################################
 
-LIBJAVA_SRC_DIRS := $(JDK_TOPDIR)/src/$(OPENJDK_TARGET_OS_API_DIR)/native/java/lang \
+# Allow a custom makefile to add extra src dirs
+LIBJAVA_SRC_DIRS += $(JDK_TOPDIR)/src/$(OPENJDK_TARGET_OS_API_DIR)/native/java/lang \
     $(JDK_TOPDIR)/src/share/native/java/lang \
     $(JDK_TOPDIR)/src/share/native/java/lang/reflect \
     $(JDK_TOPDIR)/src/share/native/java/io \
@@ -139,6 +143,9 @@ ifeq ($(OPENJDK_TARGET_OS), windows)
   LIBJAVA_SRC_DIRS += $(JDK_TOPDIR)/src/$(OPENJDK_TARGET_OS_API_DIR)/native/sun/security/provider \
       $(JDK_TOPDIR)/src/$(OPENJDK_TARGET_OS_API_DIR)/native/sun/io
 endif
+
+# Make it possible to override this variable
+LIBJAVA_MAPFILE ?= $(JDK_TOPDIR)/make/mapfiles/libjava/mapfile-vers
 
 LIBJAVA_CFLAGS := $(foreach dir, $(LIBJAVA_SRC_DIRS), -I$(dir)) \
     -I$(JDK_TOPDIR)/src/share/native/java/lang/fdlibm/include \
@@ -193,7 +200,7 @@ $(eval $(call SetupNativeCompilation,BUILD_LIBJAVA, \
     OPTIMIZATION := HIGH, \
     CFLAGS := $(CFLAGS_JDKLIB) \
         $(LIBJAVA_CFLAGS), \
-    MAPFILE := $(JDK_TOPDIR)/make/mapfiles/libjava/mapfile-vers, \
+    MAPFILE := $(LIBJAVA_MAPFILE), \
     LDFLAGS := $(LDFLAGS_JDKLIB) \
         $(call SET_SHARED_LIBRARY_ORIGIN), \
     LDFLAGS_SUFFIX_posix := -ljvm -lverify, \
@@ -231,9 +238,9 @@ $(BUILD_LIBJAVA): $(BUILD_LIBFDLIBM)
 BUILD_LIBZIP_EXCLUDES :=
 ifeq ($(USE_EXTERNAL_LIBZ), true)
   LIBZ := -lz
-  LIBZIP_EXCLUDES += zlib-1.2.8
+  LIBZIP_EXCLUDES += zlib
 else
-  ZLIB_CPPFLAGS := -I$(JDK_TOPDIR)/src/share/native/java/util/zip/zlib-1.2.8
+  ZLIB_CPPFLAGS := -I$(JDK_TOPDIR)/src/share/native/java/util/zip/zlib
 endif
 
 BUILD_LIBZIP_REORDER :=
@@ -385,7 +392,7 @@ ifeq ($(OPENJDK_TARGET_OS), macosx)
 endif
 
 ifneq ($(USE_EXTERNAL_LIBZ), true)
-  BUILD_LIBJLI_SRC_DIRS += $(JDK_TOPDIR)/src/share/native/java/util/zip/zlib-1.2.8
+  BUILD_LIBJLI_SRC_DIRS += $(JDK_TOPDIR)/src/share/native/java/util/zip/zlib
   LIBJLI_CFLAGS += $(ZLIB_CPPFLAGS)
   BUILD_LIBJLI_FILES += \
       inflate.c \
