@@ -101,7 +101,7 @@ public final class NativeArrayBuffer extends ScriptObject {
         }
 
         if (args.length == 0) {
-            throw new RuntimeException("missing length argument");
+            return new NativeArrayBuffer(0);
         }
 
         return new NativeArrayBuffer(JSType.toInt32(args[0]));
