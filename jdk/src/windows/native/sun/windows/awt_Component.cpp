@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1996, 2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -98,7 +98,6 @@ BOOL AwtComponent::sm_restoreFocusAndActivation = FALSE;
 HWND AwtComponent::sm_focusOwner = NULL;
 HWND AwtComponent::sm_focusedWindow = NULL;
 BOOL AwtComponent::sm_bMenuLoop = FALSE;
-AwtComponent* AwtComponent::sm_getComponentCache = NULL;
 BOOL AwtComponent::sm_inSynthesizeFocus = FALSE;
 
 /************************************************************************/
@@ -150,6 +149,11 @@ struct SetZOrderStruct {
 struct SetFocusStruct {
     jobject component;
     jboolean doSetFocus;
+};
+// Struct for _SetParent function
+struct SetParentStruct {
+    jobject component;
+    jobject parentComp;
 };
 /************************************************************************/
 
@@ -262,9 +266,6 @@ AwtComponent::~AwtComponent()
 {
     DASSERT(AwtToolkit::IsMainThread());
 
-    /* Disconnect all links. */
-    UnlinkObjects();
-
     /*
      * All the messages for this component are processed, native
      * resources are freed, and Java object is not connected to
@@ -272,14 +273,12 @@ AwtComponent::~AwtComponent()
      * handle.
      */
     DestroyHWnd();
-
-    if (sm_getComponentCache == this) {
-        sm_getComponentCache = NULL;
-    }
 }
 
 void AwtComponent::Dispose()
 {
+    DASSERT(AwtToolkit::IsMainThread());
+
     // NOTE: in case the component/toplevel was focused, Java should
     // have already taken care of proper transferring it or clearing.
 
@@ -298,8 +297,10 @@ void AwtComponent::Dispose()
     /* Release global ref to input method */
     SetInputMethod(NULL, TRUE);
 
-    if (m_childList != NULL)
+    if (m_childList != NULL) {
         delete m_childList;
+        m_childList = NULL;
+    }
 
     DestroyDropTarget();
     ReleaseDragCapture(0);
@@ -321,6 +322,9 @@ void AwtComponent::Dispose()
         m_brushBackground->Release();
         m_brushBackground = NULL;
     }
+
+    /* Disconnect all links. */
+    UnlinkObjects();
 
     if (m_bPauseDestroy) {
         // AwtComponent::WmNcDestroy could be released now
@@ -348,9 +352,6 @@ AwtComponent* AwtComponent::GetComponent(HWND hWnd) {
     if (hWnd == AwtToolkit::GetInstance().GetHWnd()) {
         return NULL;
     }
-    if (sm_getComponentCache && sm_getComponentCache->GetHWnd() == hWnd) {
-        return sm_getComponentCache;
-    }
 
     // check that it's an AWT component from the same toolkit as the caller
     if (::IsWindow(hWnd) &&
@@ -358,7 +359,7 @@ AwtComponent* AwtComponent::GetComponent(HWND hWnd) {
     {
         DASSERT(WmAwtIsComponent != 0);
         if (::SendMessage(hWnd, WmAwtIsComponent, 0, 0L)) {
-            return sm_getComponentCache = GetComponentImpl(hWnd);
+            return GetComponentImpl(hWnd);
         }
     }
     return NULL;
@@ -3765,7 +3766,10 @@ void AwtComponent::OpenCandidateWindow(int x, int y)
     HWND hWnd = GetHWnd();
     HWND hTop = GetTopLevelParentForWindow(hWnd);
     ::ClientToScreen(hTop, &p);
-
+    if (!m_bitsCandType) {
+        SetCandidateWindow(m_bitsCandType, x - p.x, y - p.y);
+        return;
+    }
     for (int iCandType=0; iCandType<32; iCandType++, bits<<=1) {
         if ( m_bitsCandType & bits )
             SetCandidateWindow(iCandType, x - p.x, y - p.y);
@@ -3783,7 +3787,7 @@ void AwtComponent::SetCandidateWindow(int iCandType, int x, int y)
     HIMC hIMC = ImmGetContext(hwnd);
     CANDIDATEFORM cf;
     cf.dwIndex = iCandType;
-    cf.dwStyle = CFS_CANDIDATEPOS;
+    cf.dwStyle = CFS_POINT;
     cf.ptCurrentPos.x = x;
     cf.ptCurrentPos.y = y;
 
@@ -3815,9 +3819,15 @@ MsgRouting AwtComponent::WmImeSetContext(BOOL fSet, LPARAM *lplParam)
 
 MsgRouting AwtComponent::WmImeNotify(WPARAM subMsg, LPARAM bitsCandType)
 {
-    if (!m_useNativeCompWindow && subMsg == IMN_OPENCANDIDATE) {
-        m_bitsCandType = bitsCandType;
-        InquireCandidatePosition();
+    if (!m_useNativeCompWindow) {
+        if (subMsg == IMN_OPENCANDIDATE) {
+            m_bitsCandType = subMsg;
+            InquireCandidatePosition();
+        } else if (subMsg == IMN_OPENSTATUSWINDOW ||
+                   subMsg == WM_IME_STARTCOMPOSITION) {
+            m_bitsCandType = 0;
+            InquireCandidatePosition();
+        }
         return mrConsume;
     }
     return mrDoDefault;
@@ -4077,14 +4087,14 @@ HWND AwtComponent::GetProxyFocusOwner()
     return (HWND)NULL;
 }
 
-/* Call DefWindowProc for the focus proxy, if any */
+/* Redirects message to the focus proxy, if any */
 void AwtComponent::CallProxyDefWindowProc(UINT message, WPARAM wParam,
     LPARAM lParam, LRESULT &retVal, MsgRouting &mr)
 {
     if (mr != mrConsume)  {
         HWND proxy = GetProxyFocusOwner();
         if (proxy != NULL && ::IsWindowEnabled(proxy)) {
-            retVal = ComCtl32Util::GetInstance().DefWindowProc(NULL, proxy, message, wParam, lParam);
+            retVal = ::DefWindowProc(proxy, message, wParam, lParam);
             mr = mrConsume;
         }
     }
@@ -4163,7 +4173,7 @@ MsgRouting AwtComponent::WmDrawItem(UINT ctrlId, DRAWITEMSTRUCT &drawInfo)
     JNIEnv *env = (JNIEnv *)JNU_GetEnv(jvm, JNI_VERSION_1_2);
 
     if (drawInfo.CtlType == ODT_MENU) {
-        if (drawInfo.itemData != 0) {
+        if (IsMenu((HMENU)drawInfo.hwndItem) && drawInfo.itemData != 0) {
             AwtMenu* menu = (AwtMenu*)(drawInfo.itemData);
             menu->DrawItem(drawInfo);
         }
@@ -6122,21 +6132,36 @@ ret:
     return result;
 }
 
-void AwtComponent::SetParent(void * param) {
+void AwtComponent::_SetParent(void * param)
+{
     if (AwtToolkit::IsMainThread()) {
-        AwtComponent** comps = (AwtComponent**)param;
-        if ((comps[0] != NULL) && (comps[1] != NULL)) {
-            HWND selfWnd = comps[0]->GetHWnd();
-            HWND parentWnd = comps[1]->GetHWnd();
-            if (::IsWindow(selfWnd) && ::IsWindow(parentWnd)) {
-                // Shouldn't trigger native focus change
-                // (only the proxy may be the native focus owner).
-                ::SetParent(selfWnd, parentWnd);
-            }
+        JNIEnv *env = (JNIEnv *)JNU_GetEnv(jvm, JNI_VERSION_1_2);
+        SetParentStruct *data = (SetParentStruct*) param;
+        jobject self = data->component;
+        jobject parent = data->parentComp;
+
+        AwtComponent *awtComponent = NULL;
+        AwtComponent *awtParent = NULL;
+
+        PDATA pData;
+        JNI_CHECK_PEER_GOTO(self, ret);
+        awtComponent = (AwtComponent *)pData;
+        JNI_CHECK_PEER_GOTO(parent, ret);
+        awtParent = (AwtComponent *)pData;
+
+        HWND selfWnd = awtComponent->GetHWnd();
+        HWND parentWnd = awtParent->GetHWnd();
+        if (::IsWindow(selfWnd) && ::IsWindow(parentWnd)) {
+            // Shouldn't trigger native focus change
+            // (only the proxy may be the native focus owner).
+            ::SetParent(selfWnd, parentWnd);
         }
-        delete[] comps;
+ret:
+        env->DeleteGlobalRef(self);
+        env->DeleteGlobalRef(parent);
+        delete data;
     } else {
-        AwtToolkit::GetInstance().InvokeFunction(AwtComponent::SetParent, param);
+        AwtToolkit::GetInstance().InvokeFunction(AwtComponent::_SetParent, param);
     }
 }
 
@@ -6963,15 +6988,12 @@ JNIEXPORT void JNICALL
 Java_sun_awt_windows_WComponentPeer_pSetParent(JNIEnv* env, jobject self, jobject parent) {
     TRY;
 
-    typedef AwtComponent* PComponent;
-    AwtComponent** comps = new PComponent[2];
-    AwtComponent* comp = (AwtComponent*)JNI_GET_PDATA(self);
-    AwtComponent* parentComp = (AwtComponent*)JNI_GET_PDATA(parent);
-    comps[0] = comp;
-    comps[1] = parentComp;
+    SetParentStruct * data = new SetParentStruct;
+    data->component = env->NewGlobalRef(self);
+    data->parentComp = env->NewGlobalRef(parent);
 
-    AwtToolkit::GetInstance().SyncCall(AwtComponent::SetParent, comps);
-    // comps is deleted in SetParent
+    AwtToolkit::GetInstance().SyncCall(AwtComponent::_SetParent, data);
+    // global refs and data are deleted in SetParent
 
     CATCH_BAD_ALLOC;
 }
