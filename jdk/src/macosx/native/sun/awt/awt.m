@@ -30,6 +30,7 @@
 #import <JavaNativeFoundation/JavaNativeFoundation.h>
 #import <JavaRuntimeSupport/JavaRuntimeSupport.h>
 
+#import "jni_util.h" 
 #import "NSApplicationAWT.h"
 #import "PropertiesUtilities.h"
 #import "ThreadUtilities.h"
@@ -436,8 +437,11 @@ JNF_COCOA_ENTER(env);
     }
     JNIEnv* env = [ThreadUtilities getJNIEnvUncached];
     jclass jc_ThreadGroupUtils = (*env)->FindClass(env, "sun/misc/ThreadGroupUtils");
+    CHECK_NULL_RETURN(jc_ThreadGroupUtils, JNI_VERSION_1_4);
     jmethodID sjm_getRootThreadGroup = (*env)->GetStaticMethodID(env, jc_ThreadGroupUtils, "getRootThreadGroup", "()Ljava/lang/ThreadGroup;");
+    CHECK_NULL_RETURN(sjm_getRootThreadGroup, JNI_VERSION_1_4);
     jobject rootThreadGroup = (*env)->CallStaticObjectMethod(env, jc_ThreadGroupUtils, sjm_getRootThreadGroup);
+    CHECK_NULL_RETURN(rootThreadGroup, JNI_VERSION_1_4);
     [ThreadUtilities setAppkitThreadGroup:(*env)->NewGlobalRef(env, rootThreadGroup)];
     // The current thread was attached in getJNIEnvUnchached.
     // Detach it back. It will be reattached later if needed with a proper TG
