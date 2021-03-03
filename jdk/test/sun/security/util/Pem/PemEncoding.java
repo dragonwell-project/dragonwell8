@@ -1,6 +1,5 @@
 /*
- * Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
- * Copyright 2012, 2013 SAP AG. All rights reserved.
+ * Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -20,35 +19,16 @@
  * Please contact Oracle, 500 Oracle Parkway, Redwood Shores, CA 94065 USA
  * or visit www.oracle.com if you need additional information or have any
  * questions.
- *
  */
 
-#include "precompiled.hpp"
-#include "opto/compile.hpp"
-#include "opto/node.hpp"
-#include "runtime/globals.hpp"
-#include "utilities/debug.hpp"
+import java.io.FileInputStream;
+import java.security.cert.CertificateFactory;
 
-// processor dependent initialization for ppc
-
-void Compile::pd_compiler2_init() {
-
-  // Power7 and later
-  if (PowerArchitecturePPC64 > 6) {
-    if (FLAG_IS_DEFAULT(UsePopCountInstruction)) {
-      FLAG_SET_ERGO(bool, UsePopCountInstruction, true);
+public class PemEncoding {
+    public static void main(String[] args) throws Exception {
+        try (FileInputStream fis = new FileInputStream(args[0])) {
+            CertificateFactory cf = CertificateFactory.getInstance("X.509");
+            System.out.println(cf.generateCertificate(fis));
+        }
     }
-  }
-
-  if (PowerArchitecturePPC64 == 6) {
-    if (FLAG_IS_DEFAULT(InsertEndGroupPPC64)) {
-      FLAG_SET_ERGO(bool, InsertEndGroupPPC64, true);
-    }
-  }
-
-  if (OptimizeFill) {
-    warning("OptimizeFill is not supported on this CPU.");
-    FLAG_SET_DEFAULT(OptimizeFill, false);
-  }
-
 }

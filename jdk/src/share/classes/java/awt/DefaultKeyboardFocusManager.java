@@ -76,6 +76,7 @@ public class DefaultKeyboardFocusManager extends KeyboardFocusManager {
     private LinkedList<KeyEvent> enqueuedKeyEvents = new LinkedList<KeyEvent>();
     private LinkedList<TypeAheadMarker> typeAheadMarkers = new LinkedList<TypeAheadMarker>();
     private boolean consumeNextKeyTyped;
+    private Component restoreFocusTo;
 
     static {
         AWTAccessor.setDefaultKeyboardFocusManagerAccessor(
@@ -146,12 +147,28 @@ public class DefaultKeyboardFocusManager extends KeyboardFocusManager {
     }
     private boolean restoreFocus(Window aWindow, Component vetoedComponent,
                                  boolean clearOnFailure) {
+        restoreFocusTo = null;
         Component toFocus =
             KeyboardFocusManager.getMostRecentFocusOwner(aWindow);
 
-        if (toFocus != null && toFocus != vetoedComponent && doRestoreFocus(toFocus, vetoedComponent, false)) {
-            return true;
-        } else if (clearOnFailure) {
+        if (toFocus != null && toFocus != vetoedComponent) {
+            if (getHeavyweight(aWindow) != getNativeFocusOwner()) {
+                // cannot restore focus synchronously
+                if (!toFocus.isShowing() || !toFocus.canBeFocusOwner()) {
+                    toFocus = toFocus.getNextFocusCandidate();
+                }
+                if (toFocus != null && toFocus != vetoedComponent) {
+                    if (!toFocus.requestFocus(false,
+                                                   CausedFocusEvent.Cause.ROLLBACK)) {
+                        restoreFocusTo = toFocus;
+                    }
+                    return true;
+                }
+            } else if (doRestoreFocus(toFocus, vetoedComponent, false)) {
+                return true;
+            }
+        }
+        if (clearOnFailure) {
             clearGlobalFocusOwnerPriv();
             return true;
         } else {
@@ -164,11 +181,16 @@ public class DefaultKeyboardFocusManager extends KeyboardFocusManager {
     private boolean doRestoreFocus(Component toFocus, Component vetoedComponent,
                                    boolean clearOnFailure)
     {
+        boolean success = true;
         if (toFocus != vetoedComponent && toFocus.isShowing() && toFocus.canBeFocusOwner() &&
-            toFocus.requestFocus(false, CausedFocusEvent.Cause.ROLLBACK))
+            (success = toFocus.requestFocus(false, CausedFocusEvent.Cause.ROLLBACK)))
         {
             return true;
         } else {
+            if (!success && getGlobalFocusedWindow() != SunToolkit.getContainingWindow(toFocus)) {
+                restoreFocusTo = toFocus;
+                return true;
+            }
             Component nextFocus = toFocus.getNextFocusCandidate();
             if (nextFocus != null && nextFocus != vetoedComponent &&
                 nextFocus.requestFocusInWindow(CausedFocusEvent.Cause.ROLLBACK))
@@ -413,6 +435,8 @@ public class DefaultKeyboardFocusManager extends KeyboardFocusManager {
                     // may cause deadlock, thus we don't synchronize this block.
                     Component toFocus = KeyboardFocusManager.
                         getMostRecentFocusOwner(newFocusedWindow);
+                    boolean isFocusRestore = restoreFocusTo != null &&
+                                                      toFocus == restoreFocusTo;
                     if ((toFocus == null) &&
                         newFocusedWindow.isFocusableWindow())
                     {
@@ -431,7 +455,10 @@ public class DefaultKeyboardFocusManager extends KeyboardFocusManager {
                                        tempLost, toFocus);
                     }
                     if (tempLost != null) {
-                        tempLost.requestFocusInWindow(CausedFocusEvent.Cause.ACTIVATION);
+                        tempLost.requestFocusInWindow(
+                                    isFocusRestore && tempLost == toFocus ?
+                                                CausedFocusEvent.Cause.ROLLBACK :
+                                                CausedFocusEvent.Cause.ACTIVATION);
                     }
 
                     if (toFocus != null && toFocus != tempLost) {
@@ -440,6 +467,7 @@ public class DefaultKeyboardFocusManager extends KeyboardFocusManager {
                         toFocus.requestFocusInWindow(CausedFocusEvent.Cause.ACTIVATION);
                     }
                 }
+                restoreFocusTo = null;
 
                 Window realOppositeWindow = this.realOppositeWindowWR.get();
                 if (realOppositeWindow != we.getOppositeWindow()) {
@@ -489,6 +517,7 @@ public class DefaultKeyboardFocusManager extends KeyboardFocusManager {
             }
 
             case FocusEvent.FOCUS_GAINED: {
+                restoreFocusTo = null;
                 FocusEvent fe = (FocusEvent)e;
                 CausedFocusEvent.Cause cause = (fe instanceof CausedFocusEvent) ?
                     ((CausedFocusEvent)fe).getCause() : CausedFocusEvent.Cause.UNKNOWN;
