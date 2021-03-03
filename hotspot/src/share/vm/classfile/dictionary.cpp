@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -159,33 +159,9 @@ void Dictionary::do_unloading() {
       if (!is_strongly_reachable(loader_data, e)) {
         // Entry was not visited in phase1 (negated test from phase1)
         assert(!loader_data->is_the_null_class_loader_data(), "unloading entry with null class loader");
-        ClassLoaderData* k_def_class_loader_data = ik->class_loader_data();
-
-        // Do we need to delete this system dictionary entry?
-        bool purge_entry = false;
 
         // Do we need to delete this system dictionary entry?
         if (loader_data->is_unloading()) {
-          // If the loader is not live this entry should always be
-          // removed (will never be looked up again).
-          purge_entry = true;
-        } else {
-          // The loader in this entry is alive. If the klass is dead,
-          // (determined by checking the defining class loader)
-          // the loader must be an initiating loader (rather than the
-          // defining loader). Remove this entry.
-          if (k_def_class_loader_data->is_unloading()) {
-            // If we get here, the class_loader_data must not be the defining
-            // loader, it must be an initiating one.
-            assert(k_def_class_loader_data != loader_data,
-                   "cannot have live defining loader and unreachable klass");
-            // Loader is live, but class and its defining loader are dead.
-            // Remove the entry. The class is going away.
-            purge_entry = true;
-          }
-        }
-
-        if (purge_entry) {
           *p = probe->next();
           if (probe == _current_class_entry) {
             _current_class_entry = NULL;
