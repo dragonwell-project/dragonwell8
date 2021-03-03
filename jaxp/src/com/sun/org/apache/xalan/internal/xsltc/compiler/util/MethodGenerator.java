@@ -1,15 +1,15 @@
 /*
- * reserved comment block
- * DO NOT REMOVE OR ALTER!
+ * Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
  */
 /*
- * Copyright 2001-2004 The Apache Software Foundation.
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
+ *      http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -22,15 +22,6 @@
  */
 
 package com.sun.org.apache.xalan.internal.xsltc.compiler.util;
-
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
- import java.util.Hashtable;
-import java.util.Iterator;
-import java.util.Map;
-import java.util.Stack;
-
 
 import com.sun.org.apache.bcel.internal.Constants;
 import com.sun.org.apache.bcel.internal.classfile.Field;
@@ -47,23 +38,23 @@ import com.sun.org.apache.bcel.internal.generic.FSTORE;
 import com.sun.org.apache.bcel.internal.generic.GETFIELD;
 import com.sun.org.apache.bcel.internal.generic.GOTO;
 import com.sun.org.apache.bcel.internal.generic.ICONST;
-import com.sun.org.apache.bcel.internal.generic.IfInstruction;
 import com.sun.org.apache.bcel.internal.generic.ILOAD;
-import com.sun.org.apache.bcel.internal.generic.IndexedInstruction;
 import com.sun.org.apache.bcel.internal.generic.INVOKEINTERFACE;
 import com.sun.org.apache.bcel.internal.generic.INVOKESPECIAL;
 import com.sun.org.apache.bcel.internal.generic.INVOKESTATIC;
 import com.sun.org.apache.bcel.internal.generic.INVOKEVIRTUAL;
 import com.sun.org.apache.bcel.internal.generic.ISTORE;
+import com.sun.org.apache.bcel.internal.generic.IfInstruction;
+import com.sun.org.apache.bcel.internal.generic.IndexedInstruction;
 import com.sun.org.apache.bcel.internal.generic.Instruction;
 import com.sun.org.apache.bcel.internal.generic.InstructionConstants;
 import com.sun.org.apache.bcel.internal.generic.InstructionHandle;
 import com.sun.org.apache.bcel.internal.generic.InstructionList;
 import com.sun.org.apache.bcel.internal.generic.InstructionTargeter;
-import com.sun.org.apache.bcel.internal.generic.LocalVariableGen;
-import com.sun.org.apache.bcel.internal.generic.LocalVariableInstruction;
 import com.sun.org.apache.bcel.internal.generic.LLOAD;
 import com.sun.org.apache.bcel.internal.generic.LSTORE;
+import com.sun.org.apache.bcel.internal.generic.LocalVariableGen;
+import com.sun.org.apache.bcel.internal.generic.LocalVariableInstruction;
 import com.sun.org.apache.bcel.internal.generic.MethodGen;
 import com.sun.org.apache.bcel.internal.generic.NEW;
 import com.sun.org.apache.bcel.internal.generic.PUTFIELD;
@@ -71,9 +62,14 @@ import com.sun.org.apache.bcel.internal.generic.RET;
 import com.sun.org.apache.bcel.internal.generic.Select;
 import com.sun.org.apache.bcel.internal.generic.TargetLostException;
 import com.sun.org.apache.bcel.internal.generic.Type;
-
 import com.sun.org.apache.xalan.internal.xsltc.compiler.Pattern;
 import com.sun.org.apache.xalan.internal.xsltc.compiler.XSLTC;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.Map;
+import java.util.Stack;
 
 /**
  * @author Jacek Ambroziak
@@ -131,7 +127,7 @@ public class MethodGenerator extends MethodGen
                  * times. Note that patterns whose kernels are "*", "node()"
                  * and "@*" can between shared by test sequences.
                  */
-        private Hashtable _preCompiled = new Hashtable();
+        private Map<Pattern, InstructionList> _preCompiled = new HashMap<>();
 
 
     public MethodGenerator(int access_flags, Type return_type,
@@ -715,7 +711,7 @@ public class MethodGenerator extends MethodGen
      * test sequences to avoid compiling patterns more than once.
      */
     public InstructionList getInstructionList(Pattern pattern) {
-        return (InstructionList) _preCompiled.get(pattern);
+        return _preCompiled.get(pattern);
     }
 
     /**
