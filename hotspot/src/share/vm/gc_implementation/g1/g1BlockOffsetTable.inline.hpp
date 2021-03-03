@@ -63,6 +63,10 @@ u_char G1BlockOffsetSharedArray::offset_array(size_t index) const {
   return _offset_array[index];
 }
 
+inline void G1BlockOffsetSharedArray::set_offset_array_raw(size_t index, u_char offset) {
+  _offset_array[index] = offset;
+}
+
 void G1BlockOffsetSharedArray::set_offset_array(size_t index, u_char offset) {
   check_index(index, "index out of range");
   set_offset_array_raw(index, offset);
@@ -81,7 +85,7 @@ void G1BlockOffsetSharedArray::set_offset_array(size_t left, size_t right, u_cha
   assert(left <= right, "indexes out of order");
   size_t num_cards = right - left + 1;
   if (UseMemSetInBOT) {
-    memset(&_offset_array[left], offset, num_cards);
+    memset(const_cast<u_char*> (&_offset_array[left]), offset, num_cards);
   } else {
     size_t i = left;
     const size_t end = i + num_cards;
