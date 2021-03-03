@@ -1051,7 +1051,7 @@ public abstract class Signature extends SignatureSpi {
                             debug.println("Further warnings of this type will "
                                 + "be suppressed");
                         }
-                        new Exception("Call trace").printStackTrace();
+                        new Exception("Debug call trace").printStackTrace();
                     }
                 }
                 Exception lastException = null;
