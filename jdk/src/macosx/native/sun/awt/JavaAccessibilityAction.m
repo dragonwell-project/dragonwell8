@@ -55,19 +55,6 @@
     [super dealloc];
 }
 
-- (void)finalize
-{
-    JNIEnv *env = [ThreadUtilities getJNIEnvUncached];
-
-    JNFDeleteWeakGlobalRef(env, fAccessibleAction);
-    fAccessibleAction = NULL;
-
-    JNFDeleteWeakGlobalRef(env, fComponent);
-    fComponent = NULL;
-
-    [super finalize];
-}
-
 
 - (NSString *)getDescription
 {
@@ -77,16 +64,20 @@
 
     jobject fCompLocal = (*env)->NewLocalRef(env, fComponent);
     if ((*env)->IsSameObject(env, fCompLocal, NULL)) {
-        return @"unknown";
+        return nil;
     }
     NSString *str = nil;
-    jobject jstr = JNFCallStaticObjectMethod(env, jm_getAccessibleActionDescription, fAccessibleAction, fIndex, fCompLocal);
+    jstring jstr = JNFCallStaticObjectMethod( env,
+                                              jm_getAccessibleActionDescription,
+                                              fAccessibleAction,
+                                              fIndex,
+                                              fCompLocal );
     if (jstr != NULL) {
-        NSString *str = JNFJavaToNSString(env, jstr); // AWT_THREADING Safe (AWTRunLoopMode)
+        str = JNFJavaToNSString(env, jstr); // AWT_THREADING Safe (AWTRunLoopMode)
         (*env)->DeleteLocalRef(env, jstr);
     }
     (*env)->DeleteLocalRef(env, fCompLocal);
-    return str == nil ? @"unknown" : str;
+    return str;
 }
 
 - (void)perform
@@ -125,19 +116,6 @@
     fComponent = NULL;
 
     [super dealloc];
-}
-
-- (void)finalize
-{
-    JNIEnv *env = [ThreadUtilities getJNIEnvUncached];
-
-    JNFDeleteWeakGlobalRef(env, fTabGroup);
-    fTabGroup = NULL;
-
-    JNFDeleteWeakGlobalRef(env, fComponent);
-    fComponent = NULL;
-
-    [super finalize];
 }
 
 - (NSString *)getDescription
