@@ -311,6 +311,13 @@ include NON_CORE_PKGS.gmk
 #################################################################
 
 #
+# Load custom Javadoc rules, if present
+#
+-include $(CUSTOM_MAKE_DIR)/Javadoc.gmk
+
+#################################################################
+
+#
 # Default target is same as docs target, create core api and all others it can
 #
 

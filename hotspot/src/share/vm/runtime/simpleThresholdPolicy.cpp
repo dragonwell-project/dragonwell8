@@ -239,7 +239,7 @@ void SimpleThresholdPolicy::compile(methodHandle mh, int bci, CompLevel level, J
   if (bci != InvocationEntryBci && mh->is_not_osr_compilable(level)) {
     return;
   }
-  if (!CompileBroker::compilation_is_in_queue(mh, bci)) {
+  if (!CompileBroker::compilation_is_in_queue(mh)) {
     if (PrintTieredEvents) {
       print_event(COMPILE, mh, mh, bci, level);
     }
@@ -378,7 +378,7 @@ CompLevel SimpleThresholdPolicy::loop_event(Method* method, CompLevel cur_level)
 // Handle the invocation event.
 void SimpleThresholdPolicy::method_invocation_event(methodHandle mh, methodHandle imh,
                                               CompLevel level, nmethod* nm, JavaThread* thread) {
-  if (is_compilation_enabled() && !CompileBroker::compilation_is_in_queue(mh, InvocationEntryBci)) {
+  if (is_compilation_enabled() && !CompileBroker::compilation_is_in_queue(mh)) {
     CompLevel next_level = call_event(mh(), level);
     if (next_level != level) {
       compile(mh, InvocationEntryBci, next_level, thread);
@@ -391,8 +391,8 @@ void SimpleThresholdPolicy::method_invocation_event(methodHandle mh, methodHandl
 void SimpleThresholdPolicy::method_back_branch_event(methodHandle mh, methodHandle imh,
                                                      int bci, CompLevel level, nmethod* nm, JavaThread* thread) {
   // If the method is already compiling, quickly bail out.
-  if (is_compilation_enabled() && !CompileBroker::compilation_is_in_queue(mh, bci)) {
-    // Use loop event as an opportinity to also check there's been
+  if (is_compilation_enabled() && !CompileBroker::compilation_is_in_queue(mh)) {
+    // Use loop event as an opportunity to also check there's been
     // enough calls.
     CompLevel cur_level = comp_level(mh());
     CompLevel next_level = call_event(mh(), cur_level);
