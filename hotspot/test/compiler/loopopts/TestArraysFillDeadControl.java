@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -19,24 +19,35 @@
  * Please contact Oracle, 500 Oracle Parkway, Redwood Shores, CA 94065 USA
  * or visit www.oracle.com if you need additional information or have any
  * questions.
+ *
  */
 
 /**
- * @test Test8000311
- * @key gc
- * @bug 8000311
- * @summary G1: ParallelGCThreads==0 broken
- * @run main/othervm -XX:+UseG1GC -XX:ParallelGCThreads=0 -XX:+ResizePLAB -XX:+ExplicitGCInvokesConcurrent Test8000311
- * @author filipp.zhinkin@oracle.com
+ * @test
+ * @bug 8147645
+ * @summary Array.fill intrinsification code doesn't mark replaced control as dead
+ * @run main/othervm  -XX:-TieredCompilation -XX:CompileCommand=dontinline,TestArraysFillDeadControl::dont_inline TestArraysFillDeadControl
+ *
  */
 
-import java.util.*;
+import java.util.Arrays;
 
-public class Test8000311 {
-  public static void main(String args[]) {
-    for(int i = 0; i<100; i++) {
-      byte[] garbage = new byte[1000];
-      System.gc();
+public class TestArraysFillDeadControl {
+
+    static void dont_inline() {
     }
-  }
+
+    static int i = 1;
+
+    public static void main(String[] args) {
+        for (int j = 0; j < 200000; j++) {
+            int[] a = new int[2];
+            int b = i;
+
+            Arrays.fill(a, 1);
+            Arrays.fill(a, 1+b);
+
+            dont_inline();
+        }
+    }
 }
