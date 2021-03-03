@@ -30,6 +30,7 @@ import java.net.InetAddress;
 import java.net.PasswordAuthentication;
 import java.net.UnknownHostException;
 import java.net.URL;
+import sun.net.NetProperties;
 import sun.net.www.HeaderParser;
 import sun.net.www.protocol.http.AuthenticationInfo;
 import sun.net.www.protocol.http.AuthScheme;
@@ -52,6 +53,14 @@ public class NTLMAuthentication extends AuthenticationInfo {
     private static String defaultDomain; /* Domain to use if not specified by user */
     private static final boolean ntlmCache; /* Whether cache is enabled for NTLM */
 
+    enum TransparentAuth {
+        DISABLED,      // disable for all hosts (default)
+        TRUSTED_HOSTS, // use Windows trusted hosts settings
+        ALL_HOSTS      // attempt for all hosts
+    }
+
+    private static final TransparentAuth authMode;
+
     static {
         defaultDomain = java.security.AccessController.doPrivileged(
             new sun.security.action.GetPropertyAction("http.auth.ntlm.domain",
@@ -59,6 +68,19 @@ public class NTLMAuthentication extends AuthenticationInfo {
         String ntlmCacheProp = java.security.AccessController.doPrivileged(
             new sun.security.action.GetPropertyAction("jdk.ntlm.cache", "true"));
         ntlmCache = Boolean.parseBoolean(ntlmCacheProp);
+        String modeProp = java.security.AccessController.doPrivileged(
+            new java.security.PrivilegedAction<String>() {
+                public String run() {
+                    return NetProperties.get("jdk.http.ntlm.transparentAuth");
+                }
+            });
+
+        if ("trustedHosts".equalsIgnoreCase(modeProp))
+            authMode = TransparentAuth.TRUSTED_HOSTS;
+        else if ("allHosts".equalsIgnoreCase(modeProp))
+            authMode = TransparentAuth.ALL_HOSTS;
+        else
+            authMode = TransparentAuth.DISABLED;
     };
 
     private void init0() {
@@ -159,8 +181,20 @@ public class NTLMAuthentication extends AuthenticationInfo {
      * transparent Authentication.
      */
     public static boolean isTrustedSite(URL url) {
-        return NTLMAuthCallback.isTrustedSite(url);
+        if (NTLMAuthCallback != null)
+            return NTLMAuthCallback.isTrustedSite(url);
+
+        switch (authMode) {
+            case TRUSTED_HOSTS:
+                return isTrustedSite(url.toString());
+            case ALL_HOSTS:
+                return true;
+            default:
+                return false;
+        }
     }
+
+    static native boolean isTrustedSite(String url);
 
     /**
      * Not supported. Must use the setHeaders() method
@@ -211,5 +245,4 @@ public class NTLMAuthentication extends AuthenticationInfo {
             return false;
         }
     }
-
 }
