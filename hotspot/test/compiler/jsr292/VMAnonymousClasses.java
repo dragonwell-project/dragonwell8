@@ -24,7 +24,7 @@
 /**
  * @test
  * @bug 8058828
- * @run main/bootclasspath -Xbatch VMAnonymousClasses
+ * @run main/bootclasspath/othervm -Xbatch VMAnonymousClasses
  */
 
 import jdk.internal.org.objectweb.asm.ClassWriter;
