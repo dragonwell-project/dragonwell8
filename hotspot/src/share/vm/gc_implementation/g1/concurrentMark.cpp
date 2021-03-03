@@ -24,6 +24,7 @@
 
 #include "precompiled.hpp"
 #include "classfile/symbolTable.hpp"
+#include "code/codeCache.hpp"
 #include "gc_implementation/g1/concurrentMark.inline.hpp"
 #include "gc_implementation/g1/concurrentMarkThread.inline.hpp"
 #include "gc_implementation/g1/g1CollectedHeap.inline.hpp"
@@ -39,12 +40,14 @@
 #include "gc_implementation/shared/gcTimer.hpp"
 #include "gc_implementation/shared/gcTrace.hpp"
 #include "gc_implementation/shared/gcTraceTime.hpp"
+#include "memory/allocation.hpp"
 #include "memory/genOopClosures.inline.hpp"
 #include "memory/referencePolicy.hpp"
 #include "memory/resourceArea.hpp"
 #include "oops/oop.inline.hpp"
 #include "runtime/handles.inline.hpp"
 #include "runtime/java.hpp"
+#include "runtime/prefetch.inline.hpp"
 #include "services/memTracker.hpp"
 
 // Concurrent marking bit map wrapper
@@ -56,8 +59,8 @@ CMBitMapRO::CMBitMapRO(int shifter) :
   _bmWordSize = 0;
 }
 
-HeapWord* CMBitMapRO::getNextMarkedWordAddress(HeapWord* addr,
-                                               HeapWord* limit) const {
+HeapWord* CMBitMapRO::getNextMarkedWordAddress(const HeapWord* addr,
+                                               const HeapWord* limit) const {
   // First we must round addr *up* to a possible object boundary.
   addr = (HeapWord*)align_size_up((intptr_t)addr,
                                   HeapWordSize << _shifter);
@@ -74,8 +77,8 @@ HeapWord* CMBitMapRO::getNextMarkedWordAddress(HeapWord* addr,
   return nextAddr;
 }
 
-HeapWord* CMBitMapRO::getNextUnmarkedWordAddress(HeapWord* addr,
-                                                 HeapWord* limit) const {
+HeapWord* CMBitMapRO::getNextUnmarkedWordAddress(const HeapWord* addr,
+                                                 const HeapWord* limit) const {
   size_t addrOffset = heapWordToOffset(addr);
   if (limit == NULL) {
     limit = _bmStartWord + _bmWordSize;
@@ -126,7 +129,7 @@ bool CMBitMap::allocate(ReservedSpace heap_rs) {
   }
   assert(_virtual_space.committed_size() == brs.size(),
          "didn't reserve backing store for all of concurrent marking bit map?");
-  _bm.set_map((uintptr_t*)_virtual_space.low());
+  _bm.set_map((BitMap::bm_word_t*)_virtual_space.low());
   assert(_virtual_space.committed_size() << (_shifter + LogBitsPerByte) >=
          _bmWordSize, "inconsistency in bit map sizing");
   _bm.set_size(_bmWordSize >> _shifter);
@@ -510,6 +513,7 @@ ConcurrentMark::ConcurrentMark(G1CollectedHeap* g1h, ReservedSpace heap_rs) :
   _has_overflown(false),
   _concurrent(false),
   _has_aborted(false),
+  _aborted_gc_id(GCId::undefined()),
   _restart_for_overflow(false),
   _concurrent_marking_in_progress(false),
 
@@ -886,6 +890,10 @@ void ConcurrentMark::clearNextBitmap() {
   guarantee(!g1h->mark_in_progress(), "invariant");
 }
 
+bool ConcurrentMark::nextMarkBitmapIsClear() {
+  return _nextMarkBitMap->getNextMarkedWordAddress(_heap_start, _heap_end) == _heap_end;
+}
+
 class NoteStartOfMarkHRClosure: public HeapRegionClosure {
 public:
   bool doHeapRegion(HeapRegion* r) {
@@ -976,13 +984,13 @@ void ConcurrentMark::enter_first_sync_barrier(uint worker_id) {
   }
 
   if (concurrent()) {
-    ConcurrentGCThread::stsLeave();
+    SuspendibleThreadSet::leave();
   }
 
   bool barrier_aborted = !_first_overflow_barrier_sync.enter();
 
   if (concurrent()) {
-    ConcurrentGCThread::stsJoin();
+    SuspendibleThreadSet::join();
   }
   // at this point everyone should have synced up and not be doing any
   // more work
@@ -1019,8 +1027,7 @@ void ConcurrentMark::enter_first_sync_barrier(uint worker_id) {
       force_overflow()->update();
 
       if (G1Log::fine()) {
-        gclog_or_tty->date_stamp(PrintGCDateStamps);
-        gclog_or_tty->stamp(PrintGCTimeStamps);
+        gclog_or_tty->gclog_stamp(concurrent_gc_id());
         gclog_or_tty->print_cr("[GC concurrent-mark-reset-for-overflow]");
       }
     }
@@ -1036,13 +1043,13 @@ void ConcurrentMark::enter_second_sync_barrier(uint worker_id) {
   }
 
   if (concurrent()) {
-    ConcurrentGCThread::stsLeave();
+    SuspendibleThreadSet::leave();
   }
 
   bool barrier_aborted = !_second_overflow_barrier_sync.enter();
 
   if (concurrent()) {
-    ConcurrentGCThread::stsJoin();
+    SuspendibleThreadSet::join();
   }
   // at this point everything should be re-initialized and ready to go
 
@@ -1094,7 +1101,7 @@ public:
 
     double start_vtime = os::elapsedVTime();
 
-    ConcurrentGCThread::stsJoin();
+    SuspendibleThreadSet::join();
 
     assert(worker_id < _cm->active_tasks(), "invariant");
     CMTask* the_task = _cm->task(worker_id);
@@ -1121,9 +1128,9 @@ public:
         if (!_cm->has_aborted() && the_task->has_aborted()) {
           sleep_time_ms =
             (jlong) (elapsed_vtime_sec * _cm->sleep_factor() * 1000.0);
-          ConcurrentGCThread::stsLeave();
+          SuspendibleThreadSet::leave();
           os::sleep(Thread::current(), sleep_time_ms, false);
-          ConcurrentGCThread::stsJoin();
+          SuspendibleThreadSet::join();
         }
         double end_time2_sec = os::elapsedTime();
         double elapsed_time2_sec = end_time2_sec - start_time_sec;
@@ -1141,7 +1148,7 @@ public:
     the_task->record_end_time();
     guarantee(!the_task->has_aborted() || _cm->has_aborted(), "invariant");
 
-    ConcurrentGCThread::stsLeave();
+    SuspendibleThreadSet::leave();
 
     double end_vtime = os::elapsedVTime();
     _cm->update_accum_task_vtime(worker_id, end_vtime - start_vtime);
@@ -1221,6 +1228,9 @@ public:
 };
 
 void ConcurrentMark::scanRootRegions() {
+  // Start of concurrent marking.
+  ClassLoaderDataGraph::clear_claimed_marks();
+
   // scan_in_progress() will have been set to true only if there was
   // at least one root region to scan. So, if it's false, we
   // should not attempt to do any further work.
@@ -1269,7 +1279,7 @@ void ConcurrentMark::markFromRoots() {
   CMConcurrentMarkingTask markingTask(this, cmThread());
   if (use_parallel_marking_threads()) {
     _parallel_workers->set_active_workers((int)active_workers);
-    // Don't set _n_par_threads because it affects MT in proceess_strong_roots()
+    // Don't set _n_par_threads because it affects MT in process_roots()
     // and the decisions on that MT processing is made elsewhere.
     assert(_parallel_workers->active_workers() > 0, "Should have been set");
     _parallel_workers->run_task(&markingTask);
@@ -1300,6 +1310,7 @@ void ConcurrentMark::checkpointRootsFinal(bool clear_all_soft_refs) {
     Universe::verify(VerifyOption_G1UsePrevMarking,
                      " VerifyDuringGC:(before)");
   }
+  g1h->check_bitmaps("Remark Start");
 
   G1CollectorPolicy* g1p = g1h->g1_policy();
   g1p->record_concurrent_mark_remark_start();
@@ -1348,6 +1359,7 @@ void ConcurrentMark::checkpointRootsFinal(bool clear_all_soft_refs) {
       Universe::verify(VerifyOption_G1UseNextMarking,
                        " VerifyDuringGC:(after)");
     }
+    g1h->check_bitmaps("Remark End");
     assert(!restart_for_overflow(), "sanity");
     // Completely reset the marking state since marking completed
     set_non_marking_state();
@@ -1997,6 +2009,7 @@ void ConcurrentMark::cleanup() {
     Universe::verify(VerifyOption_G1UsePrevMarking,
                      " VerifyDuringGC:(before)");
   }
+  g1h->check_bitmaps("Cleanup Start");
 
   G1CollectorPolicy* g1p = G1CollectedHeap::heap()->g1_policy();
   g1p->record_concurrent_mark_cleanup_start();
@@ -2034,8 +2047,8 @@ void ConcurrentMark::cleanup() {
     // that calculated by walking the marking bitmap.
 
     // Bitmaps to hold expected values
-    BitMap expected_region_bm(_region_bm.size(), false);
-    BitMap expected_card_bm(_card_bm.size(), false);
+    BitMap expected_region_bm(_region_bm.size(), true);
+    BitMap expected_card_bm(_card_bm.size(), true);
 
     G1ParVerifyFinalCountTask g1_par_verify_task(g1h,
                                                  &_region_bm,
@@ -2137,22 +2150,30 @@ void ConcurrentMark::cleanup() {
   // Update the soft reference policy with the new heap occupancy.
   Universe::update_heap_info_at_gc();
 
-  // We need to make this be a "collection" so any collection pause that
-  // races with it goes around and waits for completeCleanup to finish.
-  g1h->increment_total_collections();
-
-  // We reclaimed old regions so we should calculate the sizes to make
-  // sure we update the old gen/space data.
-  g1h->g1mm()->update_sizes();
-
   if (VerifyDuringGC) {
     HandleMark hm;  // handle scope
     Universe::heap()->prepare_for_verify();
     Universe::verify(VerifyOption_G1UsePrevMarking,
                      " VerifyDuringGC:(after)");
   }
+  g1h->check_bitmaps("Cleanup End");
 
   g1h->verify_region_sets_optional();
+
+  // We need to make this be a "collection" so any collection pause that
+  // races with it goes around and waits for completeCleanup to finish.
+  g1h->increment_total_collections();
+
+  // Clean out dead classes and update Metaspace sizes.
+  if (ClassUnloadingWithConcurrentMark) {
+    ClassLoaderDataGraph::purge();
+  }
+  MetaspaceGC::compute_new_size();
+
+  // We reclaimed old regions so we should calculate the sizes to make
+  // sure we update the old gen/space data.
+  g1h->g1mm()->update_sizes();
+
   g1h->trace_heap_after_concurrent_cycle();
 }
 
@@ -2382,6 +2403,8 @@ public:
   }
 
   virtual void work(uint worker_id) {
+    ResourceMark rm;
+    HandleMark hm;
     CMTask* task = _cm->task(worker_id);
     G1CMIsAliveClosure g1_is_alive(_g1h);
     G1CMKeepAliveAndDrainClosure g1_par_keep_alive(_cm, task, false /* is_serial */);
@@ -2439,6 +2462,26 @@ void G1CMRefProcTaskExecutor::execute(EnqueueTask& enq_task) {
   _g1h->set_par_threads(0);
 }
 
+void ConcurrentMark::weakRefsWorkParallelPart(BoolObjectClosure* is_alive, bool purged_classes) {
+  G1CollectedHeap::heap()->parallel_cleaning(is_alive, true, true, purged_classes);
+}
+
+// Helper class to get rid of some boilerplate code.
+class G1RemarkGCTraceTime : public GCTraceTime {
+  static bool doit_and_prepend(bool doit) {
+    if (doit) {
+      gclog_or_tty->put(' ');
+    }
+    return doit;
+  }
+
+ public:
+  G1RemarkGCTraceTime(const char* title, bool doit)
+    : GCTraceTime(title, doit_and_prepend(doit), false, G1CollectedHeap::heap()->gc_timer_cm(),
+        G1CollectedHeap::heap()->concurrent_mark()->concurrent_gc_id()) {
+  }
+};
+
 void ConcurrentMark::weakRefsWork(bool clear_all_soft_refs) {
   if (has_overflown()) {
     // Skip processing the discovered references if we have
@@ -2464,7 +2507,7 @@ void ConcurrentMark::weakRefsWork(bool clear_all_soft_refs) {
     if (G1Log::finer()) {
       gclog_or_tty->put(' ');
     }
-    GCTraceTime t("GC ref-proc", G1Log::finer(), false, g1h->gc_timer_cm());
+    GCTraceTime t("GC ref-proc", G1Log::finer(), false, g1h->gc_timer_cm(), concurrent_gc_id());
 
     ReferenceProcessor* rp = g1h->ref_processor_cm();
 
@@ -2521,7 +2564,8 @@ void ConcurrentMark::weakRefsWork(bool clear_all_soft_refs) {
                                           &g1_keep_alive,
                                           &g1_drain_mark_stack,
                                           executor,
-                                          g1h->gc_timer_cm());
+                                          g1h->gc_timer_cm(),
+                                          concurrent_gc_id());
     g1h->gc_tracer_cm()->report_gc_reference_stats(stats);
 
     // The do_oop work routines of the keep_alive and drain_marking_stack
@@ -2550,9 +2594,31 @@ void ConcurrentMark::weakRefsWork(bool clear_all_soft_refs) {
     return;
   }
 
-  g1h->unlink_string_and_symbol_table(&g1_is_alive,
-                                      /* process_strings */ false, // currently strings are always roots
-                                      /* process_symbols */ true);
+  assert(_markStack.isEmpty(), "Marking should have completed");
+
+  // Unload Klasses, String, Symbols, Code Cache, etc.
+  {
+    G1RemarkGCTraceTime trace("Unloading", G1Log::finer());
+
+    if (ClassUnloadingWithConcurrentMark) {
+      bool purged_classes;
+
+      {
+        G1RemarkGCTraceTime trace("System Dictionary Unloading", G1Log::finest());
+        purged_classes = SystemDictionary::do_unloading(&g1_is_alive);
+      }
+
+      {
+        G1RemarkGCTraceTime trace("Parallel Unloading", G1Log::finest());
+        weakRefsWorkParallelPart(&g1_is_alive, purged_classes);
+      }
+    }
+
+    if (G1StringDedup::is_enabled()) {
+      G1RemarkGCTraceTime trace("String Deduplication Unlink", G1Log::finest());
+      G1StringDedup::unlink(&g1_is_alive);
+    }
+  }
 }
 
 void ConcurrentMark::swapMarkBitMaps() {
@@ -2560,6 +2626,57 @@ void ConcurrentMark::swapMarkBitMaps() {
   _prevMarkBitMap  = (CMBitMapRO*)_nextMarkBitMap;
   _nextMarkBitMap  = (CMBitMap*)  temp;
 }
+
+class CMObjectClosure;
+
+// Closure for iterating over objects, currently only used for
+// processing SATB buffers.
+class CMObjectClosure : public ObjectClosure {
+private:
+  CMTask* _task;
+
+public:
+  void do_object(oop obj) {
+    _task->deal_with_reference(obj);
+  }
+
+  CMObjectClosure(CMTask* task) : _task(task) { }
+};
+
+class G1RemarkThreadsClosure : public ThreadClosure {
+  CMObjectClosure _cm_obj;
+  G1CMOopClosure _cm_cl;
+  MarkingCodeBlobClosure _code_cl;
+  int _thread_parity;
+  bool _is_par;
+
+ public:
+  G1RemarkThreadsClosure(G1CollectedHeap* g1h, CMTask* task, bool is_par) :
+    _cm_obj(task), _cm_cl(g1h, g1h->concurrent_mark(), task), _code_cl(&_cm_cl, !CodeBlobToOopClosure::FixRelocations),
+    _thread_parity(SharedHeap::heap()->strong_roots_parity()), _is_par(is_par) {}
+
+  void do_thread(Thread* thread) {
+    if (thread->is_Java_thread()) {
+      if (thread->claim_oops_do(_is_par, _thread_parity)) {
+        JavaThread* jt = (JavaThread*)thread;
+
+        // In theory it should not be neccessary to explicitly walk the nmethods to find roots for concurrent marking
+        // however the liveness of oops reachable from nmethods have very complex lifecycles:
+        // * Alive if on the stack of an executing method
+        // * Weakly reachable otherwise
+        // Some objects reachable from nmethods, such as the class loader (or klass_holder) of the receiver should be
+        // live by the SATB invariant but other oops recorded in nmethods may behave differently.
+        jt->nmethods_do(&_code_cl);
+
+        jt->satb_mark_queue().apply_closure_and_empty(&_cm_obj);
+      }
+    } else if (thread->is_VM_thread()) {
+      if (thread->claim_oops_do(_is_par, _thread_parity)) {
+        JavaThread::satb_mark_queue_set().shared_satb_queue()->apply_closure_and_empty(&_cm_obj);
+      }
+    }
+  }
+};
 
 class CMRemarkTask: public AbstractGangTask {
 private:
@@ -2572,6 +2689,14 @@ public:
     if (worker_id < _cm->active_tasks()) {
       CMTask* task = _cm->task(worker_id);
       task->record_start_time();
+      {
+        ResourceMark rm;
+        HandleMark hm;
+
+        G1RemarkThreadsClosure threads_f(G1CollectedHeap::heap(), task, !_is_serial);
+        Threads::threads_do(&threads_f);
+      }
+
       do {
         task->do_marking_step(1000000000.0 /* something very large */,
                               true         /* do_termination       */,
@@ -2593,6 +2718,8 @@ void ConcurrentMark::checkpointRootsFinalWork() {
   ResourceMark rm;
   HandleMark   hm;
   G1CollectedHeap* g1h = G1CollectedHeap::heap();
+
+  G1RemarkGCTraceTime trace("Finalize Marking", G1Log::finer());
 
   g1h->ensure_parsability(false);
 
@@ -3241,8 +3368,14 @@ void ConcurrentMark::print_stats() {
 
 // abandon current marking iteration due to a Full GC
 void ConcurrentMark::abort() {
-  // Clear all marks to force marking thread to do nothing
+  // Clear all marks in the next bitmap for the next marking cycle. This will allow us to skip the next
+  // concurrent bitmap clearing.
   _nextMarkBitMap->clearAll();
+
+  // Note we cannot clear the previous marking bitmap here
+  // since VerifyDuringGC verifies the objects marked during
+  // a full GC against the previous bitmap.
+
   // Clear the liveness counting data
   clear_all_count_data();
   // Empty mark stack
@@ -3252,6 +3385,12 @@ void ConcurrentMark::abort() {
   }
   _first_overflow_barrier_sync.abort();
   _second_overflow_barrier_sync.abort();
+  const GCId& gc_id = _g1h->gc_tracer_cm()->gc_id();
+  if (!gc_id.is_undefined()) {
+    // We can do multiple full GCs before ConcurrentMarkThread::run() gets a chance
+    // to detect that it was aborted. Only keep track of the first GC id that we aborted.
+    _aborted_gc_id = gc_id;
+   }
   _has_aborted = true;
 
   SATBMarkQueueSet& satb_mq_set = JavaThread::satb_mark_queue_set();
@@ -3264,6 +3403,13 @@ void ConcurrentMark::abort() {
 
   _g1h->trace_heap_after_concurrent_cycle();
   _g1h->register_concurrent_cycle_end();
+}
+
+const GCId& ConcurrentMark::concurrent_gc_id() {
+  if (has_aborted()) {
+    return _aborted_gc_id;
+  }
+  return _g1h->gc_tracer_cm()->gc_id();
 }
 
 static void print_ms_time_info(const char* prefix, const char* name,
@@ -3322,19 +3468,15 @@ void ConcurrentMark::print_on_error(outputStream* st) const {
 
 // We take a break if someone is trying to stop the world.
 bool ConcurrentMark::do_yield_check(uint worker_id) {
-  if (should_yield()) {
+  if (SuspendibleThreadSet::should_yield()) {
     if (worker_id == 0) {
       _g1h->g1_policy()->record_concurrent_pause();
     }
-    cmThread()->yield();
+    SuspendibleThreadSet::yield();
     return true;
   } else {
     return false;
   }
-}
-
-bool ConcurrentMark::should_yield() {
-  return cmThread()->should_yield();
 }
 
 bool ConcurrentMark::containing_card_is_marked(void* p) {
@@ -3408,20 +3550,6 @@ public:
     // the iteration
     return !_task->has_aborted();
   }
-};
-
-// Closure for iterating over objects, currently only used for
-// processing SATB buffers.
-class CMObjectClosure : public ObjectClosure {
-private:
-  CMTask* _task;
-
-public:
-  void do_object(oop obj) {
-    _task->deal_with_reference(obj);
-  }
-
-  CMObjectClosure(CMTask* task) : _task(task) { }
 };
 
 G1CMOopClosure::G1CMOopClosure(G1CollectedHeap* g1h,
@@ -3625,7 +3753,7 @@ void CMTask::regular_clock_call() {
 #endif // _MARKING_STATS_
 
   // (4) We check whether we should yield. If we have to, then we abort.
-  if (_cm->should_yield()) {
+  if (SuspendibleThreadSet::should_yield()) {
     // We should yield. To do this we abort the task. The caller is
     // responsible for yielding.
     set_has_aborted();
@@ -3886,15 +4014,6 @@ void CMTask::drain_satb_buffers() {
       }
       statsOnly( ++_satb_buffers_processed );
       regular_clock_call();
-    }
-  }
-
-  if (!concurrent() && !has_aborted()) {
-    // We should only do this during remark.
-    if (G1CollectedHeap::use_parallel_gc_threads()) {
-      satb_mq_set.par_iterate_closure_all_threads(_worker_id);
-    } else {
-      satb_mq_set.iterate_closure_all_threads();
     }
   }
 
