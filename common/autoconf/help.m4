@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2011, 2012, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
 # DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 #
 # This code is free software; you can redistribute it and/or modify it
@@ -75,20 +75,18 @@ cygwin_help() {
       HELP_MSG="You might be able to fix this by running '$PKGHANDLER_COMMAND'."
       ;;
     freetype)
-      if test "x$OPENJDK_TARGET_CPU_BITS" = x32; then
-        HELP_MSG="To install freetype, run:
-wget \"http://gnuwin32.sourceforge.net/downlinks/freetype.php\" -O /tmp/freetype-setup.exe
-chmod +x /tmp/freetype-setup.exe
-/tmp/freetype-setup.exe
-Follow GUI prompts, and install to default directory \"C:\Program Files (x86)\GnuWin32\".
-After installation, locate lib/libfreetype.dll.a and make a copy with the name freetype.dll."
-      else
-        HELP_MSG="You need to build a 64-bit version of freetype.
-This is not readily available.
-You can find source code and build instructions on
-http://www.freetype.org/
-If you put the resulting build in \"C:\Program Files\GnuWin32\", it will be found automatically."
-      fi
+      HELP_MSG="
+The freetype library can now be build during the configure process.
+Download the freetype sources and unpack them into an arbitrary directory:
+
+wget http://download.savannah.gnu.org/releases/freetype/freetype-2.5.3.tar.gz
+tar -xzf freetype-2.5.3.tar.gz
+
+Then run configure with '--with-freetype-src=<freetype_src>'. This will
+automatically build the freetype library into '<freetype_src>/lib64' for 64-bit
+builds or into '<freetype_src>/lib32' for 32-bit builds.
+Afterwards you can always use '--with-freetype-include=<freetype_src>/include'
+and '--with-freetype-lib=<freetype_src>/lib[32|64]' for other builds."
       ;;
   esac
 }
@@ -151,25 +149,30 @@ pkgadd_help() {
   PKGHANDLER_COMMAND=""
 }
 
+# This function will check if we're called from the "configure" wrapper while
+# printing --help. If so, we will print out additional information that can
+# only be extracted within the autoconf script, and then exit. This must be
+# called at the very beginning in configure.ac.
+AC_DEFUN_ONCE([HELP_PRINT_ADDITIONAL_HELP_AND_EXIT],
+[
+  if test "x$CONFIGURE_PRINT_TOOLCHAIN_LIST" != x; then
+    $PRINTF "The following toolchains are available as arguments to --with-toolchain-type.\n"
+    $PRINTF "Which are valid to use depends on the build platform.\n"
+    for toolchain in $VALID_TOOLCHAINS_all; do
+      # Use indirect variable referencing
+      toolchain_var_name=TOOLCHAIN_DESCRIPTION_$toolchain
+      TOOLCHAIN_DESCRIPTION=${!toolchain_var_name}
+      $PRINTF "  %-10s  %s\n" $toolchain "$TOOLCHAIN_DESCRIPTION"
+    done
+
+    # And now exit directly
+    exit 0
+  fi
+])
+
 AC_DEFUN_ONCE([HELP_PRINT_SUMMARY_AND_WARNINGS],
 [
   # Finally output some useful information to the user
-
-  if test "x$CCACHE_FOUND" != x; then
-    if  test "x$HAS_GOOD_CCACHE" = x; then
-      CCACHE_STATUS="installed, but disabled (version older than 3.1.4)"
-      CCACHE_HELP_MSG="You have ccache installed, but it is a version prior to 3.1.4. Try upgrading."
-    else
-      CCACHE_STATUS="installed and in use"
-    fi
-  else
-    if test "x$GCC" = xyes; then
-      CCACHE_STATUS="not installed (consider installing)"
-      CCACHE_HELP_MSG="You do not have ccache installed. Try installing it."
-    else
-      CCACHE_STATUS="not available for your system"
-    fi
-  fi
 
   printf "\n"
   printf "====================================================\n"
@@ -194,23 +197,18 @@ AC_DEFUN_ONCE([HELP_PRINT_SUMMARY_AND_WARNINGS],
     printf "* Environment:    $WINDOWS_ENV_VENDOR version $WINDOWS_ENV_VERSION (root at $WINDOWS_ENV_ROOT_PATH)\n"
   fi
   printf "* Boot JDK:       $BOOT_JDK_VERSION (at $BOOT_JDK)\n"
-  printf "* C Compiler:     $CC_VENDOR version $CC_VERSION (at $CC)\n"
-  printf "* C++ Compiler:   $CXX_VENDOR version $CXX_VERSION (at $CXX)\n"
+  printf "* Toolchain:      $TOOLCHAIN_TYPE ($TOOLCHAIN_DESCRIPTION)\n" 
+  printf "* C Compiler:     Version $CC_VERSION_NUMBER (at $CC)\n"
+  printf "* C++ Compiler:   Version $CXX_VERSION_NUMBER (at $CXX)\n"
 
   printf "\n"
   printf "Build performance summary:\n"
   printf "* Cores to use:   $JOBS\n"
   printf "* Memory limit:   $MEMORY_SIZE MB\n"
-  printf "* ccache status:  $CCACHE_STATUS\n"
-  printf "\n"
-
-  if test "x$CCACHE_HELP_MSG" != x && test "x$HIDE_PERFORMANCE_HINTS" = "xno"; then
-    printf "Build performance tip: ccache gives a tremendous speedup for C++ recompilations.\n"
-    printf "$CCACHE_HELP_MSG\n"
-    HELP_MSG_MISSING_DEPENDENCY([ccache])
-    printf "$HELP_MSG\n"
-    printf "\n"
+  if test "x$CCACHE_STATUS" != "x"; then
+    printf "* ccache status:  $CCACHE_STATUS\n"
   fi
+  printf "\n"
 
   if test "x$BUILDING_MULTIPLE_JVM_VARIANTS" = "xyes"; then
     printf "NOTE: You have requested to build more than one version of the JVM, which\n"
@@ -238,6 +236,12 @@ AC_DEFUN_ONCE([HELP_PRINT_SUMMARY_AND_WARNINGS],
     printf "WARNING: The result of this configuration has overridden an older\n"
     printf "configuration. You *should* run 'make clean' to make sure you get a\n"
     printf "proper build. Failure to do so might result in strange build problems.\n"
+    printf "\n"
+  fi
+
+  if test "x$UNSUPPORTED_TOOLCHAIN_VERSION" = "xyes"; then
+    printf "WARNING: The toolchain version used is known to have issues. Please\n"
+    printf "consider using a supported version unless you know what you are doing.\n"
     printf "\n"
   fi
 ])
