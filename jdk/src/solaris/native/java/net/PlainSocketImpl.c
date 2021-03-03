@@ -708,7 +708,6 @@ Java_java_net_PlainSocketImpl_socketAccept(JNIEnv *env, jobject this,
         } else {
             ret = NET_Timeout(fd, timeout);
         }
-
         if (ret == 0) {
             JNU_ThrowByName(env, JNU_JAVANETPKG "SocketTimeoutException",
                             "Accept timed out");
@@ -716,6 +715,8 @@ Java_java_net_PlainSocketImpl_socketAccept(JNIEnv *env, jobject this,
         } else if (ret == JVM_IO_ERR) {
             if (errno == EBADF) {
                JNU_ThrowByName(env, JNU_JAVANETPKG "SocketException", "Socket closed");
+            } else if (errno == ENOMEM) {
+               JNU_ThrowOutOfMemoryError(env, "NET_Timeout native heap allocation failed");
             } else {
                NET_ThrowByNameWithLastError(env, JNU_JAVANETPKG "SocketException", "Accept failed");
             }
