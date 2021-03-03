@@ -178,7 +178,7 @@ public final class DOMRetrievalMethod extends DOMStructure
         return type;
     }
 
-    public List getTransforms() {
+    public List<Transform> getTransforms() {
         return transforms;
     }
 
@@ -247,7 +247,7 @@ public final class DOMRetrievalMethod extends DOMStructure
         if ((data instanceof NodeSetData) && Utils.secureValidation(context)
             && Policy.restrictRetrievalMethodLoops()) {
             NodeSetData nsd = (NodeSetData)data;
-            Iterator i = nsd.iterator();
+            Iterator<?> i = nsd.iterator();
             if (i.hasNext()) {
                 Node root = (Node)i.next();
                 if ("RetrievalMethod".equals(root.getLocalName())) {
