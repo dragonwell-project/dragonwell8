@@ -156,19 +156,29 @@ public final class XClipboard extends SunClipboard implements OwnershipListener
         isSelectionNotifyProcessed = true;
 
         boolean mustSchedule = false;
-        synchronized (XClipboard.classLock) {
-            if (targetsAtom2Clipboard == null) {
-                targetsAtom2Clipboard = new HashMap<Long, XClipboard>(2);
+        XToolkit.awtLock();
+        try {
+            synchronized (XClipboard.classLock) {
+                try {
+                    Thread.sleep(70);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
+                }
+                if (targetsAtom2Clipboard == null) {
+                    targetsAtom2Clipboard = new HashMap<Long, XClipboard>(2);
+                }
+                mustSchedule = targetsAtom2Clipboard.isEmpty();
+                targetsAtom2Clipboard.put(getTargetsPropertyAtom().getAtom(), this);
+                if (mustSchedule) {
+                    XToolkit.addEventDispatcher(XWindow.getXAWTRootWindow().getWindow(),
+                                                new SelectionNotifyHandler());
+                }
             }
-            mustSchedule = targetsAtom2Clipboard.isEmpty();
-            targetsAtom2Clipboard.put(getTargetsPropertyAtom().getAtom(), this);
             if (mustSchedule) {
-                XToolkit.addEventDispatcher(XWindow.getXAWTRootWindow().getWindow(),
-                                            new SelectionNotifyHandler());
+                XToolkit.schedule(new CheckChangeTimerTask(), XClipboard.getPollInterval());
             }
-        }
-        if (mustSchedule) {
-            XToolkit.schedule(new CheckChangeTimerTask(), XClipboard.getPollInterval());
+        } finally {
+            XToolkit.awtUnlock();
         }
     }
 

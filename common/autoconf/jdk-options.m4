@@ -531,6 +531,12 @@ AC_DEFUN_ONCE([JDKOPT_SETUP_JDK_VERSION_NUMBERS],
   fi
   AC_SUBST(JDK_VERSION)
 
+  # The cooked update version used to encode trailing letters in the update
+  # version into a trailing number. That is no longer needed, but need to
+  # keep the format in 8u for compatibility.
+  COOKED_JDK_UPDATE_VERSION="${JDK_UPDATE_VERSION}0"
+  AC_SUBST(COOKED_JDK_UPDATE_VERSION)
+
   COOKED_BUILD_NUMBER=`$ECHO $JDK_BUILD_NUMBER | $SED -e 's/^b//' -e 's/^0//'`
   AC_SUBST(COOKED_BUILD_NUMBER)
 ])
