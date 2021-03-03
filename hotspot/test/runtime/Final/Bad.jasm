@@ -30,7 +30,7 @@ class Bad {
 */
 
 super class Bad
-	version 53:0
+	version 52:0
 {
 
 // Remove 'static' keyword

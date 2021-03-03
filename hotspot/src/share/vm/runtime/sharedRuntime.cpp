@@ -546,7 +546,7 @@ address SharedRuntime::get_poll_stub(address pc) {
   CodeBlob *cb = CodeCache::find_blob(pc);
 
   // Should be an nmethod
-  assert( cb && cb->is_nmethod(), "safepoint polling: pc must refer to an nmethod" );
+  guarantee(cb != NULL && cb->is_nmethod(), "safepoint polling: pc must refer to an nmethod");
 
   // Look up the relocation information
   assert( ((nmethod*)cb)->is_at_poll_or_poll_return(pc),
@@ -1709,7 +1709,7 @@ IRT_LEAF(void, SharedRuntime::fixup_callers_callsite(Method* method, address cal
   // ask me how I know this...
 
   CodeBlob* cb = CodeCache::find_blob(caller_pc);
-  if (!cb->is_nmethod() || entry_point == moop->get_c2i_entry()) {
+  if (cb == NULL || !cb->is_nmethod() || entry_point == moop->get_c2i_entry()) {
     return;
   }
 
@@ -1760,7 +1760,7 @@ IRT_LEAF(void, SharedRuntime::fixup_callers_callsite(Method* method, address cal
       if (destination != entry_point) {
         CodeBlob* callee = CodeCache::find_blob(destination);
         // callee == cb seems weird. It means calling interpreter thru stub.
-        if (callee == cb || callee->is_adapter_blob()) {
+        if (callee != NULL && (callee == cb || callee->is_adapter_blob())) {
           // static call or optimized virtual
           if (TraceCallFixup) {
             tty->print("fixup callsite           at " INTPTR_FORMAT " to compiled code for", caller_pc);
