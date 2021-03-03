@@ -44,19 +44,44 @@ final class ScriptLoader extends NashornLoader {
     /**
      * Constructor.
      */
-    ScriptLoader(final ClassLoader parent, final Context context) {
-        super(parent);
+    ScriptLoader(final Context context) {
+        super(context.getStructLoader());
         this.context = context;
     }
 
     @Override
     protected Class<?> loadClass(final String name, final boolean resolve) throws ClassNotFoundException {
         checkPackageAccess(name);
-        if (name.startsWith(NASHORN_PKG_PREFIX)) {
-            return context.getSharedLoader().loadClass(name);
-        }
         return super.loadClass(name, resolve);
     }
+
+
+     @Override
+     protected Class<?> findClass(String name) throws ClassNotFoundException {
+         final ClassLoader appLoader = context.getAppLoader();
+
+         /*
+          * If the appLoader is null, don't bother side-delegating to it!
+          * Bootloader has been already attempted via parent loader
+          * delegation from the "loadClass" method.
+          *
+          * Also, make sure that we don't delegate to the app loader
+          * for nashorn's own classes or nashorn generated classes!
+          */
+         if (appLoader == null || name.startsWith(NASHORN_PKG_PREFIX)) {
+             throw new ClassNotFoundException(name);
+         }
+
+         /*
+          * This split-delegation is used so that caller loader
+          * based resolutions of classes would work. For example,
+          * java.sql.DriverManager uses caller's class loader to
+          * get Driver instances. Without this split-delegation
+          * a script class evaluating DriverManager.getDrivers()
+          * will not get back any JDBC driver!
+          */
+         return appLoader.loadClass(name);
+     }
 
     // package-private and private stuff below this point
 

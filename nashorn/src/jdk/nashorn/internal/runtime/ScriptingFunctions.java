@@ -132,9 +132,9 @@ public final class ScriptingFunctions {
      * Nashorn extension: exec a string in a separate process.
      *
      * @param self   self reference
-     * @param args   string to execute, input and additional arguments, to be appended to {@code string}. Additional arguments can be passed as
-     *               either one JavaScript array, whose elements will be converted to strings; or as a sequence of
-     *               varargs, each of which will be converted to a string.
+     * @param args   string to execute, input and additional arguments, to be appended to {@code string}. Additional
+     *               arguments can be passed as either one JavaScript array, whose elements will be converted to
+     *               strings; or as a sequence of varargs, each of which will be converted to a string.
      *
      * @return output string from the request
      *
@@ -167,7 +167,10 @@ public final class ScriptingFunctions {
             // If a working directory is present, use it.
             final Object pwd = envProperties.get(PWD_NAME);
             if (pwd != UNDEFINED) {
-                processBuilder.directory(new File(JSType.toString(pwd)));
+                final File pwdFile = new File(JSType.toString(pwd));
+                if (pwdFile.exists()) {
+                    processBuilder.directory(pwdFile);
+                }
             }
 
             // Set up ENV variables.
@@ -219,13 +222,13 @@ public final class ScriptingFunctions {
         errThread.start();
 
         // If input is present, pass on to process.
-        try (OutputStreamWriter outputStream = new OutputStreamWriter(process.getOutputStream())) {
-            if (input != UNDEFINED) {
+        if (!JSType.nullOrUndefined(input)) {
+            try (OutputStreamWriter outputStream = new OutputStreamWriter(process.getOutputStream())) {
                 final String in = JSType.toString(input);
                 outputStream.write(in, 0, in.length());
+            } catch (final IOException ex) {
+                // Process was not expecting input.  May be normal state of affairs.
             }
-        } catch (final IOException ex) {
-            // Process was not expecting input.  May be normal state of affairs.
         }
 
         // Wait for the process to complete.
@@ -275,9 +278,8 @@ public final class ScriptingFunctions {
      * @param str a {@link String} to tokenize.
      * @return a {@link List} of {@link String}s representing the tokens that
      * constitute the string.
-     * @throws IOException in case {@link StreamTokenizer#nextToken()} raises it.
      */
-    public static List<String> tokenizeString(final String str) throws IOException {
+    public static List<String> tokenizeString(final String str) {
         final StreamTokenizer tokenizer = new StreamTokenizer(new StringReader(str));
         tokenizer.resetSyntax();
         tokenizer.wordChars(0, 255);
@@ -287,7 +289,7 @@ public final class ScriptingFunctions {
         tokenizer.quoteChar('\'');
         final List<String> tokenList = new ArrayList<>();
         final StringBuilder toAppend = new StringBuilder();
-        while (tokenizer.nextToken() != StreamTokenizer.TT_EOF) {
+        while (nextToken(tokenizer) != StreamTokenizer.TT_EOF) {
             final String s = tokenizer.sval;
             // The tokenizer understands about honoring quoted strings and recognizes
             // them as one token that possibly contains multiple space-separated words.
@@ -305,5 +307,13 @@ public final class ScriptingFunctions {
             tokenList.add(toAppend.toString());
         }
         return tokenList;
+    }
+
+    private static int nextToken(final StreamTokenizer tokenizer) {
+        try {
+            return tokenizer.nextToken();
+        } catch (final IOException ioe) {
+            return StreamTokenizer.TT_EOF;
+        }
     }
 }
