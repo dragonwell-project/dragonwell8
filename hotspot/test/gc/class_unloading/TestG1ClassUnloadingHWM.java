@@ -26,7 +26,7 @@
  * @key gc
  * @bug 8049831
  * @library /testlibrary /testlibrary/whitebox
- * @build TestG1ClassUnloadingHWM AllocateBeyondMetaspaceSize
+ * @build TestG1ClassUnloadingHWM
  * @run main ClassFileInstaller sun.hotspot.WhiteBox
  * @run driver TestG1ClassUnloadingHWM
  * @summary Test that -XX:-ClassUnloadingWithConcurrentMark will trigger a Full GC when more than MetaspaceSize metadata is allocated.
@@ -34,9 +34,9 @@
 
 import com.oracle.java.testlibrary.OutputAnalyzer;
 import com.oracle.java.testlibrary.ProcessTools;
-
 import java.util.ArrayList;
 import java.util.Arrays;
+import sun.hotspot.WhiteBox;
 
 public class TestG1ClassUnloadingHWM {
   private static long MetaspaceSize = 32 * 1024 * 1024;
@@ -53,7 +53,7 @@ public class TestG1ClassUnloadingHWM {
       "-XX:" + (enableUnloading ? "+" : "-") + "ClassUnloadingWithConcurrentMark",
       "-XX:+PrintHeapAtGC",
       "-XX:+PrintGCDetails",
-      "AllocateBeyondMetaspaceSize",
+      TestG1ClassUnloadingHWM.AllocateBeyondMetaspaceSize.class.getName(),
       "" + MetaspaceSize,
       "" + YoungGenSize);
     return new OutputAnalyzer(pb.start());
@@ -86,6 +86,37 @@ public class TestG1ClassUnloadingHWM {
   public static void main(String args[]) throws Exception {
     testWithG1ClassUnloading();
     testWithoutG1ClassUnloading();
+  }
+
+  public static class AllocateBeyondMetaspaceSize {
+    public static Object dummy;
+
+    public static void main(String [] args) throws Exception {
+      if (args.length != 2) {
+        throw new IllegalArgumentException("Usage: <MetaspaceSize> <YoungGenSize>");
+      }
+
+      WhiteBox wb = WhiteBox.getWhiteBox();
+
+      // Allocate past the MetaspaceSize limit
+      long metaspaceSize = Long.parseLong(args[0]);
+      long allocationBeyondMetaspaceSize  = metaspaceSize * 2;
+      long metaspace = wb.allocateMetaspace(null, allocationBeyondMetaspaceSize);
+
+      long youngGenSize = Long.parseLong(args[1]);
+      triggerYoungGCs(youngGenSize);
+
+      wb.freeMetaspace(null, metaspace, metaspace);
+    }
+
+    public static void triggerYoungGCs(long youngGenSize) {
+      long approxAllocSize = 32 * 1024;
+      long numAllocations  = 2 * youngGenSize / approxAllocSize;
+
+      for (long i = 0; i < numAllocations; i++) {
+        dummy = new byte[(int)approxAllocSize];
+      }
+    }
   }
 }
 
