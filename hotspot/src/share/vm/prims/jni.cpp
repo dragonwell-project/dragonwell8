@@ -1356,9 +1356,13 @@ static void jni_invoke_nonstatic(JNIEnv *env, JavaValue* result, jobject receive
       // interface call
       KlassHandle h_holder(THREAD, holder);
 
-      int itbl_index = m->itable_index();
-      Klass* k = h_recv->klass();
-      selected_method = InstanceKlass::cast(k)->method_at_itable(h_holder(), itbl_index, CHECK);
+      if (call_type == JNI_VIRTUAL) {
+        int itbl_index = m->itable_index();
+        Klass* k = h_recv->klass();
+        selected_method = InstanceKlass::cast(k)->method_at_itable(h_holder(), itbl_index, CHECK);
+      } else {
+        selected_method = m;
+      }
     }
   }
 
@@ -4446,8 +4450,23 @@ static bool initializeDirectBufferSupport(JNIEnv* env, JavaThread* thread) {
 
     // Get needed field and method IDs
     directByteBufferConstructor = env->GetMethodID(directByteBufferClass, "<init>", "(JI)V");
+    if (env->ExceptionCheck()) {
+      env->ExceptionClear();
+      directBufferSupportInitializeFailed = 1;
+      return false;
+    }
     directBufferAddressField    = env->GetFieldID(bufferClass, "address", "J");
+    if (env->ExceptionCheck()) {
+      env->ExceptionClear();
+      directBufferSupportInitializeFailed = 1;
+      return false;
+    }
     bufferCapacityField         = env->GetFieldID(bufferClass, "capacity", "I");
+    if (env->ExceptionCheck()) {
+      env->ExceptionClear();
+      directBufferSupportInitializeFailed = 1;
+      return false;
+    }
 
     if ((directByteBufferConstructor == NULL) ||
         (directBufferAddressField    == NULL) ||
@@ -5062,6 +5081,7 @@ void TestMetaspaceAux_test();
 void TestMetachunk_test();
 void TestVirtualSpaceNode_test();
 #if INCLUDE_ALL_GCS
+void TestOldFreeSpaceCalculation_test();
 void TestG1BiasedArray_test();
 #endif
 
@@ -5085,6 +5105,7 @@ void execute_internal_vm_tests() {
     run_unit_test(VMStructs::test());
 #endif
 #if INCLUDE_ALL_GCS
+    run_unit_test(TestOldFreeSpaceCalculation_test());
     run_unit_test(TestG1BiasedArray_test());
     run_unit_test(HeapRegionRemSet::test_prt());
 #endif

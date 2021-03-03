@@ -183,11 +183,6 @@ java/net/DatagramSocket/SendDatagramToBadAddress.java            macosx-all
 # 6963118
 java/nio/channels/Selector/Wakeup.java                          windows-all
 
-# 7133499, 7133497
-java/nio/channels/AsyncCloseAndInterrupt.java                   macosx-all
-java/nio/channels/AsynchronousFileChannel/Lock.java             macosx-all
-java/nio/channels/FileChannel/Transfer.java                     macosx-all
-
 # 7141822
 java/nio/channels/DatagramChannel/ChangingAddress.java          macosx-all
 
@@ -263,9 +258,6 @@ sun/security/krb5/auto/BadKdc4.java                             solaris-sparcv9
 
 # jdk_tools
 
-# 7132203
-sun/jvmstat/monitor/MonitoredVm/CR6672135.java                  generic-all
-
 # 8028474
 sun/jvmstat/monitor/MonitoredVm/MonitorVmStartTerminate.sh      generic-all
 
@@ -279,12 +271,6 @@ tools/launcher/FXLauncherTest.java                              linux-all
 ############################################################################
 
 # jdk_jdi
-
-# Filed 6952105
-com/sun/jdi/SuspendThreadTest.java                              generic-all
-
-# Filed 6653793
-com/sun/jdi/RedefineCrossEvent.java                             generic-all
 
 ############################################################################
 

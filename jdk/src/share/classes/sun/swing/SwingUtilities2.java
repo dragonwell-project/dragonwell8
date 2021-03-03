@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2002, 2014, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -80,6 +80,9 @@ public class SwingUtilities2 {
      */
     public static final Object LAF_STATE_KEY =
             new StringBuffer("LookAndFeel State");
+
+    public static final Object MENU_SELECTION_MANAGER_LISTENER_KEY =
+            new StringBuffer("MenuSelectionManager listener key");
 
     // Maintain a cache of CACHE_SIZE fonts and the left side bearing
      // of the characters falling into the range MIN_CHAR_INDEX to

@@ -304,6 +304,7 @@ class LibraryCallKit : public GraphKit {
   bool inline_cipherBlockChaining_AESCrypt(vmIntrinsics::ID id);
   Node* inline_cipherBlockChaining_AESCrypt_predicate(bool decrypting);
   Node* get_key_start_from_aescrypt_object(Node* aescrypt_object);
+  Node* get_original_key_start_from_aescrypt_object(Node* aescrypt_object);
   bool inline_encodeISOArray();
   bool inline_updateCRC32();
   bool inline_updateBytesCRC32();
@@ -3236,7 +3237,8 @@ bool LibraryCallKit::inline_native_currentThread() {
 // private native boolean java.lang.Thread.isInterrupted(boolean ClearInterrupted);
 bool LibraryCallKit::inline_native_isInterrupted() {
   // Add a fast path to t.isInterrupted(clear_int):
-  //   (t == Thread.current() && (!TLS._osthread._interrupted || !clear_int))
+  //   (t == Thread.current() &&
+  //    (!TLS._osthread._interrupted || WINDOWS_ONLY(false) NOT_WINDOWS(!clear_int)))
   //   ? TLS._osthread._interrupted : /*slow path:*/ t.isInterrupted(clear_int)
   // So, in the common case that the interrupt bit is false,
   // we avoid making a call into the VM.  Even if the interrupt bit
@@ -3293,6 +3295,7 @@ bool LibraryCallKit::inline_native_isInterrupted() {
   // drop through to next case
   set_control( _gvn.transform(new (C) IfTrueNode(iff_bit)));
 
+#ifndef TARGET_OS_FAMILY_windows
   // (c) Or, if interrupt bit is set and clear_int is false, use 2nd fast path.
   Node* clr_arg = argument(1);
   Node* cmp_arg = _gvn.transform(new (C) CmpINode(clr_arg, intcon(0)));
@@ -3306,6 +3309,10 @@ bool LibraryCallKit::inline_native_isInterrupted() {
 
   // drop through to next case
   set_control( _gvn.transform(new (C) IfTrueNode(iff_arg)));
+#else
+  // To return true on Windows you must read the _interrupted field
+  // and check the the event state i.e. take the slow path.
+#endif // TARGET_OS_FAMILY_windows
 
   // (d) Otherwise, go to the slow path.
   slow_region->add_req(control());
@@ -5936,10 +5943,22 @@ bool LibraryCallKit::inline_aescrypt_Block(vmIntrinsics::ID id) {
   Node* k_start = get_key_start_from_aescrypt_object(aescrypt_object);
   if (k_start == NULL) return false;
 
-  // Call the stub.
-  make_runtime_call(RC_LEAF|RC_NO_FP, OptoRuntime::aescrypt_block_Type(),
-                    stubAddr, stubName, TypePtr::BOTTOM,
-                    src_start, dest_start, k_start);
+  if (Matcher::pass_original_key_for_aes()) {
+    // on SPARC we need to pass the original key since key expansion needs to happen in intrinsics due to
+    // compatibility issues between Java key expansion and SPARC crypto instructions
+    Node* original_k_start = get_original_key_start_from_aescrypt_object(aescrypt_object);
+    if (original_k_start == NULL) return false;
+
+    // Call the stub.
+    make_runtime_call(RC_LEAF|RC_NO_FP, OptoRuntime::aescrypt_block_Type(),
+                      stubAddr, stubName, TypePtr::BOTTOM,
+                      src_start, dest_start, k_start, original_k_start);
+  } else {
+    // Call the stub.
+    make_runtime_call(RC_LEAF|RC_NO_FP, OptoRuntime::aescrypt_block_Type(),
+                      stubAddr, stubName, TypePtr::BOTTOM,
+                      src_start, dest_start, k_start);
+  }
 
   return true;
 }
@@ -6017,14 +6036,29 @@ bool LibraryCallKit::inline_cipherBlockChaining_AESCrypt(vmIntrinsics::ID id) {
   if (objRvec == NULL) return false;
   Node* r_start = array_element_address(objRvec, intcon(0), T_BYTE);
 
-  // Call the stub, passing src_start, dest_start, k_start, r_start and src_len
-  make_runtime_call(RC_LEAF|RC_NO_FP,
-                    OptoRuntime::cipherBlockChaining_aescrypt_Type(),
-                    stubAddr, stubName, TypePtr::BOTTOM,
-                    src_start, dest_start, k_start, r_start, len);
+  Node* cbcCrypt;
+  if (Matcher::pass_original_key_for_aes()) {
+    // on SPARC we need to pass the original key since key expansion needs to happen in intrinsics due to
+    // compatibility issues between Java key expansion and SPARC crypto instructions
+    Node* original_k_start = get_original_key_start_from_aescrypt_object(aescrypt_object);
+    if (original_k_start == NULL) return false;
 
-  // return is void so no result needs to be pushed
+    // Call the stub, passing src_start, dest_start, k_start, r_start, src_len and original_k_start
+    cbcCrypt = make_runtime_call(RC_LEAF|RC_NO_FP,
+                                 OptoRuntime::cipherBlockChaining_aescrypt_Type(),
+                                 stubAddr, stubName, TypePtr::BOTTOM,
+                                 src_start, dest_start, k_start, r_start, len, original_k_start);
+  } else {
+    // Call the stub, passing src_start, dest_start, k_start, r_start and src_len
+    cbcCrypt = make_runtime_call(RC_LEAF|RC_NO_FP,
+                                 OptoRuntime::cipherBlockChaining_aescrypt_Type(),
+                                 stubAddr, stubName, TypePtr::BOTTOM,
+                                 src_start, dest_start, k_start, r_start, len);
+  }
 
+  // return cipher length (int)
+  Node* retvalue = _gvn.transform(new (C) ProjNode(cbcCrypt, TypeFunc::Parms));
+  set_result(retvalue);
   return true;
 }
 
@@ -6037,6 +6071,17 @@ Node * LibraryCallKit::get_key_start_from_aescrypt_object(Node *aescrypt_object)
   // now have the array, need to get the start address of the K array
   Node* k_start = array_element_address(objAESCryptKey, intcon(0), T_INT);
   return k_start;
+}
+
+//------------------------------get_original_key_start_from_aescrypt_object-----------------------
+Node * LibraryCallKit::get_original_key_start_from_aescrypt_object(Node *aescrypt_object) {
+  Node* objAESCryptKey = load_field_from_object(aescrypt_object, "lastKey", "[B", /*is_exact*/ false);
+  assert (objAESCryptKey != NULL, "wrong version of com.sun.crypto.provider.AESCrypt");
+  if (objAESCryptKey == NULL) return (Node *) NULL;
+
+  // now have the array, need to get the start address of the lastKey array
+  Node* original_k_start = array_element_address(objAESCryptKey, intcon(0), T_BYTE);
+  return original_k_start;
 }
 
 //----------------------------inline_cipherBlockChaining_AESCrypt_predicate----------------------------
