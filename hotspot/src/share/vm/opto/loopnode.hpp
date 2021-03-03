@@ -279,6 +279,7 @@ public:
     if (iv_phi == NULL) {
       return NULL;
     }
+    assert(iv_phi->is_Phi(), "should be PhiNode");
     Node *ln = iv_phi->in(0);
     if (ln->is_CountedLoop() && ln->as_CountedLoop()->loopexit() == this) {
       return (CountedLoopNode*)ln;
