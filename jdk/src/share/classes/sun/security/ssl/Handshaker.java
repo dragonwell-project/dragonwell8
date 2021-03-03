@@ -647,7 +647,7 @@ abstract class Handshaker {
                             boolean available = true;
                             if (suite.keyExchange.isEC) {
                                 if (!checkedCurves) {
-                                    hasCurves = SupportedEllipticCurvesExtension
+                                    hasCurves = EllipticCurvesExtension
                                         .hasActiveCurves(algorithmConstraints);
                                     checkedCurves = true;
 
@@ -738,7 +738,7 @@ abstract class Handshaker {
                             boolean available = true;
                             if (suite.keyExchange.isEC) {
                                 if (!checkedCurves) {
-                                    hasCurves = SupportedEllipticCurvesExtension
+                                    hasCurves = EllipticCurvesExtension
                                         .hasActiveCurves(algorithmConstraints);
                                     checkedCurves = true;
 

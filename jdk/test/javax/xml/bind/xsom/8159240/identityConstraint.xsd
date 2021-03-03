@@ -1,0 +1,24 @@
+<?xml version="1.0"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+    <!-- Test spaces in xs:key and xs:keyref 'name'
+         and 'refer' attributes -->
+    <xs:element name="root">
+        <xs:complexType>
+            <xs:sequence>
+                <xs:element name="referenced">
+                    <xs:complexType>
+                        <xs:attribute name="id" type="xs:string" />
+                    </xs:complexType>
+                </xs:element>
+            </xs:sequence>
+        </xs:complexType>
+        <xs:key name="aKey  ">
+            <xs:selector xpath="root" />
+            <xs:field xpath="@id" />
+        </xs:key>
+        <xs:keyref name="   aKeyRef   " refer="  aKey">
+            <xs:selector xpath="referenced" />
+            <xs:field xpath="@id" />
+        </xs:keyref>
+    </xs:element>
+</xs:schema>
