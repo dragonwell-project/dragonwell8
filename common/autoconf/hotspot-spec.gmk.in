@@ -115,6 +115,9 @@ EXTRA_LDFLAGS=@LEGACY_EXTRA_LDFLAGS@
 
 USE_PRECOMPILED_HEADER=@USE_PRECOMPILED_HEADER@
 
+# Universal binaries on macosx, mirror MACOSX_UNIVERSAL
+ALT_MACOSX_UNIVERSAL=@MACOSX_UNIVERSAL@
+
 # Hotspot expects the variable FULL_DEBUG_SYMBOLS=1/0 to control debug symbols
 # creation.
 ifeq ($(ENABLE_DEBUG_SYMBOLS), true)
