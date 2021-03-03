@@ -2608,9 +2608,10 @@ bool LibraryCallKit::inline_unsafe_access(bool is_native_ptr, bool is_store, Bas
   Node* offset = top();
   Node* val;
 
+  // The base is either a Java object or a value produced by Unsafe.staticFieldBase
+  Node* base = argument(1);  // type: oop
+
   if (!is_native_ptr) {
-    // The base is either a Java object or a value produced by Unsafe.staticFieldBase
-    Node* base = argument(1);  // type: oop
     // The offset is a value produced by Unsafe.staticFieldOffset or Unsafe.objectFieldOffset
     offset = argument(2);  // type: long
     // We currently rely on the cookies produced by Unsafe.xxxFieldOffset
@@ -2630,9 +2631,7 @@ bool LibraryCallKit::inline_unsafe_access(bool is_native_ptr, bool is_store, Bas
     val = is_store ? argument(3) : NULL;
   }
 
-  // Can base be NULL? Otherwise, always on-heap access.
-  bool can_access_non_heap = TypePtr::NULL_PTR->higher_equal(_gvn.type(heap_base_oop));
-  if (can_access_non_heap && type == T_OBJECT) {
+  if ((_gvn.type(base)->isa_ptr() == TypePtr::NULL_PTR) && type == T_OBJECT) {
     return false; // off-heap oop accesses are not supported
   }
 
