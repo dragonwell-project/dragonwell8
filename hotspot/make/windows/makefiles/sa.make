@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
 # DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 #
 # This code is free software; you can redistribute it and/or modify it
@@ -37,6 +37,22 @@ checkAndBuildSA::
 !include $(WorkSpace)/make/sa.files
 
 GENERATED = ../generated
+
+HS_COMMON_SRC_REL = src
+
+!if "$(OPENJDK)" != "true"
+HS_ALT_SRC_REL=src/closed
+HS_ALT_SRC = $(WorkSpace)/$(HS_ALT_SRC_REL)
+!ifndef HS_ALT_MAKE
+HS_ALT_MAKE=$(WorkSpace)/make/closed
+!endif
+!endif
+
+HS_COMMON_SRC = $(WorkSpace)/$(HS_COMMON_SRC_REL)
+
+!ifdef HS_ALT_MAKE
+!include $(HS_ALT_MAKE)/windows/makefiles/sa.make
+!endif
 
 # tools.jar is needed by the JDI - SA binding
 SA_CLASSPATH = $(BOOT_JAVA_HOME)/lib/tools.jar
