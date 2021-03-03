@@ -32,7 +32,6 @@
 #include "oops/klassPS.hpp"
 #include "oops/metadata.hpp"
 #include "oops/oop.hpp"
-#include "runtime/orderAccess.hpp"
 #include "trace/traceMacros.hpp"
 #include "utilities/accessFlags.hpp"
 #include "utilities/macros.hpp"
@@ -584,36 +583,6 @@ class Klass : public Metadata {
   bool is_loader_alive(BoolObjectClosure* is_alive);
 
   static void clean_weak_klass_links(BoolObjectClosure* is_alive);
-
-  // Prefetch within oop iterators.  This is a macro because we
-  // can't guarantee that the compiler will inline it.  In 64-bit
-  // it generally doesn't.  Signature is
-  //
-  // static void prefetch_beyond(oop* const start,
-  //                             oop* const end,
-  //                             const intx foffset,
-  //                             const Prefetch::style pstyle);
-#define prefetch_beyond(start, end, foffset, pstyle) {   \
-    const intx foffset_ = (foffset);                     \
-    const Prefetch::style pstyle_ = (pstyle);            \
-    assert(foffset_ > 0, "prefetch beyond, not behind"); \
-    if (pstyle_ != Prefetch::do_none) {                  \
-      oop* ref = (start);                                \
-      if (ref < (end)) {                                 \
-        switch (pstyle_) {                               \
-        case Prefetch::do_read:                          \
-          Prefetch::read(*ref, foffset_);                \
-          break;                                         \
-        case Prefetch::do_write:                         \
-          Prefetch::write(*ref, foffset_);               \
-          break;                                         \
-        default:                                         \
-          ShouldNotReachHere();                          \
-          break;                                         \
-        }                                                \
-      }                                                  \
-    }                                                    \
-  }
 
   // iterators
   virtual int oop_oop_iterate(oop obj, ExtendedOopClosure* blk) = 0;

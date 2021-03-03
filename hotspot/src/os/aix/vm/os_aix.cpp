@@ -55,6 +55,7 @@
 #include "runtime/javaCalls.hpp"
 #include "runtime/mutexLocker.hpp"
 #include "runtime/objectMonitor.hpp"
+#include "runtime/orderAccess.inline.hpp"
 #include "runtime/osThread.hpp"
 #include "runtime/perfMemory.hpp"
 #include "runtime/sharedRuntime.hpp"
@@ -1214,10 +1215,6 @@ void os::abort(bool dump_core) {
 void os::die() {
   ::abort();
 }
-
-// Unused on Aix for now.
-void os::set_error_file(const char *logfile) {}
-
 
 // This method is a copy of JDK's sysGetLastErrorString
 // from src/solaris/hpi/src/system_md.c
