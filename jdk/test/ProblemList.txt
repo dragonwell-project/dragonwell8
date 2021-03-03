@@ -1,6 +1,6 @@
 ###########################################################################
 #
-# Copyright (c) 2009, 2014, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2009, 2017, Oracle and/or its affiliates. All rights reserved.
 # DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 #
 # This code is free software; you can redistribute it and/or modify it
@@ -150,29 +150,48 @@ demo/jvmti/compiledMethodLoad/CompiledMethodLoadTest.java	generic-all
 # 7027502
 demo/jvmti/hprof/MonitorTest.java                               generic-all
 
-# 8027973
-javax/xml/jaxp/transform/jdk8004476/XSLTExFuncTest.java		windows-all
-
 ############################################################################
 
 # jdk_net
 
-# Filed 7052625
-com/sun/net/httpserver/bugs/6725892/Test.java                   generic-all
-
-# 7148829
-sun/net/InetAddress/nameservice/simple/CacheTest.java		generic-all
-sun/net/InetAddress/nameservice/simple/DefaultCaching.java	generic-all
-
 # 7122846
 java/net/MulticastSocket/NoLoopbackPackets.java                  macosx-all
-java/net/MulticastSocket/SetLoopbackMode.java                    macosx-all
 
-# 7145658
-java/net/MulticastSocket/Test.java                               macosx-all
+# 7122846, 8098566
+java/net/MulticastSocket/SetLoopbackMode.java                    macosx-all,solaris-all
+
+# 8171217, 7145658
+java/net/MulticastSocket/Test.java                               macosx-all,solaris-all
 
 # 7143960
 java/net/DatagramSocket/SendDatagramToBadAddress.java            macosx-all
+
+# 8172046
+java/net/MulticastSocket/TestInterfaces.java                     windows-x64,solaris-x64
+
+# 8160738
+sun/net/www/protocol/https/HttpsURLConnection/ImpactOnSNI.java   macosx-x64
+
+# 8010379
+sun/net/www/http/KeepAliveCache/B5045306.java                    macosx-x64
+
+# 8158598
+sun/net/www/protocol/http/B6296310.java                          macosx-x64
+
+# 8171208
+java/net/CookieHandler/CookieManagerTest.java                    macosx-x64
+java/net/HttpURLConnection/UnmodifiableMaps.java                 macosx-x64
+sun/net/www/protocol/http/B6299712.java                          macosx-x64
+
+# 8166362
+sun/net/www/http/HttpClient/B8025710.java			generic-all
+
+############################################################################
+
+# jdk_io
+
+# 8169774
+java/io/File/WinSpecialFiles.java                               windows-all
 
 ############################################################################
 
@@ -187,9 +206,29 @@ java/nio/channels/DatagramChannel/ChangingAddress.java          macosx-all
 # 7132677
 java/nio/channels/Selector/OutOfBand.java                       macosx-all
 
-# 7158947, Solaris 11
+# 7158947
 java/nio/file/WatchService/Basic.java				solaris-all
 java/nio/file/WatchService/LotsOfEvents.java			solaris-all
+
+# 8030179
+java/nio/Buffer/Chars.java                      windows-x64
+
+# 8172045
+java/nio/channels/AsyncCloseAndInterrupt.java           linux-all
+
+# 8076056
+java/nio/channels/DatagramChannel/BasicMulticastTests.java      linux-i586
+java/nio/channels/DatagramChannel/MulticastSendReceiveTests.java    linux-i586
+
+# 8148996
+java/nio/file/WatchService/WithSecurityManager.java     linux-i586
+
+# 8173179
+java/nio/file/Files/probeContentType/Basic.java                  solaris-x64
+
+# 8171218
+java/nio/file/FileStore/Basic.java              linux-i586
+java/nio/file/FileSystem/Basic.java                 linux-i586
 
 ############################################################################
 
@@ -207,30 +246,57 @@ java/rmi/transport/checkLeaseInfoLeak/CheckLeaseLeak.java       generic-all
 # 7195095
 sun/rmi/transport/proxy/EagerHttpFallback.java                  generic-all
 
+# 8049531
+java/rmi/reliability/benchmark/bench/serial/Main.java           linux-i586
+
+# 8162906
+javax/rmi/ssl/SSLSocketParametersTest.sh                    linux-all
+
+# 8137232
+javax/rmi/PortableRemoteObject/ConcurrentHashMapTest.java       linux-all
+
+# 8170248
+javax/rmi/PortableRemoteObject/8146975/RmiIiopReturnValueTest.java  linux-all
+
 ############################################################################
 
 # jdk_security
 
-# 7157786
+# 8026976
 sun/security/pkcs11/ec/TestKeyFactory.java                      generic-all
 
-# 7164518: no PortUnreachableException on Mac
+# 7164518
 sun/security/krb5/auto/Unreachable.java                         macosx-all
 
 # 7147060
 com/sun/org/apache/xml/internal/security/transforms/ClassLoaderTest.java	generic-all
 
-# 6988842: 4 tests failing on Solaris 5.10
-sun/security/pkcs11/Secmod/AddPrivateKey.java                   solaris-all
-sun/security/pkcs11/ec/ReadCertificates.java                    solaris-all
-sun/security/pkcs11/ec/ReadPKCS12.java                          solaris-all
-sun/security/pkcs11/sslecc/ClientJSSEServerJSSE.java            solaris-all
+# 8160071
+sun/security/pkcs11/sslecc/ClientJSSEServerJSSE.java            linux-all
 
 # 8026393
 sun/security/tools/jarsigner/warnings/BadKeyUsageTest.java      generic-all
 
 # 8158827
 sun/security/krb5/auto/tools/KinitConfPlusProps.java                       windows-all
+
+# 8151225
+sun/security/rsa/SpecTest.java                                  linux-i586
+
+# 8173182
+sun/security/pkcs11/MessageDigest/TestCloning.java              solaris-x64
+
+# 8156709
+sun/security/provider/SecureRandom/StrongSecureRandom.java      macosx-x64
+
+# 8163498
+sun/security/provider/NSASuiteB/TestDSAGenParameterSpec.java    linux-i586
+
+# 8129560
+sun/security/pkcs11/rsa/TestKeyPairGenerator.java               solaris-all
+
+# 8151834
+sun/security/mscapi/SmallPrimeExponentP.java                    windows-i586
 
 ############################################################################
 
@@ -252,12 +318,8 @@ sun/security/krb5/auto/tools/KinitConfPlusProps.java                       windo
 
 # jdk_tools
 
-# Tests take too long, on sparcs see 7143279
-tools/pack200/CommandLineTests.java                             solaris-all, macosx-all
-tools/pack200/Pack200Test.java                                  solaris-all, macosx-all
-
-# 8007410
-tools/launcher/FXLauncherTest.java                              linux-all
+# 8172782, 8007410
+tools/launcher/FXLauncherTest.java                     windows-all,linux-all
 
 ############################################################################
 
@@ -266,6 +328,9 @@ tools/launcher/FXLauncherTest.java                              linux-all
 ############################################################################
 
 # jdk_util
+
+# 8004807
+java/util/Timer/Args.java                                        generic-all
 
 ############################################################################
 
