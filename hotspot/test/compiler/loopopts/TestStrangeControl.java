@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -19,19 +19,31 @@
  * Please contact Oracle, 500 Oracle Parkway, Redwood Shores, CA 94065 USA
  * or visit www.oracle.com if you need additional information or have any
  * questions.
+ *
  */
 
 /*
  * @test
- * @bug 7002839
- * @summary Static init deadlock Win32GraphicsEnvironment and WToolkit
- * @run main/othervm -Djava.awt.headless=true GE_init5
+ * @bug 8228888
+ * @summary Test PhaseIdealLoop::has_local_phi_input() with phi input with non-dominating control.
+ * @compile StrangeControl.jasm
+ * @run main/othervm -Xbatch -XX:CompileCommand=inline,compiler.loopopts.StrangeControl::test
+ *                   compiler.loopopts.TestStrangeControl
  */
 
-import java.awt.GraphicsEnvironment;
+package compiler.loopopts;
 
-public class GE_init5 {
-    public static void main(String[] args) {
-        GraphicsEnvironment.getLocalGraphicsEnvironment();
+public class TestStrangeControl {
+
+    public static void main(String[] args) throws Exception {
+        Thread thread = new Thread() {
+            public void run() {
+                // Run this in an own thread because it's basically an endless loop
+                StrangeControl.test(42);
+            }
+        };
+        thread.start();
+        // Give thread executing strange control loop enough time to trigger OSR compilation
+        Thread.sleep(4000);
     }
 }
