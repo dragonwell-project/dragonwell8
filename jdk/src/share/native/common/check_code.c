@@ -457,6 +457,8 @@ static void *CCalloc(context_type *context, int size, jboolean zero);
 
 static fullinfo_type cp_index_to_class_fullinfo(context_type *, int, int);
 
+static const char* get_result_signature(const char* signature);
+
 static char signature_to_fieldtype(context_type *context,
                                    const char **signature_p, fullinfo_type *info);
 
@@ -1286,14 +1288,13 @@ verify_opcode_operands(context_type *context, unsigned int inumber, int offset)
     case JVM_OPC_invokevirtual:
     case JVM_OPC_invokespecial:
     case JVM_OPC_invokestatic:
-    case JVM_OPC_invokedynamic:
     case JVM_OPC_invokeinterface: {
         /* Make sure the constant pool item is the right type. */
         int key = (code[offset + 1] << 8) + code[offset + 2];
         const char *methodname;
         jclass cb = context->class;
         fullinfo_type clazz_info;
-        int is_constructor, is_internal, is_invokedynamic;
+        int is_constructor, is_internal;
         int kind;
 
         switch (opcode ) {
@@ -1302,9 +1303,6 @@ verify_opcode_operands(context_type *context, unsigned int inumber, int offset)
                        ? (1 << JVM_CONSTANT_Methodref)
                        : ((1 << JVM_CONSTANT_InterfaceMethodref) | (1 << JVM_CONSTANT_Methodref)));
             break;
-        case JVM_OPC_invokedynamic:
-            kind = 1 << JVM_CONSTANT_NameAndType;
-            break;
         case JVM_OPC_invokeinterface:
             kind = 1 << JVM_CONSTANT_InterfaceMethodref;
             break;
@@ -1312,7 +1310,6 @@ verify_opcode_operands(context_type *context, unsigned int inumber, int offset)
             kind = 1 << JVM_CONSTANT_Methodref;
         }
 
-        is_invokedynamic = opcode == JVM_OPC_invokedynamic;
         /* Make sure the constant pool item is the right type. */
         verify_constant_pool_type(context, key, kind);
         methodname = JVM_GetCPMethodNameUTF(env, cb, key);
@@ -1321,11 +1318,8 @@ verify_opcode_operands(context_type *context, unsigned int inumber, int offset)
         is_internal = methodname[0] == '<';
         pop_and_free(context);
 
-        if (is_invokedynamic)
-          clazz_info = context->object_info;  // anything will do
-        else
-          clazz_info = cp_index_to_class_fullinfo(context, key,
-                                                  JVM_CONSTANT_Methodref);
+        clazz_info = cp_index_to_class_fullinfo(context, key,
+                                                JVM_CONSTANT_Methodref);
         this_idata->operand.i = key;
         this_idata->operand2.fi = clazz_info;
         if (is_constructor) {
@@ -1380,17 +1374,15 @@ verify_opcode_operands(context_type *context, unsigned int inumber, int offset)
                         "Fourth operand byte of invokeinterface must be zero");
             }
             pop_and_free(context);
-        } else if (opcode == JVM_OPC_invokedynamic) {
-            if (code[offset + 3] != 0 || code[offset + 4] != 0) {
-                CCerror(context,
-                        "Third and fourth operand bytes of invokedynamic must be zero");
-            }
         } else if (opcode == JVM_OPC_invokevirtual
                       || opcode == JVM_OPC_invokespecial)
             set_protected(context, inumber, key, opcode);
         break;
     }
 
+    case JVM_OPC_invokedynamic:
+        CCerror(context,
+                "invokedynamic bytecode is not supported in this class file version");
 
     case JVM_OPC_instanceof:
     case JVM_OPC_checkcast:
@@ -2071,7 +2063,6 @@ pop_stack(context_type *context, unsigned int inumber, stack_info_type *new_stac
 
         case JVM_OPC_invokevirtual: case JVM_OPC_invokespecial:
         case JVM_OPC_invokeinit:    /* invokespecial call to <init> */
-        case JVM_OPC_invokedynamic:
         case JVM_OPC_invokestatic: case JVM_OPC_invokeinterface: {
             /* The top stuff on the stack depends on the method signature */
             int operand = this_idata->operand.i;
@@ -2087,8 +2078,7 @@ pop_stack(context_type *context, unsigned int inumber, stack_info_type *new_stac
                 print_formatted_methodname(context, operand);
             }
 #endif
-            if (opcode != JVM_OPC_invokestatic &&
-                opcode != JVM_OPC_invokedynamic)
+            if (opcode != JVM_OPC_invokestatic)
                 /* First, push the object */
                 *ip++ = (opcode == JVM_OPC_invokeinit ? '@' : 'A');
             for (p = signature + 1; *p != JVM_SIGNATURE_ENDFUNC; ) {
@@ -2373,7 +2363,6 @@ pop_stack(context_type *context, unsigned int inumber, stack_info_type *new_stac
 
         case JVM_OPC_invokevirtual: case JVM_OPC_invokespecial:
         case JVM_OPC_invokeinit:
-        case JVM_OPC_invokedynamic:
         case JVM_OPC_invokeinterface: case JVM_OPC_invokestatic: {
             int operand = this_idata->operand.i;
             const char *signature =
@@ -2383,8 +2372,7 @@ pop_stack(context_type *context, unsigned int inumber, stack_info_type *new_stac
             int item;
             const char *p;
             check_and_push(context, signature, VM_STRING_UTF);
-            if (opcode == JVM_OPC_invokestatic ||
-                opcode == JVM_OPC_invokedynamic) {
+            if (opcode == JVM_OPC_invokestatic) {
                 item = 0;
             } else if (opcode == JVM_OPC_invokeinit) {
                 fullinfo_type init_type = this_idata->operand2.fi;
@@ -2781,7 +2769,6 @@ push_stack(context_type *context, unsigned int inumber, stack_info_type *new_sta
 
         case JVM_OPC_invokevirtual: case JVM_OPC_invokespecial:
         case JVM_OPC_invokeinit:
-        case JVM_OPC_invokedynamic:
         case JVM_OPC_invokestatic: case JVM_OPC_invokeinterface: {
             /* Look to signature to determine correct result. */
             int operand = this_idata->operand.i;
@@ -2790,7 +2777,7 @@ push_stack(context_type *context, unsigned int inumber, stack_info_type *new_sta
                                                                 operand);
             const char *result_signature;
             check_and_push(context, signature, VM_STRING_UTF);
-            result_signature = strchr(signature, JVM_SIGNATURE_ENDFUNC);
+            result_signature = get_result_signature(signature);
             if (result_signature++ == NULL) {
                 CCerror(context, "Illegal signature %s", signature);
             }
@@ -3711,6 +3698,42 @@ CFerror(context_type *context, char *format, ...)
     }
     context->err_code = CC_ClassFormatError;
     longjmp(context->jump_buffer, 1);
+}
+
+/*
+ * Need to scan the entire signature to find the result type because
+ * types in the arg list and the result type could contain embedded ')'s.
+ */
+static const char* get_result_signature(const char* signature) {
+    const char *p;
+    for (p = signature; *p != JVM_SIGNATURE_ENDFUNC; p++) {
+        switch (*p) {
+          case JVM_SIGNATURE_BOOLEAN:
+          case JVM_SIGNATURE_BYTE:
+          case JVM_SIGNATURE_CHAR:
+          case JVM_SIGNATURE_SHORT:
+          case JVM_SIGNATURE_INT:
+          case JVM_SIGNATURE_FLOAT:
+          case JVM_SIGNATURE_DOUBLE:
+          case JVM_SIGNATURE_LONG:
+          case JVM_SIGNATURE_FUNC:  /* ignore initial (, if given */
+            break;
+          case JVM_SIGNATURE_CLASS:
+            while (*p != JVM_SIGNATURE_ENDCLASS) p++;
+            break;
+          case JVM_SIGNATURE_ARRAY:
+            while (*p == JVM_SIGNATURE_ARRAY) p++;
+            /* If an array of classes, skip over class name, too. */
+            if (*p == JVM_SIGNATURE_CLASS) {
+                while (*p != JVM_SIGNATURE_ENDCLASS) p++;
+            }
+            break;
+          default:
+            /* Indicate an error. */
+            return NULL;
+        }
+    }
+    return p++; /* skip over ')'. */
 }
 
 static char
