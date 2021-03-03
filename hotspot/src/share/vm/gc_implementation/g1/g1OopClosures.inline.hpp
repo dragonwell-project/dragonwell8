@@ -28,9 +28,11 @@
 #include "gc_implementation/g1/concurrentMark.inline.hpp"
 #include "gc_implementation/g1/g1CollectedHeap.hpp"
 #include "gc_implementation/g1/g1OopClosures.hpp"
+#include "gc_implementation/g1/g1ParScanThreadState.inline.hpp"
 #include "gc_implementation/g1/g1RemSet.hpp"
 #include "gc_implementation/g1/g1RemSet.inline.hpp"
 #include "gc_implementation/g1/heapRegionRemSet.hpp"
+#include "runtime/prefetch.inline.hpp"
 
 /*
  * This really ought to be an inline function, but apparently the C++

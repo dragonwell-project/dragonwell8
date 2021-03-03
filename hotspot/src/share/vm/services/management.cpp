@@ -39,6 +39,7 @@
 #include "runtime/jniHandles.hpp"
 #include "runtime/os.hpp"
 #include "runtime/serviceThread.hpp"
+#include "runtime/thread.inline.hpp"
 #include "services/classLoadingService.hpp"
 #include "services/diagnosticCommand.hpp"
 #include "services/diagnosticFramework.hpp"
@@ -1823,7 +1824,7 @@ JVM_ENTRY(void, jmm_SetVMGlobal(JNIEnv *env, jstring flag_name, jvalue new_value
               "This flag is not writeable.");
   }
 
-  bool succeed;
+  bool succeed = false;
   if (flag->is_bool()) {
     bool bvalue = (new_value.z == JNI_TRUE ? true : false);
     succeed = CommandLineFlags::boolAtPut(name, &bvalue, Flag::MANAGEMENT);
@@ -1855,6 +1856,9 @@ JVM_ENTRY(void, jmm_SetVMGlobal(JNIEnv *env, jstring flag_name, jvalue new_value
     }
     ccstr svalue = java_lang_String::as_utf8_string(str);
     succeed = CommandLineFlags::ccstrAtPut(name, &svalue, Flag::MANAGEMENT);
+    if (succeed) {
+      FREE_C_HEAP_ARRAY(char, svalue, mtInternal);
+    }
   }
   assert(succeed, "Setting flag should succeed");
 JVM_END
