@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -43,7 +43,7 @@ public class Resources_sv extends java.util.ListResourceBundle {
         {"Illegal.option.option", "Otill\u00E5tet alternativ: {0}"},
         {"Usage.policytool.options.", "Syntax: policytool [alternativ]"},
         {".file.file.policy.file.location",
-                "  [-file <fil>]    policyfilens plats"},
+                "  [-file <fil>]    policyfiladress"},
         {"New", "&Nytt"},
         {"Open", "&\u00D6ppna..."},
         {"Save", "S&para"},
