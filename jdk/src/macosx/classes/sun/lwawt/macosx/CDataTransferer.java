@@ -147,8 +147,7 @@ public class CDataTransferer extends DataTransferer {
             String separator = System.getProperty("line.separator");
             StringBuilder sb = new StringBuilder();
             if(strings.length > 0) {
-                sb.append(strings[0]);
-                for(int i = 1; i < strings.length; i++) {
+                for(int i = 0; i < strings.length; i++) {
                     sb.append(strings[i]);
                     sb.append(separator);
                 }
