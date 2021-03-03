@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1996, 2017, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -93,7 +93,7 @@ final class ServerHandshaker extends Handshaker {
     private ProtocolVersion clientRequestedVersion;
 
     // client supported elliptic curves
-    private SupportedEllipticCurvesExtension requestedCurves;
+    private EllipticCurvesExtension requestedCurves;
 
     // the preferable signature algorithm used by ServerKeyExchange message
     SignatureAndHashAlgorithm preferableSignatureAlgorithm;
@@ -135,13 +135,17 @@ final class ServerHandshaker extends Handshaker {
             useSmartEphemeralDHKeys = false;
 
             try {
+                // DH parameter generation can be extremely slow, best to
+                // use one of the supported pre-computed DH parameters
+                // (see DHCrypt class).
                 customizedDHKeySize = Integer.parseUnsignedInt(property);
-                if (customizedDHKeySize < 1024 || customizedDHKeySize > 2048) {
+                if (customizedDHKeySize < 1024 || customizedDHKeySize > 8192 ||
+                        (customizedDHKeySize & 0x3f) != 0) {
                     throw new IllegalArgumentException(
                         "Unsupported customized DH key size: " +
                         customizedDHKeySize + ". " +
-                        "The key size can only range from 1024" +
-                        " to 2048 (inclusive)");
+                        "The key size must be multiple of 64, " +
+                        "and can only range from 1024 to 8192 (inclusive)");
                 }
             } catch (NumberFormatException nfe) {
                 throw new IllegalArgumentException(
@@ -683,7 +687,7 @@ final class ServerHandshaker extends Handshaker {
                 throw new SSLException("Client did not resume a session");
             }
 
-            requestedCurves = (SupportedEllipticCurvesExtension)
+            requestedCurves = (EllipticCurvesExtension)
                         mesg.extensions.get(ExtensionType.EXT_ELLIPTIC_CURVES);
 
             // We only need to handle the "signature_algorithm" extension
@@ -1377,14 +1381,10 @@ final class ServerHandshaker extends Handshaker {
          * Applications may also want to customize the ephemeral DH key size
          * to a fixed length for non-exportable cipher suites. This can be
          * approached by setting system property "jdk.tls.ephemeralDHKeySize"
-         * to a valid positive integer between 1024 and 2048 bits, inclusive.
+         * to a valid positive integer between 1024 and 8192 bits, inclusive.
          *
          * Note that the minimum acceptable key size is 1024 bits except
          * exportable cipher suites or legacy mode.
-         *
-         * Note that the maximum acceptable key size is 2048 bits because
-         * DH keys bigger than 2048 are not always supported by underlying
-         * JCE providers.
          *
          * Note that per RFC 2246, the key size limit of DH is 512 bits for
          * exportable cipher suites.  Because of the weakness, exportable
@@ -1400,10 +1400,17 @@ final class ServerHandshaker extends Handshaker {
             } else if (useSmartEphemeralDHKeys) {    // matched mode
                 if (key != null) {
                     int ks = KeyUtil.getKeySize(key);
-                    // Note that SunJCE provider only supports 2048 bits DH
-                    // keys bigger than 1024.  Please DON'T use value other
-                    // than 1024 and 2048 at present.  We may improve the
-                    // underlying providers and key size here in the future.
+
+                    // DH parameter generation can be extremely slow, make
+                    // sure to use one of the supported pre-computed DH
+                    // parameters (see DHCrypt class).
+                    //
+                    // Old deployed applications may not be ready to support
+                    // DH key sizes bigger than 2048 bits.  Please DON'T use
+                    // value other than 1024 and 2048 at present.  May improve
+                    // the underlying providers and key size limit in the
+                    // future when the compatibility and interoperability
+                    // impact is limited.
                     //
                     // keySize = ks <= 1024 ? 1024 : (ks >= 2048 ? 2048 : ks);
                     keySize = ks <= 1024 ? 1024 : 2048;
@@ -1422,7 +1429,7 @@ final class ServerHandshaker extends Handshaker {
     private boolean setupEphemeralECDHKeys() {
         int index = (requestedCurves != null) ?
                 requestedCurves.getPreferredCurve(algorithmConstraints) :
-                SupportedEllipticCurvesExtension.getActiveCurves(algorithmConstraints);
+                EllipticCurvesExtension.getActiveCurves(algorithmConstraints);
         if (index < 0) {
             // no match found, cannot use this ciphersuite
             return false;
@@ -1477,8 +1484,8 @@ final class ServerHandshaker extends Handshaker {
                 return false;
             }
             ECParameterSpec params = ((ECPublicKey)publicKey).getParams();
-            int id = SupportedEllipticCurvesExtension.getCurveIndex(params);
-            if ((id <= 0) || !SupportedEllipticCurvesExtension.isSupported(id) ||
+            int id = EllipticCurvesExtension.getCurveIndex(params);
+            if ((id <= 0) || !EllipticCurvesExtension.isSupported(id) ||
                 ((requestedCurves != null) && !requestedCurves.contains(id))) {
                 return false;
             }
