@@ -56,6 +56,8 @@ public class RuntimeNode extends Expression {
         REFERENCE_ERROR,
         /** Delete operator */
         DELETE(TokenType.DELETE, Type.BOOLEAN, 1),
+        /** Delete operator for slow scopes */
+        SLOW_DELETE(TokenType.DELETE, Type.BOOLEAN, 1, false),
         /** Delete operator that always fails -- see Lower */
         FAIL_DELETE(TokenType.DELETE, Type.BOOLEAN, 1, false),
         /** === operator with at least one object */
@@ -274,7 +276,7 @@ public class RuntimeNode extends Expression {
          *
          * @param request a request
          *
-         * @return the inverted rquest, or null if not applicable
+         * @return the inverted request, or null if not applicable
          */
         public static Request invert(final Request request) {
             switch (request) {

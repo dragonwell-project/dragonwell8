@@ -28,6 +28,7 @@ package jdk.nashorn.internal.runtime;
 import java.util.Map;
 import java.util.Set;
 import java.util.WeakHashMap;
+import java.util.concurrent.atomic.LongAdder;
 
 /**
  * Helper class to manage property listeners and notification.
@@ -37,8 +38,15 @@ public class PropertyListeners {
     private Map<String, WeakPropertyMapSet> listeners;
 
     // These counters are updated in debug mode
-    private static int listenersAdded;
-    private static int listenersRemoved;
+    private static LongAdder listenersAdded;
+    private static LongAdder listenersRemoved;
+
+    static {
+        if (Context.DEBUG) {
+            listenersAdded = new LongAdder();
+            listenersRemoved = new LongAdder();
+        }
+    }
 
     /**
      * Copy constructor
@@ -54,29 +62,33 @@ public class PropertyListeners {
      * Return aggregate listeners added to all PropertyListenerManagers
      * @return the listenersAdded
      */
-    public static int getListenersAdded() {
-        return listenersAdded;
+    public static long getListenersAdded() {
+        return listenersAdded.longValue();
     }
 
     /**
      * Return aggregate listeners removed from all PropertyListenerManagers
      * @return the listenersRemoved
      */
-    public static int getListenersRemoved() {
-        return listenersRemoved;
+    public static long getListenersRemoved() {
+        return listenersRemoved.longValue();
     }
 
     /**
-     * Return listeners added to this ScriptObject.
+     * Return number of listeners added to a ScriptObject.
      * @param obj the object
      * @return the listener count
      */
     public static int getListenerCount(final ScriptObject obj) {
-        final PropertyListeners propertyListeners = obj.getMap().getListeners();
-        if (propertyListeners != null) {
-            return propertyListeners.listeners == null ? 0 : propertyListeners.listeners.size();
-        }
-        return 0;
+        return obj.getMap().getListenerCount();
+    }
+
+    /**
+     * Return the number of listeners added to this PropertyListeners instance.
+     * @return the listener count;
+     */
+    public int getListenerCount() {
+        return listeners == null ? 0 : listeners.size();
     }
 
     // Property listener management methods
@@ -122,7 +134,7 @@ public class PropertyListeners {
      */
     synchronized final void addListener(final String key, final PropertyMap propertyMap) {
         if (Context.DEBUG) {
-            listenersAdded++;
+            listenersAdded.increment();
         }
         if (listeners == null) {
             listeners = new WeakHashMap<>();
@@ -148,9 +160,12 @@ public class PropertyListeners {
             final WeakPropertyMapSet set = listeners.get(prop.getKey());
             if (set != null) {
                 for (final PropertyMap propertyMap : set.elements()) {
-                    propertyMap.propertyAdded(prop);
+                    propertyMap.propertyAdded(prop, false);
                 }
                 listeners.remove(prop.getKey());
+                if (Context.DEBUG) {
+                    listenersRemoved.increment();
+                }
             }
         }
     }
@@ -165,9 +180,12 @@ public class PropertyListeners {
             final WeakPropertyMapSet set = listeners.get(prop.getKey());
             if (set != null) {
                 for (final PropertyMap propertyMap : set.elements()) {
-                    propertyMap.propertyDeleted(prop);
+                    propertyMap.propertyDeleted(prop, false);
                 }
                 listeners.remove(prop.getKey());
+                if (Context.DEBUG) {
+                    listenersRemoved.increment();
+                }
             }
         }
     }
@@ -184,9 +202,12 @@ public class PropertyListeners {
             final WeakPropertyMapSet set = listeners.get(oldProp.getKey());
             if (set != null) {
                 for (final PropertyMap propertyMap : set.elements()) {
-                    propertyMap.propertyModified(oldProp, newProp);
+                    propertyMap.propertyModified(oldProp, newProp, false);
                 }
                 listeners.remove(oldProp.getKey());
+                if (Context.DEBUG) {
+                    listenersRemoved.increment();
+                }
             }
         }
     }
@@ -198,7 +219,7 @@ public class PropertyListeners {
         if (listeners != null) {
             for (final WeakPropertyMapSet set : listeners.values()) {
                 for (final PropertyMap propertyMap : set.elements()) {
-                    propertyMap.protoChanged();
+                    propertyMap.protoChanged(false);
                 }
             }
             listeners.clear();
