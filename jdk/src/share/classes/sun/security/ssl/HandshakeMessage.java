@@ -274,6 +274,10 @@ static final class ClientHello extends HandshakeMessage {
         extensions.add(signatureAlgorithm);
     }
 
+    void addExtendedMasterSecretExtension() {
+        extensions.add(new ExtendedMasterSecretExtension());
+    }
+
     @Override
     int messageType() { return ht_client_hello; }
 
@@ -1024,7 +1028,7 @@ class ECDH_ServerKeyExchange extends ServerKeyExchange {
         } else {
             sig = getSignature(privateKey.getAlgorithm());
         }
-        sig.initSign(privateKey);  // where is the SecureRandom?
+        sig.initSign(privateKey, sr);
 
         updateSignature(sig, clntNonce, svrNonce);
         signatureBytes = sig.sign();
