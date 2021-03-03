@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2014, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -570,6 +570,9 @@ public final class TimeZoneNames_zh_TW extends TimeZoneNamesBundle {
             {"Antarctica/Syowa", new String[] {"\u5915\u6b50\u74e6 (Syowa) \u6642\u9593", "SYOT",
                                                "\u5915\u6b50\u74e6 (Syowa) \u590f\u4ee4\u6642\u9593", "SYOST",
                                                "\u5915\u6B50\u74E6 (Syowa) \u6642\u9593", "SYOT"}},
+            {"Antarctica/Troll", new String[] {"\u5354\u8abf\u4e16\u754c\u6642\u9593", "UTC",
+                                               "\u4e2d\u6b50\u590f\u4ee4\u6642\u9593", "CEST",
+                                               "Troll Time", "ATT"}},
             {"Antarctica/Vostok", new String[] {"\u4f5b\u65af\u6258 (Vostok) \u6642\u9593", "VOST",
                                                 "\u4f5b\u65af\u6258 (Vostok) \u590f\u4ee4\u6642\u9593", "VOSST",
                                                 "\u4F5B\u65AF\u6258 (Vostok) \u6642\u9593", "VOST"}},
@@ -578,7 +581,7 @@ public final class TimeZoneNames_zh_TW extends TimeZoneNamesBundle {
             {"Asia/Almaty", new String[] {"Alma-Ata \u6642\u9593", "ALMT",
                                           "Alma-Ata \u590f\u4ee4\u6642\u9593", "ALMST",
                                           "\u963F\u62C9\u6728\u5716\u6642\u9593", "ALMT"}},
-            {"Asia/Amman", ARAST},
+            {"Asia/Amman", EET},
             {"Asia/Anadyr", new String[] {"\u963f\u90a3\u5e95\u6cb3\u6642\u9593", "ANAT",
                                           "\u963f\u90a3\u5e95\u6cb3\u590f\u4ee4\u6642\u9593", "ANAST",
                                           "\u963F\u90A3\u5E95\u6CB3\u6642\u9593", "ANAT"}},
@@ -840,7 +843,7 @@ public final class TimeZoneNames_zh_TW extends TimeZoneNamesBundle {
                                             "\u6C99\u99AC\u62C9\u6642\u9593", "SAMT"}},
             {"Europe/San_Marino", CET},
             {"Europe/Sarajevo", CET},
-            {"Europe/Simferopol", EET},
+            {"Europe/Simferopol", MSK},
             {"Europe/Skopje", CET},
             {"Europe/Sofia", EET},
             {"Europe/Stockholm", CET},
