@@ -93,7 +93,7 @@ public final class NativeJava {
     @Function(name="synchronized", attributes = Attribute.NOT_ENUMERABLE, where = Where.CONSTRUCTOR)
     public static Object synchronizedFunc(final Object self, final Object func, final Object obj) {
         if (func instanceof ScriptFunction) {
-            return ((ScriptFunction)func).makeSynchronizedFunction(obj);
+            return ((ScriptFunction)func).createSynchronized(obj);
         }
 
         throw typeError("not.a.function", ScriptRuntime.safeToString(func));
@@ -342,7 +342,8 @@ public final class NativeJava {
     /**
      * Given a script object and a Java type, converts the script object into the desired Java type. Currently it
      * performs shallow creation of Java arrays, as well as wrapping of objects in Lists, Dequeues, Queues,
-     * and Collections. Example:
+     * and Collections. If conversion is not possible or fails for some reason, TypeError is thrown.
+     * Example:
      * <pre>
      * var anArray = [1, "13", false]
      * var javaIntArray = Java.to(anArray, "int[]")
@@ -386,7 +387,11 @@ public final class NativeJava {
         }
 
         if(targetClass.isArray()) {
-            return JSType.toJavaArray(obj, targetClass.getComponentType());
+            try {
+                return JSType.toJavaArray(obj, targetClass.getComponentType());
+            } catch (final Exception exp) {
+                throw typeError(exp, "java.array.conversion.failed", targetClass.getName());
+            }
         }
 
         if (targetClass == List.class || targetClass == Deque.class || targetClass == Queue.class || targetClass == Collection.class) {

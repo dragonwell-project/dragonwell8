@@ -621,13 +621,13 @@ public final class NativeJSAdapter extends ScriptObject {
             if (find != null) {
                 final Object value = find.getObjectValue();
                 if (value instanceof ScriptFunction) {
-                    final ScriptFunctionImpl func = (ScriptFunctionImpl)value;
+                    final ScriptFunction func = (ScriptFunction)value;
                     // TODO: It's a shame we need to produce a function bound to this and name, when we'd only need it bound
                     // to name. Probably not a big deal, but if we can ever make it leaner, it'd be nice.
                     return new GuardedInvocation(MH.dropArguments(MH.constant(Object.class,
-                            func.makeBoundFunction(this, new Object[] { name })), 0, Object.class),
+                            func.createBound(this, new Object[] { name })), 0, Object.class),
                             testJSAdaptor(adaptee, null, null, null),
-                            adaptee.getProtoSwitchPoint(__call__, find.getOwner()));
+                            adaptee.getProtoSwitchPoints(__call__, find.getOwner()), null);
                 }
             }
             throw typeError("no.such.function", desc.getNameToken(2), ScriptRuntime.safeToString(this));
@@ -698,7 +698,7 @@ public final class NativeJSAdapter extends ScriptObject {
                     return new GuardedInvocation(
                             methodHandle,
                             testJSAdaptor(adaptee, findData.getGetter(Object.class, INVALID_PROGRAM_POINT, null), findData.getOwner(), func),
-                            adaptee.getProtoSwitchPoint(hook, findData.getOwner()));
+                            adaptee.getProtoSwitchPoints(hook, findData.getOwner()), null);
                 }
              }
         }
@@ -710,7 +710,7 @@ public final class NativeJSAdapter extends ScriptObject {
             final MethodHandle methodHandle = hook.equals(__put__) ?
             MH.asType(Lookup.EMPTY_SETTER, type) :
             Lookup.emptyGetter(type.returnType());
-            return new GuardedInvocation(methodHandle, testJSAdaptor(adaptee, null, null, null), adaptee.getProtoSwitchPoint(hook, null));
+            return new GuardedInvocation(methodHandle, testJSAdaptor(adaptee, null, null, null), adaptee.getProtoSwitchPoints(hook, null), null);
         }
     }
 
