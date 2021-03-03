@@ -21,38 +21,18 @@
  * questions.
  */
 
-import javax.swing.JButton;
-import javax.swing.SwingUtilities;
-import javax.swing.UIManager;
-import javax.swing.plaf.metal.MetalLookAndFeel;
+import java.io.Serializable;
 
-/*
- * @test
- * @bug 8076545
- * @summary Text size is twice bigger under Windows L&F on Win 8.1 with
- *          HiDPI display
- */
-public class FontScalingTest {
 
-    public static void main(String[] args) throws Exception {
-        int metalFontSize = getFontSize(MetalLookAndFeel.class.getName());
-        int systemFontSize = getFontSize(UIManager.getSystemLookAndFeelClassName());
+public class Test2 implements Serializable {
 
-        if (Math.abs(systemFontSize - metalFontSize) > 8) {
-            throw new RuntimeException("System L&F is too big!");
-        }
-    }
+    private int testValue;
+    private String name;
+    private Test aTest;
 
-    private static int getFontSize(String laf) throws Exception {
-
-        UIManager.setLookAndFeel(laf);
-        final int[] sizes = new int[1];
-
-        SwingUtilities.invokeAndWait(() -> {
-            JButton button = new JButton("Test");
-            sizes[0] = button.getFont().getSize();
-        });
-
-        return sizes[0];
+    public Test2 (String name, int value, Test test) {
+        this.name = name;
+        this.aTest = test;
+        this.testValue = value;
     }
 }
