@@ -1372,6 +1372,12 @@ void Arguments::set_cms_and_parnew_gc_flags() {
   if (!FLAG_IS_DEFAULT(CMSParPromoteBlocksToClaim) || !FLAG_IS_DEFAULT(OldPLABWeight)) {
     CFLS_LAB::modify_initialization(OldPLABSize, OldPLABWeight);
   }
+
+  if (!ClassUnloading) {
+    FLAG_SET_CMDLINE(bool, CMSClassUnloadingEnabled, false);
+    FLAG_SET_CMDLINE(bool, ExplicitGCInvokesConcurrentAndUnloadsClasses, false);
+  }
+
   if (PrintGCDetails && Verbose) {
     tty->print_cr("MarkStackSize: %uk  MarkStackSizeMax: %uk",
       (unsigned int) (MarkStackSize / K), (uint) (MarkStackSizeMax / K));
@@ -2310,7 +2316,7 @@ bool Arguments::check_vm_args_consistency() {
                                         "G1ConcMarkStepDurationMillis");
     status = status && verify_interval(G1ConcRSHotCardLimit, 0, max_jubyte,
                                        "G1ConcRSHotCardLimit");
-    status = status && verify_interval(G1ConcRSLogCacheSize, 0, 31,
+    status = status && verify_interval(G1ConcRSLogCacheSize, 0, 27,
                                        "G1ConcRSLogCacheSize");
     status = status && verify_interval(StringDeduplicationAgeThreshold, 1, markOopDesc::max_age,
                                        "StringDeduplicationAgeThreshold");
