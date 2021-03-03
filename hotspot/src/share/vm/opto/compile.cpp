@@ -412,6 +412,13 @@ void Compile::remove_useless_nodes(Unique_Node_List &useful) {
       remove_macro_node(n);
     }
   }
+  // Remove useless CastII nodes with range check dependency
+  for (int i = range_check_cast_count() - 1; i >= 0; i--) {
+    Node* cast = range_check_cast_node(i);
+    if (!useful.member(cast)) {
+      remove_range_check_cast(cast);
+    }
+  }
   // Remove useless expensive node
   for (int i = C->expensive_count()-1; i >= 0; i--) {
     Node* n = C->expensive_node(i);
@@ -1148,6 +1155,7 @@ void Compile::Init(int aliaslevel) {
   _macro_nodes = new(comp_arena()) GrowableArray<Node*>(comp_arena(), 8,  0, NULL);
   _predicate_opaqs = new(comp_arena()) GrowableArray<Node*>(comp_arena(), 8,  0, NULL);
   _expensive_nodes = new(comp_arena()) GrowableArray<Node*>(comp_arena(), 8,  0, NULL);
+  _range_check_casts = new(comp_arena()) GrowableArray<Node*>(comp_arena(), 8,  0, NULL);
   register_library_intrinsics();
 }
 
@@ -1876,6 +1884,22 @@ void Compile::cleanup_loop_predicates(PhaseIterGVN &igvn) {
   assert(predicate_count()==0, "should be clean!");
 }
 
+void Compile::add_range_check_cast(Node* n) {
+  assert(n->isa_CastII()->has_range_check(), "CastII should have range check dependency");
+  assert(!_range_check_casts->contains(n), "duplicate entry in range check casts");
+  _range_check_casts->append(n);
+}
+
+// Remove all range check dependent CastIINodes.
+void Compile::remove_range_check_casts(PhaseIterGVN &igvn) {
+  for (int i = range_check_cast_count(); i > 0; i--) {
+    Node* cast = range_check_cast_node(i-1);
+    assert(cast->isa_CastII()->has_range_check(), "CastII should have range check dependency");
+    igvn.replace_node(cast, cast->in(1));
+  }
+  assert(range_check_cast_count() == 0, "should be empty");
+}
+
 // StringOpts and late inlining of string methods
 void Compile::inline_string_calls(bool parse_time) {
   {
@@ -2202,6 +2226,12 @@ void Compile::Optimize() {
     // at least to this point, even if no loop optimizations were done.
     NOT_PRODUCT( TracePhase t2("idealLoopVerify", &_t_idealLoopVerify, TimeCompiler); )
     PhaseIdealLoop::verify(igvn);
+  }
+
+  if (range_check_cast_count() > 0) {
+    // No more loop optimizations. Remove all range check dependent CastIINodes.
+    C->remove_range_check_casts(igvn);
+    igvn.optimize();
   }
 
   {
@@ -2971,6 +3001,16 @@ void Compile::final_graph_reshaping_impl( Node *n, Final_Reshape_Counts &frc) {
     }
     break;
 
+#endif
+
+#ifdef ASSERT
+  case Op_CastII:
+    // Verify that all range check dependent CastII nodes were removed.
+    if (n->isa_CastII()->has_range_check()) {
+      n->dump(3);
+      assert(false, "Range check dependent CastII node was not removed");
+    }
+    break;
 #endif
 
   case Op_ModI:
@@ -4008,6 +4048,24 @@ void Compile::remove_speculative_types(PhaseIterGVN &igvn) {
     igvn.check_no_speculative_types();
 #endif
   }
+}
+
+// Convert integer value to a narrowed long type dependent on ctrl (for example, a range check)
+Node* Compile::constrained_convI2L(PhaseGVN* phase, Node* value, const TypeInt* itype, Node* ctrl) {
+  if (ctrl != NULL) {
+    // Express control dependency by a CastII node with a narrow type.
+    value = new (phase->C) CastIINode(value, itype, false, true /* range check dependency */);
+    // Make the CastII node dependent on the control input to prevent the narrowed ConvI2L
+    // node from floating above the range check during loop optimizations. Otherwise, the
+    // ConvI2L node may be eliminated independently of the range check, causing the data path
+    // to become TOP while the control path is still there (although it's unreachable).
+    value->set_req(0, ctrl);
+    // Save CastII node to remove it after loop optimizations.
+    phase->C->add_range_check_cast(value);
+    value = phase->transform(value);
+  }
+  const TypeLong* ltype = TypeLong::make(itype->_lo, itype->_hi, itype->_widen);
+  return phase->transform(new (phase->C) ConvI2LNode(value, ltype));
 }
 
 // Auxiliary method to support randomized stressing/fuzzing.
