@@ -31,6 +31,7 @@
 volatile jint GC_locker::_jni_lock_count = 0;
 volatile bool GC_locker::_needs_gc       = false;
 volatile bool GC_locker::_doing_gc       = false;
+unsigned int  GC_locker::_total_collections = 0;
 
 #ifdef ASSERT
 volatile jint GC_locker::_debug_jni_lock_count = 0;
@@ -94,6 +95,11 @@ void GC_locker::stall_until_clear() {
   }
 }
 
+bool GC_locker::should_discard(GCCause::Cause cause, uint total_collections) {
+  return (cause == GCCause::_gc_locker) &&
+         (_total_collections != total_collections);
+}
+
 void GC_locker::jni_lock(JavaThread* thread) {
   assert(!thread->in_critical(), "shouldn't currently be in a critical region");
   MutexLocker mu(JNICritical_lock);
@@ -117,7 +123,13 @@ void GC_locker::jni_unlock(JavaThread* thread) {
   decrement_debug_jni_lock_count();
   thread->exit_critical();
   if (needs_gc() && !is_active_internal()) {
-    // We're the last thread out. Cause a GC to occur.
+    // We're the last thread out. Request a GC.
+    // Capture the current total collections, to allow detection of
+    // other collections that make this one unnecessary.  The value of
+    // total_collections() is only changed at a safepoint, so there
+    // must not be a safepoint between the lock becoming inactive and
+    // getting the count, else there may be unnecessary GCLocker GCs.
+    _total_collections = Universe::heap()->total_collections();
     _doing_gc = true;
     {
       // Must give up the lock while at a safepoint
