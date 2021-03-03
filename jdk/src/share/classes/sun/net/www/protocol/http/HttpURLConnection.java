@@ -25,6 +25,7 @@
 
 package sun.net.www.protocol.http;
 
+import java.security.PrivilegedAction;
 import java.util.Arrays;
 import java.net.URL;
 import java.net.URLConnection;
@@ -103,6 +104,14 @@ public class HttpURLConnection extends java.net.HttpURLConnection {
      */
     static final boolean validateProxy;
     static final boolean validateServer;
+
+    /** A, possibly empty, set of authentication schemes that are disabled
+     *  when proxying plain HTTP ( not HTTPS ). */
+    static final Set<String> disabledProxyingSchemes;
+
+    /** A, possibly empty, set of authentication schemes that are disabled
+     *  when setting up a tunnel for HTTPS ( HTTP CONNECT ). */
+    static final Set<String> disabledTunnelingSchemes;
 
     private StreamingOutputStream strOutputStream;
     private final static String RETRY_MSG1 =
@@ -201,6 +210,22 @@ public class HttpURLConnection extends java.net.HttpURLConnection {
         "Via"
     };
 
+    private static String getNetProperty(String name) {
+        PrivilegedAction<String> pa = () -> NetProperties.get(name);
+        return AccessController.doPrivileged(pa);
+    }
+
+    private static Set<String> schemesListToSet(String list) {
+        if (list == null || list.isEmpty())
+            return Collections.emptySet();
+
+        Set<String> s = new HashSet<>();
+        String[] parts = list.split("\\s*,\\s*");
+        for (String part : parts)
+            s.add(part.toLowerCase(Locale.ROOT));
+        return s;
+    }
+
     static {
         maxRedirects = java.security.AccessController.doPrivileged(
             new sun.security.action.GetIntegerAction(
@@ -215,6 +240,14 @@ public class HttpURLConnection extends java.net.HttpURLConnection {
             agent = agent + " Java/"+version;
         }
         userAgent = agent;
+
+        // A set of net properties to control the use of authentication schemes
+        // when proxing/tunneling.
+        String p = getNetProperty("jdk.http.auth.tunneling.disabledSchemes");
+        disabledTunnelingSchemes = schemesListToSet(p);
+        p = getNetProperty("jdk.http.auth.proxying.disabledSchemes");
+        disabledProxyingSchemes = schemesListToSet(p);
+
         validateProxy = java.security.AccessController.doPrivileged(
                 new sun.security.action.GetBooleanAction(
                     "http.auth.digest.validateProxy")).booleanValue();
@@ -792,18 +825,36 @@ public class HttpURLConnection extends java.net.HttpURLConnection {
         this(u, null, handler);
     }
 
-    public HttpURLConnection(URL u, String host, int port) {
-        this(u, new Proxy(Proxy.Type.HTTP, InetSocketAddress.createUnresolved(host, port)));
+    private static String checkHost(String h) throws IOException {
+        if (h != null) {
+            if (h.indexOf('\n') > -1) {
+                throw new MalformedURLException("Illegal character in host");
+            }
+        }
+        return h;
+    }
+    public HttpURLConnection(URL u, String host, int port) throws IOException {
+        this(u, new Proxy(Proxy.Type.HTTP,
+                InetSocketAddress.createUnresolved(checkHost(host), port)));
     }
 
     /** this constructor is used by other protocol handlers such as ftp
         that want to use http to fetch urls on their behalf.*/
-    public HttpURLConnection(URL u, Proxy p) {
+    public HttpURLConnection(URL u, Proxy p) throws IOException {
         this(u, p, new Handler());
     }
 
-    protected HttpURLConnection(URL u, Proxy p, Handler handler) {
-        super(u);
+    private static URL checkURL(URL u) throws IOException {
+        if (u != null) {
+            if (u.toExternalForm().indexOf('\n') > -1) {
+                throw new MalformedURLException("Illegal character in URL");
+            }
+        }
+        return u;
+    }
+    protected HttpURLConnection(URL u, Proxy p, Handler handler)
+            throws IOException {
+        super(checkURL(u));
         requests = new MessageHeader();
         responses = new MessageHeader();
         userHeaders = new MessageHeader();
@@ -1586,10 +1637,13 @@ public class HttpURLConnection extends java.net.HttpURLConnection {
                     // altered in similar ways.
 
                     AuthenticationHeader authhdr = new AuthenticationHeader (
-                            "Proxy-Authenticate", responses,
-                            new HttpCallerInfo(url, http.getProxyHostUsed(),
+                            "Proxy-Authenticate",
+                            responses,
+                            new HttpCallerInfo(url,
+                                               http.getProxyHostUsed(),
                                 http.getProxyPortUsed()),
-                            dontUseNegotiate
+                            dontUseNegotiate,
+                            disabledProxyingSchemes
                     );
 
                     if (!doingNTLMp2ndStage) {
@@ -2036,10 +2090,13 @@ public class HttpURLConnection extends java.net.HttpURLConnection {
                     }
 
                     AuthenticationHeader authhdr = new AuthenticationHeader (
-                            "Proxy-Authenticate", responses,
-                            new HttpCallerInfo(url, http.getProxyHostUsed(),
+                            "Proxy-Authenticate",
+                            responses,
+                            new HttpCallerInfo(url,
+                                               http.getProxyHostUsed(),
                                 http.getProxyPortUsed()),
-                            dontUseNegotiate
+                            dontUseNegotiate,
+                            disabledTunnelingSchemes
                     );
                     if (!doingNTLMp2ndStage) {
                         proxyAuthentication =

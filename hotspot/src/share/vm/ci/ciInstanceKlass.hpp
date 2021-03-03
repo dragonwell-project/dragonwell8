@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -53,6 +53,7 @@ private:
   bool                   _has_subklass;
   bool                   _has_nonstatic_fields;
   bool                   _has_default_methods;
+  bool                   _is_anonymous;
 
   ciFlags                _flags;
   jint                   _nonstatic_field_size;
@@ -177,6 +178,10 @@ public:
     return _has_default_methods;
   }
 
+  bool is_anonymous() {
+    return _is_anonymous;
+  }
+
   ciInstanceKlass* get_canonical_holder(int offset);
   ciField* get_field_by_offset(int field_offset, bool is_static);
   ciField* get_field_by_name(ciSymbol* name, ciSymbol* signature, bool is_static);
@@ -247,6 +252,8 @@ public:
     }
     return NULL;
   }
+
+  ciInstanceKlass* host_klass();
 
   // Dump the current state of this klass for compilation replay.
   virtual void dump_replay_data(outputStream* out);

@@ -34,6 +34,10 @@
  */
 
 package java.util.concurrent;
+
+import java.security.AccessControlContext;
+import java.security.AccessController;
+import java.security.PrivilegedAction;
 import java.util.concurrent.locks.AbstractQueuedSynchronizer;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
@@ -568,6 +572,9 @@ public class ThreadPoolExecutor extends AbstractExecutorService {
      */
     private static final RuntimePermission shutdownPerm =
         new RuntimePermission("modifyThread");
+
+    /* The context to be used when executing the finalizer, or null. */
+    private final AccessControlContext acc;
 
     /**
      * Class Worker mainly maintains interrupt control state for
@@ -1307,6 +1314,9 @@ public class ThreadPoolExecutor extends AbstractExecutorService {
             throw new IllegalArgumentException();
         if (workQueue == null || threadFactory == null || handler == null)
             throw new NullPointerException();
+        this.acc = System.getSecurityManager() == null ?
+                null :
+                AccessController.getContext();
         this.corePoolSize = corePoolSize;
         this.maximumPoolSize = maximumPoolSize;
         this.workQueue = workQueue;
@@ -1474,7 +1484,13 @@ public class ThreadPoolExecutor extends AbstractExecutorService {
      * referenced and it has no threads.
      */
     protected void finalize() {
-        shutdown();
+        SecurityManager sm = System.getSecurityManager();
+        if (sm == null || acc == null) {
+            shutdown();
+        } else {
+            PrivilegedAction<Void> pa = () -> { shutdown(); return null; };
+            AccessController.doPrivileged(pa, acc);
+        }
     }
 
     /**
