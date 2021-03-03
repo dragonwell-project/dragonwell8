@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -101,7 +101,7 @@ public class Resources_sv extends java.util.ListResourceBundle {
         {"Principals", "Identitetshavare"},
         {".Edit.Principal.", "  Redigera identitetshavare:"},
         {".Add.New.Principal.", "  L\u00E4gg till ny identitetshavare:"},
-        {"Permissions", "Beh\u00F6righet"},
+        {"Permissions", "Beh\u00F6righeter"},
         {".Edit.Permission.", "  Redigera beh\u00F6righet:"},
         {".Add.New.Permission.", "  L\u00E4gg till ny beh\u00F6righet:"},
         {"Signed.By.", "Signerad av:"},
