@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -143,7 +143,7 @@ public final class IsoChronology extends AbstractChronology implements Serializa
      * Gets the ID of the chronology - 'ISO'.
      * <p>
      * The ID uniquely identifies the {@code Chronology}.
-     * It can be used to lookup the {@code Chronology} using {@link #of(String)}.
+     * It can be used to lookup the {@code Chronology} using {@link Chronology#of(String)}.
      *
      * @return the chronology ID - 'ISO'
      * @see #getCalendarType()
@@ -158,7 +158,7 @@ public final class IsoChronology extends AbstractChronology implements Serializa
      * <p>
      * The calendar type is an identifier defined by the
      * <em>Unicode Locale Data Markup Language (LDML)</em> specification.
-     * It can be used to lookup the {@code Chronology} using {@link #of(String)}.
+     * It can be used to lookup the {@code Chronology} using {@link Chronology#of(String)}.
      * It can also be used as part of a locale, accessible via
      * {@link Locale#getUnicodeLocaleType(String)} with the key 'ca'.
      *
