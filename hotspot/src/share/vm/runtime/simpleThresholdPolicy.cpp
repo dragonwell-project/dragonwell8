@@ -142,7 +142,8 @@ void SimpleThresholdPolicy::initialize() {
     count = MAX2(log2_intptr(os::active_processor_count()), 1) * 3 / 2;
   }
   set_c1_count(MAX2(count / 3, 1));
-  set_c2_count(MAX2(count - count / 3, 1));
+  set_c2_count(MAX2(count - c1_count(), 1));
+  FLAG_SET_ERGO(intx, CICompilerCount, c1_count() + c2_count());
 }
 
 void SimpleThresholdPolicy::set_carry_if_necessary(InvocationCounter *counter) {
@@ -189,6 +190,10 @@ nmethod* SimpleThresholdPolicy::event(methodHandle method, methodHandle inlinee,
   if (comp_level == CompLevel_none &&
       JvmtiExport::can_post_interpreter_events() &&
       thread->is_interp_only_mode()) {
+    return NULL;
+  }
+  if (CompileTheWorld || ReplayCompiles) {
+    // Don't trigger other compiles in testing mode
     return NULL;
   }
   nmethod *osr_nm = NULL;
