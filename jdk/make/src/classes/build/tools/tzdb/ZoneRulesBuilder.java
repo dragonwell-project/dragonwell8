@@ -491,10 +491,10 @@ public class ZoneRulesBuilder {
                 TZRule rule = new TZRule(year, month, dayOfMonthIndicator, dayOfWeek, time, timeEndOfDay, timeDefinition, savingAmountSecs);
                 if (lastRule) {
                     lastRuleList.add(rule);
-                    maxLastRuleStartYear = Math.max(startYear, maxLastRuleStartYear);
                 } else {
                     ruleList.add(rule);
                 }
+                maxLastRuleStartYear = Math.max(startYear, maxLastRuleStartYear);
                 year++;
             }
         }
