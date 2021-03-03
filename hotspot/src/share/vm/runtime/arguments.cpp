@@ -50,6 +50,9 @@
 #ifdef TARGET_OS_FAMILY_windows
 # include "os_windows.inline.hpp"
 #endif
+#ifdef TARGET_OS_FAMILY_aix
+# include "os_aix.inline.hpp"
+#endif
 #ifdef TARGET_OS_FAMILY_bsd
 # include "os_bsd.inline.hpp"
 #endif
@@ -2217,6 +2220,8 @@ bool Arguments::check_vm_args_consistency() {
                                        "G1ConcRSHotCardLimit");
     status = status && verify_interval(G1ConcRSLogCacheSize, 0, 31,
                                        "G1ConcRSLogCacheSize");
+    status = status && verify_interval(StringDeduplicationAgeThreshold, 1, markOopDesc::max_age,
+                                       "StringDeduplicationAgeThreshold");
   }
   if (UseConcMarkSweepGC) {
     status = status && verify_min_value(CMSOldPLABNumRefills, 1, "CMSOldPLABNumRefills");
@@ -3737,8 +3742,8 @@ jint Arguments::apply_ergo() {
     UseBiasedLocking = false;
   }
 
-#ifdef CC_INTERP
-  // Clear flags not supported by the C++ interpreter
+#ifdef ZERO
+  // Clear flags not supported on zero.
   FLAG_SET_DEFAULT(ProfileInterpreter, false);
   FLAG_SET_DEFAULT(UseBiasedLocking, false);
   LP64_ONLY(FLAG_SET_DEFAULT(UseCompressedOops, false));
@@ -3746,9 +3751,6 @@ jint Arguments::apply_ergo() {
 #endif // CC_INTERP
 
 #ifdef COMPILER2
-  if (!UseBiasedLocking || EmitSync != 0) {
-    UseOptoBiasInlining = false;
-  }
   if (!EliminateLocks) {
     EliminateNestedLocks = false;
   }
@@ -3809,6 +3811,11 @@ jint Arguments::apply_ergo() {
       UseBiasedLocking = false;
     }
   }
+#ifdef COMPILER2
+  if (!UseBiasedLocking || EmitSync != 0) {
+    UseOptoBiasInlining = false;
+  }
+#endif
 
   // set PauseAtExit if the gamma launcher was used and a debugger is attached
   // but only if not already set on the commandline
