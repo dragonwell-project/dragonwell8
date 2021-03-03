@@ -29,9 +29,15 @@
  * @run main/othervm/timeout=300 ClientJSSEServerJSSE
  */
 
+import java.security.Security;
+
 public class ClientJSSEServerJSSE {
 
     public static void main(String[] args) throws Exception {
+        // reset the security property to make sure that the algorithms
+        // and keys used in this test are not disabled.
+        Security.setProperty("jdk.tls.disabledAlgorithms", "");
+
         CipherTest.main(new JSSEFactory(), args);
     }
 
