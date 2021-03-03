@@ -109,6 +109,7 @@ protected:
   static elapsedTimer   _t_computeLive;
   static elapsedTimer   _t_regAllocSplit;
   static elapsedTimer   _t_postAllocCopyRemoval;
+  static elapsedTimer   _t_mergeMultidefs;
   static elapsedTimer   _t_fixupSpills;
 
 // Subtimers for _t_output
