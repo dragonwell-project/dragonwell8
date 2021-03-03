@@ -26,6 +26,7 @@
 
 #include "memory/metadataFactory.hpp"
 #include "memory/metaspaceShared.hpp"
+#include "memory/iterator.hpp"
 #include "memory/universe.hpp"
 #include "oops/oop.inline.hpp"
 
@@ -581,11 +582,6 @@ class VM_WhiteBoxOperation : public VM_Operation {
   VM_WhiteBoxOperation()                         { }
   VMOp_Type type()                  const        { return VMOp_WhiteBoxOperation; }
   bool allow_nested_vm_operations() const        { return true; }
-};
-
-class AlwaysFalseClosure : public BoolObjectClosure {
- public:
-  bool do_object_b(oop p) { return false; }
 };
 
 static AlwaysFalseClosure always_false;
