@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,7 +23,7 @@
 
 /*
  * @test
- * @bug 8172297
+ * @bug 8172297 8196491
  * @summary Test that carriage-return and new-line characters
  * are preserved in webservice parameters
  * @compile ws/HelloWorld.java ws/HelloWorldImpl.java Main.java
@@ -33,13 +33,21 @@
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.URL;
+import java.util.Collections;
+import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 
 import javax.xml.namespace.QName;
+import javax.xml.soap.SOAPMessage;
 import javax.xml.ws.Endpoint;
 import javax.xml.ws.Service;
+import javax.xml.ws.handler.Handler;
+import javax.xml.ws.handler.MessageContext;
+import javax.xml.ws.handler.soap.SOAPHandler;
+import javax.xml.ws.handler.soap.SOAPMessageContext;
 
 import org.testng.Assert;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 import ws.HelloWorld;
@@ -47,9 +55,8 @@ import ws.HelloWorldImpl;
 
 public class Main {
 
-    @Test
-    public void runTest() throws Exception {
-        //
+    @Test(dataProvider="callHandlerDataProvider")
+    public void runTest(boolean callGetMessageInHandler) throws Exception {
         CountDownLatch serverInitSignal = new CountDownLatch(1);
         CountDownLatch testDoneSignal = new CountDownLatch(1);
 
@@ -58,22 +65,30 @@ public class Main {
 
         serverInitSignal.await();
 
-        boolean paramModified = runClientCode(serverThread.getPort());
+        boolean paramModified = runClientCode(serverThread.getPort(), callGetMessageInHandler);
 
         testDoneSignal.countDown();
 
-        Assert.assertFalse(paramModified, "WS parameter was modified during round trip.");
+        Assert.assertEquals(callGetMessageInHandler, paramModified,
+            "WS parameter has not been processed as expected");
+    }
+
+    @DataProvider
+    public Object[][] callHandlerDataProvider() {
+        return new Object[][]{{true}, {false}};
     }
 
     /*
      * Connects to launched web service endpoint, sends message with CR/NL symbols and
      * checks if it was modified during the round trip client/server communication.
      */
-    private boolean runClientCode(int port) throws Exception {
+    private boolean runClientCode(int port, boolean callGetMessage) throws Exception {
         System.out.println("Launching WS client connection on " + port + " port");
         URL url = new URL("http://localhost:" + port + "/ws/hello?wsdl");
         QName qname = new QName("http://ws/", "HelloWorldImplService");
         Service service = Service.create(url, qname);
+
+        registerHandler(service, callGetMessage);
 
         HelloWorld hello = (HelloWorld) service.getPort(HelloWorld.class);
 
@@ -83,6 +98,45 @@ public class Main {
         logStringContent("Client response parameter", response);
 
         return !WS_PARAM_VALUE.equals(response);
+    }
+
+    /*
+     * Register message handler and call SOAPMessageContext.getMessage
+     * to emulate issue reported in JDK-8196491
+     */
+    private void registerHandler(Service service, final boolean callGetMessage) {
+        System.out.printf( "Client %s call getMessage inside message handler%n",
+            callGetMessage ? "will" : "will not" );
+        // Set custom SOAP message handler resolver
+        service.setHandlerResolver(portInfo -> {
+            Handler h = new SOAPHandler<SOAPMessageContext>() {
+
+                @Override
+                public boolean handleMessage(SOAPMessageContext context) {
+                    if (callGetMessage) {
+                        // Trigger exception from JDK-8196491
+                        SOAPMessage msg = context.getMessage();
+                    }
+                    return true;
+                }
+
+                @Override
+                public boolean handleFault(SOAPMessageContext context) {
+                    return true;
+                }
+
+                @Override
+                public void close(MessageContext context) {
+                }
+
+                @Override
+                public Set<QName> getHeaders() {
+                    return null;
+                }
+
+            };
+            return Collections.singletonList(h);
+        });
     }
 
     /*
