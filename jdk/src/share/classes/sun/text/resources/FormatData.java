@@ -106,7 +106,7 @@ public class FormatData extends ParallelListResourceBundle {
             "T",
             "S",
             "H",
-            "N", // NewEra
+            "R",
         };
 
         // Japanese imperial calendar era strings
@@ -116,7 +116,7 @@ public class FormatData extends ParallelListResourceBundle {
             "Taisho",
             "Showa",
             "Heisei",
-            "NewEra", // NewEra
+            "Reiwa",
         };
 
         return new Object[][] {
