@@ -66,7 +66,7 @@
 #endif // INCLUDE_ALL_GCS
 
 // Note: This is a special bug reporting site for the JVM
-#define DEFAULT_VENDOR_URL_BUG "http://bugreport.sun.com/bugreport/crash.jsp"
+#define DEFAULT_VENDOR_URL_BUG "http://bugreport.java.com/bugreport/crash.jsp"
 #define DEFAULT_JAVA_LAUNCHER  "generic"
 
 // Disable options not supported in this release, with a warning if they
@@ -300,6 +300,7 @@ static ObsoleteFlag obsolete_jvm_flags[] = {
   { "UseStringCache",                JDK_Version::jdk(8), JDK_Version::jdk(9) },
   { "UseOldInlining",                JDK_Version::jdk(9), JDK_Version::jdk(10) },
   { "AutoShutdownNMT",               JDK_Version::jdk(9), JDK_Version::jdk(10) },
+  { "CompilationRepeat",             JDK_Version::jdk(8), JDK_Version::jdk(9) },
 #ifdef PRODUCT
   { "DesiredMethodLimit",
                            JDK_Version::jdk_update(7, 2), JDK_Version::jdk(8) },
@@ -1142,6 +1143,32 @@ void Arguments::set_tiered_flags() {
     Tier3InvokeNotifyFreqLog = 0;
     Tier4InvocationThreshold = 0;
   }
+}
+
+/**
+ * Returns the minimum number of compiler threads needed to run the JVM. The following
+ * configurations are possible.
+ *
+ * 1) The JVM is build using an interpreter only. As a result, the minimum number of
+ *    compiler threads is 0.
+ * 2) The JVM is build using the compiler(s) and tiered compilation is disabled. As
+ *    a result, either C1 or C2 is used, so the minimum number of compiler threads is 1.
+ * 3) The JVM is build using the compiler(s) and tiered compilation is enabled. However,
+ *    the option "TieredStopAtLevel < CompLevel_full_optimization". As a result, only
+ *    C1 can be used, so the minimum number of compiler threads is 1.
+ * 4) The JVM is build using the compilers and tiered compilation is enabled. The option
+ *    'TieredStopAtLevel = CompLevel_full_optimization' (the default value). As a result,
+ *    the minimum number of compiler threads is 2.
+ */
+int Arguments::get_min_number_of_compiler_threads() {
+#if !defined(COMPILER1) && !defined(COMPILER2) && !defined(SHARK)
+  return 0;   // case 1
+#else
+  if (!TieredCompilation || (TieredStopAtLevel < CompLevel_full_optimization)) {
+    return 1; // case 2 or case 3
+  }
+  return 2;   // case 4 (tiered)
+#endif
 }
 
 #if INCLUDE_ALL_GCS
@@ -2461,6 +2488,12 @@ bool Arguments::check_vm_args_consistency() {
   status &= verify_interval(SafepointPollOffset, 0, os::vm_page_size() - BytesPerWord, "SafepointPollOffset");
 #endif
 
+  int min_number_of_compiler_threads = get_min_number_of_compiler_threads();
+  // The default CICompilerCount's value is CI_COMPILER_COUNT.
+  assert(min_number_of_compiler_threads <= CI_COMPILER_COUNT, "minimum should be less or equal default number");
+  // Check the minimum number of compiler threads
+  status &=verify_min_value(CICompilerCount, min_number_of_compiler_threads, "CICompilerCount");
+
   return status;
 }
 
@@ -3616,6 +3649,8 @@ jint Arguments::parse(const JavaVMInitArgs* args) {
   const char* hotspotrc = ".hotspotrc";
   bool settings_file_specified = false;
   bool needs_hotspotrc_warning = false;
+
+  ArgumentsExt::process_options(args);
 
   const char* flags_file;
   int index;

@@ -19,43 +19,39 @@
  * Please contact Oracle, 500 Oracle Parkway, Redwood Shores, CA 94065 USA
  * or visit www.oracle.com if you need additional information or have any
  * questions.
- *
  */
 
 /*
  * @test
- * @bug 8032024
- * @bug 8025937
- * @bug 8033528
- * @summary [JDK 8] Test invokespecial and invokeinterface with the same JVM_CONSTANT_InterfaceMethodref
- * @run main/othervm -XX:+StressRewriter InvokespecialInterface
+ * @bug 8034775
+ * @summary Ensures correct minimal number of compiler threads (provided by -XX:CICompilerCount=)
+ * @library /testlibrary
  */
-import java.util.function.*;
-import java.util.*;
+import com.oracle.java.testlibrary.*;
 
-public class InvokespecialInterface {
-interface I {
-  default void imethod() { System.out.println("I::imethod"); }
-}
+public class NumCompilerThreadsCheck {
 
-static class C implements I {
-  public void foo() { I.super.imethod(); }  // invokespecial InterfaceMethod
-  public void bar() { I i = this; i.imethod(); } // invokeinterface same
-  public void doSomeInvokedynamic() {
-      String str = "world";
-      Supplier<String> foo = ()->"hello, "+str;
-      String res = foo.get();
-      System.out.println(res);
+  public static void main(String[] args) throws Exception {
+    ProcessBuilder pb = ProcessTools.createJavaProcessBuilder("-XX:CICompilerCount=-1");
+    OutputAnalyzer out = new OutputAnalyzer(pb.start());
+
+    String expectedOutput = "CICompilerCount of -1 is invalid";
+    out.shouldContain(expectedOutput);
+
+    if (isZeroVm()) {
+      String expectedLowWaterMarkText = "must be at least 0";
+      out.shouldContain(expectedLowWaterMarkText);
+    }
+  }
+
+  private static boolean isZeroVm() {
+    String vmName = System.getProperty("java.vm.name");
+    if (vmName == null) {
+      throw new RuntimeException("No VM name");
+    }
+    if (vmName.toLowerCase().contains("zero")) {
+      return true;
+    }
+    return false;
   }
 }
-
-  public static void main(java.lang.String[] unused) {
-     // need to create C and call I::foo()
-     C c = new C();
-     c.foo();
-     c.bar();
-     c.doSomeInvokedynamic();
-  }
-};
-
-
