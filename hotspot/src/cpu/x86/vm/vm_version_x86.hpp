@@ -141,7 +141,8 @@ public:
     struct {
       uint32_t LahfSahf     : 1,
                CmpLegacy    : 1,
-                            : 4,
+                            : 3,
+               lzcnt_intel  : 1,
                lzcnt        : 1,
                sse4a        : 1,
                misalignsse  : 1,
@@ -228,6 +229,9 @@ protected:
                                // 0 if this instruction is not available
   static const char* _features_str;
 
+  static address   _cpuinfo_segv_addr; // address of instruction which causes SEGV
+  static address   _cpuinfo_cont_addr; // address of instruction after the one which causes SEGV
+
   enum {
     CPU_CX8    = (1 << 0), // next bits are from cpuid 1 (EDX)
     CPU_CMOV   = (1 << 1),
@@ -251,7 +255,9 @@ protected:
     CPU_AVX2   = (1 << 18),
     CPU_AES    = (1 << 19),
     CPU_ERMS   = (1 << 20), // enhanced 'rep movsb/stosb' instructions
-    CPU_CLMUL  = (1 << 21) // carryless multiply for CRC
+    CPU_CLMUL  = (1 << 21), // carryless multiply for CRC
+    CPU_BMI1   = (1 << 22),
+    CPU_BMI2   = (1 << 23)
   } cpuFeatureFlags;
 
   enum {
@@ -358,6 +364,9 @@ protected:
     // extended control register XCR0 (the XFEATURE_ENABLED_MASK register)
     XemXcr0Eax   xem_xcr0_eax;
     uint32_t     xem_xcr0_edx; // reserved
+
+    // Space to save ymm registers after signal handle
+    int          ymm_save[8*4]; // Save ymm0, ymm7, ymm8, ymm15
   };
 
   // The actual cpuid info block
@@ -423,6 +432,8 @@ protected:
       if (_cpuid_info.sef_cpuid7_ebx.bits.avx2 != 0)
         result |= CPU_AVX2;
     }
+    if(_cpuid_info.sef_cpuid7_ebx.bits.bmi1 != 0)
+      result |= CPU_BMI1;
     if (_cpuid_info.std_cpuid1_edx.bits.tsc != 0)
       result |= CPU_TSC;
     if (_cpuid_info.ext_cpuid7_edx.bits.tsc_invariance != 0)
@@ -444,8 +455,30 @@ protected:
       if (_cpuid_info.ext_cpuid1_ecx.bits.sse4a != 0)
         result |= CPU_SSE4A;
     }
+    // Intel features.
+    if(is_intel()) {
+      if(_cpuid_info.sef_cpuid7_ebx.bits.bmi2 != 0)
+        result |= CPU_BMI2;
+      if(_cpuid_info.ext_cpuid1_ecx.bits.lzcnt_intel != 0)
+        result |= CPU_LZCNT;
+    }
 
     return result;
+  }
+
+  static bool os_supports_avx_vectors() {
+    if (!supports_avx()) {
+      return false;
+    }
+    // Verify that OS save/restore all bits of AVX registers
+    // during signal processing.
+    int nreg = 2 LP64_ONLY(+2);
+    for (int i = 0; i < 8 * nreg; i++) { // 32 bytes per ymm register
+      if (_cpuid_info.ymm_save[i] != ymm_test_value()) {
+        return false;
+      }
+    }
+    return true;
   }
 
   static void get_processor_features();
@@ -464,6 +497,19 @@ public:
   static ByteSize tpl_cpuidB1_offset() { return byte_offset_of(CpuidInfo, tpl_cpuidB1_eax); }
   static ByteSize tpl_cpuidB2_offset() { return byte_offset_of(CpuidInfo, tpl_cpuidB2_eax); }
   static ByteSize xem_xcr0_offset() { return byte_offset_of(CpuidInfo, xem_xcr0_eax); }
+  static ByteSize ymm_save_offset() { return byte_offset_of(CpuidInfo, ymm_save); }
+
+  // The value used to check ymm register after signal handle
+  static int ymm_test_value()    { return 0xCAFEBABE; }
+
+  static void set_cpuinfo_segv_addr(address pc) { _cpuinfo_segv_addr = pc; }
+  static bool  is_cpuinfo_segv_addr(address pc) { return _cpuinfo_segv_addr == pc; }
+  static void set_cpuinfo_cont_addr(address pc) { _cpuinfo_cont_addr = pc; }
+  static address  cpuinfo_cont_addr()           { return _cpuinfo_cont_addr; }
+
+  static void clean_cpuFeatures()   { _cpuFeatures = 0; }
+  static void set_avx_cpuFeatures() { _cpuFeatures = (CPU_SSE | CPU_SSE2 | CPU_AVX); }
+
 
   // Initialization
   static void initialize();
@@ -560,7 +606,8 @@ public:
   static bool supports_aes()      { return (_cpuFeatures & CPU_AES) != 0; }
   static bool supports_erms()     { return (_cpuFeatures & CPU_ERMS) != 0; }
   static bool supports_clmul()    { return (_cpuFeatures & CPU_CLMUL) != 0; }
-
+  static bool supports_bmi1()     { return (_cpuFeatures & CPU_BMI1) != 0; }
+  static bool supports_bmi2()     { return (_cpuFeatures & CPU_BMI2) != 0; }
   // Intel features
   static bool is_intel_family_core() { return is_intel() &&
                                        extended_cpu_family() == CPU_FAMILY_INTEL_CORE; }
