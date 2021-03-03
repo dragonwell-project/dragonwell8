@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2014, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -632,6 +632,9 @@ void ClassVerifier::verify_method(methodHandle m, TRAPS) {
   bool no_control_flow = false; // Set to true when there is no direct control
                                 // flow from current instruction to the next
                                 // instruction in sequence
+
+  set_furthest_jump(0);
+
   Bytecodes::Code opcode;
   while (!bcs.is_last_bytecode()) {
     // Check for recursive re-verification before each bytecode.
@@ -2245,6 +2248,29 @@ void ClassVerifier::verify_invoke_init(
           "Bad <init> method call");
       return;
     }
+
+    // Make sure that this call is not jumped over.
+    if (bci < furthest_jump()) {
+      verify_error(ErrorContext::bad_code(bci),
+                   "Bad <init> method call from inside of a branch");
+      return;
+    }
+
+    // Make sure that this call is not done from within a TRY block because
+    // that can result in returning an incomplete object.  Simply checking
+    // (bci >= start_pc) also ensures that this call is not done after a TRY
+    // block.  That is also illegal because this call must be the first Java
+    // statement in the constructor.
+    ExceptionTable exhandlers(_method());
+    int exlength = exhandlers.length();
+    for(int i = 0; i < exlength; i++) {
+      if (bci >= exhandlers.start_pc(i)) {
+        verify_error(ErrorContext::bad_code(bci),
+                     "Bad <init> method call from after the start of a try block");
+        return;
+      }
+    }
+
     current_frame->initialize_object(type, current_type());
     *this_uninit = true;
   } else if (type.is_uninitialized()) {
@@ -2281,16 +2307,19 @@ void ClassVerifier::verify_invoke_init(
       Method* m = InstanceKlass::cast(ref_klass)->uncached_lookup_method(
         vmSymbols::object_initializer_name(),
         cp->signature_ref_at(bcs->get_index_u2()));
-      instanceKlassHandle mh(THREAD, m->method_holder());
-      if (m->is_protected() && !mh->is_same_class_package(_klass())) {
-        bool assignable = current_type().is_assignable_from(
-          objectref_type, this, CHECK_VERIFY(this));
-        if (!assignable) {
-          verify_error(ErrorContext::bad_type(bci,
-              TypeOrigin::cp(new_class_index, objectref_type),
-              TypeOrigin::implicit(current_type())),
-              "Bad access to protected <init> method");
-          return;
+      // Do nothing if method is not found.  Let resolution detect the error.
+      if (m != NULL) {
+        instanceKlassHandle mh(THREAD, m->method_holder());
+        if (m->is_protected() && !mh->is_same_class_package(_klass())) {
+          bool assignable = current_type().is_assignable_from(
+            objectref_type, this, CHECK_VERIFY(this));
+          if (!assignable) {
+            verify_error(ErrorContext::bad_type(bci,
+                TypeOrigin::cp(new_class_index, objectref_type),
+                TypeOrigin::implicit(current_type())),
+                "Bad access to protected <init> method");
+            return;
+          }
         }
       }
     }
