@@ -845,7 +845,7 @@ protected:
                                OopClosure* scan_non_heap_roots,
                                OopsInHeapRegionClosure* scan_rs,
                                G1KlassScanClosure* scan_klasses,
-                               int worker_i);
+                               uint worker_i);
 
   // Apply "blk" to all the weak roots of the system.  These include
   // JNI weak roots, the code cache, system dictionary, symbol table,
@@ -1144,7 +1144,7 @@ public:
 
   void iterate_dirty_card_closure(CardTableEntryClosure* cl,
                                   DirtyCardQueue* into_cset_dcq,
-                                  bool concurrent, int worker_i);
+                                  bool concurrent, uint worker_i);
 
   // The shared block offset table array.
   G1BlockOffsetSharedArray* bot_shared() const { return _bot_shared; }
@@ -1384,7 +1384,7 @@ public:
 
   // Given the id of a worker, obtain or calculate a suitable
   // starting region for iterating over the current collection set.
-  HeapRegion* start_cset_region_for_worker(int worker_i);
+  HeapRegion* start_cset_region_for_worker(uint worker_i);
 
   // This is a convenience method that is used by the
   // HeapRegionIterator classes to calculate the starting region for
