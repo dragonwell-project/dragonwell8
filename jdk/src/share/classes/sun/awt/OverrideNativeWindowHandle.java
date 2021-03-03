@@ -1,10 +1,12 @@
 /*
- * Copyright (c) 1998, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 only, as
- * published by the Free Software Foundation.
+ * published by the Free Software Foundation.  Oracle designates this
+ * particular file as subject to the "Classpath" exception as provided
+ * by Oracle in the LICENSE file that accompanied this code.
  *
  * This code is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
@@ -19,33 +21,21 @@
  * Please contact Oracle, 500 Oracle Parkway, Redwood Shores, CA 94065 USA
  * or visit www.oracle.com if you need additional information or have any
  * questions.
- *
  */
 
-#include "precompiled.hpp"
-#include "oops/compiledICHolder.hpp"
-#include "oops/oop.inline2.hpp"
+package sun.awt;
 
-volatile int CompiledICHolder::_live_count;
-volatile int CompiledICHolder::_live_not_claimed_count;
+/**
+ * Used for replacing window owner with another non-Swing window.
+ * It is useful in case of JavaFX-Swing interop:
+ * it helps to keep Swing dialogs above its owner(JavaFX stage).
+ */
 
+public interface OverrideNativeWindowHandle {
 
-// Printing
-
-void CompiledICHolder::print_on(outputStream* st) const {
-  st->print("%s", internal_name());
-  st->print(" - metadata: "); holder_metadata()->print_value_on(st); st->cr();
-  st->print(" - klass:    "); holder_klass()->print_value_on(st); st->cr();
-}
-
-void CompiledICHolder::print_value_on(outputStream* st) const {
-  st->print("%s", internal_name());
-}
-
-
-// Verification
-
-void CompiledICHolder::verify_on(outputStream* st) {
-  guarantee(holder_metadata()->is_method() || holder_metadata()->is_klass(), "should be method or klass");
-  guarantee(holder_klass()->is_klass(),   "should be klass");
+    /**
+     * Replaces an owner window with a window with provided handle.
+     * @param handle native window handle
+     */
+    void overrideWindowHandle(final long handle);
 }
