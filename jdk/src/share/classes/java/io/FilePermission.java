@@ -25,12 +25,16 @@
 
 package java.io;
 
+import java.net.URI;
+import java.nio.file.InvalidPathException;
 import java.security.*;
 import java.util.Enumeration;
 import java.util.List;
 import java.util.ArrayList;
 import java.util.Vector;
 import java.util.Collections;
+
+import sun.nio.fs.DefaultFileSystemProvider;
 import sun.security.util.SecurityConstants;
 
 /**
@@ -152,6 +156,8 @@ public final class FilePermission extends Permission implements Serializable {
 
     private transient String cpath;
 
+    private transient boolean invalid;  // whether input path is invalid
+
     // static Strings used by init(int mask)
     private static final char RECURSIVE_CHAR = '-';
     private static final char WILD_CHAR = '*';
@@ -172,6 +178,14 @@ public final class FilePermission extends Permission implements Serializable {
 */
 
     private static final long serialVersionUID = 7930732926638008763L;
+
+    /**
+     * Always use the internal default file system, in case it was modified
+     * with java.nio.file.spi.DefaultFileSystemProvider.
+     */
+    private static final java.nio.file.FileSystem builtInFS =
+            DefaultFileSystemProvider.create()
+                    .getFileSystem(URI.create("file:///"));
 
     /**
      * initialize a FilePermission object. Common to all constructors.
@@ -197,6 +211,20 @@ public final class FilePermission extends Permission implements Serializable {
             recursive = true;
             cpath = "";
             return;
+        }
+
+        // Validate path by platform's default file system
+        // Note: this check does not apply during FilePermission
+        // class initialization.
+        if (builtInFS != null) {
+            try {
+                String name = cpath.endsWith("*") ?
+                        cpath.substring(0, cpath.length() - 1) + "-" : cpath;
+                builtInFS.getPath(new File(name).getPath());
+            } catch (InvalidPathException ipe) {
+                invalid = true;
+                return;
+            }
         }
 
         // store only the canonical cpath if possible
@@ -335,6 +363,12 @@ public final class FilePermission extends Permission implements Serializable {
      * @return the effective mask
      */
     boolean impliesIgnoreMask(FilePermission that) {
+        if (this == that) {
+            return true;
+        }
+        if (this.invalid || that.invalid) {
+            return false;
+        }
         if (this.directory) {
             if (this.recursive) {
                 // make sure that.path is longer then path so
@@ -395,6 +429,9 @@ public final class FilePermission extends Permission implements Serializable {
 
         FilePermission that = (FilePermission) obj;
 
+        if (this.invalid || that.invalid) {
+            return false;
+        }
         return (this.mask == that.mask) &&
             this.cpath.equals(that.cpath) &&
             (this.directory == that.directory) &&
