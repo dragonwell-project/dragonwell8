@@ -23,22 +23,24 @@
 
 /*
  * @test
- * @bug 8032207
- * @summary Invalid node sizing for loadUS2L_immI16 and loadI2L_immI
- * @run main/othervm -Xbatch -XX:CompileCommand=compileonly,LoadWithMask.foo LoadWithMask
- *
+ * @summary Using WhiteBox to get VM page size
+ * @library /testlibrary /testlibrary/whitebox
+ * @build ReadVMPageSize
+ * @run main ClassFileInstaller sun.hotspot.WhiteBox
+ * @run main/othervm  -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI  ReadVMPageSize
  */
-public class LoadWithMask {
-  static int x[] = new int[1];
-  static long foo() {
-    return x[0] & 0xfff0ffff;
-  }
 
-  public static void main(String[] args) {
-    x[0] = -1;
-    long l = 0;
-    for (int i = 0; i < 100000; ++i) {
-      l = foo();
+import com.oracle.java.testlibrary.*;
+import sun.hotspot.WhiteBox;
+
+public class ReadVMPageSize {
+  public static void main(String args[]) throws Exception {
+    WhiteBox wb = WhiteBox.getWhiteBox();
+    int pageSize = wb.getVMPageSize();
+    if (pageSize < 0) {
+      throw new Exception("pageSize < 0");
+    } else {
+      System.out.println("Page size = " + pageSize);
     }
   }
 }
