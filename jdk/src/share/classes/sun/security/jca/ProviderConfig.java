@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2009, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -254,6 +254,15 @@ final class ProviderConfig {
                     if (t instanceof UnsupportedOperationException) {
                         disableLoad();
                     }
+                    return null;
+                } catch (ExceptionInInitializerError err) {
+                    // unexpected exception thrown from static initialization block in provider
+                    // (ex: insufficient permission to initialize provider class)
+                    if (debug != null) {
+                        debug.println("Error loading provider " + ProviderConfig.this);
+                        err.printStackTrace();
+                    }
+                    disableLoad();
                     return null;
                 }
             }

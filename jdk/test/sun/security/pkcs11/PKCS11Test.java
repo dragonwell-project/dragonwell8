@@ -34,6 +34,8 @@ import java.security.spec.ECParameterSpec;
 
 public abstract class PKCS11Test {
 
+    static final String PKCS11 = "PKCS11";
+
     // directory of the test source
     static final String BASE = System.getProperty("test.src", ".");
 
@@ -566,6 +568,14 @@ public abstract class PKCS11Test {
                 return ch - 'A' + 10;
             }
         }
+    }
+
+    static byte[] generateData(int length) {
+        byte data[] = new byte[length];
+        for (int i=0; i<data.length; i++) {
+            data[i] = (byte) (i % 256);
+        }
+        return data;
     }
 
     <T> T[] concat(T[] a, T[] b) {
