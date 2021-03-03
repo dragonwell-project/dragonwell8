@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
 # DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 #
 # This code is free software; you can redistribute it and/or modify it
@@ -169,7 +169,8 @@ LIBJAVA_CFLAGS := $(foreach dir, $(LIBJAVA_SRC_DIRS), -I$(dir)) \
 LIBJAVA_CFLAGS += -DJDK_MAJOR_VERSION='"$(JDK_MAJOR_VERSION)"' \
     -DJDK_MINOR_VERSION='"$(JDK_MINOR_VERSION)"' \
     -DJDK_MICRO_VERSION='"$(JDK_MICRO_VERSION)"' \
-     -DJDK_BUILD_NUMBER='"$(JDK_BUILD_NUMBER)"'
+     -DJDK_BUILD_NUMBER='"$(JDK_BUILD_NUMBER)"'  \
+     $(VERSION_CFLAGS)
 
 ifneq (, $(JDK_UPDATE_VERSION))
   LIBJAVA_CFLAGS += -DJDK_UPDATE_VERSION='"$(JDK_UPDATE_VERSION)"'
