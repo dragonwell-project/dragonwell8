@@ -60,6 +60,7 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
@@ -128,6 +129,23 @@ public final class Context {
 
     private static MethodHandles.Lookup LOOKUP = MethodHandles.lookup();
     private static MethodType CREATE_PROGRAM_FUNCTION_TYPE = MethodType.methodType(ScriptFunction.class, ScriptObject.class);
+
+    /**
+     * Should scripts use only object slots for fields, or dual long/object slots? The default
+     * behaviour is to couple this to optimistic types, using dual representation if optimistic types are enabled
+     * and single field representation otherwise. This can be overridden by setting either the "nashorn.fields.objects"
+     * or "nashorn.fields.dual" system property.
+     */
+    private final FieldMode fieldMode;
+
+    private static enum FieldMode {
+        /** Value for automatic field representation depending on optimistic types setting */
+        AUTO,
+        /** Value for object field representation regardless of optimistic types setting */
+        OBJECTS,
+        /** Value for dual primitive/object field representation regardless of optimistic types setting */
+        DUAL
+    }
 
     /**
      * Keeps track of which builtin prototypes and properties have been relinked
@@ -433,7 +451,7 @@ public final class Context {
      * @param appLoader application class loader
      */
     public Context(final Options options, final ErrorManager errors, final ClassLoader appLoader) {
-        this(options, errors, appLoader, (ClassFilter)null);
+        this(options, errors, appLoader, null);
     }
 
     /**
@@ -521,6 +539,14 @@ public final class Context {
             getErr().println("nashorn full version " + Version.fullVersion());
         }
 
+        if (Options.getBooleanProperty("nashorn.fields.dual")) {
+            fieldMode = FieldMode.DUAL;
+        } else if (Options.getBooleanProperty("nashorn.fields.objects")) {
+            fieldMode = FieldMode.OBJECTS;
+        } else {
+            fieldMode = FieldMode.AUTO;
+        }
+
         initLoggers();
     }
 
@@ -572,6 +598,14 @@ public final class Context {
      */
     public PrintWriter getErr() {
         return env.getErr();
+    }
+
+    /**
+     * Should scripts compiled by this context use dual field representation?
+     * @return true if using dual fields, false for object-only fields
+     */
+    public boolean useDualFields() {
+        return fieldMode == FieldMode.DUAL || (fieldMode == FieldMode.AUTO && env._optimistic_types);
     }
 
     /**
@@ -904,7 +938,7 @@ public final class Context {
      * @throw SecurityException if not accessible
      */
     private static void checkPackageAccess(final SecurityManager sm, final String fullName) {
-        sm.getClass(); // null check
+        Objects.requireNonNull(sm);
         final int index = fullName.lastIndexOf('.');
         if (index != -1) {
             final String pkgName = fullName.substring(0, index);
