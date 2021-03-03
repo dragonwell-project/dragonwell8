@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002, 2013, Oracle and/or its affiliates. All rights reserved.
- * Copyright 2012, 2013 SAP AG. All rights reserved.
+ * Copyright (c) 2002, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2018, SAP SE. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -1838,7 +1838,7 @@ class Assembler : public AbstractAssembler {
   inline void vperm(    VectorRegister d, VectorRegister a, VectorRegister b, VectorRegister c);
   inline void vsel(     VectorRegister d, VectorRegister a, VectorRegister b, VectorRegister c);
   inline void vsl(      VectorRegister d, VectorRegister a, VectorRegister b);
-  inline void vsldoi(   VectorRegister d, VectorRegister a, VectorRegister b, int si4);
+  inline void vsldoi(   VectorRegister d, VectorRegister a, VectorRegister b, int ui4);
   inline void vslo(     VectorRegister d, VectorRegister a, VectorRegister b);
   inline void vsr(      VectorRegister d, VectorRegister a, VectorRegister b);
   inline void vsro(     VectorRegister d, VectorRegister a, VectorRegister b);
