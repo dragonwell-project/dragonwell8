@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002, 2012, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2002, 2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -50,11 +50,15 @@ public class NTLMAuthentication extends AuthenticationInfo {
 
     private String hostname;
     private static String defaultDomain; /* Domain to use if not specified by user */
+    private static final boolean ntlmCache; /* Whether cache is enabled for NTLM */
 
     static {
         defaultDomain = java.security.AccessController.doPrivileged(
             new sun.security.action.GetPropertyAction("http.auth.ntlm.domain",
                                                       "domain"));
+        String ntlmCacheProp = java.security.AccessController.doPrivileged(
+            new sun.security.action.GetPropertyAction("jdk.ntlm.cache", "true"));
+        ntlmCache = Boolean.parseBoolean(ntlmCacheProp);
     };
 
     private void init0() {
@@ -128,6 +132,11 @@ public class NTLMAuthentication extends AuthenticationInfo {
               port,
               "");
         init (pw);
+    }
+
+    @Override
+    protected boolean useAuthCache() {
+        return ntlmCache && super.useAuthCache();
     }
 
     /**

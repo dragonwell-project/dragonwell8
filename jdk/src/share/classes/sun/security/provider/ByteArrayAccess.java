@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2006, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2006, 2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -94,7 +94,7 @@ final class ByteArrayAccess {
         String arch = java.security.AccessController.doPrivileged
             (new sun.security.action.GetPropertyAction("os.arch", ""));
         return arch.equals("i386") || arch.equals("x86") || arch.equals("amd64")
-            || arch.equals("x86_64");
+            || arch.equals("x86_64") || arch.equals("ppc64") || arch.equals("ppc64le");
     }
 
     /**
