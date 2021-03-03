@@ -229,7 +229,7 @@ define SetupJVMTIDemo
     BUILD_DEMO_JVMTI_$1_LANG := $4
   endif
   ifeq (C++, $4)
-    $1_EXTRA_CXX := $(LDFLAGS_CXX_JDK) $(LIBCXX)
+    $1_EXTRA_CXX := $$(LDFLAGS_CXX_JDK) $(LIBCXX)
   endif
 
   $1_CXXFLAGS := $(CXXFLAGS_JDKLIB) -I$(JDK_TOPDIR)/src/share/demo/jvmti/$1 \
@@ -251,8 +251,8 @@ define SetupJVMTIDemo
       LANG := $$(BUILD_DEMO_JVMTI_$1_LANG), \
       OPTIMIZATION := LOW, \
       CXXFLAGS := $$($1_CXXFLAGS), \
-      LDFLAGS := $(filter-out -incremental:no -opt:ref, $(LDFLAGS_JDKLIB)), \
-      LDFLAGS_macosx := $(call SET_EXECUTABLE_ORIGIN), \
+      LDFLAGS := $(filter-out -incremental:no -opt:ref, $$(LDFLAGS_JDKLIB)), \
+      LDFLAGS_macosx := $$(call SET_EXECUTABLE_ORIGIN), \
       LDFLAGS_SUFFIX := $$($1_EXTRA_CXX), \
       LDFLAGS_SUFFIX_posix := $5, \
       LDFLAGS_SUFFIX_windows := $6, \
