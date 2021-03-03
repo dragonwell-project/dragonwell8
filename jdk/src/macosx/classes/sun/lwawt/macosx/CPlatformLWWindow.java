@@ -162,11 +162,6 @@ public class CPlatformLWWindow extends CPlatformWindow {
     }
 
     @Override
-    public PlatformWindow getTopmostPlatformWindowUnderMouse(){
-        return null;
-    }
-
-    @Override
     public void setOpacity(float opacity) {
     }
 
