@@ -434,18 +434,6 @@ abstract class DSA extends SignatureSpi {
         return printable;
     }
 
-    private static void debug(Exception e) {
-        if (debug) {
-            e.printStackTrace();
-        }
-    }
-
-    private static void debug(String s) {
-        if (debug) {
-            System.err.println(s);
-        }
-    }
-
     /**
      * Standard SHA224withDSA implementation as defined in FIPS186-3.
      */

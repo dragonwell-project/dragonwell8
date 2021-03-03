@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -34,6 +34,7 @@ class CodeBlobClosure;
 class G1CollectedHeap;
 class G1GCPhaseTimes;
 class G1ParPushHeapRSClosure;
+class G1RootClosures;
 class Monitor;
 class OopClosure;
 class SubTasksDone;
@@ -71,6 +72,11 @@ class G1RootProcessor : public StackObj {
   void worker_has_discovered_all_strong_classes();
   void wait_until_all_strong_classes_discovered();
 
+  void process_all_roots(OopClosure* oops,
+                         CLDClosure* clds,
+                         CodeBlobClosure* blobs,
+                         bool process_string_table);
+
   void process_java_roots(OopClosure* scan_non_heap_roots,
                           CLDClosure* thread_stack_clds,
                           CLDClosure* scan_strong_clds,
@@ -83,6 +89,14 @@ class G1RootProcessor : public StackObj {
                         OopClosure* scan_non_heap_weak_roots,
                         G1GCPhaseTimes* phase_times,
                         uint worker_i);
+
+  void process_string_table_roots(OopClosure* scan_non_heap_weak_roots,
+                                  G1GCPhaseTimes* phase_times,
+                                  uint worker_i);
+
+  void process_code_cache_roots(CodeBlobClosure* code_closure,
+                                G1GCPhaseTimes* phase_times,
+                                uint worker_i);
 
 public:
   G1RootProcessor(G1CollectedHeap* g1h);
@@ -113,6 +127,13 @@ public:
   void scan_remembered_sets(G1ParPushHeapRSClosure* scan_rs,
                             OopClosure* scan_non_heap_weak_roots,
                             uint worker_i);
+
+  // Apply oops, clds and blobs to strongly and weakly reachable roots in the system,
+  // the only thing different from process_all_roots is that we skip the string table
+  // to avoid keeping every string live when doing class unloading.
+  void process_all_roots_no_string_table(OopClosure* oops,
+                                         CLDClosure* clds,
+                                         CodeBlobClosure* blobs);
 
   // Inform the root processor about the number of worker threads
   void set_num_workers(int active_workers);
