@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
  * Copyright 2008 Red Hat, Inc.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -25,6 +25,8 @@
 
 #include "precompiled.hpp"
 #include "assembler_zero.inline.hpp"
+#include "entry_zero.hpp"
+#include "interpreter/cppInterpreter.hpp"
 #include "memory/resourceArea.hpp"
 #include "nativeInst_zero.hpp"
 #include "oops/oop.inline.hpp"
