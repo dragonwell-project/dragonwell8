@@ -919,9 +919,7 @@ final class AssignSymbols extends NodeVisitor<LexicalContext> implements Loggabl
     @Override
     public Node leaveTryNode(final TryNode tryNode) {
         tryNode.setException(exceptionSymbol());
-        if (tryNode.getFinallyBody() != null) {
-            tryNode.setFinallyCatchAll(exceptionSymbol());
-        }
+        assert tryNode.getFinallyBody() == null;
 
         end(tryNode);
 
