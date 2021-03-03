@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
 # DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 #
 # This code is free software; you can redistribute it and/or modify it
@@ -123,5 +123,15 @@ $(GENSRC_CRBC_DST): $(JDK_TOPDIR)/src/share/classes/sun/util/CoreResourceBundleC
 	NAWK="$(NAWK)" SED="$(SED)" $(SH) $(GENSRC_CRBC_CMD) "$(JRE_NONEXIST_LOCALES)" $< $@
 
 GENSRC_LOCALEDATAMETAINFO += $(GENSRC_CRBC_DST)
+
+###
+
+GENSRC_LSREQUIVMAPS_DST := $(JDK_OUTPUTDIR)/gensrc/sun/util/locale/LocaleEquivalentMaps.java
+
+$(GENSRC_LSREQUIVMAPS_DST): $(JDK_TOPDIR)/make/data/lsrdata/language-subtag-registry.txt
+	$(MKDIR) -p $(@D)
+	$(TOOL_GENERATELSREQUIVMAPS) $< $@
+
+GENSRC_LOCALEDATAMETAINFO += $(GENSRC_LSREQUIVMAPS_DST)
 
 ###

@@ -158,6 +158,7 @@ public class JavaTimeSupplementary_ko extends OpenListResourceBundle {
                     "\ub2e4\uc774\uc1fc",
                     "\uc1fc\uc640",
                     "\ud5e4\uc774\uc138\uc774",
+                    "\ub808\uc774\uc640",
                 }
             },
             { "java.time.japanese.short.Eras",
@@ -167,6 +168,7 @@ public class JavaTimeSupplementary_ko extends OpenListResourceBundle {
                     "\ub2e4\uc774\uc1fc",
                     "\uc1fc\uc640",
                     "\ud5e4\uc774\uc138\uc774",
+                    "\ub808\uc774\uc640",
                 }
             },
             { "java.time.long.Eras",
