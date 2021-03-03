@@ -436,6 +436,7 @@ public class WWindowPeer extends WPanelPeer implements WindowPeer,
     @SuppressWarnings("unchecked")
     public static long[] getActiveWindowHandles() {
         AppContext appContext = AppContext.getAppContext();
+        if (appContext == null) return null;
         synchronized (appContext) {
             List<WWindowPeer> l = (List<WWindowPeer>)appContext.get(ACTIVE_WINDOWS_KEY);
             if (l == null) {
