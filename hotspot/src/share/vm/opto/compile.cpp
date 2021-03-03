@@ -25,6 +25,7 @@
 #include "precompiled.hpp"
 #include "asm/macroAssembler.hpp"
 #include "asm/macroAssembler.inline.hpp"
+#include "ci/ciReplay.hpp"
 #include "classfile/systemDictionary.hpp"
 #include "code/exceptionHandlerTable.hpp"
 #include "code/nmethod.hpp"
@@ -647,6 +648,7 @@ Compile::Compile( ciEnv* ci_env, C2Compiler* compiler, ciMethod* target, int osr
                   _printer(IdealGraphPrinter::printer()),
 #endif
                   _congraph(NULL),
+                  _replay_inline_data(NULL),
                   _late_inlines(comp_arena(), 2, 0, NULL),
                   _string_late_inlines(comp_arena(), 2, 0, NULL),
                   _boxing_late_inlines(comp_arena(), 2, 0, NULL),
@@ -680,6 +682,10 @@ Compile::Compile( ciEnv* ci_env, C2Compiler* compiler, ciMethod* target, int osr
   }
   set_print_assembly(print_opto_assembly);
   set_parsed_irreducible_loop(false);
+
+  if (method()->has_option("ReplayInline")) {
+    _replay_inline_data = ciReplay::load_inline_data(method(), entry_bci(), ci_env->comp_level());
+  }
 #endif
   set_print_inlining(PrintInlining || method()->has_option("PrintInlining") NOT_PRODUCT( || PrintOptoInlining));
   set_print_intrinsics(PrintIntrinsics || method()->has_option("PrintIntrinsics"));
@@ -695,10 +701,7 @@ Compile::Compile( ciEnv* ci_env, C2Compiler* compiler, ciMethod* target, int osr
 
   print_compile_messages();
 
-  if (UseOldInlining || PrintCompilation NOT_PRODUCT( || PrintOpto) )
-    _ilt = InlineTree::build_inline_tree_root();
-  else
-    _ilt = NULL;
+  _ilt = InlineTree::build_inline_tree_root();
 
   // Even if NO memory addresses are used, MergeMem nodes must have at least 1 slice
   assert(num_alias_types() >= AliasIdxRaw, "");
@@ -849,6 +852,15 @@ Compile::Compile( ciEnv* ci_env, C2Compiler* compiler, ciMethod* target, int osr
 #endif
 
   NOT_PRODUCT( verify_barriers(); )
+
+  // Dump compilation data to replay it.
+  if (method()->has_option("DumpReplay")) {
+    env()->dump_replay_data(_compile_id);
+  }
+  if (method()->has_option("DumpInline") && (ilt() != NULL)) {
+    env()->dump_inline_data(_compile_id);
+  }
+
   // Now that we know the size of all the monitors we can add a fixed slot
   // for the original deopt pc.
 
@@ -938,6 +950,7 @@ Compile::Compile( ciEnv* ci_env,
     _dead_node_list(comp_arena()),
     _dead_node_count(0),
     _congraph(NULL),
+    _replay_inline_data(NULL),
     _number_of_mh_late_inlines(0),
     _inlining_progress(false),
     _inlining_incrementally(false),
@@ -2999,42 +3012,6 @@ void Compile::final_graph_reshaping_impl( Node *n, Final_Reshape_Counts &frc) {
       n->set_req(MemBarNode::Precedent, top());
     }
     break;
-    // Must set a control edge on all nodes that produce a FlagsProj
-    // so they can't escape the block that consumes the flags.
-    // Must also set the non throwing branch as the control
-    // for all nodes that depends on the result. Unless the node
-    // already have a control that isn't the control of the
-    // flag producer
-  case Op_FlagsProj:
-    {
-      MathExactNode* math = (MathExactNode*)  n->in(0);
-      Node* ctrl = math->control_node();
-      Node* non_throwing = math->non_throwing_branch();
-      math->set_req(0, ctrl);
-
-      Node* result = math->result_node();
-      if (result != NULL) {
-        for (DUIterator_Fast jmax, j = result->fast_outs(jmax); j < jmax; j++) {
-          Node* out = result->fast_out(j);
-          // Phi nodes shouldn't be moved. They would only match below if they
-          // had the same control as the MathExactNode. The only time that
-          // would happen is if the Phi is also an input to the MathExact
-          //
-          // Cmp nodes shouldn't have control set at all.
-          if (out->is_Phi() ||
-              out->is_Cmp()) {
-            continue;
-          }
-
-          if (out->in(0) == NULL) {
-            out->set_req(0, non_throwing);
-          } else if (out->in(0) == ctrl) {
-            out->set_req(0, non_throwing);
-          }
-        }
-      }
-    }
-    break;
   default:
     assert( !n->is_Call(), "" );
     assert( !n->is_Mem(), "" );
@@ -3256,7 +3233,8 @@ bool Compile::too_many_traps(ciMethod* method,
     // because of a transient condition during start-up in the interpreter.
     return false;
   }
-  if (md->has_trap_at(bci, reason) != 0) {
+  ciMethod* m = Deoptimization::reason_is_speculate(reason) ? this->method() : NULL;
+  if (md->has_trap_at(bci, m, reason) != 0) {
     // Assume PerBytecodeTrapLimit==0, for a more conservative heuristic.
     // Also, if there are multiple reasons, or if there is no per-BCI record,
     // assume the worst.
@@ -3274,7 +3252,7 @@ bool Compile::too_many_traps(ciMethod* method,
 // Less-accurate variant which does not require a method and bci.
 bool Compile::too_many_traps(Deoptimization::DeoptReason reason,
                              ciMethodData* logmd) {
- if (trap_count(reason) >= (uint)PerMethodTrapLimit) {
+  if (trap_count(reason) >= Deoptimization::per_method_trap_limit(reason)) {
     // Too many traps globally.
     // Note that we use cumulative trap_count, not just md->trap_count.
     if (log()) {
@@ -3309,10 +3287,11 @@ bool Compile::too_many_recompiles(ciMethod* method,
   uint m_cutoff  = (uint) PerMethodRecompilationCutoff / 2 + 1;  // not zero
   Deoptimization::DeoptReason per_bc_reason
     = Deoptimization::reason_recorded_per_bytecode_if_any(reason);
+  ciMethod* m = Deoptimization::reason_is_speculate(reason) ? this->method() : NULL;
   if ((per_bc_reason == Deoptimization::Reason_none
-       || md->has_trap_at(bci, reason) != 0)
+       || md->has_trap_at(bci, m, reason) != 0)
       // The trap frequency measure we care about is the recompile count:
-      && md->trap_recompiled_at(bci)
+      && md->trap_recompiled_at(bci, m)
       && md->overflow_recompile_count() >= bc_cutoff) {
     // Do not emit a trap here if it has already caused recompilations.
     // Also, if there are multiple reasons, or if there is no per-BCI record,
@@ -3757,6 +3736,16 @@ void Compile::dump_inlining() {
   }
 }
 
+// Dump inlining replay data to the stream.
+// Don't change thread state and acquire any locks.
+void Compile::dump_inline_data(outputStream* out) {
+  InlineTree* inl_tree = ilt();
+  if (inl_tree != NULL) {
+    out->print(" inline %d", inl_tree->count());
+    inl_tree->dump_replay_data(out);
+  }
+}
+
 int Compile::cmp_expensive_nodes(Node* n1, Node* n2) {
   if (n1->Opcode() < n2->Opcode())      return -1;
   else if (n1->Opcode() > n2->Opcode()) return 1;
@@ -3893,16 +3882,18 @@ void Compile::remove_speculative_types(PhaseIterGVN &igvn) {
     // which may optimize it out.
     for (uint next = 0; next < worklist.size(); ++next) {
       Node *n  = worklist.at(next);
-      if (n->is_Type() && n->as_Type()->type()->isa_oopptr() != NULL &&
-          n->as_Type()->type()->is_oopptr()->speculative() != NULL) {
+      if (n->is_Type()) {
         TypeNode* tn = n->as_Type();
-        const TypeOopPtr* t = tn->type()->is_oopptr();
-        bool in_hash = igvn.hash_delete(n);
-        assert(in_hash, "node should be in igvn hash table");
-        tn->set_type(t->remove_speculative());
-        igvn.hash_insert(n);
-        igvn._worklist.push(n); // give it a chance to go away
-        modified++;
+        const Type* t = tn->type();
+        const Type* t_no_spec = t->remove_speculative();
+        if (t_no_spec != t) {
+          bool in_hash = igvn.hash_delete(n);
+          assert(in_hash, "node should be in igvn hash table");
+          tn->set_type(t_no_spec);
+          igvn.hash_insert(n);
+          igvn._worklist.push(n); // give it a chance to go away
+          modified++;
+        }
       }
       uint max = n->len();
       for( uint i = 0; i < max; ++i ) {
@@ -3916,6 +3907,27 @@ void Compile::remove_speculative_types(PhaseIterGVN &igvn) {
     if (modified > 0) {
       igvn.optimize();
     }
+#ifdef ASSERT
+    // Verify that after the IGVN is over no speculative type has resurfaced
+    worklist.clear();
+    worklist.push(root());
+    for (uint next = 0; next < worklist.size(); ++next) {
+      Node *n  = worklist.at(next);
+      const Type* t = igvn.type(n);
+      assert(t == t->remove_speculative(), "no more speculative types");
+      if (n->is_Type()) {
+        t = n->as_Type()->type();
+        assert(t == t->remove_speculative(), "no more speculative types");
+      }
+      uint max = n->len();
+      for( uint i = 0; i < max; ++i ) {
+        Node *m = n->in(i);
+        if (not_a_node(m))  continue;
+        worklist.push(m);
+      }
+    }
+    igvn.check_no_speculative_types();
+#endif
   }
 }
 
