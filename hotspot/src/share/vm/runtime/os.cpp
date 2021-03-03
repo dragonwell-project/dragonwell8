@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -78,6 +78,7 @@ volatile int32_t* os::_mem_serialize_page = NULL;
 uintptr_t         os::_serialize_page_mask = 0;
 long              os::_rand_seed          = 1;
 int               os::_processor_count    = 0;
+int               os::_initial_active_processor_count = 0;
 size_t            os::_page_sizes[os::page_sizes_max];
 
 #ifndef PRODUCT
@@ -322,6 +323,7 @@ static void signal_thread_entry(JavaThread* thread, TRAPS) {
 }
 
 void os::init_before_ergo() {
+  initialize_initial_active_processor_count();
   // We need to initialize large page support here because ergonomics takes some
   // decisions depending on large page support and the calculated large page size.
   large_page_init();
@@ -835,7 +837,11 @@ void os::print_cpu_info(outputStream* st) {
   st->print("CPU:");
   st->print("total %d", os::processor_count());
   // It's not safe to query number of active processors after crash
-  // st->print("(active %d)", os::active_processor_count());
+  // st->print("(active %d)", os::active_processor_count()); but we can
+  // print the initial number of active processors.
+  // We access the raw value here because the assert in the accessor will
+  // fail if the crash occurs before initialization of this value.
+  st->print(" (initial active %d)", _initial_active_processor_count);
   st->print(" %s", VM_Version::cpu_features());
   st->cr();
   pd_print_cpu_info(st);
@@ -1416,6 +1422,11 @@ bool os::is_server_class_machine() {
     }
   }
   return result;
+}
+
+void os::initialize_initial_active_processor_count() {
+  assert(_initial_active_processor_count == 0, "Initial active processor count already set.");
+  _initial_active_processor_count = active_processor_count();
 }
 
 void os::SuspendedThreadTask::run() {
