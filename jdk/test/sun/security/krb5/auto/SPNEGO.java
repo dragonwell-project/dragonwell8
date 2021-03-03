@@ -26,7 +26,7 @@
  * @bug 7040151
  * @summary SPNEGO GSS code does not parse tokens in accordance to RFC 2478
  * @compile -XDignore.symbol.file SPNEGO.java
- * @run main/othervm SPNEGO
+ * @run main/othervm -Dsun.net.spi.nameservice.provider.1=ns,mock SPNEGO
  */
 
 import sun.security.jgss.GSSUtil;
