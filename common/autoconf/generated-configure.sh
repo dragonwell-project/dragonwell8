@@ -700,6 +700,7 @@ C_O_FLAG_HI
 C_O_FLAG_HIGHEST
 CXXFLAGS_DEBUG_SYMBOLS
 CFLAGS_DEBUG_SYMBOLS
+ASFLAGS_DEBUG_SYMBOLS
 CXX_FLAG_DEPS
 C_FLAG_DEPS
 SET_SHARED_LIBRARY_MAPFILE
@@ -4336,7 +4337,7 @@ VS_SDK_PLATFORM_NAME_2017=
 #CUSTOM_AUTOCONF_INCLUDE
 
 # Do not change or remove the following line, it is needed for consistency checks:
-DATE_WHEN_GENERATED=1536764960
+DATE_WHEN_GENERATED=1539613812
 
 ###############################################################################
 #
@@ -13611,7 +13612,7 @@ test -n "$target_alias" &&
       VAR_CPU_ENDIAN=big
       ;;
     powerpc64le)
-      VAR_CPU=ppc64
+      VAR_CPU=ppc64le
       VAR_CPU_ARCH=ppc
       VAR_CPU_BITS=64
       VAR_CPU_ENDIAN=little
@@ -13749,7 +13750,7 @@ $as_echo "$OPENJDK_BUILD_OS-$OPENJDK_BUILD_CPU" >&6; }
       VAR_CPU_ENDIAN=big
       ;;
     powerpc64le)
-      VAR_CPU=ppc64
+      VAR_CPU=ppc64le
       VAR_CPU_ARCH=ppc
       VAR_CPU_BITS=64
       VAR_CPU_ENDIAN=little
@@ -14569,7 +14570,7 @@ $as_echo "$with_jvm_variants" >&6; }
   if test "x$JVM_VARIANT_ZEROSHARK" = xtrue ; then
     INCLUDE_SA=false
   fi
-  if test "x$VAR_CPU" = xppc64 ; then
+  if test "x$VAR_CPU" = xppc64 -o "x$VAR_CPU" = xppc64le ; then
     INCLUDE_SA=false
   fi
   if test "x$OPENJDK_TARGET_CPU" = xaarch64; then
@@ -41208,6 +41209,11 @@ $as_echo "$ac_cv_c_bigendian" >&6; }
 
 
   # Debug symbols
+  #
+  # By default don't set any specific assembler debug
+  # info flags for toolchains unless we know they work.
+  # See JDK-8207057.
+  ASFLAGS_DEBUG_SYMBOLS=""
   if test "x$TOOLCHAIN_TYPE" = xgcc; then
     if test "x$OPENJDK_TARGET_CPU_BITS" = "x64" && test "x$DEBUG_LEVEL" = "xfastdebug"; then
       CFLAGS_DEBUG_SYMBOLS="-g1"
@@ -41216,6 +41222,7 @@ $as_echo "$ac_cv_c_bigendian" >&6; }
       CFLAGS_DEBUG_SYMBOLS="-g"
       CXXFLAGS_DEBUG_SYMBOLS="-g"
     fi
+    ASFLAGS_DEBUG_SYMBOLS="-g"
   elif test "x$TOOLCHAIN_TYPE" = xsolstudio; then
     CFLAGS_DEBUG_SYMBOLS="-g -xs"
     CXXFLAGS_DEBUG_SYMBOLS="-g0 -xs"
@@ -41223,6 +41230,7 @@ $as_echo "$ac_cv_c_bigendian" >&6; }
     CFLAGS_DEBUG_SYMBOLS="-g"
     CXXFLAGS_DEBUG_SYMBOLS="-g"
   fi
+
 
 
 
@@ -41728,6 +41736,9 @@ $as_echo "$supports" >&6; }
     else
       CCXXFLAGS_JDK="$CCXXFLAGS_JDK -D_BIG_ENDIAN"
     fi
+  fi
+  if test "x$OPENJDK_TARGET_CPU" = xppc64le; then
+    CCXXFLAGS_JDK="$CCXXFLAGS_JDK -DABI_ELFv2"
   fi
 
   # Setup target OS define. Use OS target name but in upper case.
