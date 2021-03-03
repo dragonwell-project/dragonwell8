@@ -169,6 +169,8 @@ compact1 = \
 #
 needs_full_vm_compact1 = \
   runtime/NMT \
+  gc/class_unloading/TestCMSClassUnloadingDisabledHWM.java \
+  gc/class_unloading/TestG1ClassUnloadingHWM.java \
   gc/g1/TestRegionAlignment.java \
   gc/g1/TestShrinkToOneRegion.java \
   gc/metaspace/G1AddMetaspaceDependency.java \
