@@ -34,6 +34,10 @@ import sun.awt.X11GraphicsConfig;
 
 class XRobotPeer implements RobotPeer {
 
+    static {
+        loadNativeLibraries();
+    }
+
     private X11GraphicsConfig   xgc = null;
     /*
      * native implementation uses some static shared data (pipes, processes)
@@ -98,4 +102,5 @@ class XRobotPeer implements RobotPeer {
     private static native synchronized void keyReleaseImpl(int keycode);
 
     private static native synchronized void getRGBPixelsImpl(X11GraphicsConfig xgc, int x, int y, int width, int height, int pixelArray[]);
+    private static native void loadNativeLibraries();
 }
