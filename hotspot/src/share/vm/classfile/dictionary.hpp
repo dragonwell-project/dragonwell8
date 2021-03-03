@@ -89,6 +89,7 @@ public:
   // GC support
   void oops_do(OopClosure* f);
   void always_strong_oops_do(OopClosure* blk);
+  void roots_oops_do(OopClosure* strong, OopClosure* weak);
 
   void always_strong_classes_do(KlassClosure* closure);
 
@@ -107,9 +108,8 @@ public:
     return (loader_data->is_the_null_class_loader_data() || !ClassUnloading);
   }
 
-  // Unload (that is, break root links to) all unmarked classes and
-  // loaders.  Returns "true" iff something was unloaded.
-  bool do_unloading();
+  // Unload (that is, break root links to) all unmarked classes and loaders.
+  void do_unloading();
 
   // Protection domains
   Klass* find(int index, unsigned int hash, Symbol* name,
@@ -218,6 +218,7 @@ public:
   // GC support
   void oops_do(OopClosure* f);
   void always_strong_oops_do(OopClosure* f);
+  void roots_oops_do(OopClosure* strong, OopClosure* weak);
 
   static uint bucket_size();
 

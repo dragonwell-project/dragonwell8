@@ -52,6 +52,7 @@
 #include "runtime/java.hpp"
 #include "runtime/javaCalls.hpp"
 #include "runtime/mutexLocker.hpp"
+#include "runtime/orderAccess.inline.hpp"
 #include "runtime/signature.hpp"
 #include "services/classLoadingService.hpp"
 #include "services/threadService.hpp"
@@ -1612,13 +1613,7 @@ void SystemDictionary::add_to_hierarchy(instanceKlassHandle k, TRAPS) {
 // system dictionary and follows the remaining classes' contents.
 
 void SystemDictionary::always_strong_oops_do(OopClosure* blk) {
-  blk->do_oop(&_java_system_loader);
-  blk->do_oop(&_system_loader_lock_obj);
-
-  dictionary()->always_strong_oops_do(blk);
-
-  // Visit extra methods
-  invoke_method_table()->oops_do(blk);
+  roots_oops_do(blk, NULL);
 }
 
 void SystemDictionary::always_strong_classes_do(KlassClosure* closure) {
@@ -1667,10 +1662,9 @@ public:
 // Note: anonymous classes are not in the SD.
 bool SystemDictionary::do_unloading(BoolObjectClosure* is_alive) {
   // First, mark for unload all ClassLoaderData referencing a dead class loader.
-  bool has_dead_loaders = ClassLoaderDataGraph::do_unloading(is_alive);
-  bool unloading_occurred = false;
-  if (has_dead_loaders) {
-    unloading_occurred = dictionary()->do_unloading();
+  bool unloading_occurred = ClassLoaderDataGraph::do_unloading(is_alive);
+  if (unloading_occurred) {
+    dictionary()->do_unloading();
     constraints()->purge_loader_constraints();
     resolution_errors()->purge_resolution_errors();
   }
@@ -1683,6 +1677,17 @@ bool SystemDictionary::do_unloading(BoolObjectClosure* is_alive) {
   dictionary()->oops_do(&cl);
 #endif
   return unloading_occurred;
+}
+
+void SystemDictionary::roots_oops_do(OopClosure* strong, OopClosure* weak) {
+  strong->do_oop(&_java_system_loader);
+  strong->do_oop(&_system_loader_lock_obj);
+
+  // Adjust dictionary
+  dictionary()->roots_oops_do(strong, weak);
+
+  // Visit extra methods
+  invoke_method_table()->oops_do(strong);
 }
 
 void SystemDictionary::oops_do(OopClosure* f) {
