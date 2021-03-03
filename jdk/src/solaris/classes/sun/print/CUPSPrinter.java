@@ -51,6 +51,7 @@ public class CUPSPrinter  {
     private boolean initialized;
     private static native String getCupsServer();
     private static native int getCupsPort();
+    private static native String getCupsDefaultPrinter();
     private static native boolean canConnect(String server, int port);
     private static native boolean initIDs();
     // These functions need to be synchronized as
@@ -250,6 +251,15 @@ public class CUPSPrinter  {
      * Returns 2 values - index 0 is printer name, index 1 is the uri.
      */
     static String[] getDefaultPrinter() {
+        // Try to get user/lpoptions-defined printer name from CUPS
+        // if not user-set, then go for server default destination
+        String printerInfo[] = new String[2];
+        printerInfo[0] = getCupsDefaultPrinter();
+
+        if (printerInfo[0] != null) {
+            printerInfo[1] = null;
+            return printerInfo.clone();
+        }
         try {
             URL url = new URL("http", getServer(), getPort(), "");
             final HttpURLConnection urlConnection =
@@ -285,7 +295,7 @@ public class CUPSPrinter  {
                                         attCl)) {
 
                     HashMap defaultMap = null;
-                    String[] printerInfo = new String[2];
+
                     InputStream is = urlConnection.getInputStream();
                     HashMap[] responseMap = IPPPrintService.readIPPResponse(
                                          is);

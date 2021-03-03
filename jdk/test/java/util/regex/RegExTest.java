@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2017, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -32,7 +32,7 @@
  * 6358731 6178785 6284152 6231989 6497148 6486934 6233084 6504326 6635133
  * 6350801 6676425 6878475 6919132 6931676 6948903 6990617 7014645 7039066
  * 7067045 7014640 7189363 8007395 8013252 8013254 8012646 8023647 6559590
- * 8027645 6854417
+ * 8027645 6854417 8169056
  */
 
 import java.util.regex.*;
@@ -2143,6 +2143,14 @@ public class RegExTest {
         pattern = Pattern.compile("[sik\u00c5]+", flags);
         if (!pattern.matcher("\u017f\u0130\u0131\u212a\u212b").matches())
             failCount++;
+
+        try {
+            Pattern.compile("[", Pattern.CANON_EQ);
+            failCount++;
+        } catch (PatternSyntaxException expected) {
+        } catch (Exception unexpected) {
+            failCount++;
+        }
 
         report("CharClass");
     }

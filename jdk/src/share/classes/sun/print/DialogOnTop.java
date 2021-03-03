@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,37 +23,42 @@
  * questions.
  */
 
-package sun.security.util;
+package sun.print;
 
-import java.security.cert.X509Certificate;
+import javax.print.attribute.Attribute;
+import javax.print.attribute.PrintRequestAttribute;
 
-/**
- * This class is a wrapper for keeping state and passing objects between PKIX,
- * AlgorithmChecker, and DisabledAlgorithmConstraints.
+/*
+ * An implementation class used to request the dialog be set always-on-top.
+ * It needs to be read and honoured by the dialog code which will use
+ * java.awt.Window.setAlwaysOnTop(true) in cases where it is supported.
  */
-public class CertConstraintParameters {
-    // A certificate being passed to check against constraints.
-    private final X509Certificate cert;
+public class DialogOnTop implements PrintRequestAttribute {
 
-    // This is true if the trust anchor in the certificate chain matches a cert
-    // in AnchorCertificates
-    private final boolean trustedMatch;
+    private static final long serialVersionUID = -1901909867156076547L;
 
-    public CertConstraintParameters(X509Certificate c, boolean match) {
-        cert = c;
-        trustedMatch = match;
+    long id;
+
+    public DialogOnTop() {
     }
 
-    public CertConstraintParameters(X509Certificate c) {
-        this(c, false);
+    public DialogOnTop(long id) {
+        this.id = id;
     }
 
-    // Returns if the trust anchor has a match if anchor checking is enabled.
-    public boolean isTrustedMatch() {
-        return trustedMatch;
+    public final Class<? extends Attribute> getCategory() {
+        return DialogOnTop.class;
     }
 
-    public X509Certificate getCertificate() {
-        return cert;
+    public long getID() {
+        return id;
+    }
+
+    public final String getName() {
+        return "dialog-on-top";
+    }
+
+    public String toString() {
+       return "dialog-on-top";
     }
 }
