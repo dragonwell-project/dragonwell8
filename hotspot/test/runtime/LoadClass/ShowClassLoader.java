@@ -1,6 +1,5 @@
 /*
- * Copyright (c) 1999, 2013, Oracle and/or its affiliates. All rights reserved.
- * Copyright 2012, 2013 SAP AG. All rights reserved.
+ * Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -20,26 +19,27 @@
  * Please contact Oracle, 500 Oracle Parkway, Redwood Shores, CA 94065 USA
  * or visit www.oracle.com if you need additional information or have any
  * questions.
- *
  */
 
-#ifndef CPU_PPC_VM_GLOBALDEFINITIONS_PPC_HPP
-#define CPU_PPC_VM_GLOBALDEFINITIONS_PPC_HPP
+/*
+ * @test
+ * @key regression
+ * @bug 8058927
+ * @summary Make sure array class has the right class loader
+ * @run main ShowClassLoader
+ */
 
-// Size of PPC Instructions
-const int BytesPerInstWord = 4;
+public class ShowClassLoader {
 
-const int StackAlignmentInBytes = 16;
+    public static void main(String[] args) {
+        Object[] oa = new Object[0];
+        ShowClassLoader[] sa = new ShowClassLoader[0];
 
-// Indicates whether the C calling conventions require that
-// 32-bit integer argument values are properly extended to 64 bits.
-// If set, SharedRuntime::c_calling_convention() must adapt
-// signatures accordingly.
-const bool CCallingConventionRequiresIntsAsLongs = true;
+        System.out.println("Classloader for Object[] is " + oa.getClass().getClassLoader());
+        System.out.println("Classloader for SCL[] is " + sa.getClass().getClassLoader() );
 
-#define SUPPORTS_NATIVE_CX8
-
-// The PPC CPUs are NOT multiple-copy-atomic.
-#define CPU_NOT_MULTIPLE_COPY_ATOMIC
-
-#endif // CPU_PPC_VM_GLOBALDEFINITIONS_PPC_HPP
+        if (sa.getClass().getClassLoader() == null) {
+            throw new RuntimeException("Wrong class loader");
+        }
+    }
+}
