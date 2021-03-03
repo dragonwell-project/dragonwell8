@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,32 +21,27 @@
  * questions.
  */
 
-import java.awt.AWTException;
-
-/* @test
- * @bug 8033069
- * @summary Checks that JComboBox popup does not close when mouse wheel is
- *          rotated over combo box and over its popup. The case where
- *          popup has scroll bar.
- * @library ../../regtesthelpers
- * @build Util
- * @run main bug8033069ScrollBar
- * @author Alexey Ivanov
+/**
+ * @test
+ * @bug 8206879
+ * @summary Currency decimal marker incorrect for Peru.
+ * @modules jdk.localedata
+ * @run main/othervm -Djava.locale.providers=JRE TestPeruCurrencyFormat
  */
-public class bug8033069ScrollBar extends bug8033069NoScrollBar {
 
-    private static final String[] SCROLL_ITEMS = new String[] {
-            "AA", "B", "C", "D", "E", "F",
-            "G", "H", "I", "J", "K", "L",
-            "M", "N", "O", "P", "Q", "R"
-    };
+import java.text.NumberFormat;
+import java.util.Locale;
 
-    public static void main(String[] args) throws Exception {
-        iterateLookAndFeels(new bug8033069ScrollBar(SCROLL_ITEMS));
+public class TestPeruCurrencyFormat {
+
+    public static void main(String[] args) {
+        final String expected = "S/.1,234.56";
+        NumberFormat currencyFmt =
+                NumberFormat.getCurrencyInstance(new Locale("es", "PE"));
+        String s = currencyFmt.format(1234.56);
+
+        if (!s.equals(expected)) {
+            throw new RuntimeException("Currency format for Peru failed, expected " + expected + ", got " + s);
+        }
     }
-
-    public bug8033069ScrollBar(String[] items) throws AWTException {
-        super(items);
-    }
-
 }

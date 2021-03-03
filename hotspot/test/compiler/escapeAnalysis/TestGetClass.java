@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,32 +21,32 @@
  * questions.
  */
 
-import java.awt.AWTException;
-
-/* @test
- * @bug 8033069
- * @summary Checks that JComboBox popup does not close when mouse wheel is
- *          rotated over combo box and over its popup. The case where
- *          popup has scroll bar.
- * @library ../../regtesthelpers
- * @build Util
- * @run main bug8033069ScrollBar
- * @author Alexey Ivanov
+/*
+ * @test
+ * @bug 8218201
+ * @summary BCEscapeAnalyzer assigns wrong escape state to getClass return value.
+ * @run main/othervm -XX:-TieredCompilation -Xcomp -XX:+UnlockDiagnosticVMOptions -XX:DisableIntrinsic=_getClass
+ *                   -XX:CompileCommand=quiet -XX:CompileCommand=compileonly,compiler.escapeAnalysis.TestGetClass::test
+ *                   -XX:+PrintCompilation compiler.escapeAnalysis.TestGetClass
  */
-public class bug8033069ScrollBar extends bug8033069NoScrollBar {
 
-    private static final String[] SCROLL_ITEMS = new String[] {
-            "AA", "B", "C", "D", "E", "F",
-            "G", "H", "I", "J", "K", "L",
-            "M", "N", "O", "P", "Q", "R"
-    };
+package compiler.escapeAnalysis;
 
-    public static void main(String[] args) throws Exception {
-        iterateLookAndFeels(new bug8033069ScrollBar(SCROLL_ITEMS));
+public class TestGetClass {
+    static Object obj = new Object();
+
+    public static boolean test() {
+        if (obj.getClass() == Object.class) {
+            synchronized (obj) {
+                return true;
+            }
+        }
+        return false;
     }
 
-    public bug8033069ScrollBar(String[] items) throws AWTException {
-        super(items);
+    public static void main(String[] args) {
+        if (!test()) {
+            throw new RuntimeException("Test failed");
+        }
     }
-
 }

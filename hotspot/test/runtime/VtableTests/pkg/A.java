@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,32 +21,8 @@
  * questions.
  */
 
-import java.awt.AWTException;
+package pkg;
 
-/* @test
- * @bug 8033069
- * @summary Checks that JComboBox popup does not close when mouse wheel is
- *          rotated over combo box and over its popup. The case where
- *          popup has scroll bar.
- * @library ../../regtesthelpers
- * @build Util
- * @run main bug8033069ScrollBar
- * @author Alexey Ivanov
- */
-public class bug8033069ScrollBar extends bug8033069NoScrollBar {
-
-    private static final String[] SCROLL_ITEMS = new String[] {
-            "AA", "B", "C", "D", "E", "F",
-            "G", "H", "I", "J", "K", "L",
-            "M", "N", "O", "P", "Q", "R"
-    };
-
-    public static void main(String[] args) throws Exception {
-        iterateLookAndFeels(new bug8033069ScrollBar(SCROLL_ITEMS));
-    }
-
-    public bug8033069ScrollBar(String[] items) throws AWTException {
-        super(items);
-    }
-
+public class A {
+    void m() { }
 }

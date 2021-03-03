@@ -23,28 +23,31 @@
  * questions.
  */
 
-package sun.security.util;
+package com.sun.crypto.provider;
+
+import java.util.List;
+import java.util.function.BiFunction;
+import java.security.*;
 
 /**
- * This class holds the various utility methods for array range checks.
+ * This class holds the various utility methods for range checks.
  */
 
-public final class ArrayUtil {
+final class RangeUtil {
 
-    private static void swap(byte[] arr, int i, int j) {
-        byte tmp = arr[i];
-        arr[i] = arr[j];
-        arr[j] = tmp;
+    private static final BiFunction<String, List<Integer>,
+            ArrayIndexOutOfBoundsException> AIOOBE_SUPPLIER =
+            Preconditions.outOfBoundsExceptionFormatter
+            (ArrayIndexOutOfBoundsException::new);
+
+    public static void blockSizeCheck(int len, int blockSize) {
+        if ((len % blockSize) != 0) {
+            throw new ProviderException("Internal error in input buffering");
+        }
     }
 
-    public static void reverse(byte [] arr) {
-        int i = 0;
-        int j = arr.length - 1;
-
-        while (i < j) {
-            swap(arr, i, j);
-            i++;
-            j--;
-        }
+    public static void nullAndBoundsCheck(byte[] array, int offset, int len) {
+        // NPE is thrown when array is null
+        Preconditions.checkFromIndexSize(offset, len, array.length, AIOOBE_SUPPLIER);
     }
 }
