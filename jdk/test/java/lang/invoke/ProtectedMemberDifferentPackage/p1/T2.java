@@ -23,8 +23,57 @@
  */
 package p1;
 
+import p2.T3;
+
+import java.lang.invoke.MethodHandle;
+import java.lang.invoke.MethodHandles;
+import java.lang.invoke.MethodHandles.Lookup;
+import java.lang.invoke.MethodType;
+import java.util.concurrent.Callable;
+
 class T1 {
-    protected void m() { System.out.println("T1.m");}
+    protected        void m1() {}
+    protected static void m2() {}
 }
 
-public class T2 extends T1 {}
+public class T2 extends T1 {
+    public static void main(String[] args) throws Throwable {
+        Lookup LOOKUP = T3.lookup();
+        Class<IllegalAccessException> IAE = IllegalAccessException.class;
+
+        assertFailure(IAE, () -> LOOKUP.findVirtual(T1.class, "m1", MethodType.methodType(void.class)));
+        assertFailure(IAE, () -> LOOKUP.findStatic(T1.class, "m2", MethodType.methodType(void.class)));
+
+        assertSuccess(() -> LOOKUP.findVirtual(T2.class, "m1", MethodType.methodType(void.class)));
+        assertSuccess(() -> LOOKUP.findVirtual(T3.class, "m1", MethodType.methodType(void.class)));
+
+        assertSuccess(() -> LOOKUP.findStatic(T2.class, "m2", MethodType.methodType(void.class)));
+        assertSuccess(() -> LOOKUP.findStatic(T3.class, "m2", MethodType.methodType(void.class)));
+
+        assertFailure(IAE, () -> LOOKUP.unreflect(T1.class.getDeclaredMethod("m1")));
+        assertFailure(IAE, () -> LOOKUP.unreflect(T1.class.getDeclaredMethod("m2")));
+
+        System.out.println("TEST PASSED");
+    }
+
+    public static void assertFailure(Class<? extends Throwable> expectedError, Callable r) {
+        try {
+            r.call();
+        } catch(Throwable e) {
+            if (expectedError.isAssignableFrom(e.getClass())) {
+                return; // expected error
+            } else {
+                throw new Error("Unexpected error type: "+e.getClass()+"; expected type: "+expectedError, e);
+            }
+        }
+        throw new Error("No error");
+    }
+
+    public static void assertSuccess(Callable r) {
+        try {
+            r.call();
+        } catch(Throwable e) {
+            throw new Error("Unexpected error", e);
+        }
+    }
+}
