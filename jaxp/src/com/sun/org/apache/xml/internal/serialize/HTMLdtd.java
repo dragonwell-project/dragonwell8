@@ -1,15 +1,15 @@
 /*
- * reserved comment block
- * DO NOT REMOVE OR ALTER!
+ * Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
  */
 /*
- * Copyright 1999-2002,2004 The Apache Software Foundation.
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -17,7 +17,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 
 // Aug 21, 2000:
 //   Fixed bug in isElement and made HTMLdtd public.
@@ -27,12 +26,12 @@
 package com.sun.org.apache.xml.internal.serialize;
 
 import com.sun.org.apache.xerces.internal.dom.DOMMessageFormatter;
-
+import java.io.BufferedReader;
 import java.io.InputStream;
 import java.io.InputStreamReader;
-import java.io.BufferedReader;
-import java.util.Hashtable;
+import java.util.HashMap;
 import java.util.Locale;
+import java.util.Map;
 
 
 /**
@@ -78,23 +77,23 @@ public final class HTMLdtd
      * Table of reverse character reference mapping. Character codes are held
      * as single-character strings, mapped to their reference name.
      */
-    private static Hashtable        _byChar;
+    private static Map<Integer, String> _byChar;
 
 
     /**
      * Table of entity name to value mapping. Entities are held as strings,
      * character references as <TT>Character</TT> objects.
      */
-    private static Hashtable        _byName;
+    private static Map<String, Integer> _byName;
 
 
-    private static Hashtable        _boolAttrs;
+    private static final Map<String, String[]> _boolAttrs;
 
 
     /**
      * Holds element definitions.
      */
-    private static Hashtable        _elemDefs;
+    private static final Map<String, Integer> _elemDefs;
 
 
     /**
@@ -300,7 +299,7 @@ public final class HTMLdtd
     {
         String[] attrNames;
 
-        attrNames = (String[]) _boolAttrs.get( tagName.toUpperCase(Locale.ENGLISH) );
+        attrNames = _boolAttrs.get( tagName.toUpperCase(Locale.ENGLISH) );
         if ( attrNames == null )
             return false;
         for ( int i = 0 ; i < attrNames.length ; ++i )
@@ -347,7 +346,7 @@ public final class HTMLdtd
         String name;
 
         initialize();
-        name = (String) _byChar.get( new Integer( value ) );
+        name = _byChar.get(value);
         return name;
     }
 
@@ -372,8 +371,8 @@ public final class HTMLdtd
         if ( _byName != null )
             return;
         try {
-            _byName = new Hashtable();
-            _byChar = new Hashtable();
+            _byName = new HashMap<>();
+            _byChar = new HashMap<>();
             is = HTMLdtd.class.getResourceAsStream( ENTITIES_RESOURCE );
             if ( is == null ) {
                 throw new RuntimeException(
@@ -442,7 +441,7 @@ public final class HTMLdtd
 
     private static void defineElement( String name, int flags )
     {
-        _elemDefs.put( name, new Integer( flags ) );
+        _elemDefs.put(name, flags);
     }
 
 
@@ -462,7 +461,7 @@ public final class HTMLdtd
     {
         Integer flags;
 
-        flags = (Integer) _elemDefs.get( name.toUpperCase(Locale.ENGLISH) );
+        flags = _elemDefs.get( name.toUpperCase(Locale.ENGLISH) );
         if ( flags == null )
             return false;
         else
@@ -472,7 +471,7 @@ public final class HTMLdtd
 
     static
     {
-        _elemDefs = new Hashtable();
+        _elemDefs = new HashMap<>();
         defineElement( "ADDRESS", CLOSE_P );
         defineElement( "AREA", EMPTY );
         defineElement( "BASE",  EMPTY | ALLOWED_HEAD );
@@ -526,7 +525,7 @@ public final class HTMLdtd
         defineElement( "TR", ELEM_CONTENT | OPT_CLOSING | CLOSE_TABLE );
         defineElement( "UL", ELEM_CONTENT | CLOSE_P );
 
-        _boolAttrs = new Hashtable();
+        _boolAttrs = new HashMap<>();
         defineBoolean( "AREA", "href" );
         defineBoolean( "BUTTON", "disabled" );
         defineBoolean( "DIR", "compact" );
