@@ -727,7 +727,6 @@ public class TCPTransport extends Transport {
                 int magic = in.readInt();
 
                 if (magic == POST) {
-                    System.err.println("DISABLED: " + disableIncomingHttp);
                     if (disableIncomingHttp) {
                         throw new RemoteException("RMI over HTTP is disabled");
                     }
