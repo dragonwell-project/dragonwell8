@@ -45,4 +45,10 @@ void Compile::pd_compiler2_init() {
       FLAG_SET_ERGO(bool, InsertEndGroupPPC64, true);
     }
   }
+
+  if (OptimizeFill) {
+    warning("OptimizeFill is not supported on this CPU.");
+    FLAG_SET_DEFAULT(OptimizeFill, false);
+  }
+
 }
