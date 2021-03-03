@@ -151,7 +151,7 @@ public abstract class ScriptFunctionData implements Serializable {
      * Is this a ScriptFunction generated with strict semantics?
      * @return true if strict, false otherwise
      */
-    public boolean isStrict() {
+    public final boolean isStrict() {
         return (flags & IS_STRICT) != 0;
     }
 
@@ -164,11 +164,11 @@ public abstract class ScriptFunctionData implements Serializable {
         return getName();
     }
 
-    boolean isBuiltin() {
+    final boolean isBuiltin() {
         return (flags & IS_BUILTIN) != 0;
     }
 
-    boolean isConstructor() {
+    final boolean isConstructor() {
         return (flags & IS_CONSTRUCTOR) != 0;
     }
 
@@ -179,7 +179,7 @@ public abstract class ScriptFunctionData implements Serializable {
      * according to ECMA 10.4.3.
      * @return true if this argument must be an object
      */
-    boolean needsWrappedThis() {
+    final boolean needsWrappedThis() {
         return (flags & USES_THIS) != 0 && (flags & IS_STRICT_OR_BUILTIN) == 0;
     }
 
@@ -318,7 +318,7 @@ public abstract class ScriptFunctionData implements Serializable {
      * Used to find an apply to call version that fits this callsite.
      * We cannot just, as in the normal matcher case, return e.g. (Object, Object, int)
      * for (Object, Object, int, int, int) or we will destroy the semantics and get
-     * a function that, when padded with undefineds, behaves differently
+     * a function that, when padded with undefined values, behaves differently
      * @param type actual call site type
      * @return apply to call that perfectly fits this callsite or null if none found
      */
@@ -359,30 +359,12 @@ public abstract class ScriptFunctionData implements Serializable {
      * scope is not known, but that might cause compilation of code that will need more deoptimization passes.
      * @return the best function for the specified call site type.
      */
-    CompiledFunction getBest(final MethodType callSiteType, final ScriptObject runtimeScope, final Collection<CompiledFunction> forbidden) {
-        assert callSiteType.parameterCount() >= 2 : callSiteType; // Must have at least (callee, this)
-        assert callSiteType.parameterType(0).isAssignableFrom(ScriptFunction.class) : callSiteType; // Callee must be assignable from script function
+    abstract CompiledFunction getBest(final MethodType callSiteType, final ScriptObject runtimeScope, final Collection<CompiledFunction> forbidden);
 
-        if (isRecompilable()) {
-            final CompiledFunction candidate = pickFunction(callSiteType, false);
-            if (candidate != null) {
-                return candidate;
-            }
-            return pickFunction(callSiteType, true); //try vararg last
-        }
-
-        CompiledFunction best = null;
-        for (final CompiledFunction candidate: code) {
-            if (!forbidden.contains(candidate) && candidate.betterThanFinal(best, callSiteType)) {
-                best = candidate;
-            }
-        }
-
-        return best;
+    boolean isValidCallSite(final MethodType callSiteType) {
+        return callSiteType.parameterCount() >= 2  && // Must have at least (callee, this)
+               callSiteType.parameterType(0).isAssignableFrom(ScriptFunction.class); // Callee must be assignable from script function
     }
-
-
-    abstract boolean isRecompilable();
 
     CompiledFunction getGeneric(final ScriptObject runtimeScope) {
         return getBest(getGenericType(), runtimeScope, CompiledFunction.NO_FUNCTIONS);
@@ -407,15 +389,16 @@ public abstract class ScriptFunctionData implements Serializable {
     /**
      * Get the property map to use for objects allocated by this function.
      *
+     * @param prototype the prototype of the allocated object
      * @return the property map for allocated objects.
      */
-    PropertyMap getAllocatorMap() {
+    PropertyMap getAllocatorMap(final ScriptObject prototype) {
         return null;
     }
 
     /**
      * This method is used to create the immutable portion of a bound function.
-     * See {@link ScriptFunction#makeBoundFunction(Object, Object[])}
+     * See {@link ScriptFunction#createBound(Object, Object[])}
      *
      * @param fn the original function being bound
      * @param self this reference to bind. Can be null.
