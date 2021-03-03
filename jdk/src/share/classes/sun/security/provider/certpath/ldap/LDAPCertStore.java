@@ -220,6 +220,12 @@ public final class LDAPCertStore extends CertStoreSpi {
         certStoreCache = Cache.newSoftMemoryCache(185);
     static synchronized CertStore getInstance(LDAPCertStoreParameters params)
         throws NoSuchAlgorithmException, InvalidAlgorithmParameterException {
+
+        SecurityManager security = System.getSecurityManager();
+        if (security != null) {
+            security.checkConnect(params.getServerName(), params.getPort());
+        }
+
         CertStore lcs = certStoreCache.get(params);
         if (lcs == null) {
             lcs = CertStore.getInstance("LDAP", params);
