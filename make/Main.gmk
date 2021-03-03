@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
 # DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 #
 # This code is free software; you can redistribute it and/or modify it
@@ -142,16 +142,11 @@ overlay-images-only: start-make
 	@($(CD) $(JDK_TOPDIR)/make && $(BUILD_LOG_WRAPPER) $(MAKE) $(MAKE_ARGS) -f BuildJdk.gmk overlay-images)
 	@$(call TargetExit)
 
-profiles: profiles-oscheck source-tips jdk hotspot profiles-only
+profiles: source-tips jdk hotspot profiles-only
 profiles-only: start-make
 	@$(call TargetEnter)
 	@($(CD) $(JDK_TOPDIR)/make && $(BUILD_LOG_WRAPPER) $(MAKE) $(MAKE_ARGS) -f BuildJdk.gmk profiles)
 	@$(call TargetExit)
-
-profiles-oscheck:
-        ifneq ($(OPENJDK_TARGET_OS), linux)
-	  @echo "Error: The Java SE 8 Compact Profiles are only implemented for Linux at this time" && exit 1
-        endif
 
 install: images install-only
 install-only: start-make
@@ -240,7 +235,7 @@ clean-test:
 .PHONY: langtools-only corba-only jaxp-only jaxws-only hotspot-only jdk-only nashorn-only images-only overlay-images-only install-only test-only docs-only
 .PHONY: default all clean dist-clean bootcycle-images start-make
 .PHONY: clean-langtools clean-corba clean-jaxp clean-jaxws clean-hotspot clean-jdk clean-nashorn clean-images clean-docs clean-test clean-overlay-images clean-bootcycle-build
-.PHONY: profiles profiles-only profiles-oscheck
+.PHONY: profiles profiles-only
 
 include $(root_dir)/make/Jprt.gmk
 
