@@ -4336,7 +4336,7 @@ VS_SDK_PLATFORM_NAME_2017=
 #CUSTOM_AUTOCONF_INCLUDE
 
 # Do not change or remove the following line, it is needed for consistency checks:
-DATE_WHEN_GENERATED=1536078152
+DATE_WHEN_GENERATED=1536764960
 
 ###############################################################################
 #
@@ -29879,25 +29879,25 @@ ac_compiler_gnu=$ac_cv_cxx_compiler_gnu
 
 
 
-  if test "x$CC_VERSION" != "x$CXX_VERSION"; then
-    { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: C and C++ compiler has different version numbers, $CC_VERSION vs $CXX_VERSION." >&5
-$as_echo "$as_me: WARNING: C and C++ compiler has different version numbers, $CC_VERSION vs $CXX_VERSION." >&2;}
+  if test "x$CC_VERSION_NUMBER" != "x$CXX_VERSION_NUMBER"; then
+    { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: C and C++ compiler has different version numbers, $CC_VERSION_NUMBER vs $CXX_VERSION_NUMBER." >&5
+$as_echo "$as_me: WARNING: C and C++ compiler has different version numbers, $CC_VERSION_NUMBER vs $CXX_VERSION_NUMBER." >&2;}
     { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: This typically indicates a broken setup, and is not supported" >&5
 $as_echo "$as_me: WARNING: This typically indicates a broken setup, and is not supported" >&2;}
   fi
 
-  # We only check CC_VERSION since we assume CXX_VERSION is equal.
-  if  [[ "$CC_VERSION" =~ (.*\.){3} ]] ; then
+  # We only check CC_VERSION_NUMBER since we assume CXX_VERSION_NUMBER is equal.
+  if  [[ "$CC_VERSION_NUMBER" =~ (.*\.){3} ]] ; then
     { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: C compiler version number has more than three parts (X.Y.Z): $CC_VERSION. Comparisons might be wrong." >&5
 $as_echo "$as_me: WARNING: C compiler version number has more than three parts (X.Y.Z): $CC_VERSION. Comparisons might be wrong." >&2;}
   fi
 
-  if  [[  "$CC_VERSION" =~ [0-9]{6} ]] ; then
+  if  [[  "$CC_VERSION_NUMBER" =~ [0-9]{6} ]] ; then
     { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: C compiler version number has a part larger than 99999: $CC_VERSION. Comparisons might be wrong." >&5
 $as_echo "$as_me: WARNING: C compiler version number has a part larger than 99999: $CC_VERSION. Comparisons might be wrong." >&2;}
   fi
 
-  COMPARABLE_ACTUAL_VERSION=`$AWK -F. '{ printf("%05d%05d%05d\n", $1, $2, $3) }' <<< "$CC_VERSION"`
+  COMPARABLE_ACTUAL_VERSION=`$AWK -F. '{ printf("%05d%05d%05d\n", $1, $2, $3) }' <<< "$CC_VERSION_NUMBER"`
 
 
   #
