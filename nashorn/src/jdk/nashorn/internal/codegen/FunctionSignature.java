@@ -141,7 +141,7 @@ public final class FunctionSignature {
             paramTypeList.add(paramType.getTypeClass());
         }
 
-        this.methodType = MH.type(returnType.getTypeClass(), paramTypeList.toArray(new Class[paramTypes.length]));
+        this.methodType = MH.type(returnType.getTypeClass(), paramTypeList.toArray(new Class<?>[paramTypes.length]));
     }
 
     /**
@@ -192,6 +192,14 @@ public final class FunctionSignature {
      */
     public int size() {
         return paramTypes.length;
+    }
+
+    /**
+     * Get the param types for this function signature
+     * @return cloned vector of param types
+     */
+    public Type[] getParamTypes() {
+        return paramTypes.clone();
     }
 
     /**
