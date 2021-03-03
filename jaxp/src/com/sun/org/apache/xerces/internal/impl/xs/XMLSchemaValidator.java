@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
  */
 /*
  * Licensed to the Apache Software Foundation (ASF) under one or more
@@ -81,6 +81,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Stack;
 import java.util.Vector;
+import jdk.xml.internal.JdkXmlUtils;
 
 /**
  * The XML Schema validator. The validator implements a document
@@ -234,7 +235,7 @@ public class XMLSchemaValidator
     private static final String XML_SECURITY_PROPERTY_MANAGER =
             Constants.XML_SECURITY_PROPERTY_MANAGER;
 
-    protected static final String USE_SERVICE_MECHANISM = Constants.ORACLE_FEATURE_SERVICE_MECHANISM;
+    protected static final String OVERRIDE_PARSER = JdkXmlUtils.OVERRIDE_PARSER;
 
     // recognized features and properties
 
@@ -254,7 +255,7 @@ public class XMLSchemaValidator
             USE_GRAMMAR_POOL_ONLY,
             NAMESPACE_GROWTH,
             TOLERATE_DUPLICATES,
-            USE_SERVICE_MECHANISM
+            OVERRIDE_PARSER
     };
 
     /** Feature defaults. */
@@ -277,7 +278,7 @@ public class XMLSchemaValidator
         null,
         null,
         null,
-        Boolean.TRUE
+        JdkXmlUtils.OVERRIDE_PARSER_DEFAULT
     };
 
     /** Recognized properties. */
