@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -187,7 +187,7 @@ void MemoryService::add_g1_heap_info(G1CollectedHeap* g1h) {
   _managers_list->append(_major_gc_manager);
 
   add_g1YoungGen_memory_pool(g1h, _major_gc_manager, _minor_gc_manager);
-  add_g1OldGen_memory_pool(g1h, _major_gc_manager);
+  add_g1OldGen_memory_pool(g1h, _major_gc_manager, _minor_gc_manager);
 }
 #endif // INCLUDE_ALL_GCS
 
@@ -241,8 +241,8 @@ MemoryPool* MemoryService::add_cms_space(CompactibleFreeListSpace* space,
 
 // Add memory pool(s) for one generation
 void MemoryService::add_generation_memory_pool(Generation* gen,
-                                               MemoryManager* major_mgr,
-                                               MemoryManager* minor_mgr) {
+                                               GCMemoryManager* major_mgr,
+                                               GCMemoryManager* minor_mgr) {
   guarantee(gen != NULL, "No generation for memory pool");
   Generation::Name kind = gen->kind();
   int index = _pools_list->length();
@@ -332,7 +332,9 @@ void MemoryService::add_generation_memory_pool(Generation* gen,
 
 
 #if INCLUDE_ALL_GCS
-void MemoryService::add_psYoung_memory_pool(PSYoungGen* gen, MemoryManager* major_mgr, MemoryManager* minor_mgr) {
+void MemoryService::add_psYoung_memory_pool(PSYoungGen* gen,
+                                            GCMemoryManager* major_mgr,
+                                            GCMemoryManager* minor_mgr) {
   assert(major_mgr != NULL && minor_mgr != NULL, "Should have two managers");
 
   // Add a memory pool for each space and young gen doesn't
@@ -356,7 +358,7 @@ void MemoryService::add_psYoung_memory_pool(PSYoungGen* gen, MemoryManager* majo
   _pools_list->append(survivor);
 }
 
-void MemoryService::add_psOld_memory_pool(PSOldGen* gen, MemoryManager* mgr) {
+void MemoryService::add_psOld_memory_pool(PSOldGen* gen, GCMemoryManager* mgr) {
   PSGenerationPool* old_gen = new PSGenerationPool(gen,
                                                    "PS Old Gen",
                                                    MemoryPool::Heap,
@@ -366,8 +368,8 @@ void MemoryService::add_psOld_memory_pool(PSOldGen* gen, MemoryManager* mgr) {
 }
 
 void MemoryService::add_g1YoungGen_memory_pool(G1CollectedHeap* g1h,
-                                               MemoryManager* major_mgr,
-                                               MemoryManager* minor_mgr) {
+                                               GCMemoryManager* major_mgr,
+                                               GCMemoryManager* minor_mgr) {
   assert(major_mgr != NULL && minor_mgr != NULL, "should have two managers");
 
   G1EdenPool* eden = new G1EdenPool(g1h);
@@ -382,11 +384,13 @@ void MemoryService::add_g1YoungGen_memory_pool(G1CollectedHeap* g1h,
 }
 
 void MemoryService::add_g1OldGen_memory_pool(G1CollectedHeap* g1h,
-                                             MemoryManager* mgr) {
-  assert(mgr != NULL, "should have one manager");
+                                             GCMemoryManager* major_mgr,
+                                             GCMemoryManager* minor_mgr) {
+  assert(major_mgr != NULL && minor_mgr != NULL, "should have two managers");
 
   G1OldGenPool* old_gen = new G1OldGenPool(g1h);
-  mgr->add_pool(old_gen);
+  major_mgr->add_pool(old_gen);
+  minor_mgr->add_pool(old_gen, false /* always_affected_by_gc */);
   _pools_list->append(old_gen);
 }
 #endif // INCLUDE_ALL_GCS
@@ -484,7 +488,8 @@ void MemoryService::gc_begin(bool fullGC, bool recordGCBeginTime,
 void MemoryService::gc_end(bool fullGC, bool recordPostGCUsage,
                            bool recordAccumulatedGCTime,
                            bool recordGCEndTime, bool countCollection,
-                           GCCause::Cause cause) {
+                           GCCause::Cause cause,
+                           bool allMemoryPoolsAffected) {
 
   GCMemoryManager* mgr;
   if (fullGC) {
@@ -496,7 +501,7 @@ void MemoryService::gc_end(bool fullGC, bool recordPostGCUsage,
 
   // register the GC end statistics and memory usage
   mgr->gc_end(recordPostGCUsage, recordAccumulatedGCTime, recordGCEndTime,
-              countCollection, cause);
+              countCollection, cause, allMemoryPoolsAffected);
 }
 
 void MemoryService::oops_do(OopClosure* f) {
@@ -573,10 +578,11 @@ TraceMemoryManagerStats::TraceMemoryManagerStats(Generation::Name kind, GCCause:
   }
   // this has to be called in a stop the world pause and represent
   // an entire gc pause, start to finish:
-  initialize(_fullGC, cause,true, true, true, true, true, true, true);
+  initialize(_fullGC, cause, true, true, true, true, true, true, true, true);
 }
 TraceMemoryManagerStats::TraceMemoryManagerStats(bool fullGC,
                                                  GCCause::Cause cause,
+                                                 bool allMemoryPoolsAffected,
                                                  bool recordGCBeginTime,
                                                  bool recordPreGCUsage,
                                                  bool recordPeakUsage,
@@ -584,7 +590,8 @@ TraceMemoryManagerStats::TraceMemoryManagerStats(bool fullGC,
                                                  bool recordAccumulatedGCTime,
                                                  bool recordGCEndTime,
                                                  bool countCollection) {
-    initialize(fullGC, cause, recordGCBeginTime, recordPreGCUsage, recordPeakUsage,
+  initialize(fullGC, cause, allMemoryPoolsAffected,
+             recordGCBeginTime, recordPreGCUsage, recordPeakUsage,
              recordPostGCUsage, recordAccumulatedGCTime, recordGCEndTime,
              countCollection);
 }
@@ -593,6 +600,7 @@ TraceMemoryManagerStats::TraceMemoryManagerStats(bool fullGC,
 // the MemoryService
 void TraceMemoryManagerStats::initialize(bool fullGC,
                                          GCCause::Cause cause,
+                                         bool allMemoryPoolsAffected,
                                          bool recordGCBeginTime,
                                          bool recordPreGCUsage,
                                          bool recordPeakUsage,
@@ -601,6 +609,7 @@ void TraceMemoryManagerStats::initialize(bool fullGC,
                                          bool recordGCEndTime,
                                          bool countCollection) {
   _fullGC = fullGC;
+  _allMemoryPoolsAffected = allMemoryPoolsAffected;
   _recordGCBeginTime = recordGCBeginTime;
   _recordPreGCUsage = recordPreGCUsage;
   _recordPeakUsage = recordPeakUsage;
@@ -616,5 +625,5 @@ void TraceMemoryManagerStats::initialize(bool fullGC,
 
 TraceMemoryManagerStats::~TraceMemoryManagerStats() {
   MemoryService::gc_end(_fullGC, _recordPostGCUsage, _recordAccumulatedGCTime,
-                        _recordGCEndTime, _countCollection, _cause);
+                        _recordGCEndTime, _countCollection, _cause, _allMemoryPoolsAffected);
 }

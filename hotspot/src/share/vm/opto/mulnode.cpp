@@ -169,7 +169,6 @@ const Type *MulNode::Value( PhaseTransform *phase ) const {
   return mul_ring(t1,t2);            // Local flavor of type multiplication
 }
 
-
 //=============================================================================
 //------------------------------Ideal------------------------------------------
 // Check for power-of-2 multiply, then try the regular MulNode::Ideal
@@ -184,42 +183,43 @@ Node *MulINode::Ideal(PhaseGVN *phase, bool can_reshape) {
   }
 
   // Now we have a constant Node on the right and the constant in con
-  if( con == 0 ) return NULL;   // By zero is handled by Value call
-  if( con == 1 ) return NULL;   // By one  is handled by Identity call
+  if (con == 0) return NULL;   // By zero is handled by Value call
+  if (con == 1) return NULL;   // By one  is handled by Identity call
 
   // Check for negative constant; if so negate the final result
   bool sign_flip = false;
-  if( con < 0 ) {
-    con = -con;
+
+  unsigned int abs_con = uabs(con);
+  if (abs_con != (unsigned int)con) {
     sign_flip = true;
   }
 
   // Get low bit; check for being the only bit
   Node *res = NULL;
-  jint bit1 = con & -con;       // Extract low bit
-  if( bit1 == con ) {           // Found a power of 2?
-    res = new (phase->C) LShiftINode( in(1), phase->intcon(log2_intptr(bit1)) );
+  unsigned int bit1 = abs_con & (0-abs_con);       // Extract low bit
+  if (bit1 == abs_con) {           // Found a power of 2?
+    res = new (phase->C) LShiftINode(in(1), phase->intcon(log2_uint(bit1)));
   } else {
 
     // Check for constant with 2 bits set
-    jint bit2 = con-bit1;
-    bit2 = bit2 & -bit2;          // Extract 2nd bit
-    if( bit2 + bit1 == con ) {    // Found all bits in con?
-      Node *n1 = phase->transform( new (phase->C) LShiftINode( in(1), phase->intcon(log2_intptr(bit1)) ) );
-      Node *n2 = phase->transform( new (phase->C) LShiftINode( in(1), phase->intcon(log2_intptr(bit2)) ) );
-      res = new (phase->C) AddINode( n2, n1 );
+    unsigned int bit2 = abs_con-bit1;
+    bit2 = bit2 & (0-bit2);          // Extract 2nd bit
+    if (bit2 + bit1 == abs_con) {    // Found all bits in con?
+      Node *n1 = phase->transform( new (phase->C) LShiftINode(in(1), phase->intcon(log2_uint(bit1))));
+      Node *n2 = phase->transform( new (phase->C) LShiftINode(in(1), phase->intcon(log2_uint(bit2))));
+      res = new (phase->C) AddINode(n2, n1);
 
-    } else if (is_power_of_2(con+1)) {
+    } else if (is_power_of_2(abs_con+1)) {
       // Sleezy: power-of-2 -1.  Next time be generic.
-      jint temp = (jint) (con + 1);
-      Node *n1 = phase->transform( new (phase->C) LShiftINode( in(1), phase->intcon(log2_intptr(temp)) ) );
-      res = new (phase->C) SubINode( n1, in(1) );
+      unsigned int temp = abs_con + 1;
+      Node *n1 = phase->transform(new (phase->C) LShiftINode(in(1), phase->intcon(log2_uint(temp))));
+      res = new (phase->C) SubINode(n1, in(1));
     } else {
       return MulNode::Ideal(phase, can_reshape);
     }
   }
 
-  if( sign_flip ) {             // Need to negate result?
+  if (sign_flip) {             // Need to negate result?
     res = phase->transform(res);// Transform, before making the zero con
     res = new (phase->C) SubINode(phase->intcon(0),res);
   }
@@ -244,13 +244,13 @@ const Type *MulINode::mul_ring(const Type *t0, const Type *t1) const {
   double d = (double)hi1;
 
   // Compute all endpoints & check for overflow
-  int32 A = lo0*lo1;
+  int32 A = java_multiply(lo0, lo1);
   if( (double)A != a*c ) return TypeInt::INT; // Overflow?
-  int32 B = lo0*hi1;
+  int32 B = java_multiply(lo0, hi1);
   if( (double)B != a*d ) return TypeInt::INT; // Overflow?
-  int32 C = hi0*lo1;
+  int32 C = java_multiply(hi0, lo1);
   if( (double)C != b*c ) return TypeInt::INT; // Overflow?
-  int32 D = hi0*hi1;
+  int32 D = java_multiply(hi0, hi1);
   if( (double)D != b*d ) return TypeInt::INT; // Overflow?
 
   if( A < B ) { lo0 = A; hi0 = B; } // Sort range endpoints
@@ -280,42 +280,42 @@ Node *MulLNode::Ideal(PhaseGVN *phase, bool can_reshape) {
   }
 
   // Now we have a constant Node on the right and the constant in con
-  if( con == CONST64(0) ) return NULL;  // By zero is handled by Value call
-  if( con == CONST64(1) ) return NULL;  // By one  is handled by Identity call
+  if (con == CONST64(0)) return NULL;  // By zero is handled by Value call
+  if (con == CONST64(1)) return NULL;  // By one  is handled by Identity call
 
   // Check for negative constant; if so negate the final result
   bool sign_flip = false;
-  if( con < 0 ) {
-    con = -con;
+  julong abs_con = uabs(con);
+  if (abs_con != (julong)con) {
     sign_flip = true;
   }
 
   // Get low bit; check for being the only bit
   Node *res = NULL;
-  jlong bit1 = con & -con;      // Extract low bit
-  if( bit1 == con ) {           // Found a power of 2?
-    res = new (phase->C) LShiftLNode( in(1), phase->intcon(log2_long(bit1)) );
+  julong bit1 = abs_con & (0-abs_con);      // Extract low bit
+  if (bit1 == abs_con) {           // Found a power of 2?
+    res = new (phase->C) LShiftLNode(in(1), phase->intcon(log2_long(bit1)));
   } else {
 
     // Check for constant with 2 bits set
-    jlong bit2 = con-bit1;
-    bit2 = bit2 & -bit2;          // Extract 2nd bit
-    if( bit2 + bit1 == con ) {    // Found all bits in con?
-      Node *n1 = phase->transform( new (phase->C) LShiftLNode( in(1), phase->intcon(log2_long(bit1)) ) );
-      Node *n2 = phase->transform( new (phase->C) LShiftLNode( in(1), phase->intcon(log2_long(bit2)) ) );
-      res = new (phase->C) AddLNode( n2, n1 );
+    julong bit2 = abs_con-bit1;
+    bit2 = bit2 & (0-bit2);          // Extract 2nd bit
+    if (bit2 + bit1 == abs_con) {    // Found all bits in con?
+      Node *n1 = phase->transform(new (phase->C) LShiftLNode(in(1), phase->intcon(log2_long(bit1))));
+      Node *n2 = phase->transform(new (phase->C) LShiftLNode(in(1), phase->intcon(log2_long(bit2))));
+      res = new (phase->C) AddLNode(n2, n1);
 
-    } else if (is_power_of_2_long(con+1)) {
+    } else if (is_power_of_2_long(abs_con+1)) {
       // Sleezy: power-of-2 -1.  Next time be generic.
-      jlong temp = (jlong) (con + 1);
-      Node *n1 = phase->transform( new (phase->C) LShiftLNode( in(1), phase->intcon(log2_long(temp)) ) );
-      res = new (phase->C) SubLNode( n1, in(1) );
+      julong temp = abs_con + 1;
+      Node *n1 = phase->transform( new (phase->C) LShiftLNode(in(1), phase->intcon(log2_long(temp))));
+      res = new (phase->C) SubLNode(n1, in(1));
     } else {
       return MulNode::Ideal(phase, can_reshape);
     }
   }
 
-  if( sign_flip ) {             // Need to negate result?
+  if (sign_flip) {             // Need to negate result?
     res = phase->transform(res);// Transform, before making the zero con
     res = new (phase->C) SubLNode(phase->longcon(0),res);
   }
@@ -340,13 +340,13 @@ const Type *MulLNode::mul_ring(const Type *t0, const Type *t1) const {
   double d = (double)hi1;
 
   // Compute all endpoints & check for overflow
-  jlong A = lo0*lo1;
+  jlong A = java_multiply(lo0, lo1);
   if( (double)A != a*c ) return TypeLong::LONG; // Overflow?
-  jlong B = lo0*hi1;
+  jlong B = java_multiply(lo0, hi1);
   if( (double)B != a*d ) return TypeLong::LONG; // Overflow?
-  jlong C = hi0*lo1;
+  jlong C = java_multiply(hi0, lo1);
   if( (double)C != b*c ) return TypeLong::LONG; // Overflow?
-  jlong D = hi0*hi1;
+  jlong D = java_multiply(hi0, hi1);
   if( (double)D != b*d ) return TypeLong::LONG; // Overflow?
 
   if( A < B ) { lo0 = A; hi0 = B; } // Sort range endpoints
@@ -444,7 +444,7 @@ Node *AndINode::Identity( PhaseTransform *phase ) {
     // Masking off high bits which are always zero is useless.
     const TypeInt* t1 = phase->type( in(1) )->isa_int();
     if (t1 != NULL && t1->_lo >= 0) {
-      jint t1_support = right_n_bits(1 + log2_intptr(t1->_hi));
+      jint t1_support = right_n_bits(1 + log2_jint(t1->_hi));
       if ((t1_support & con) == t1_support)
         return in1;
     }
@@ -573,7 +573,8 @@ Node *AndLNode::Identity( PhaseTransform *phase ) {
     // Masking off high bits which are always zero is useless.
     const TypeLong* t1 = phase->type( in(1) )->isa_long();
     if (t1 != NULL && t1->_lo >= 0) {
-      jlong t1_support = ((jlong)1 << (1 + log2_long(t1->_hi))) - 1;
+      int bit_count = log2_long(t1->_hi) + 1;
+      jlong t1_support = jlong(max_julong >> (BitsPerJavaLong - bit_count));
       if ((t1_support & con) == t1_support)
         return usr;
     }
@@ -801,7 +802,7 @@ Node *LShiftLNode::Ideal(PhaseGVN *phase, bool can_reshape) {
 
   // Check for ((x & ((CONST64(1)<<(64-c0))-1)) << c0) which ANDs off high bits
   // before shifting them away.
-  const jlong bits_mask = ((jlong)CONST64(1) << (jlong)(BitsPerJavaLong - con)) - CONST64(1);
+  const jlong bits_mask = jlong(max_julong >> con);
   if( add1_op == Op_AndL &&
       phase->type(add1->in(2)) == TypeLong::make( bits_mask ) )
     return new (phase->C) LShiftLNode( add1->in(1), in(2) );
@@ -1253,7 +1254,7 @@ Node *URShiftLNode::Ideal(PhaseGVN *phase, bool can_reshape) {
   if ( con == 0 ) return NULL;  // let Identity() handle a 0 shift count
                               // note: mask computation below does not work for 0 shift count
   // We'll be wanting the right-shift amount as a mask of that many bits
-  const jlong mask = (((jlong)CONST64(1) << (jlong)(BitsPerJavaLong - con)) -1);
+  const jlong mask = jlong(max_julong >> con);
 
   // Check for ((x << z) + Y) >>> z.  Replace with x + con>>>z
   // The idiom for rounding to a power of 2 is "(Q+(2^z-1)) >>> z".
