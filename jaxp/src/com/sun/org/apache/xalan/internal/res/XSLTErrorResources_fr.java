@@ -1210,7 +1210,7 @@ public class XSLTErrorResources_fr extends ListResourceBundle
       "Le nom de fonction ne peut pas \u00EAtre NULL."},
 
     { ER_XPATH_RESOLVER_NEGATIVE_ARITY,
-      "Le nombre d'arguments ne peut pas \u00EAtre n\u00E9gatif."},
+      "L'arit\u00E9 ne peut pas \u00EAtre n\u00E9gative."},
   // Warnings...
 
     { WG_FOUND_CURLYBRACE,
