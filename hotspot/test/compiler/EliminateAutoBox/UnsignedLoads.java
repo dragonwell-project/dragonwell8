@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,35 +23,41 @@
  * questions.
  */
 
-package jdk.nashorn.internal.runtime.linker;
-
-import java.util.Objects;
-import jdk.internal.dynalink.beans.BeansLinker;
-
-/**
- * Represents a Dynalink dynamic method bound to a receiver. Note that objects of this class are just the tuples of
- * a method and a bound this, without any behavior. All the behavior is defined in the {@code BoundDynamicMethodLinker}.
+/*
+ * @test
+ * @library /testlibrary
+ * @run main/othervm -Xbatch -XX:+EliminateAutoBox
+ *                   -XX:CompileOnly=::valueOf,::byteValue,::shortValue,::testUnsignedByte,::testUnsignedShort
+ *                   UnsignedLoads
  */
-final class BoundDynamicMethod {
-    private final Object dynamicMethod;
-    private final Object boundThis;
+import static com.oracle.java.testlibrary.Asserts.assertEQ;
 
-    BoundDynamicMethod(final Object dynamicMethod, final Object boundThis) {
-        assert BeansLinker.isDynamicMethod(dynamicMethod);
-        this.dynamicMethod = dynamicMethod;
-        this.boundThis = boundThis;
+public class UnsignedLoads {
+    public static int testUnsignedByte() {
+        byte[] bytes = new byte[] {-1};
+        int res = 0;
+        for (int i = 0; i < 100000; i++) {
+            for (Byte b : bytes) {
+                res = b & 0xff;
+            }
+        }
+        return res;
     }
 
-    Object getDynamicMethod() {
-        return dynamicMethod;
+    public static int testUnsignedShort() {
+        int res = 0;
+        short[] shorts = new short[] {-1};
+        for (int i = 0; i < 100000; i++) {
+            for (Short s : shorts) {
+                res = s & 0xffff;
+            }
+        }
+        return res;
     }
 
-    Object getBoundThis() {
-        return boundThis;
-    }
-
-    @Override
-    public String toString() {
-        return dynamicMethod.toString() + " on " + Objects.toString(boundThis);
+    public static void main(String[] args) {
+        assertEQ(testUnsignedByte(),    255);
+        assertEQ(testUnsignedShort(), 65535);
+        System.out.println("TEST PASSED");
     }
 }

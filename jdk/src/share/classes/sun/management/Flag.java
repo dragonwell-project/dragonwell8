@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2012, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,6 +28,7 @@ package sun.management;
 import java.util.*;
 import com.sun.management.VMOption;
 import com.sun.management.VMOption.Origin;
+import java.security.AccessController;
 
 /**
  * Flag class is a helper class for constructing a VMOption.
@@ -114,6 +115,13 @@ class Flag {
     static synchronized native void setStringValue(String name, String value);
 
     static {
+        AccessController.doPrivileged(
+            new java.security.PrivilegedAction<Void>() {
+                public Void run() {
+                    System.loadLibrary("management");
+                    return null;
+                }
+            });
         initialize();
     }
     private static native void initialize();
