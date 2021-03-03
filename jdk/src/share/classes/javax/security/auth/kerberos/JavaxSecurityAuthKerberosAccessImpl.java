@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,13 +26,17 @@
 package javax.security.auth.kerberos;
 
 import sun.security.krb5.JavaxSecurityAuthKerberosAccess;
-import sun.security.krb5.EncryptionKey;
-import sun.security.krb5.PrincipalName;
 
 class JavaxSecurityAuthKerberosAccessImpl
         implements JavaxSecurityAuthKerberosAccess {
     public sun.security.krb5.internal.ktab.KeyTab keyTabTakeSnapshot(
             KeyTab ktab) {
         return ktab.takeSnapshot();
+    }
+    public KerberosTicket kerberosTicketGetProxy(KerberosTicket t) {
+        return t.proxy;
+    }
+    public void kerberosTicketSetProxy(KerberosTicket t, KerberosTicket p) {
+        t.proxy = p;
     }
 }
