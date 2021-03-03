@@ -556,8 +556,7 @@ char* SysClassPath::add_jars_to_path(char* path, const char* directory) {
 
   /* Scan the directory for jars/zips, appending them to path. */
   struct dirent *entry;
-  char *dbuf = NEW_C_HEAP_ARRAY(char, os::readdir_buf_size(directory), mtInternal);
-  while ((entry = os::readdir(dir, (dirent *) dbuf)) != NULL) {
+  while ((entry = os::readdir(dir)) != NULL) {
     const char* name = entry->d_name;
     const char* ext = name + strlen(name) - 4;
     bool isJarOrZip = ext > name &&
@@ -571,7 +570,6 @@ char* SysClassPath::add_jars_to_path(char* path, const char* directory) {
       FREE_C_HEAP_ARRAY(char, jarpath, mtInternal);
     }
   }
-  FREE_C_HEAP_ARRAY(char, dbuf, mtInternal);
   os::closedir(dir);
   return path;
 }
@@ -3485,14 +3483,12 @@ static bool has_jar_files(const char* directory) {
   if (dir == NULL) return false;
 
   struct dirent *entry;
-  char *dbuf = NEW_C_HEAP_ARRAY(char, os::readdir_buf_size(directory), mtInternal);
   bool hasJarFile = false;
-  while (!hasJarFile && (entry = os::readdir(dir, (dirent *) dbuf)) != NULL) {
+  while (!hasJarFile && (entry = os::readdir(dir)) != NULL) {
     const char* name = entry->d_name;
     const char* ext = name + strlen(name) - 4;
     hasJarFile = ext > name && (os::file_name_strcmp(ext, ".jar") == 0);
   }
-  FREE_C_HEAP_ARRAY(char, dbuf, mtInternal);
   os::closedir(dir);
   return hasJarFile ;
 }
@@ -3574,8 +3570,7 @@ static bool check_endorsed_and_ext_dirs() {
   if (dir != NULL) {
     int num_ext_jars = 0;
     struct dirent *entry;
-    char *dbuf = NEW_C_HEAP_ARRAY(char, os::readdir_buf_size(extDir), mtInternal);
-    while ((entry = os::readdir(dir, (dirent *) dbuf)) != NULL) {
+    while ((entry = os::readdir(dir)) != NULL) {
       const char* name = entry->d_name;
       const char* ext = name + strlen(name) - 4;
       if (ext > name && (os::file_name_strcmp(ext, ".jar") == 0)) {
@@ -3594,7 +3589,6 @@ static bool check_endorsed_and_ext_dirs() {
         }
       }
     }
-    FREE_C_HEAP_ARRAY(char, dbuf, mtInternal);
     os::closedir(dir);
     if (num_ext_jars > 0) {
       nonEmptyDirs += 1;
