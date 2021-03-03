@@ -205,8 +205,6 @@ public abstract class SunToolkit extends Toolkit
 
     public abstract boolean isTraySupported();
 
-    public abstract DataTransferer getDataTransferer();
-
     @SuppressWarnings("deprecation")
     public abstract FontPeer getFontPeer(String name, int style);
 
@@ -2053,6 +2051,19 @@ public abstract class SunToolkit extends Toolkit
             }
         }
         return isInstanceOf(cls.getSuperclass(), type);
+    }
+
+    protected static LightweightFrame getLightweightFrame(Component c) {
+        for (; c != null; c = c.getParent()) {
+            if (c instanceof LightweightFrame) {
+                return (LightweightFrame)c;
+            }
+            if (c instanceof Window) {
+                // Don't traverse owner windows
+                return null;
+            }
+        }
+        return null;
     }
 
     ///////////////////////////////////////////////////////////////////////////
