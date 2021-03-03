@@ -139,7 +139,7 @@ void SimpleThresholdPolicy::initialize() {
   }
   int count = CICompilerCount;
   if (CICompilerCountPerCPU) {
-    count = MAX2(log2_intptr(os::active_processor_count()), 1) * 3 / 2;
+    count = MAX2(log2_int(os::active_processor_count()), 1) * 3 / 2;
   }
   set_c1_count(MAX2(count / 3, 1));
   set_c2_count(MAX2(count - c1_count(), 1));
