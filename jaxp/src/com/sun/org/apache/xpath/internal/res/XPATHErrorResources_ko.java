@@ -867,7 +867,7 @@ public static final String ER_IGNORABLE_WHITESPACE_NOT_HANDLED =
   { "help_language", "ko"},
   { "language", "ko"},
   { "BAD_CODE", "createMessage\uC5D0 \uB300\uD55C \uB9E4\uAC1C\uBCC0\uC218\uAC00 \uBC94\uC704\uB97C \uBC97\uC5B4\uB0AC\uC2B5\uB2C8\uB2E4."},
-  { "FORMAT_FAILED", "messageFormat \uD638\uCD9C \uC911 \uC608\uC678 \uC0AC\uD56D\uC774 \uBC1C\uC0DD\uD588\uC2B5\uB2C8\uB2E4."},
+  { "FORMAT_FAILED", "messageFormat \uD638\uCD9C \uC911 \uC608\uC678\uC0AC\uD56D\uC774 \uBC1C\uC0DD\uD588\uC2B5\uB2C8\uB2E4."},
   { "version", ">>>>>>> Xalan \uBC84\uC804 "},
   { "version2", "<<<<<<<"},
   { "yes", "\uC608"},
