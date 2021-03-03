@@ -33,6 +33,7 @@
 #include "classfile/vmSymbols.hpp"
 #include "interpreter/linkResolver.hpp"
 #include "utilities/macros.hpp"
+#include "utilities/ostream.hpp"
 #if INCLUDE_ALL_GCS
 #include "gc_implementation/g1/g1SATBCardTableModRefBS.hpp"
 #endif // INCLUDE_ALL_GCS
@@ -5127,6 +5128,7 @@ void execute_internal_vm_tests() {
     run_unit_test(GuardedMemory::test_guarded_memory());
     run_unit_test(AltHashing::test_alt_hash());
     run_unit_test(test_loggc_filename());
+    run_unit_test(test_snprintf());
     run_unit_test(TestNewSize_test());
     run_unit_test(TestKlass_test());
     run_unit_test(Test_linked_list());

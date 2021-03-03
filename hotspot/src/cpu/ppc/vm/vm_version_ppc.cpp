@@ -102,7 +102,7 @@ void VM_Version::initialize() {
   // Create and print feature-string.
   char buf[(num_features+1) * 16]; // Max 16 chars per feature.
   jio_snprintf(buf, sizeof(buf),
-               "ppc64%s%s%s%s%s%s%s%s%s",
+               "ppc64%s%s%s%s%s%s%s%s%s%s",
                (has_fsqrt()   ? " fsqrt"   : ""),
                (has_isel()    ? " isel"    : ""),
                (has_lxarxeh() ? " lxarxeh" : ""),
@@ -112,7 +112,8 @@ void VM_Version::initialize() {
                (has_popcntw() ? " popcntw" : ""),
                (has_fcfids()  ? " fcfids"  : ""),
                (has_vand()    ? " vand"    : ""),
-               (has_vcipher() ? " aes"     : "")
+               (has_vcipher() ? " aes"     : ""),
+               (has_vpmsumb() ? " vpmsumb" : "")
                // Make sure number of %s matches num_features!
               );
   _features_str = strdup(buf);
@@ -150,10 +151,12 @@ void VM_Version::initialize() {
 
   assert(AllocatePrefetchStyle >= 0, "AllocatePrefetchStyle should be positive");
 
-  if (UseCRC32Intrinsics) {
-    if (!FLAG_IS_DEFAULT(UseCRC32Intrinsics))
-      warning("CRC32 intrinsics  are not available on this CPU");
-    FLAG_SET_DEFAULT(UseCRC32Intrinsics, false);
+  // Implementation does not use any of the vector instructions
+  // available with Power8. Their exploitation is still pending.
+  if (!UseCRC32Intrinsics) {
+    if (FLAG_IS_DEFAULT(UseCRC32Intrinsics)) {
+      FLAG_SET_DEFAULT(UseCRC32Intrinsics, true);
+    }
   }
 
   // The AES intrinsic stubs require AES instruction support.
@@ -483,6 +486,7 @@ void VM_Version::determine_features() {
   a->fcfids(F3, F4);                           // code[8] -> fcfids
   a->vand(VR0, VR0, VR0);                      // code[9] -> vand
   a->vcipher(VR0, VR1, VR2);                   // code[10] -> vcipher
+  a->vpmsumb(VR0, VR1, VR2);                   // code[11] -> vpmsumb
   a->blr();
 
   // Emit function to set one cache line to zero. Emit function descriptor and get pointer to it.
@@ -527,6 +531,7 @@ void VM_Version::determine_features() {
   if (code[feature_cntr++]) features |= fcfids_m;
   if (code[feature_cntr++]) features |= vand_m;
   if (code[feature_cntr++]) features |= vcipher_m;
+  if (code[feature_cntr++]) features |= vpmsumb_m;
 
   // Print the detection code.
   if (PrintAssembly) {
