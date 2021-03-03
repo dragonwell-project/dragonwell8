@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -31,10 +31,9 @@
 
 package com.sun.corba.se.impl.ior;
 
-import java.io.ObjectInputStream ;
-import java.io.ObjectOutputStream ;
-import java.io.IOException ;
-import java.io.StringWriter ;
+import java.io.IOException;
+import java.io.ObjectOutputStream;
+import sun.corba.SharedSecrets;
 
 import org.omg.CORBA.ORB ;
 
@@ -125,14 +124,20 @@ public class StubIORImpl
     {
         // read the IOR from the ObjectInputStream
         int typeLength = stream.readInt();
+        SharedSecrets.getJavaOISAccess().checkArray(stream, byte[].class, typeLength);
         typeData = new byte[typeLength];
         stream.readFully(typeData);
+
         int numProfiles = stream.readInt();
+        SharedSecrets.getJavaOISAccess().checkArray(stream, int[].class, numProfiles);
+        SharedSecrets.getJavaOISAccess().checkArray(stream, byte[].class, numProfiles);
         profileTags = new int[numProfiles];
         profileData = new byte[numProfiles][];
         for (int i = 0; i < numProfiles; i++) {
             profileTags[i] = stream.readInt();
-            profileData[i] = new byte[stream.readInt()];
+            int dataSize = stream.readInt();
+            SharedSecrets.getJavaOISAccess().checkArray(stream, byte[].class, dataSize);
+            profileData[i] = new byte[dataSize];
             stream.readFully(profileData[i]);
         }
     }

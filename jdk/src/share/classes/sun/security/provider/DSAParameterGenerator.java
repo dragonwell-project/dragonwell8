@@ -68,7 +68,6 @@ public class DSAParameterGenerator extends AlgorithmParameterGeneratorSpi {
     private SecureRandom random;
 
     // useful constants
-    private static final BigInteger ONE = BigInteger.valueOf(1);
     private static final BigInteger TWO = BigInteger.valueOf(2);
 
     public DSAParameterGenerator() {
@@ -83,16 +82,11 @@ public class DSAParameterGenerator extends AlgorithmParameterGeneratorSpi {
      */
     @Override
     protected void engineInit(int strength, SecureRandom random) {
-        if ((strength >= 512) && (strength <= 1024) && (strength % 64 == 0)) {
-            this.valueN = 160;
-        } else if (strength == 2048) {
-            this.valueN = 224;
-        } else if (strength == 3072) {
-            this.valueN = 256;
-        } else {
+        if ((strength != 2048) && (strength != 3072) &&
+            ((strength < 512) || (strength > 1024) || (strength % 64 != 0))) {
             throw new InvalidParameterException(
-                "Unexpected strength (size of prime): " + strength + ". " +
-                "Prime size should be 512 - 1024, or 2048, 3072");
+                "Unexpected strength (size of prime): " + strength +
+                ". Prime size should be 512-1024, 2048, or 3072");
         }
         this.valueL = strength;
         this.valueN = getDefDSASubprimeSize(strength);
@@ -205,7 +199,7 @@ public class DSAParameterGenerator extends AlgorithmParameterGeneratorSpi {
         int b = (valueL - 1) % outLen;
         byte[] seedBytes = new byte[seedLen/8];
         BigInteger twoSl = TWO.pow(seedLen);
-        int primeCertainty = 80; // for 1024-bit prime P
+        int primeCertainty = -1;
         if (valueL <= 1024) {
             primeCertainty = 80;
         } else if (valueL == 2048) {
@@ -213,7 +207,6 @@ public class DSAParameterGenerator extends AlgorithmParameterGeneratorSpi {
         } else if (valueL == 3072) {
             primeCertainty = 128;
         }
-
         if (primeCertainty < 0) {
             throw new ProviderException("Invalid valueL: " + valueL);
         }
@@ -232,12 +225,12 @@ public class DSAParameterGenerator extends AlgorithmParameterGeneratorSpi {
                 /* Step 7 */
                 resultQ = TWO.pow(valueN - 1)
                             .add(U)
-                            .add(ONE)
+                            .add(BigInteger.ONE)
                             .subtract(U.mod(TWO));
             } while (!resultQ.isProbablePrime(primeCertainty));
 
             /* Step 10 */
-            BigInteger offset = ONE;
+            BigInteger offset = BigInteger.ONE;
             /* Step 11 */
             for (counter = 0; counter < 4*valueL; counter++) {
                 BigInteger V[] = new BigInteger[n + 1];
@@ -260,7 +253,7 @@ public class DSAParameterGenerator extends AlgorithmParameterGeneratorSpi {
                 BigInteger X = W.add(twoLm1);
                 /* Step 11.4, 11.5 */
                 BigInteger c = X.mod(resultQ.multiply(TWO));
-                resultP = X.subtract(c.subtract(ONE));
+                resultP = X.subtract(c.subtract(BigInteger.ONE));
                 /* Step 11.6, 11.7 */
                 if (resultP.compareTo(twoLm1) > -1
                     && resultP.isProbablePrime(primeCertainty)) {
@@ -270,7 +263,7 @@ public class DSAParameterGenerator extends AlgorithmParameterGeneratorSpi {
                     return result;
                 }
                 /* Step 11.9 */
-                offset = offset.add(BigInteger.valueOf(n)).add(ONE);
+                offset = offset.add(BigInteger.valueOf(n)).add(BigInteger.ONE);
              }
         }
 
@@ -285,14 +278,14 @@ public class DSAParameterGenerator extends AlgorithmParameterGeneratorSpi {
      * @param the <code>g</code>
      */
     private static BigInteger generateG(BigInteger p, BigInteger q) {
-        BigInteger h = ONE;
+        BigInteger h = BigInteger.ONE;
         /* Step 1 */
-        BigInteger pMinusOneOverQ = (p.subtract(ONE)).divide(q);
-        BigInteger resultG = ONE;
+        BigInteger pMinusOneOverQ = (p.subtract(BigInteger.ONE)).divide(q);
+        BigInteger resultG = BigInteger.ONE;
         while (resultG.compareTo(TWO) < 0) {
             /* Step 3 */
             resultG = h.modPow(pMinusOneOverQ, p);
-            h = h.add(ONE);
+            h = h.add(BigInteger.ONE);
         }
         return resultG;
     }
