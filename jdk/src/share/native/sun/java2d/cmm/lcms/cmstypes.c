@@ -1484,6 +1484,7 @@ void *Type_MLU_Read(struct _cms_typehandler_struct* self, cmsIOHANDLER* io, cmsU
 
         // Check for overflow
         if (Offset < (SizeOfHeader + 8)) goto Error;
+        if (((Offset + Len) < Len) || ((Offset + Len) > SizeOfTag + 8)) goto Error;
 
         // True begin of the string
         BeginOfThisString = Offset - SizeOfHeader - 8;
@@ -4305,7 +4306,10 @@ void *Type_MPEclut_Read(struct _cms_typehandler_struct* self, cmsIOHANDLER* io, 
 
     // Copy MAX_INPUT_DIMENSIONS at most. Expand to cmsUInt32Number
     nMaxGrids = InputChans > MAX_INPUT_DIMENSIONS ? MAX_INPUT_DIMENSIONS : InputChans;
-    for (i=0; i < nMaxGrids; i++) GridPoints[i] = (cmsUInt32Number) Dimensions8[i];
+    for (i=0; i < nMaxGrids; i++) {
+        if (Dimensions8[i] == 1) goto Error; // Impossible value, 0 for no CLUT and then 2 at least
+        GridPoints[i] = (cmsUInt32Number)Dimensions8[i];
+    }
 
     // Allocate the true CLUT
     mpe = cmsStageAllocCLutFloatGranular(self ->ContextID, GridPoints, InputChans, OutputChans, NULL);
@@ -4449,17 +4453,18 @@ void *Type_MPE_Read(struct _cms_typehandler_struct* self, cmsIOHANDLER* io, cmsU
     NewLUT = cmsPipelineAlloc(self ->ContextID, InputChans, OutputChans);
     if (NewLUT == NULL) return NULL;
 
-    if (!_cmsReadUInt32Number(io, &ElementCount)) return NULL;
-
-    if (!ReadPositionTable(self, io, ElementCount, BaseOffset, NewLUT, ReadMPEElem)) {
-        if (NewLUT != NULL) cmsPipelineFree(NewLUT);
-        *nItems = 0;
-        return NULL;
-    }
+    if (!_cmsReadUInt32Number(io, &ElementCount)) goto Error;
+    if (!ReadPositionTable(self, io, ElementCount, BaseOffset, NewLUT, ReadMPEElem)) goto Error;
 
     // Success
     *nItems = 1;
     return NewLUT;
+
+    // Error
+Error:
+    if (NewLUT != NULL) cmsPipelineFree(NewLUT);
+    *nItems = 0;
+    return NULL;
 
     cmsUNUSED_PARAMETER(SizeOfTag);
 }
