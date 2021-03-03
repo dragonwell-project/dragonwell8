@@ -27,6 +27,7 @@
  * @summary InetAddress.getByName behaves differently on windows
  */
 import java.net.*;
+import java.util.UUID;
 
 public class IPv4Formats {
     public static void main(String[] args) {
@@ -36,7 +37,7 @@ public class IPv4Formats {
             {"126.1", "126.0.0.1"},
             {"128.50.65534", "128.50.255.254"},
             {"192.168.1.2", "192.168.1.2"},
-            {"hello.foo.bar", null},
+            {"invalidhost.invalid", null},
             {"1024.1.2.3", null},
             {"128.14.66000", null }
         };
