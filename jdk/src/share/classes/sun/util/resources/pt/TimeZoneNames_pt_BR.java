@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2014, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -570,6 +570,9 @@ public final class TimeZoneNames_pt_BR extends TimeZoneNamesBundle {
             {"Antarctica/Syowa", new String[] {"Fuso hor\u00e1rio de Syowa", "SYOT",
                                                "Fuso hor\u00e1rio de ver\u00e3o de Syowa", "SYOST",
                                                "Hor\u00E1rio de Syowa", "SYOT"}},
+            {"Antarctica/Troll", new String[] {"Tempo universal coordenado", "UTC",
+                                               "Fuso hor\u00e1rio de ver\u00e3o da Europa Central", "CEST",
+                                               "Troll Time", "ATT"}},
             {"Antarctica/Vostok", new String[] {"Fuso hor\u00e1rio de Vostok", "VOST",
                                                 "Fuso hor\u00e1rio de ver\u00e3o de Vostok", "VOSST",
                                                 "Hor\u00E1rio de Vostok", "VOST"}},
@@ -578,7 +581,7 @@ public final class TimeZoneNames_pt_BR extends TimeZoneNamesBundle {
             {"Asia/Almaty", new String[] {"Fuso hor\u00e1rio de Alma-Ata", "ALMT",
                                           "Fuso hor\u00e1rio de ver\u00e3o de Alma-Ata", "ALMST",
                                           "Hor\u00E1rio de Alma-Ata", "ALMT"}},
-            {"Asia/Amman", ARAST},
+            {"Asia/Amman", EET},
             {"Asia/Anadyr", new String[] {"Fuso hor\u00e1rio de Anadyr", "ANAT",
                                           "Fuso hor\u00e1rio de ver\u00e3o de Anadyr", "ANAST",
                                           "Hor\u00E1rio de Anadyr", "ANAT"}},
@@ -838,7 +841,7 @@ public final class TimeZoneNames_pt_BR extends TimeZoneNamesBundle {
                                             "Hor\u00E1rio de Samara", "SAMT"}},
             {"Europe/San_Marino", CET},
             {"Europe/Sarajevo", CET},
-            {"Europe/Simferopol", EET},
+            {"Europe/Simferopol", MSK},
             {"Europe/Skopje", CET},
             {"Europe/Sofia", EET},
             {"Europe/Stockholm", CET},
