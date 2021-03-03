@@ -90,9 +90,6 @@ public class Main {
 
     private static final String META_INF = "META-INF/";
 
-    // prefix for new signature-related files in META-INF directory
-    private static final String SIG_PREFIX = META_INF + "SIG-";
-
     private static final Class<?>[] PARAM_STRING = { String.class };
 
     private static final String NONE = "NONE";
@@ -158,8 +155,13 @@ public class Main {
     private String altSignerClasspath = null;
     private ZipFile zipFile = null;
 
-    private boolean hasExpiredCert = false;
+    // Informational warnings
     private boolean hasExpiringCert = false;
+    private boolean noTimestamp = false;
+    private Date expireDate = new Date(0L);     // used in noTimestamp warning
+
+    // Severe warnings
+    private boolean hasExpiredCert = false;
     private boolean notYetValidCert = false;
     private boolean chainNotValidated = false;
     private boolean notSignedByAlias = false;
@@ -258,9 +260,6 @@ public class Main {
 
         if (strict) {
             int exitCode = 0;
-            if (hasExpiringCert) {
-                exitCode |= 2;
-            }
             if (chainNotValidated || hasExpiredCert || notYetValidCert) {
                 exitCode |= 4;
             }
@@ -754,14 +753,25 @@ public class Main {
                 System.out.println(rb.getString(
                       "jar.is.unsigned.signatures.missing.or.not.parsable."));
             } else {
-                System.out.println(rb.getString("jar.verified."));
-                if (hasUnsignedEntry || hasExpiredCert || hasExpiringCert ||
-                    badKeyUsage || badExtendedKeyUsage || badNetscapeCertType ||
-                    notYetValidCert || chainNotValidated ||
-                    aliasNotInStore || notSignedByAlias) {
+                boolean warningAppeared = false;
+                boolean errorAppeared = false;
+                if (badKeyUsage || badExtendedKeyUsage || badNetscapeCertType ||
+                        notYetValidCert || chainNotValidated || hasExpiredCert ||
+                        hasUnsignedEntry ||
+                        aliasNotInStore || notSignedByAlias) {
 
-                    System.out.println();
-                    System.out.println(rb.getString("Warning."));
+                    if (strict) {
+                        System.out.println(rb.getString("jar.verified.with.signer.errors."));
+                        System.out.println();
+                        System.out.println(rb.getString("Error."));
+                        errorAppeared = true;
+                    } else {
+                        System.out.println(rb.getString("jar.verified."));
+                        System.out.println();
+                        System.out.println(rb.getString("Warning."));
+                        warningAppeared = true;
+                    }
+
                     if (badKeyUsage) {
                         System.out.println(
                             rb.getString("This.jar.contains.entries.whose.signer.certificate.s.KeyUsage.extension.doesn.t.allow.code.signing."));
@@ -785,10 +795,6 @@ public class Main {
                         System.out.println(rb.getString(
                             "This.jar.contains.entries.whose.signer.certificate.has.expired."));
                     }
-                    if (hasExpiringCert) {
-                        System.out.println(rb.getString(
-                            "This.jar.contains.entries.whose.signer.certificate.will.expire.within.six.months."));
-                    }
                     if (notYetValidCert) {
                         System.out.println(rb.getString(
                             "This.jar.contains.entries.whose.signer.certificate.is.not.yet.valid."));
@@ -807,10 +813,29 @@ public class Main {
                     if (aliasNotInStore) {
                         System.out.println(rb.getString("This.jar.contains.signed.entries.that.s.not.signed.by.alias.in.this.keystore."));
                     }
+                } else {
+                    System.out.println(rb.getString("jar.verified."));
+                }
+                if (hasExpiringCert || noTimestamp) {
+                    if (!warningAppeared) {
+                        System.out.println();
+                        System.out.println(rb.getString("Warning."));
+                        warningAppeared = true;
+                    }
+                    if (hasExpiringCert) {
+                        System.out.println(rb.getString(
+                                "This.jar.contains.entries.whose.signer.certificate.will.expire.within.six.months."));
+                    }
+                    if (noTimestamp) {
+                        System.out.println(
+                                String.format(rb.getString("no.timestamp.verifying"), expireDate));
+                    }
+                }
+                if (warningAppeared || errorAppeared) {
                     if (! (verbose != null && showcerts)) {
                         System.out.println();
                         System.out.println(rb.getString(
-                            "Re.run.with.the.verbose.and.certs.options.for.more.details."));
+                                "Re.run.with.the.verbose.and.certs.options.for.more.details."));
                     }
                 }
             }
@@ -870,6 +895,9 @@ public class Main {
             try {
                 boolean printValidity = true;
                 if (timestamp == null) {
+                    if (expireDate.getTime() == 0 || expireDate.after(notAfter)) {
+                        expireDate = notAfter;
+                    }
                     x509Cert.checkValidity();
                     // test if cert will expire within six months
                     if (notAfter.getTime() < System.currentTimeMillis() + SIX_MONTHS) {
@@ -1233,6 +1261,10 @@ public class Main {
                 tsaCert = getTsaCert(tsaAlias);
             }
 
+            if (tsaUrl == null && tsaCert == null) {
+                noTimestamp = true;
+            }
+
             SignatureFile.Block block = null;
 
             try {
@@ -1380,12 +1412,20 @@ public class Main {
                 }
             }
 
-            if (hasExpiredCert || hasExpiringCert || notYetValidCert
-                    || badKeyUsage || badExtendedKeyUsage
-                    || badNetscapeCertType || chainNotValidated) {
-                System.out.println();
+            boolean warningAppeared = false;
+            if (badKeyUsage || badExtendedKeyUsage || badNetscapeCertType ||
+                    notYetValidCert || chainNotValidated || hasExpiredCert) {
+                if (strict) {
+                    System.out.println(rb.getString("jar.signed.with.signer.errors."));
+                    System.out.println();
+                    System.out.println(rb.getString("Error."));
+                } else {
+                    System.out.println(rb.getString("jar.signed."));
+                    System.out.println();
+                    System.out.println(rb.getString("Warning."));
+                    warningAppeared = true;
+                }
 
-                System.out.println(rb.getString("Warning."));
                 if (badKeyUsage) {
                     System.out.println(
                         rb.getString("The.signer.certificate.s.KeyUsage.extension.doesn.t.allow.code.signing."));
@@ -1404,9 +1444,6 @@ public class Main {
                 if (hasExpiredCert) {
                     System.out.println(
                         rb.getString("The.signer.certificate.has.expired."));
-                } else if (hasExpiringCert) {
-                    System.out.println(
-                        rb.getString("The.signer.certificate.will.expire.within.six.months."));
                 } else if (notYetValidCert) {
                     System.out.println(
                         rb.getString("The.signer.certificate.is.not.yet.valid."));
@@ -1415,6 +1452,24 @@ public class Main {
                 if (chainNotValidated) {
                     System.out.println(
                             rb.getString("The.signer.s.certificate.chain.is.not.validated."));
+                }
+            } else {
+                System.out.println(rb.getString("jar.signed."));
+            }
+            if (hasExpiringCert || noTimestamp) {
+                if (!warningAppeared) {
+                    System.out.println();
+                    System.out.println(rb.getString("Warning."));
+                }
+
+                if (hasExpiringCert) {
+                    System.out.println(
+                            rb.getString("The.signer.certificate.will.expire.within.six.months."));
+                }
+
+                if (noTimestamp) {
+                    System.out.println(
+                            String.format(rb.getString("no.timestamp.signing"), expireDate));
                 }
             }
 
@@ -1464,22 +1519,7 @@ public class Main {
      * . META-INF/*.EC
      */
     private boolean signatureRelated(String name) {
-        String ucName = name.toUpperCase(Locale.ENGLISH);
-        if (ucName.equals(JarFile.MANIFEST_NAME) ||
-            ucName.equals(META_INF) ||
-            (ucName.startsWith(SIG_PREFIX) &&
-                ucName.indexOf("/") == ucName.lastIndexOf("/"))) {
-            return true;
-        }
-
-        if (ucName.startsWith(META_INF) &&
-            SignatureFileVerifier.isBlockOrSF(ucName)) {
-            // .SF/.DSA/.RSA/.EC files in META-INF subdirs
-            // are not considered signature-related
-            return (ucName.indexOf("/") == ucName.lastIndexOf("/"));
-        }
-
-        return false;
+        return SignatureFileVerifier.isSigningRelated(name);
     }
 
     Map<CodeSigner,String> cacheForSignerInfo = new IdentityHashMap<>();
@@ -1502,6 +1542,7 @@ public class Main {
             timestamp = ts.getTimestamp();
         } else {
             timestamp = null;
+            noTimestamp = true;
         }
         // display the certificate(s). The first one is end-entity cert and
         // its KeyUsage should be checked.
