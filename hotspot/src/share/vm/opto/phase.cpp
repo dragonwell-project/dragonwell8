@@ -74,6 +74,7 @@ elapsedTimer   Phase::_t_buildIFGphysical;
 elapsedTimer   Phase::_t_computeLive;
 elapsedTimer   Phase::_t_regAllocSplit;
 elapsedTimer   Phase::_t_postAllocCopyRemoval;
+elapsedTimer   Phase::_t_mergeMultidefs;
 elapsedTimer   Phase::_t_fixupSpills;
 
 // Subtimers for _t_output
@@ -136,11 +137,12 @@ void Phase::print_timers() {
     tty->print_cr ("      computeLive    : %3.3f sec", Phase::_t_computeLive.seconds());
     tty->print_cr ("      regAllocSplit  : %3.3f sec", Phase::_t_regAllocSplit.seconds());
     tty->print_cr ("      postAllocCopyRemoval: %3.3f sec", Phase::_t_postAllocCopyRemoval.seconds());
+    tty->print_cr ("      mergeMultidefs: %3.3f sec", Phase::_t_mergeMultidefs.seconds());
     tty->print_cr ("      fixupSpills    : %3.3f sec", Phase::_t_fixupSpills.seconds());
     double regalloc_subtotal = Phase::_t_ctorChaitin.seconds() +
       Phase::_t_buildIFGphysical.seconds() + Phase::_t_computeLive.seconds() +
       Phase::_t_regAllocSplit.seconds()    + Phase::_t_fixupSpills.seconds() +
-      Phase::_t_postAllocCopyRemoval.seconds();
+      Phase::_t_postAllocCopyRemoval.seconds() + Phase::_t_mergeMultidefs.seconds();
     double percent_of_regalloc = ((regalloc_subtotal == 0.0) ? 0.0 : (regalloc_subtotal / Phase::_t_registerAllocation.seconds() * 100.0));
     tty->print_cr ("      subtotal       : %3.3f sec,  %3.2f %%", regalloc_subtotal, percent_of_regalloc);
   }
