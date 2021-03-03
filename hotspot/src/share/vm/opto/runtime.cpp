@@ -1003,12 +1003,20 @@ const TypeFunc* OptoRuntime::montgomeryMultiply_Type() {
   // create input type (domain)
   int num_args      = 7;
   int argcnt = num_args;
+  if (CCallingConventionRequiresIntsAsLongs) {
+    argcnt++;                           // additional placeholder
+  }
   const Type** fields = TypeTuple::fields(argcnt);
   int argp = TypeFunc::Parms;
   fields[argp++] = TypePtr::NOTNULL;    // a
   fields[argp++] = TypePtr::NOTNULL;    // b
   fields[argp++] = TypePtr::NOTNULL;    // n
-  fields[argp++] = TypeInt::INT;        // len
+  if (CCallingConventionRequiresIntsAsLongs) {
+    fields[argp++] = TypeLong::LONG;    // len
+    fields[argp++] = TypeLong::HALF;    // placeholder
+  } else {
+    fields[argp++] = TypeInt::INT;      // len
+  }
   fields[argp++] = TypeLong::LONG;      // inv
   fields[argp++] = Type::HALF;
   fields[argp++] = TypePtr::NOTNULL;    // result
@@ -1027,11 +1035,19 @@ const TypeFunc* OptoRuntime::montgomerySquare_Type() {
   // create input type (domain)
   int num_args      = 6;
   int argcnt = num_args;
+  if (CCallingConventionRequiresIntsAsLongs) {
+    argcnt++;                           // additional placeholder
+  }
   const Type** fields = TypeTuple::fields(argcnt);
   int argp = TypeFunc::Parms;
   fields[argp++] = TypePtr::NOTNULL;    // a
   fields[argp++] = TypePtr::NOTNULL;    // n
-  fields[argp++] = TypeInt::INT;        // len
+  if (CCallingConventionRequiresIntsAsLongs) {
+    fields[argp++] = TypeLong::LONG;    // len
+    fields[argp++] = TypeLong::HALF;    // placeholder
+  } else {
+    fields[argp++] = TypeInt::INT;      // len
+  }
   fields[argp++] = TypeLong::LONG;      // inv
   fields[argp++] = Type::HALF;
   fields[argp++] = TypePtr::NOTNULL;    // result
