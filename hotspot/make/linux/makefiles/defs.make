@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2006, 2013, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2015, Oracle and/or its affiliates. All rights reserved.
 # DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 #
 # This code is free software; you can redistribute it and/or modify it
@@ -107,22 +107,6 @@ ifneq (,$(findstring $(ARCH), i686 i586))
   PLATFORM         = linux-i586
   VM_PLATFORM      = linux_i486
   HS_ARCH          = x86
-endif
-
-# ARM
-ifeq ($(ARCH), arm)
-  ARCH_DATA_MODEL  = 32
-  PLATFORM         = linux-arm
-  VM_PLATFORM      = linux_arm
-  HS_ARCH          = arm
-endif
-
-# PPC
-ifeq ($(ARCH), ppc)
-  ARCH_DATA_MODEL  = 32
-  PLATFORM         = linux-ppc
-  VM_PLATFORM      = linux_ppc
-  HS_ARCH          = ppc
 endif
 
 # PPC64
