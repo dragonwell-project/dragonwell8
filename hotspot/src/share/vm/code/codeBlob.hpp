@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -101,6 +101,7 @@ class CodeBlob VALUE_OBJ_CLASS_SPEC {
   virtual bool is_exception_stub() const         { return false; }
   virtual bool is_safepoint_stub() const              { return false; }
   virtual bool is_adapter_blob() const                { return false; }
+  virtual bool is_vtable_blob() const                 { return false; }
   virtual bool is_method_handles_adapter_blob() const { return false; }
 
   virtual bool is_compiled_by_c2() const         { return false; }
@@ -202,6 +203,7 @@ class CodeBlob VALUE_OBJ_CLASS_SPEC {
 class BufferBlob: public CodeBlob {
   friend class VMStructs;
   friend class AdapterBlob;
+  friend class VtableBlob;
   friend class MethodHandlesAdapterBlob;
 
  private:
@@ -246,6 +248,18 @@ public:
   virtual bool is_adapter_blob() const { return true; }
 };
 
+//---------------------------------------------------------------------------------------------------
+class VtableBlob: public BufferBlob {
+private:
+  VtableBlob(const char*, int);
+
+public:
+  // Creation
+  static VtableBlob* create(const char* name, int buffer_size);
+
+  // Typing
+  virtual bool is_vtable_blob() const { return true; }
+};
 
 //----------------------------------------------------------------------------------------------------
 // MethodHandlesAdapterBlob: used to hold MethodHandles adapters
