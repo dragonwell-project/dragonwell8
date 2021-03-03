@@ -1,0 +1,23 @@
+<?xml version="1.0"?>
+
+<!-- Test for whitespaces in xs:complexType 'name' and xs:element 'type' attribute -->
+
+<xsd:schema xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+                xmlns:hy="http://www.test.com/Service/"
+                targetNamespace="http://www.test.com/Service/">
+    <xsd:element name="HelloRequest" type="xsd:string"/>
+    <xsd:element name="HelloResponse" type="xsd:string"/>
+    <xsd:complexType name="   info   ">
+        <xsd:sequence>
+            <xsd:element name="firstname" type="xsd:string"/>
+            <xsd:element name="lastname" type="xsd:string"/>
+        </xsd:sequence>
+    </xsd:complexType>
+    <xsd:complexType name="usage">
+        <xsd:all>
+            <xsd:element name="customerCharacteristics" type="
+                            hy:info
+                        "/>
+        </xsd:all>
+    </xsd:complexType>
+</xsd:schema>
