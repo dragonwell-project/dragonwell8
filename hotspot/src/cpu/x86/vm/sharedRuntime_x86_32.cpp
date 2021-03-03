@@ -2253,14 +2253,11 @@ nmethod* SharedRuntime::generate_native_wrapper(MacroAssembler* masm,
 
   __ reset_last_Java_frame(thread, false);
 
-  // Unpack oop result
+  // Unbox oop result, e.g. JNIHandles::resolve value.
   if (ret_type == T_OBJECT || ret_type == T_ARRAY) {
-      Label L;
-      __ cmpptr(rax, (int32_t)NULL_WORD);
-      __ jcc(Assembler::equal, L);
-      __ movptr(rax, Address(rax, 0));
-      __ bind(L);
-      __ verify_oop(rax);
+    __ resolve_jobject(rax /* value */,
+                       thread /* thread */,
+                       rcx /* tmp */);
   }
 
   if (!is_critical_native) {

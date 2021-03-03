@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -734,6 +734,20 @@ public class ImageView extends View {
                 newState |= HEIGHT_FLAG;
             }
 
+            /*
+            If synchronous loading flag is set, then make sure that the image is
+            scaled appropriately.
+            Otherwise, the ImageHandler::imageUpdate takes care of scaling the image
+            appropriately.
+            */
+            if (getLoadsSynchronously()) {
+                Dimension d = adjustWidthHeight(image.getWidth(imageObserver),
+                                                image.getHeight(imageObserver));
+                newWidth = d.width;
+                newHeight = d.height;
+                newState |= (WIDTH_FLAG | HEIGHT_FLAG);
+            }
+
             // Make sure the image starts loading:
             if ((newState & (WIDTH_FLAG | HEIGHT_FLAG)) != 0) {
                 Toolkit.getDefaultToolkit().prepareImage(newImage, newWidth,
@@ -837,6 +851,40 @@ public class ImageView extends View {
         }
     }
 
+    private Dimension adjustWidthHeight(int newWidth, int newHeight) {
+        Dimension d = new Dimension();
+        double proportion = 0.0;
+        final int specifiedWidth = getIntAttr(HTML.Attribute.WIDTH, -1);
+        final int specifiedHeight = getIntAttr(HTML.Attribute.HEIGHT, -1);
+        /**
+         * If either of the attributes are not specified, then calculate the
+         * proportion for the specified dimension wrt actual value, and then
+         * apply the same proportion to the unspecified dimension as well,
+         * so that the aspect ratio of the image is maintained.
+         */
+        if (specifiedWidth != -1 && specifiedHeight != -1) {
+            newWidth = specifiedWidth;
+            newHeight = specifiedHeight;
+        } else if (specifiedWidth != -1 ^ specifiedHeight != -1) {
+            if (specifiedWidth <= 0) {
+                proportion = specifiedHeight / ((double)newHeight);
+                newWidth = (int)(proportion * newWidth);
+                newHeight = specifiedHeight;
+            }
+
+            if (specifiedHeight <= 0) {
+                proportion = specifiedWidth / ((double)newWidth);
+                newHeight = (int)(proportion * newHeight);
+                newWidth = specifiedWidth;
+            }
+        }
+
+        d.width = newWidth;
+        d.height = newHeight;
+
+        return d;
+    }
+
     /**
      * ImageHandler implements the ImageObserver to correctly update the
      * display as new parts of the image become available.
@@ -902,26 +950,10 @@ public class ImageView extends View {
                  */
                 if (((flags & ImageObserver.HEIGHT) != 0) &&
                      ((flags & ImageObserver.WIDTH) != 0)) {
-                    double proportion = 0.0;
-                    final int specifiedWidth = getIntAttr(HTML.Attribute.WIDTH, -1 );
-                    final int specifiedHeight = getIntAttr(HTML.Attribute.HEIGHT, -1);
-                    /**
-                     * If either of the attributes are not specified, then calculate the
-                     * proportion for the specified dimension wrt actual value, and then
-                     * apply the same proportion to the unspecified dimension as well,
-                     * so that the aspect ratio of the image is maintained.
-                     */
-                    if (specifiedWidth != -1 ^ specifiedHeight != -1) {
-                        if (specifiedWidth <= 0) {
-                            proportion = specifiedHeight / ((double)newHeight);
-                            newWidth = (int)(proportion * newWidth);
-                        }
-                        if (specifiedHeight <= 0) {
-                            proportion = specifiedWidth / ((double)newWidth);
-                            newHeight = (int)(proportion * newHeight);
-                        }
+                        Dimension d = adjustWidthHeight(newWidth, newHeight);
+                        newWidth = d.width;
+                        newHeight = d.height;
                         changed |= 3;
-                    }
                 }
                 synchronized(ImageView.this) {
                     if ((changed & 1) == 1 && (state & HEIGHT_FLAG) == 0) {
