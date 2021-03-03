@@ -442,7 +442,7 @@ int VM_Version::platform_features(int features) {
   // is available to us as well
   Sysinfo cpu_info(SI_CPUBRAND);
   bool use_solaris_12_api = cpu_info.valid();
-  const char* impl;
+  const char* impl = "unknown";
   int impl_m = 0;
   if (use_solaris_12_api) {
     impl = cpu_info.value();
@@ -477,7 +477,7 @@ int VM_Version::platform_features(int features) {
       kstat_close(kc);
     }
   }
-  assert(impl_m != 0, err_msg("Unknown CPU implementation %s", impl));
+  assert(impl_m != 0, err_msg("Unrecognized CPU implementation %s", impl));
   features |= impl_m;
 
   bool is_sun4v = (features & sun4v_m) != 0;
