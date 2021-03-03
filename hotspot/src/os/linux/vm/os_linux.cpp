@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -103,6 +103,14 @@
 # include <sys/ioctl.h>
 
 PRAGMA_FORMAT_MUTE_WARNINGS_FOR_GCC
+
+#ifndef _GNU_SOURCE
+  #define _GNU_SOURCE
+  #include <sched.h>
+  #undef _GNU_SOURCE
+#else
+  #include <sched.h>
+#endif
 
 // if RUSAGE_THREAD for getrusage() has not been defined, do it here. The code calling
 // getrusage() is prepared to handle the associated failure.
@@ -2846,7 +2854,7 @@ void os::Linux::rebuild_cpu_to_node_map() {
                               // in the library.
   const size_t BitsPerCLong = sizeof(long) * CHAR_BIT;
 
-  size_t cpu_num = os::active_processor_count();
+  size_t cpu_num = processor_count();
   size_t cpu_map_size = NCPUS / BitsPerCLong;
   size_t cpu_map_valid_size =
     MIN2((cpu_num + BitsPerCLong - 1) / BitsPerCLong, cpu_map_size);
@@ -5016,12 +5024,42 @@ void os::make_polling_page_readable(void) {
   }
 };
 
+static int os_cpu_count(const cpu_set_t* cpus) {
+  int count = 0;
+  // only look up to the number of configured processors
+  for (int i = 0; i < os::processor_count(); i++) {
+    if (CPU_ISSET(i, cpus)) {
+      count++;
+    }
+  }
+  return count;
+}
+
+// Get the current number of available processors for this process.
+// This value can change at any time during a process's lifetime.
+// sched_getaffinity gives an accurate answer as it accounts for cpusets.
+// If anything goes wrong we fallback to returning the number of online
+// processors - which can be greater than the number available to the process.
 int os::active_processor_count() {
-  // Linux doesn't yet have a (official) notion of processor sets,
-  // so just return the number of online processors.
-  int online_cpus = ::sysconf(_SC_NPROCESSORS_ONLN);
-  assert(online_cpus > 0 && online_cpus <= processor_count(), "sanity check");
-  return online_cpus;
+  cpu_set_t cpus;  // can represent at most 1024 (CPU_SETSIZE) processors
+  int cpus_size = sizeof(cpu_set_t);
+  int cpu_count = 0;
+
+  // pid 0 means the current thread - which we have to assume represents the process
+  if (sched_getaffinity(0, cpus_size, &cpus) == 0) {
+    cpu_count = os_cpu_count(&cpus);
+    if (PrintActiveCpus) {
+      tty->print_cr("active_processor_count: sched_getaffinity processor count: %d", cpu_count);
+    }
+  }
+  else {
+    cpu_count = ::sysconf(_SC_NPROCESSORS_ONLN);
+    warning("sched_getaffinity failed (%s)- using online processor count (%d) "
+            "which may exceed available processors", strerror(errno), cpu_count);
+  }
+
+  assert(cpu_count > 0 && cpu_count <= processor_count(), "sanity check");
+  return cpu_count;
 }
 
 void os::set_native_thread_name(const char *name) {
