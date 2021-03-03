@@ -54,6 +54,7 @@ bool MetaspaceShared::_link_classes_made_progress;
 bool MetaspaceShared::_check_classes_made_progress;
 bool MetaspaceShared::_has_error_classes;
 bool MetaspaceShared::_archive_loading_failed = false;
+bool MetaspaceShared::_remapped_readwrite = false;
 // Read/write a data stream for restoring/preserving metadata pointers and
 // miscellaneous data from/to the shared archive file.
 
@@ -1101,6 +1102,7 @@ bool MetaspaceShared::remap_shared_readonly_as_readwrite() {
     if (!mapinfo->remap_shared_readonly_as_readwrite()) {
       return false;
     }
+    _remapped_readwrite = true;
   }
   return true;
 }
