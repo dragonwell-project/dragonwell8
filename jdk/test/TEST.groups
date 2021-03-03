@@ -393,6 +393,7 @@ needs_jre = \
   javax/management/mxbean/LeakTest.java \
   javax/management/mxbean/MXBeanTest.java \
   javax/management/mxbean/PropertyNamesTest.java \
+  javax/xml/bind/marshal/8036981/Test.java \
   javax/xml/bind/marshal/8134111/UnmarshalTest.java \
   javax/xml/ws/8043129 \
   jdk/lambda/vm/InterfaceAccessFlagsTest.java \
