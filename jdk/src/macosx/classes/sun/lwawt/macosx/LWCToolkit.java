@@ -801,6 +801,11 @@ public final class LWCToolkit extends LWToolkit {
      */
     public static native boolean isEmbedded();
 
+    /*
+     * Activates application ignoring other apps.
+     */
+    public native void activateApplicationIgnoringOtherApps();
+
     /************************
      * Native methods section
      ************************/
