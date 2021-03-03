@@ -289,6 +289,11 @@ final class ServerHandshaker extends Handshaker {
                         ("Unrecognized key exchange: " + keyExchange);
                 }
 
+                // Need to add the hash for RFC 7627.
+                if (session.getUseExtendedMasterSecret()) {
+                    input.digestNow();
+                }
+
                 //
                 // All keys are calculated from the premaster secret
                 // and the exchanged nonces in the same way.
@@ -495,6 +500,27 @@ final class ServerHandshaker extends Handshaker {
             }
         }
 
+        // check out the "extended_master_secret" extension
+        if (useExtendedMasterSecret) {
+            ExtendedMasterSecretExtension extendedMasterSecretExtension =
+                    (ExtendedMasterSecretExtension)mesg.extensions.get(
+                            ExtensionType.EXT_EXTENDED_MASTER_SECRET);
+            if (extendedMasterSecretExtension != null) {
+                requestedToUseEMS = true;
+            } else if (mesg.protocolVersion.v >= ProtocolVersion.TLS10.v) {
+                if (!allowLegacyMasterSecret) {
+                    // For full handshake, if the server receives a ClientHello
+                    // without the extension, it SHOULD abort the handshake if
+                    // it does not wish to interoperate with legacy clients.
+                    //
+                    // As if extended master extension is required for full
+                    // handshake, it MUST be used in abbreviated handshake too.
+                    fatalSE(Alerts.alert_handshake_failure,
+                        "Extended Master Secret extension is required");
+                }
+            }
+        }
+
         /*
          * Always make sure this entire record has been digested before we
          * start emitting output, to ensure correct digesting order.
@@ -569,8 +595,42 @@ final class ServerHandshaker extends Handshaker {
                 if (resumingSession) {
                     ProtocolVersion oldVersion = previous.getProtocolVersion();
                     // cannot resume session with different version
-                    if (oldVersion != protocolVersion) {
+                    if (oldVersion != mesg.protocolVersion) {
                         resumingSession = false;
+                    }
+                }
+
+                if (resumingSession && useExtendedMasterSecret) {
+                    if (requestedToUseEMS &&
+                            !previous.getUseExtendedMasterSecret()) {
+                        // For abbreviated handshake request, If the original
+                        // session did not use the "extended_master_secret"
+                        // extension but the new ClientHello contains the
+                        // extension, then the server MUST NOT perform the
+                        // abbreviated handshake.  Instead, it SHOULD continue
+                        // with a full handshake.
+                        resumingSession = false;
+                    } else if (!requestedToUseEMS &&
+                            previous.getUseExtendedMasterSecret()) {
+                        // For abbreviated handshake request, if the original
+                        // session used the "extended_master_secret" extension
+                        // but the new ClientHello does not contain it, the
+                        // server MUST abort the abbreviated handshake.
+                        fatalSE(Alerts.alert_handshake_failure,
+                                "Missing Extended Master Secret extension " +
+                                "on session resumption");
+                    } else if (!requestedToUseEMS &&
+                            !previous.getUseExtendedMasterSecret()) {
+                        // For abbreviated handshake request, if neither the
+                        // original session nor the new ClientHello uses the
+                        // extension, the server SHOULD abort the handshake.
+                        if (!allowLegacyResumption) {
+                            fatalSE(Alerts.alert_handshake_failure,
+                                "Missing Extended Master Secret extension " +
+                                "on session resumption");
+                        } else {  // Otherwise, continue with a full handshake.
+                            resumingSession = false;
+                        }
                     }
                 }
 
@@ -720,7 +780,9 @@ final class ServerHandshaker extends Handshaker {
             session = new SSLSessionImpl(protocolVersion, CipherSuite.C_NULL,
                         getLocalSupportedSignAlgs(),
                         sslContext.getSecureRandom(),
-                        getHostAddressSE(), getPortSE());
+                        getHostAddressSE(), getPortSE(),
+                        (requestedToUseEMS &&
+                                (protocolVersion.v >= ProtocolVersion.TLS10.v)));
 
             if (protocolVersion.v >= ProtocolVersion.TLS12.v) {
                 if (peerSupportedSignAlgs != null) {
@@ -783,6 +845,10 @@ final class ServerHandshaker extends Handshaker {
                 ServerNameExtension serverHelloSNI = new ServerNameExtension();
                 m1.extensions.add(serverHelloSNI);
             }
+        }
+
+        if (session.getUseExtendedMasterSecret()) {
+            m1.extensions.add(new ExtendedMasterSecretExtension());
         }
 
         if (debug != null && Debug.isOn("handshake")) {
