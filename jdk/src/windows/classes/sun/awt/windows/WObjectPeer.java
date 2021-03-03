@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 2008, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1996, 2006, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,6 +24,9 @@
  */
 package sun.awt.windows;
 
+import java.util.Map;
+import java.util.WeakHashMap;
+
 abstract class WObjectPeer {
 
     static {
@@ -31,19 +34,21 @@ abstract class WObjectPeer {
     }
 
     // The Windows handle for the native widget.
-    long pData;
+    volatile long pData;
     // if the native peer has been destroyed
-    boolean destroyed = false;
+    private volatile boolean destroyed;
     // The associated AWT object.
-    Object target;
+    volatile Object target;
 
     private volatile boolean disposed;
 
     // set from JNI if any errors in creating the peer occur
-    protected Error createError = null;
+    volatile Error createError = null;
 
     // used to synchronize the state of this peer
     private final Object stateLock = new Object();
+
+    private volatile Map<WObjectPeer, WObjectPeer> childPeers;
 
     public static WObjectPeer getPeerForTarget(Object t) {
         WObjectPeer peer = (WObjectPeer) WToolkit.targetToPeer(t);
@@ -77,6 +82,9 @@ abstract class WObjectPeer {
         }
 
         if (call_disposeImpl) {
+            if (childPeers != null) {
+                disposeChildPeers();
+            }
             disposeImpl();
         }
     }
@@ -88,4 +96,33 @@ abstract class WObjectPeer {
      * Initialize JNI field and method IDs
      */
     private static native void initIDs();
+
+    // if a child peer existence depends on this peer, add it to this collection
+    final void addChildPeer(WObjectPeer child) {
+        synchronized (getStateLock()) {
+            if (childPeers == null) {
+                childPeers = new WeakHashMap<>();
+            }
+            if (isDisposed()) {
+                throw new IllegalStateException("Parent peer is disposed");
+            }
+            childPeers.put(child, this);
+        }
+    }
+
+    // called to dispose dependent child peers
+    private void disposeChildPeers() {
+        synchronized (getStateLock()) {
+            for (WObjectPeer child : childPeers.keySet()) {
+                if (child != null) {
+                    try {
+                        child.dispose();
+                    }
+                    catch (Exception e) {
+                        // ignored
+                    }
+                }
+            }
+        }
+    }
 }
