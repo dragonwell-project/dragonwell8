@@ -3973,6 +3973,11 @@ instanceKlassHandle ClassFileParser::parseClassFile(Symbol* name,
     // Make sure this is the end of class file stream
     guarantee_property(cfs->at_eos(), "Extra bytes at the end of class file %s", CHECK_(nullHandle));
 
+    if (_class_name == vmSymbols::java_lang_Object()) {
+      check_property(_local_interfaces == Universe::the_empty_klass_array(),
+                     "java.lang.Object cannot implement an interface in class file %s",
+                     CHECK_(nullHandle));
+    }
     // We check super class after class file is parsed and format is checked
     if (super_class_index > 0 && super_klass.is_null()) {
       Symbol*  sk  = cp->klass_name_at(super_class_index);
