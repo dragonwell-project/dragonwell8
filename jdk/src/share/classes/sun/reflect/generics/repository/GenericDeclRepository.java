@@ -42,7 +42,7 @@ import sun.reflect.generics.visitor.Reifier;
 public abstract class GenericDeclRepository<S extends Signature>
     extends AbstractRepository<S> {
 
-    private TypeVariable<?>[] typeParams; // caches the formal type parameters
+    private volatile TypeVariable<?>[] typeParams; // caches the formal type parameters
 
     protected GenericDeclRepository(String rawSig, GenericsFactory f) {
         super(rawSig, f);
@@ -65,6 +65,7 @@ public abstract class GenericDeclRepository<S extends Signature>
      * @return the formal type parameters of this generic declaration
      */
     public TypeVariable<?>[] getTypeParameters(){
+        TypeVariable[] typeParams = this.typeParams;
         if (typeParams == null) { // lazily initialize type parameters
             // first, extract type parameter subtree(s) from AST
             FormalTypeParameter[] ftps = getTree().getFormalTypeParameters();
@@ -78,6 +79,7 @@ public abstract class GenericDeclRepository<S extends Signature>
                 tps[i] = (TypeVariable<?>) r.getResult();
             }
             typeParams = tps; // cache overall result
+            this.typeParams = typeParams;
         }
         return typeParams.clone(); // return cached result
     }
