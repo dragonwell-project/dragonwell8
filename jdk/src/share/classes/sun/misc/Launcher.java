@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -48,7 +48,7 @@ import sun.net.www.ParseUtil;
 
 /**
  * This class is used by the system to launch the main application.
-Launcher */
+ */
 public class Launcher {
     private static URLStreamHandlerFactory factory = new Factory();
     private static Launcher launcher = new Launcher();
@@ -121,6 +121,7 @@ public class Launcher {
         static {
             ClassLoader.registerAsParallelCapable();
         }
+        private static volatile ExtClassLoader instance = null;
 
         /**
          * create an ExtClassLoader. The ExtClassLoader is created
@@ -128,8 +129,17 @@ public class Launcher {
          */
         public static ExtClassLoader getExtClassLoader() throws IOException
         {
-            final File[] dirs = getExtDirs();
+            if (instance == null) {
+                synchronized(ExtClassLoader.class) {
+                    if (instance == null) {
+                        instance = createExtClassLoader();
+                    }
+                }
+            }
+            return instance;
+        }
 
+        private static ExtClassLoader createExtClassLoader() throws IOException {
             try {
                 // Prior implementations of this doPrivileged() block supplied
                 // aa synthesized ACC via a call to the private method
@@ -138,6 +148,7 @@ public class Launcher {
                 return AccessController.doPrivileged(
                     new PrivilegedExceptionAction<ExtClassLoader>() {
                         public ExtClassLoader run() throws IOException {
+                            final File[] dirs = getExtDirs();
                             int len = dirs.length;
                             for (int i = 0; i < len; i++) {
                                 MetaIndex.registerDirectory(dirs[i]);
