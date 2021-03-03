@@ -610,7 +610,7 @@ bool ClassLoader::check_shared_paths_misc_info(void *buf, int size) {
 }
 #endif
 
-void ClassLoader::setup_search_path(const char *class_path) {
+void ClassLoader::setup_search_path(const char *class_path, bool canonicalize) {
   int offset = 0;
   int len = (int)strlen(class_path);
   int end = 0;
@@ -625,7 +625,13 @@ void ClassLoader::setup_search_path(const char *class_path) {
     char* path = NEW_RESOURCE_ARRAY(char, end - start + 1);
     strncpy(path, &class_path[start], end - start);
     path[end - start] = '\0';
-    update_class_path_entry_list(path, false);
+    if (canonicalize) {
+      char* canonical_path = NEW_RESOURCE_ARRAY(char, JVM_MAXPATHLEN + 1);
+      if (get_canonical_path(path, canonical_path, JVM_MAXPATHLEN)) {
+        path = canonical_path;
+      }
+    }
+    update_class_path_entry_list(path, /*check_for_duplicates=*/canonicalize);
 #if INCLUDE_CDS
     if (DumpSharedSpaces) {
       check_shared_classpath(path);
