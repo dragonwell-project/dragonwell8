@@ -67,7 +67,10 @@ void ContextualSubstitutionBase::applySubstitutionLookups(
         le_uint16 lookupListIndex = SWAPW(substLookupRecordArrayPtr[subst].lookupListIndex);
 
         tempIterator.setCurrStreamPosition(position);
-        tempIterator.next(sequenceIndex);
+        if (!tempIterator.next(sequenceIndex)) {
+            success = LE_INTERNAL_ERROR;
+            return;
+        }
 
         lookupProcessor->applySingleLookup(lookupListIndex, &tempIterator, fontInstance, success);
     }
