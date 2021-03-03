@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002, 2012, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2002, 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -43,9 +43,10 @@ public class ClientJSSEServerJSSE extends PKCS11Test {
     private static String[] cmdArgs;
 
     public static void main(String[] args) throws Exception {
-        // reset the security property to make sure that the algorithms
+        // reset security properties to make sure that the algorithms
         // and keys used in this test are not disabled.
         Security.setProperty("jdk.tls.disabledAlgorithms", "");
+        Security.setProperty("jdk.certpath.disabledAlgorithms", "");
 
         cmdArgs = args;
         main(new ClientJSSEServerJSSE());
@@ -57,6 +58,10 @@ public class ClientJSSEServerJSSE extends PKCS11Test {
 
     public void main(Provider p) throws Exception {
         String testWithoutSunEC = System.getProperty("testWithoutSunEC");
+        // MD5 is used in this test case, don't disable MD5 algorithm.
+        Security.setProperty(
+                "jdk.certpath.disabledAlgorithms", "MD2, RSA keySize < 1024");
+
         if (p.getService("KeyFactory", "EC") == null) {
             System.out.println("Provider does not support EC, skipping");
             return;
