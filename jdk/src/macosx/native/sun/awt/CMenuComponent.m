@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -51,8 +51,7 @@
     fPeer = NULL;
 
     [self cleanup];
-
-    CFRelease(self); // GC
+    [self release];
 }
 
 // The method is used by all subclasses, since the process of the creation
@@ -63,9 +62,6 @@
     [argValue removeAllObjects];
     [argValue addObject: aCMenuItem];
 }
-
-//-(void) dealloc { [super dealloc]; }
-//- (void)finalize { [super finalize]; }
 
 @end
 
