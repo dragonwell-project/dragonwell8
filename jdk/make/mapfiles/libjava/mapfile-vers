@@ -284,6 +284,8 @@ SUNWprivate_1.1 {
 		
                 # ZipFile.c needs this one
 		throwFileNotFoundException;
+                # zip_util.c needs this
+		getErrorString;
 
 #		Java_sun_misc_VM_getState;			threads.c
 #		Java_sun_misc_VM_threadsSuspended;		threads.c
