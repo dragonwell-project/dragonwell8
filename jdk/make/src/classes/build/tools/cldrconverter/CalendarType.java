@@ -38,7 +38,7 @@ enum CalendarType {
         // start index, array length
         {0,   2},   // gregorian
         {0,   1},   // buddhist
-        {232, 4},   // japanese (eras from Meiji)
+        {232, 5},   // japanese (eras from Meiji)
         {0,   2},   // roc (Minguo)
         {0,   1},   // islamic (Hijrah)
         {0,   1},   // islamicc (same as islamic)

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -1060,7 +1060,7 @@ void VMError::report_and_die() {
       out.print_raw   (cmd);
       out.print_raw_cr("\" ...");
 
-      if (os::fork_and_exec(cmd) < 0) {
+      if (os::fork_and_exec(cmd, true) < 0) {
         out.print_cr("os::fork_and_exec failed: %s (%d)", strerror(errno), errno);
       }
     }
