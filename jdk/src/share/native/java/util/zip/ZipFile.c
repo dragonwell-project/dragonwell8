@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2014, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -172,11 +172,7 @@ Java_java_util_zip_ZipFile_getEntry(JNIEnv *env, jclass cls, jlong zfile,
     }
     (*env)->GetByteArrayRegion(env, name, 0, ulen, (jbyte *)path);
     path[ulen] = '\0';
-    if (addSlash == JNI_FALSE) {
-        ze = ZIP_GetEntry(zip, path, 0);
-    } else {
-        ze = ZIP_GetEntry(zip, path, (jint)ulen);
-    }
+    ze = ZIP_GetEntry2(zip, path, (jint)ulen, addSlash);
     if (path != buf) {
         free(path);
     }
@@ -269,7 +265,7 @@ Java_java_util_zip_ZipFile_getEntryBytes(JNIEnv *env,
     switch (type) {
     case java_util_zip_ZipFile_JZENTRY_NAME:
         if (ze->name != 0) {
-            len = (int)strlen(ze->name);
+            len = (int)ze->nlen;
             if (len == 0 || (jba = (*env)->NewByteArray(env, len)) == NULL)
                 break;
             (*env)->SetByteArrayRegion(env, jba, 0, len, (jbyte *)ze->name);
