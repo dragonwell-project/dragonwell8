@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,29 +21,37 @@
  * questions.
  */
 
-/* @test
- * @bug 6964714 8226928
- * @run main/othervm -Djava.net.preferIPv4Stack=true IPv4Only
- * @summary Test the networkinterface listing with java.net.preferIPv4Stack=true.
+/**
+ * @test
+ * @bug 8219807
+ * @summary Test IfNode::up_one_dom() with dead regions.
+ * @compile -XDstringConcat=inline TestIfWithDeadRegion.java
+ * @run main/othervm -XX:CompileCommand=compileonly,compiler.c2.TestIfWithDeadRegion::test
+ *                   compiler.c2.TestIfWithDeadRegion
  */
 
+package compiler.c2;
 
-import java.net.*;
-import java.util.*;
+import java.util.function.Supplier;
 
+public class TestIfWithDeadRegion {
 
-public class IPv4Only {
-    public static void main(String[] args) throws Exception {
-        Enumeration<NetworkInterface> nifs = NetworkInterface.getNetworkInterfaces();
-        while (nifs.hasMoreElements()) {
-            NetworkInterface nif = nifs.nextElement();
-            Enumeration<InetAddress> addrs = nif.getInetAddresses();
-            while (addrs.hasMoreElements()) {
-               InetAddress hostAddr = addrs.nextElement();
-               if ( hostAddr instanceof Inet6Address ){
-                    throw new RuntimeException( "NetworkInterfaceV6List failed - found v6 address " + hostAddr.getHostAddress() );
-               }
-            }
+    static String msg;
+
+    static String getString(String s, int i) {
+        String current = s + String.valueOf(i);
+        System.nanoTime();
+        return current;
+    }
+
+    static void test(Supplier<String> supplier) {
+        msg = supplier.get();
+    }
+
+    public static void main(String[] args) {
+        for (int i = 0; i < 20_000; ++i) {
+            test(() -> getString("Test1", 42));
+            test(() -> getString("Test2", 42));
         }
     }
 }
