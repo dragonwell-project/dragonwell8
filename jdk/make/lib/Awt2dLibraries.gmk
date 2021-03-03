@@ -674,6 +674,7 @@ $(eval $(call SetupNativeCompilation,BUILD_LIBLCMS, \
     LANG := C, \
     OPTIMIZATION := HIGHEST, \
     CFLAGS := $(filter-out -xc99=%none, $(CFLAGS_JDKLIB)) \
+        -DCMS_DONT_USE_FAST_FLOOR \
         $(SHARED_LIBRARY_FLAGS) \
         -I$(JDK_TOPDIR)/src/share/native/sun/java2d \
         -I$(JDK_TOPDIR)/src/share/native/sun/awt/debug, \
