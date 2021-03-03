@@ -34,6 +34,13 @@
 /* IMPORTANT! Read the README.JNI file for notes on JNI converted AWT code.
  */
 
+/***********************************************************************/
+// struct for _DelItem() method
+struct DelItemStruct {
+    jobject menuitem;
+    jint index;
+};
+
 /************************************************************************
  * AwtMenuItem fields
  */
@@ -64,7 +71,6 @@ void AwtMenu::Dispose()
         ::DestroyMenu(m_hMenu);
         m_hMenu = NULL;
     }
-
     AwtMenuItem::Dispose();
 }
 
@@ -73,7 +79,7 @@ LPCTSTR AwtMenu::GetClassName() {
 }
 
 /* Create a new AwtMenu object and menu.   */
-AwtMenu* AwtMenu::Create(jobject self, AwtMenu* parentMenu)
+AwtMenu* AwtMenu::Create(jobject self, jobject parent)
 {
     JNIEnv *env = (JNIEnv *)JNU_GetEnv(jvm, JNI_VERSION_1_2);
 
@@ -84,6 +90,9 @@ AwtMenu* AwtMenu::Create(jobject self, AwtMenu* parentMenu)
         if (env->EnsureLocalCapacity(1) < 0) {
             return NULL;
         }
+
+        JNI_CHECK_NULL_GOTO(parent, "peer", done);
+        AwtMenu* parentMenu = (AwtMenu*) JNI_GET_PDATA(parent);
 
         target = env->GetObjectField(self, AwtObject::targetID);
         JNI_CHECK_NULL_GOTO(target, "null target", done);
@@ -117,6 +126,46 @@ done:
     }
 
     return menu;
+}
+
+void AwtMenu::_AddSeparator(void *param)
+{
+    if (AwtToolkit::IsMainThread()) {
+        JNIEnv *env = (JNIEnv *)JNU_GetEnv(jvm, JNI_VERSION_1_2);
+
+        jobject self = (jobject)param;
+        AwtMenu *m = NULL;
+        PDATA pData;
+        JNI_CHECK_PEER_GOTO(self, ret);
+        m = (AwtMenu *)pData;
+        m->AddSeparator();
+ret:
+        env->DeleteGlobalRef(self);
+    } else {
+        AwtToolkit::GetInstance().InvokeFunction(AwtMenu::_AddSeparator, param);
+    }
+}
+
+void AwtMenu::_DelItem(void *param)
+{
+    if (AwtToolkit::IsMainThread()) {
+        JNIEnv *env = (JNIEnv *)JNU_GetEnv(jvm, JNI_VERSION_1_2);
+
+        DelItemStruct *dis = (DelItemStruct*) param;
+        jobject self = dis->menuitem;
+        jint index = dis->index;
+
+        AwtMenu *m = NULL;
+        PDATA pData;
+        JNI_CHECK_PEER_GOTO(self, ret);
+        m = (AwtMenu *)pData;
+        m->DeleteItem(static_cast<UINT>(index));
+ret:
+        env->DeleteGlobalRef(self);
+        delete dis;
+    } else {
+        AwtToolkit::GetInstance().InvokeFunction(AwtMenu::_DelItem, param);
+    }
 }
 
 void AwtMenu::UpdateLayout()
@@ -239,6 +288,7 @@ AwtMenuItem* AwtMenu::GetItem(jobject target, jint index)
     }
     jobject menuItem = env->CallObjectMethod(target, AwtMenu::getItemMID,
                                              index);
+    if (!menuItem) return NULL; // menu item was removed concurrently
     DASSERT(!safe_ExceptionOccurred(env));
 
     jobject wMenuItemPeer = GetPeerForTarget(env, menuItem);
@@ -264,9 +314,9 @@ void AwtMenu::DrawItems(DRAWITEMSTRUCT& drawInfo)
     }
     /* target is a java.awt.Menu */
     jobject target = GetTarget(env);
-
+    if(!target || env->ExceptionCheck()) return;
     int nCount = CountItem(target);
-    for (int i = 0; i < nCount; i++) {
+    for (int i = 0; i < nCount && !env->ExceptionCheck(); i++) {
         AwtMenuItem* awtMenuItem = GetItem(target, i);
         if (awtMenuItem != NULL) {
             SendDrawItem(awtMenuItem, drawInfo);
@@ -294,8 +344,9 @@ void AwtMenu::MeasureItems(HDC hDC, MEASUREITEMSTRUCT& measureInfo)
     }
    /* target is a java.awt.Menu */
     jobject target = GetTarget(env);
+    if(!target || env->ExceptionCheck()) return;
     int nCount = CountItem(target);
-    for (int i = 0; i < nCount; i++) {
+    for (int i = 0; i < nCount && !env->ExceptionCheck(); i++) {
         AwtMenuItem* awtMenuItem = GetItem(target, i);
         if (awtMenuItem != NULL) {
             SendMeasureItem(awtMenuItem, hDC, measureInfo);
@@ -319,24 +370,6 @@ void AwtMenu::MeasureItem(HDC hDC, MEASUREITEMSTRUCT& measureInfo)
 BOOL AwtMenu::IsTopMenu()
 {
     return (GetMenuBar() == GetMenuContainer());
-}
-
-LRESULT AwtMenu::WinThreadExecProc(ExecuteArgs * args)
-{
-    switch( args->cmdId ) {
-        case MENU_ADDSEPARATOR:
-            this->AddSeparator();
-            break;
-
-        case MENU_DELITEM:
-            this->DeleteItem(static_cast<UINT>(args->param1));
-            break;
-
-        default:
-            AwtMenuItem::WinThreadExecProc(args);
-            break;
-    }
-    return 0L;
 }
 
 /************************************************************************
@@ -380,14 +413,13 @@ Java_sun_awt_windows_WMenuPeer_addSeparator(JNIEnv *env, jobject self)
 {
     TRY;
 
-    PDATA pData;
-    JNI_CHECK_PEER_RETURN(self);
+    jobject selfGlobalRef = env->NewGlobalRef(self);
 
-    AwtObject::WinThreadExec(self, AwtMenu::MENU_ADDSEPARATOR);
+    AwtToolkit::GetInstance().SyncCall(AwtMenu::_AddSeparator, selfGlobalRef);
+    // selfGlobalRef is deleted in _AddSeparator
 
     CATCH_BAD_ALLOC;
 }
-
 
 /*
  * Class:     sun_awt_windows_WMenuPeer
@@ -400,10 +432,12 @@ Java_sun_awt_windows_WMenuPeer_delItem(JNIEnv *env, jobject self,
 {
     TRY;
 
-    PDATA pData;
-    JNI_CHECK_PEER_RETURN(self);
+    DelItemStruct *dis = new DelItemStruct;
+    dis->menuitem = env->NewGlobalRef(self);
+    dis->index = index;
 
-    AwtObject::WinThreadExec(self, AwtMenu::MENU_DELITEM, index);
+    AwtToolkit::GetInstance().SyncCall(AwtMenu::_DelItem, dis);
+    // global refs and dis are deleted in _DelItem
 
     CATCH_BAD_ALLOC;
 }
@@ -419,13 +453,8 @@ Java_sun_awt_windows_WMenuPeer_createMenu(JNIEnv *env, jobject self,
 {
     TRY;
 
-    PDATA pData;
-    JNI_CHECK_PEER_RETURN(menuBar);
-
-    AwtMenuBar* awtMenuBar = (AwtMenuBar *)pData;
-    AwtToolkit::CreateComponent(self, awtMenuBar,
-                                (AwtToolkit::ComponentFactory)AwtMenu::Create,FALSE);
-    JNI_CHECK_PEER_CREATION_RETURN(self);
+    AwtToolkit::CreateComponent(self, menuBar,
+                                (AwtToolkit::ComponentFactory)AwtMenu::Create);
 
     CATCH_BAD_ALLOC;
 }
@@ -441,13 +470,8 @@ Java_sun_awt_windows_WMenuPeer_createSubMenu(JNIEnv *env, jobject self,
 {
     TRY;
 
-    PDATA pData;
-    JNI_CHECK_PEER_RETURN(menu);
-
-    AwtMenu* awtMenu = (AwtMenu *)pData;
-    AwtToolkit::CreateComponent(self, awtMenu,
-                                (AwtToolkit::ComponentFactory)AwtMenu::Create,FALSE);
-    JNI_CHECK_PEER_CREATION_RETURN(self);
+    AwtToolkit::CreateComponent(self, menu,
+                                (AwtToolkit::ComponentFactory)AwtMenu::Create);
 
     CATCH_BAD_ALLOC;
 }
