@@ -108,7 +108,7 @@ import static sun.security.util.SecurityConstants.GET_CLASSLOADER_PERMISSION;
  * the same results.
  * <p>
  * For more information on the using data transfer with Swing see
- * the <a href="http://docs.oracle.com/javase/tutorial/uiswing/dnd/index.html">
+ * the <a href="https://docs.oracle.com/javase/tutorial/uiswing/dnd/index.html">
  * How to Use Drag and Drop and Data Transfer</a>,
  * section in <em>Java Tutorial</em>.
  *
