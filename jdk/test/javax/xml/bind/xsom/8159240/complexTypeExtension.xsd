@@ -1,0 +1,49 @@
+<?xml version="1.0"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+
+    <!-- Test for whitespaces in xs:complexType -> xs:extension 'base' attribute value -->
+
+    <xs:simpleType name="size">
+        <xs:restriction base="xs:string">
+            <xs:enumeration value="small" />
+            <xs:enumeration value="medium" />
+            <xs:enumeration value="large" />
+        </xs:restriction>
+    </xs:simpleType>
+
+    <xs:complexType name="jeans">
+        <xs:simpleContent>
+            <xs:extension base="size">
+                <xs:attribute name="sex">
+                    <xs:simpleType>
+                        <xs:restriction base="xs:string">
+                            <xs:enumeration value="male" />
+                            <xs:enumeration value="female" />
+                        </xs:restriction>
+                    </xs:simpleType>
+                </xs:attribute>
+            </xs:extension>
+        </xs:simpleContent>
+    </xs:complexType>
+
+    <xs:element name="employee" type="     fullpersoninfo   "/>
+
+    <xs:complexType name="     personinfo      ">
+        <xs:sequence>
+            <xs:element name="firstname" type="xs:string"/>
+            <xs:element name="lastname" type="xs:string"/>
+        </xs:sequence>
+    </xs:complexType>
+
+    <xs:complexType name="fullpersoninfo    ">
+        <xs:complexContent>
+            <xs:extension base="     personinfo">
+                <xs:sequence>
+                    <xs:element name="address" type="xs:string"/>
+                    <xs:element name="city" type="xs:string"/>
+                    <xs:element name="country" type="xs:string"/>
+                </xs:sequence>
+            </xs:extension>
+        </xs:complexContent>
+    </xs:complexType>
+</xs:schema>
