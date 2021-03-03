@@ -32,9 +32,9 @@
 
 #define LargeSharedArchiveSize    (300*M)
 #define HugeSharedArchiveSize     (800*M)
-#define ReadOnlyRegionPercentage  0.4
-#define ReadWriteRegionPercentage 0.55
-#define MiscDataRegionPercentage  0.03
+#define ReadOnlyRegionPercentage  0.39
+#define ReadWriteRegionPercentage 0.50
+#define MiscDataRegionPercentage  0.09
 #define MiscCodeRegionPercentage  0.02
 #define LargeThresholdClassCount  5000
 #define HugeThresholdClassCount   40000
