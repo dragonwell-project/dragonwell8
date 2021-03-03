@@ -233,7 +233,7 @@ void Parse::do_get_xxx(Node* obj, ciField* field, bool is_field) {
   // Build the load.
   //
   MemNode::MemOrd mo = is_vol ? MemNode::acquire : MemNode::unordered;
-  Node* ld = make_load(NULL, adr, type, bt, adr_type, mo, is_vol);
+  Node* ld = make_load(NULL, adr, type, bt, adr_type, mo, LoadNode::DependsOnlyOnTest, is_vol);
 
   // Adjust Java stack
   if (type2size[bt] == 1)
