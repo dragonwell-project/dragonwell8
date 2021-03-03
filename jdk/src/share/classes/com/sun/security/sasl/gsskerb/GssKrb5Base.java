@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -73,8 +73,12 @@ abstract class GssKrb5Base extends AbstractSaslImpl {
         }
 
         try {
-            MessageProp msgProp = new MessageProp(JGSS_QOP, privacy);
+            MessageProp msgProp = new MessageProp(JGSS_QOP, false);
             byte[] answer = secCtx.unwrap(incoming, start, len, msgProp);
+            if (privacy && !msgProp.getPrivacy()) {
+                throw new SaslException("Privacy not protected");
+            }
+            checkMessageProp("", msgProp);
             if (logger.isLoggable(Level.FINEST)) {
                 traceOutput(myClassName, "KRB501:Unwrap", "incoming: ",
                     incoming, start, len);
@@ -127,5 +131,21 @@ abstract class GssKrb5Base extends AbstractSaslImpl {
 
     protected void finalize() throws Throwable {
         dispose();
+    }
+
+    void checkMessageProp(String label, MessageProp msgProp)
+            throws SaslException {
+        if (msgProp.isDuplicateToken()) {
+            throw new SaslException(label + "Duplicate token");
+        }
+        if (msgProp.isGapToken()) {
+            throw new SaslException(label + "Gap token");
+        }
+        if (msgProp.isOldToken()) {
+            throw new SaslException(label + "Old token");
+        }
+        if (msgProp.isUnseqToken()) {
+            throw new SaslException(label + "Token not in sequence");
+        }
     }
 }
