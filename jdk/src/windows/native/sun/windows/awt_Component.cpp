@@ -3960,7 +3960,6 @@ void AwtComponent::SendInputMethodEvent(jint id, jstring text,
         DASSERT(stringCls);
         CHECK_NULL(stringCls);
         clauseReading = env->NewObjectArray(cClause, stringCls, NULL);
-        env->DeleteLocalRef(stringCls);
         DASSERT(clauseReading);
         CHECK_NULL(clauseReading);
         for (int i=0; i<cClause; i++)   env->SetObjectArrayElement(clauseReading, i, rgClauseReading[i]);
@@ -6930,9 +6929,9 @@ Java_sun_awt_windows_WComponentPeer_nativeHandlesWheelScrolling (JNIEnv* env,
 {
     TRY;
 
-    return JNI_IS_TRUE(AwtToolkit::GetInstance().SyncCall(
+    return (jboolean)AwtToolkit::GetInstance().SyncCall(
         (void *(*)(void *))AwtComponent::_NativeHandlesWheelScrolling,
-        env->NewGlobalRef(self)));
+        env->NewGlobalRef(self));
     // global ref is deleted in _NativeHandlesWheelScrolling
 
     CATCH_BAD_ALLOC_RET(NULL);
@@ -6951,9 +6950,9 @@ Java_sun_awt_windows_WComponentPeer_isObscured(JNIEnv* env,
 
     jobject selfGlobalRef = env->NewGlobalRef(self);
 
-    return JNI_IS_TRUE(AwtToolkit::GetInstance().SyncCall(
+    return (jboolean)AwtToolkit::GetInstance().SyncCall(
         (void*(*)(void*))AwtComponent::_IsObscured,
-        (void *)selfGlobalRef));
+        (void *)selfGlobalRef);
     // selfGlobalRef is deleted in _IsObscured
 
     CATCH_BAD_ALLOC_RET(NULL);
