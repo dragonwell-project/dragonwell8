@@ -2331,6 +2331,7 @@ bool G1CollectedHeap::should_do_concurrent_full_gc(GCCause::Cause cause) {
     case GCCause::_java_lang_system_gc:     return ExplicitGCInvokesConcurrent;
     case GCCause::_g1_humongous_allocation: return true;
     case GCCause::_update_allocation_context_stats_inc: return true;
+    case GCCause::_wb_conc_mark:            return true;
     default:                                return false;
   }
 }
@@ -5045,12 +5046,8 @@ class G1KlassCleaningTask : public StackObj {
 public:
 
   void clean_klass(InstanceKlass* ik) {
-    ik->clean_implementors_list(_is_alive);
-    ik->clean_method_data(_is_alive);
+    ik->clean_weak_instanceklass_links(_is_alive);
 
-    // G1 specific cleanup work that has
-    // been moved here to be done in parallel.
-    ik->clean_dependent_nmethods();
     if (JvmtiExport::has_redefined_a_class()) {
       InstanceKlass::purge_previous_versions(ik);
     }

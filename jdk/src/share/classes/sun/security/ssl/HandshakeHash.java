@@ -246,7 +246,7 @@ final class HandshakeHash {
         try {
             return cloneDigest(finMD).digest();
         } catch (Exception e) {
-            throw new Error("BAD");
+            throw new Error("Error during hash calculation", e);
         }
     }
 }

@@ -894,7 +894,7 @@ public final class RecompilableScriptFunctionData extends ScriptFunctionData imp
     }
 
     @Override
-    synchronized CompiledFunction getBest(final MethodType callSiteType, final ScriptObject runtimeScope, final Collection<CompiledFunction> forbidden) {
+    synchronized CompiledFunction getBest(final MethodType callSiteType, final ScriptObject runtimeScope, final Collection<CompiledFunction> forbidden, final boolean linkLogicOkay) {
         assert isValidCallSite(callSiteType) : callSiteType;
 
         CompiledFunction existingBest = pickFunction(callSiteType, false);
