@@ -52,9 +52,9 @@ U_NAMESPACE_BEGIN
 const LookupSegment *BinarySearchLookupTable::lookupSegment(const LETableReference &base, const LookupSegment *segments, LEGlyphID glyph, LEErrorCode &success) const
 {
 
-    le_int16  unity = SWAPW(unitSize);
-    le_int16  probe = SWAPW(searchRange);
-    le_int16  extra = SWAPW(rangeShift);
+    le_uint16  unity = SWAPW(unitSize);
+    le_uint16  probe = SWAPW(searchRange);
+    le_uint16  extra = SWAPW(rangeShift);
     TTGlyphID ttGlyph = (TTGlyphID) LE_GET_GLYPH(glyph);
     LEReferenceTo<LookupSegment> entry(base, success, segments);
     LEReferenceTo<LookupSegment> trial(entry, success, extra);
@@ -84,9 +84,9 @@ const LookupSegment *BinarySearchLookupTable::lookupSegment(const LETableReferen
 
 const LookupSingle *BinarySearchLookupTable::lookupSingle(const LETableReference &base, const LookupSingle *entries, LEGlyphID glyph, LEErrorCode &success) const
 {
-    le_int16  unity = SWAPW(unitSize);
-    le_int16  probe = SWAPW(searchRange);
-    le_int16  extra = SWAPW(rangeShift);
+    le_uint16  unity = SWAPW(unitSize);
+    le_uint16  probe = SWAPW(searchRange);
+    le_uint16  extra = SWAPW(rangeShift);
     TTGlyphID ttGlyph = (TTGlyphID) LE_GET_GLYPH(glyph);
     LEReferenceTo<LookupSingle> entry(base, success, entries);
     LEReferenceTo<LookupSingle> trial(entry, success, extra);

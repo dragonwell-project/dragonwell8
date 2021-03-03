@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, 2015 Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, 2017 Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -369,7 +369,7 @@ public final class OutputAnalyzer {
      * - standard input produced by the process under test - standard output -
      * exit code Note: the command line is printed by the ProcessTools
      */
-    private OutputAnalyzer reportDiagnosticSummary() {
+    public OutputAnalyzer reportDiagnosticSummary() {
         String msg = " stdout: [" + stdout + "];\n" + " stderr: [" + stderr
                 + "]\n" + " exitValue = " + getExitValue() + "\n";
 
