@@ -29,6 +29,7 @@ import static jdk.nashorn.internal.codegen.CompilerConstants.staticCall;
 import static jdk.nashorn.internal.codegen.ObjectClassGenerator.OBJECT_FIELDS_ONLY;
 import static jdk.nashorn.internal.lookup.Lookup.MH;
 import static jdk.nashorn.internal.runtime.ECMAErrors.typeError;
+
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 import java.lang.reflect.Array;
@@ -37,6 +38,7 @@ import java.util.Collections;
 import java.util.Deque;
 import java.util.List;
 import jdk.internal.dynalink.beans.StaticClass;
+import jdk.nashorn.api.scripting.AbstractJSObject;
 import jdk.nashorn.api.scripting.JSObject;
 import jdk.nashorn.internal.codegen.CompilerConstants.Call;
 import jdk.nashorn.internal.codegen.types.Type;
@@ -210,7 +212,6 @@ public enum JSType {
     /** Method handle for void returns. */
     public static final Call VOID_RETURN = staticCall(JSTYPE_LOOKUP, JSType.class, "voidReturn", void.class);
 
-
     /**
      * The list of available accessor types in width order. This order is used for type guesses narrow{@literal ->} wide
      *  in the dual--fields world
@@ -311,7 +312,7 @@ public enum JSType {
             return JSType.BOOLEAN;
         }
 
-        if (obj instanceof String || obj instanceof ConsString) {
+        if (isString(obj)) {
             return JSType.STRING;
         }
 
@@ -349,7 +350,7 @@ public enum JSType {
             return JSType.BOOLEAN;
         }
 
-        if (obj instanceof String || obj instanceof ConsString) {
+        if (isString(obj)) {
             return JSType.STRING;
         }
 
@@ -455,8 +456,7 @@ public enum JSType {
                obj == ScriptRuntime.UNDEFINED ||
                obj instanceof Boolean ||
                obj instanceof Number ||
-               obj instanceof String ||
-               obj instanceof ConsString;
+               isString(obj);
     }
 
    /**
@@ -480,17 +480,47 @@ public enum JSType {
      * @return the primitive form of the object
      */
     public static Object toPrimitive(final Object obj, final Class<?> hint) {
-        return obj instanceof ScriptObject ? toPrimitive((ScriptObject)obj, hint) : obj;
+        if (obj instanceof ScriptObject) {
+            return toPrimitive((ScriptObject)obj, hint);
+        } else if (isPrimitive(obj)) {
+            return obj;
+        } else if (obj instanceof JSObject) {
+            return toPrimitive((JSObject)obj, hint);
+        } else if (obj instanceof StaticClass) {
+            final String name = ((StaticClass)obj).getRepresentedClass().getName();
+            return new StringBuilder(12 + name.length()).append("[JavaClass ").append(name).append(']').toString();
+        }
+        return obj.toString();
     }
 
     private static Object toPrimitive(final ScriptObject sobj, final Class<?> hint) {
-        final Object result = sobj.getDefaultValue(hint);
+        return requirePrimitive(sobj.getDefaultValue(hint));
+    }
 
+    private static Object requirePrimitive(final Object result) {
         if (!isPrimitive(result)) {
             throw typeError("bad.default.value", result.toString());
         }
-
         return result;
+    }
+
+    /**
+     * Primitive converter for a {@link JSObject} including type hint. Invokes
+     * {@link AbstractJSObject#getDefaultValue(JSObject, Class)} and translates any thrown
+     * {@link UnsupportedOperationException} to an ECMAScript {@code TypeError}.
+     * See ECMA 9.1 ToPrimitive
+     *
+     * @param jsobj  a JSObject
+     * @param hint a type hint
+     *
+     * @return the primitive form of the JSObject
+     */
+    public static Object toPrimitive(final JSObject jsobj, final Class<?> hint) {
+        try {
+            return requirePrimitive(AbstractJSObject.getDefaultValue(jsobj, hint));
+        } catch (final UnsupportedOperationException e) {
+            throw new ECMAException(Context.getGlobal().newTypeError(e.getMessage()), e);
+        }
     }
 
     /**
@@ -547,7 +577,7 @@ public enum JSType {
             return num != 0 && !Double.isNaN(num);
         }
 
-        if (obj instanceof String || obj instanceof ConsString) {
+        if (isString(obj)) {
             return ((CharSequence)obj).length() > 0;
         }
 
@@ -595,6 +625,15 @@ public enum JSType {
         } catch (final NumberFormatException e) {
             return false;
         }
+    }
+
+    /**
+     * Returns true if object represents a primitive JavaScript string value.
+     * @param obj the object
+     * @return true if the object represents a primitive JavaScript string value.
+     */
+    public static boolean isString(final Object obj) {
+        return obj instanceof String || obj instanceof ConsString;
     }
 
     /**
@@ -723,6 +762,48 @@ public enum JSType {
         return toNumberGeneric(obj);
     }
 
+    /**
+     * Converts an object for a comparison with a number. Almost identical to {@link #toNumber(Object)} but
+     * converts {@code null} to {@code NaN} instead of zero, so it won't compare equal to zero.
+     *
+     * @param obj  an object
+     *
+     * @return a number
+     */
+    public static double toNumberForEq(final Object obj) {
+        return obj == null ? Double.NaN : toNumber(obj);
+    }
+
+    /**
+     * Converts an object for strict comparison with a number. Returns {@code NaN} for any object that is not
+     * a {@link Number}, so only boxed numerics can compare strictly equal to numbers.
+     *
+     * @param obj  an object
+     *
+     * @return a number
+     */
+    public static double toNumberForStrictEq(final Object obj) {
+        if (obj instanceof Double) {
+            return (Double)obj;
+        }
+        if (obj instanceof Number) {
+            return ((Number)obj).doubleValue();
+        }
+        return Double.NaN;
+    }
+
+
+    /**
+     * JavaScript compliant conversion of Boolean to number
+     * See ECMA 9.3 ToNumber
+     *
+     * @param b a boolean
+     *
+     * @return JS numeric value of the boolean: 1.0 or 0.0
+     */
+    public static double toNumber(final Boolean b) {
+        return b ? 1d : +0d;
+    }
 
     /**
      * JavaScript compliant conversion of Object to number
@@ -853,11 +934,15 @@ public enum JSType {
         if (start + 1 < end && f == '0' && Character.toLowerCase(str.charAt(start + 1)) == 'x') {
             //decode hex string
             value = parseRadix(str.toCharArray(), start + 2, end, 16);
+        } else if (f == 'I' && end - start == 8 && str.regionMatches(start, "Infinity", 0, 8)) {
+            return negative ? Double.NEGATIVE_INFINITY : Double.POSITIVE_INFINITY;
         } else {
-            // Fast (no NumberFormatException) path to NaN for non-numeric strings. We allow those starting with "I" or
-            // "N" to allow for parsing "NaN" and "Infinity" correctly.
-            if ((f < '0' || f > '9') && f != '.' && f != 'I' && f != 'N') {
-                return Double.NaN;
+            // Fast (no NumberFormatException) path to NaN for non-numeric strings.
+            for (int i = start; i < end; i++) {
+                f = str.charAt(i);
+                if ((f < '0' || f > '9') && f != '.' && f != 'e' && f != 'E' && f != '+' && f != '-') {
+                    return Double.NaN;
+                }
             }
             try {
                 value = Double.parseDouble(str.substring(start, end));
@@ -1301,6 +1386,10 @@ public enum JSType {
             return (String)obj;
         }
 
+        if (obj instanceof ConsString) {
+            return obj.toString();
+        }
+
         if (obj instanceof Number) {
             return toString(((Number)obj).doubleValue());
         }
@@ -1313,23 +1402,19 @@ public enum JSType {
             return "null";
         }
 
-        if (obj instanceof ScriptObject) {
-            if (safe) {
-                final ScriptObject sobj = (ScriptObject)obj;
-                final Global gobj = Context.getGlobal();
-                return gobj.isError(sobj) ?
-                    ECMAException.safeToString(sobj) :
-                    sobj.safeToString();
-            }
-
-            return toString(toPrimitive(obj, String.class));
+        if (obj instanceof Boolean) {
+            return obj.toString();
         }
 
-        if (obj instanceof StaticClass) {
-            return "[JavaClass " + ((StaticClass)obj).getRepresentedClass().getName() + "]";
+        if (safe && obj instanceof ScriptObject) {
+            final ScriptObject sobj = (ScriptObject)obj;
+            final Global gobj = Context.getGlobal();
+            return gobj.isError(sobj) ?
+                ECMAException.safeToString(sobj) :
+                sobj.safeToString();
         }
 
-        return obj.toString();
+        return toString(toPrimitive(obj, String.class));
     }
 
     // trim from left for JS whitespaces.
@@ -1822,18 +1907,18 @@ public enum JSType {
         }
 
         if (obj instanceof Boolean) {
-            return (Boolean)obj ? 1 : +0.0;
+            return toNumber((Boolean)obj);
         }
 
         if (obj instanceof ScriptObject) {
             return toNumber((ScriptObject)obj);
         }
 
-        if (obj instanceof JSObject) {
-            return ((JSObject)obj).toNumber();
+        if (obj instanceof Undefined) {
+            return Double.NaN;
         }
 
-        return Double.NaN;
+        return toNumber(toPrimitive(obj, Number.class));
     }
 
     private static Object invoke(final MethodHandle mh, final Object arg) {
