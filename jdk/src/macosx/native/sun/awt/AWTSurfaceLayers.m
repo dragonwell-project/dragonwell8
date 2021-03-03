@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -38,11 +38,15 @@
     self = [super init];
     if (self == nil) return self;
 
-    windowLayer = aWindowLayer;
+    self.windowLayer = aWindowLayer;
 
     return self;
 }
 
+- (void) dealloc {
+    self.windowLayer = nil;
+    [super dealloc];
+}
 
 - (CALayer *) layer {
     return layer;
@@ -103,8 +107,6 @@ JNF_COCOA_ENTER(env);
 
         CALayer *windowLayer = jlong_to_ptr(windowLayerPtr);
         surfaceLayers = [[AWTSurfaceLayers alloc] initWithWindowLayer: windowLayer];
-        CFRetain(surfaceLayers);
-        [surfaceLayers release];
     }];
     
 JNF_COCOA_EXIT(env);
