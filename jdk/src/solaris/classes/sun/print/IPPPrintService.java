@@ -993,7 +993,9 @@ public class IPPPrintService implements PrintService, SunPrinterJobService {
 
     public synchronized Class[] getSupportedAttributeCategories() {
         if (supportedCats != null) {
-            return supportedCats;
+            Class<?> [] copyCats = new Class<?>[supportedCats.length];
+            System.arraycopy(supportedCats, 0, copyCats, 0, copyCats.length);
+            return copyCats;
         }
 
         initAttributes();
@@ -1050,7 +1052,9 @@ public class IPPPrintService implements PrintService, SunPrinterJobService {
         }
         supportedCats = new Class[catList.size()];
         catList.toArray(supportedCats);
-        return supportedCats;
+        Class<?>[] copyCats = new Class<?>[supportedCats.length];
+        System.arraycopy(supportedCats, 0, copyCats, 0, copyCats.length);
+        return copyCats;
     }
 
 
