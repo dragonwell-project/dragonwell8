@@ -238,11 +238,6 @@ ifeq (, $(filter $(OPENJDK_TARGET_OS), solaris macosx aix))
   EXFILES += sun/nio/fs/PollingWatchService.java
 endif
 
-# TODO: Fix when converting NIO
-# Exclude *-linux-arm.java and *-linux-ppc.java from closed.
-EXFILES += -linux-arm.java \
-    -linux-ppc.java
-
 ifeq ($(OPENJDK_TARGET_OS), windows)
   EXFILES += sun/nio/ch/AbstractPollSelectorImpl.java \
       sun/nio/ch/PollSelectorProvider.java \
@@ -393,7 +388,7 @@ $(JDK_OUTPUTDIR)/classes/META-INF/services/com.sun.tools.xjc.Plugin:
           JAVAC_FLAGS := -cp $(JDK_OUTPUTDIR)/classes, \
           SRC := $(JDK_OUTPUTDIR)/gensrc_ab/legacy, \
           BIN := $(JDK_OUTPUTDIR)/classes_ab/legacy, \
-          HEADERS := $(JDK_OUTPUTDIR)/gensrc_headers_ab/legacy))
+          HEADERS := $(JDK_OUTPUTDIR)/gensrc_headers_ab/LEGACY))
 
       $(BUILD_ACCESSBRIDGE_LEGACY): $(BUILD_JDK)
 
