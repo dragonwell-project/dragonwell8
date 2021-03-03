@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
  */
 /*
  * Licensed to the Apache Software Foundation (ASF) under one or more
@@ -1012,5 +1012,13 @@ public class SimpleResultTreeImpl extends EmptySerializer implements DOM, DTM
 
     public void migrateTo(DTMManager manager)
     {
+    }
+
+    public void release()
+    {
+        if (_documentID != 0) {
+            _dtmManager.release(this, true);
+            _documentID = 0;
+        }
     }
 }

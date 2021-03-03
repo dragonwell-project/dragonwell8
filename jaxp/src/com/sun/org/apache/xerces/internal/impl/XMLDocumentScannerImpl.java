@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
  */
 
 /*
@@ -31,7 +31,6 @@ import com.sun.org.apache.xerces.internal.utils.SecuritySupport;
 import com.sun.org.apache.xerces.internal.xni.Augmentations;
 import com.sun.org.apache.xerces.internal.xni.NamespaceContext;
 import com.sun.org.apache.xerces.internal.xni.XMLResourceIdentifier;
-import com.sun.org.apache.xerces.internal.xni.XMLString;
 import com.sun.org.apache.xerces.internal.xni.XNIException;
 import com.sun.org.apache.xerces.internal.xni.parser.XMLComponentManager;
 import com.sun.org.apache.xerces.internal.xni.parser.XMLConfigurationException;
@@ -224,9 +223,6 @@ public class XMLDocumentScannerImpl
 
     /** A DTD Description. */
     private final XMLDTDDescription fDTDDescription = new XMLDTDDescription(null, null, null, null, null);
-
-    /** String. */
-    private XMLString fString = new XMLString();
 
     private static final char [] DOCTYPE = {'D','O','C','T','Y','P','E'};
     private static final char [] COMMENTSTRING = {'-','-'};
@@ -848,9 +844,12 @@ public class XMLDocumentScannerImpl
 
                         case SCANNER_STATE_START_OF_MARKUP: {
                             fMarkupDepth++;
-
-                            if (fEntityScanner.skipChar('?')) {
-                                setScannerState(SCANNER_STATE_PI);
+                            if (isValidNameStartChar(fEntityScanner.peekChar()) ||
+                                    isValidNameStartHighSurrogate(fEntityScanner.peekChar())) {
+                                setScannerState(SCANNER_STATE_ROOT_ELEMENT);
+                                setDriver(fContentDriver);
+                                //from now onwards this would be handled by fContentDriver,in the same next() call
+                                return fContentDriver.next();
                             } else if (fEntityScanner.skipChar('!')) {
                                 if (fEntityScanner.skipChar('-')) {
                                     if (!fEntityScanner.skipChar('-')) {
@@ -873,12 +872,8 @@ public class XMLDocumentScannerImpl
                                     reportFatalError("MarkupNotRecognizedInProlog",
                                             null);
                                 }
-                            } else if (XMLChar.isNameStart(fEntityScanner.peekChar())) {
-                                setScannerState(SCANNER_STATE_ROOT_ELEMENT);
-                                setDriver(fContentDriver);
-                                //from now onwards this would be handled by fContentDriver,in the same next() call
-                                return fContentDriver.next();
-
+                            } else if (fEntityScanner.skipChar('?')) {
+                                setScannerState(SCANNER_STATE_PI);
                             } else {
                                 reportFatalError("MarkupNotRecognizedInProlog",
                                         null);
@@ -1396,7 +1391,8 @@ public class XMLDocumentScannerImpl
                             } else if (fEntityScanner.skipChar('/')) {
                                 reportFatalError("MarkupNotRecognizedInMisc",
                                         null);
-                            } else if (XMLChar.isNameStart(fEntityScanner.peekChar())) {
+                            } else if (isValidNameStartChar(fEntityScanner.peekChar()) ||
+                                    isValidNameStartHighSurrogate(fEntityScanner.peekChar())) {
                                 reportFatalError("MarkupNotRecognizedInMisc",
                                         null);
                                 scanStartElement();

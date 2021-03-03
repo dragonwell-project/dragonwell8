@@ -794,7 +794,9 @@ public:
                                  "in region "HR_FORMAT,
                                  (void*) obj,
                                  HR_FORMAT_PARAMS(to));
-          obj->print_on(gclog_or_tty);
+          if (obj->is_oop()) {
+            obj->print_on(gclog_or_tty);
+          }
           gclog_or_tty->print_cr("Obj head CTE = %d, field CTE = %d.",
                         cv_obj, cv_field);
           gclog_or_tty->print_cr("----------");

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
  */
 
 /*
@@ -23,7 +23,6 @@ package com.sun.org.apache.xerces.internal.impl;
 
 import com.sun.xml.internal.stream.XMLBufferListener;
 import com.sun.xml.internal.stream.XMLEntityStorage;
-import com.sun.xml.internal.stream.XMLInputFactoryImpl;
 import com.sun.xml.internal.stream.dtd.DTDGrammarUtil;
 
 import java.io.EOFException;
@@ -50,17 +49,11 @@ import com.sun.org.apache.xerces.internal.xni.parser.XMLInputSource;
 import com.sun.org.apache.xerces.internal.xni.Augmentations;
 import com.sun.org.apache.xerces.internal.impl.Constants;
 import com.sun.org.apache.xerces.internal.impl.XMLEntityHandler;
-import com.sun.org.apache.xerces.internal.util.NamespaceSupport;
 import com.sun.org.apache.xerces.internal.utils.SecuritySupport;
-import com.sun.org.apache.xerces.internal.utils.XMLLimitAnalyzer;
 import com.sun.org.apache.xerces.internal.utils.XMLSecurityManager;
 import com.sun.org.apache.xerces.internal.utils.XMLSecurityManager.Limit;
-import com.sun.org.apache.xerces.internal.utils.XMLSecurityManager.State;
 import com.sun.org.apache.xerces.internal.utils.XMLSecurityPropertyManager;
-import com.sun.org.apache.xerces.internal.xni.NamespaceContext;
-import javax.xml.XMLConstants;
 import javax.xml.stream.XMLStreamConstants;
-import javax.xml.stream.events.XMLEvent;
 
 /**
  *
@@ -211,12 +204,12 @@ public class XMLDocumentFragmentScannerImpl
                 null,
                 null,
                 null,
-                EXTERNAL_ACCESS_DEFAULT
+                null
     };
 
     private static final char [] cdata = {'[','C','D','A','T','A','['};
     static final char [] xmlDecl = {'<','?','x','m','l'};
-    private static final char [] endTag = {'<','/'};
+    // private static final char [] endTag = {'<','/'};
     // debugging
 
     /** Debug scanner state. */
@@ -1393,7 +1386,12 @@ public class XMLDocumentFragmentScannerImpl
             fEmptyElement = true;
             return true;
         } else if (!isValidNameStartChar(c) || !sawSpace) {
-            reportFatalError("ElementUnterminated", new Object[]{fElementQName.rawname});
+            // Second chance. Check if this character is a high
+            // surrogate of a valid name start character.
+            if (!isValidNameStartHighSurrogate(c) || !sawSpace) {
+                reportFatalError("ElementUnterminated",
+                        new Object[]{fElementQName.rawname});
+            }
         }
 
         return false;
@@ -2057,7 +2055,7 @@ public class XMLDocumentFragmentScannerImpl
      */
     String checkAccess(String systemId, String allowedProtocols) throws IOException {
         String baseSystemId = fEntityScanner.getBaseSystemId();
-        String expandedSystemId = fEntityManager.expandSystemId(systemId, baseSystemId,fStrictURI);
+        String expandedSystemId = XMLEntityManager.expandSystemId(systemId, baseSystemId, fStrictURI);
         return SecuritySupport.checkAccess(expandedSystemId, allowedProtocols, Constants.ACCESS_EXTERNAL_ALL);
     }
 
@@ -2593,8 +2591,6 @@ public class XMLDocumentFragmentScannerImpl
         //
         // Driver methods
         //
-        private boolean fContinueDispatching = true;
-        private boolean fScanningForMarkup = true;
 
         /**
          *  decides the appropriate state of the parser
@@ -2602,40 +2598,38 @@ public class XMLDocumentFragmentScannerImpl
         private void startOfMarkup() throws IOException {
             fMarkupDepth++;
             final int ch = fEntityScanner.peekChar();
-
-            switch(ch){
-                case '?' :{
-                    setScannerState(SCANNER_STATE_PI);
-                    fEntityScanner.skipChar(ch);
-                    break;
-                }
-                case '!' :{
-                    fEntityScanner.skipChar(ch);
-                    if (fEntityScanner.skipChar('-')) {
-                        if (!fEntityScanner.skipChar('-')) {
-                            reportFatalError("InvalidCommentStart",
+            if (isValidNameStartChar(ch) || isValidNameStartHighSurrogate(ch)) {
+                setScannerState(SCANNER_STATE_START_ELEMENT_TAG);
+            } else {
+                switch(ch){
+                    case '?' :{
+                        setScannerState(SCANNER_STATE_PI);
+                        fEntityScanner.skipChar(ch);
+                        break;
+                    }
+                    case '!' :{
+                        fEntityScanner.skipChar(ch);
+                        if (fEntityScanner.skipChar('-')) {
+                            if (!fEntityScanner.skipChar('-')) {
+                                reportFatalError("InvalidCommentStart",
+                                        null);
+                            }
+                            setScannerState(SCANNER_STATE_COMMENT);
+                        } else if (fEntityScanner.skipString(cdata)) {
+                            setScannerState(SCANNER_STATE_CDATA );
+                        } else if (!scanForDoctypeHook()) {
+                            reportFatalError("MarkupNotRecognizedInContent",
                                     null);
                         }
-                        setScannerState(SCANNER_STATE_COMMENT);
-                    } else if (fEntityScanner.skipString(cdata)) {
-                        setScannerState(SCANNER_STATE_CDATA );
-                    } else if (!scanForDoctypeHook()) {
-                        reportFatalError("MarkupNotRecognizedInContent",
-                                null);
+                        break;
                     }
-                    break;
-                }
-                case '/' :{
-                    setScannerState(SCANNER_STATE_END_ELEMENT_TAG);
-                    fEntityScanner.skipChar(ch);
-                    break;
-                }
-                default :{
-                    if (isValidNameStartChar(ch)) {
-                        setScannerState(SCANNER_STATE_START_ELEMENT_TAG);
-                    } else {
-                        reportFatalError("MarkupNotRecognizedInContent",
-                                null);
+                    case '/' :{
+                        setScannerState(SCANNER_STATE_END_ELEMENT_TAG);
+                        fEntityScanner.skipChar(ch);
+                        break;
+                    }
+                    default :{
+                        reportFatalError("MarkupNotRecognizedInContent", null);
                     }
                 }
             }
@@ -3254,7 +3248,7 @@ public class XMLDocumentFragmentScannerImpl
 
     protected XMLString getString(){
         if(fAttributeCacheUsedCount < initialCacheCount || fAttributeCacheUsedCount < attributeValueCache.size()){
-            return (XMLString)attributeValueCache.get(fAttributeCacheUsedCount++);
+            return attributeValueCache.get(fAttributeCacheUsedCount++);
         } else{
             XMLString str = new XMLString();
             fAttributeCacheUsedCount++;
