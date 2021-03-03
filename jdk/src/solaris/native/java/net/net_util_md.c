@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -786,6 +786,7 @@ NET_InetAddressToSockaddr(JNIEnv *env, jobject iaObj, int port, struct sockaddr 
                           int *len, jboolean v4MappedAddress) {
     jint family;
     family = getInetAddress_family(env, iaObj);
+    JNU_CHECK_EXCEPTION_RETURN(env, -1);
 #ifdef AF_INET6
     /* needs work. 1. family 2. clean up him6 etc deallocate memory */
     if (ipv6_available() && !(family == IPv4 && v4MappedAddress == JNI_FALSE)) {
@@ -797,6 +798,7 @@ NET_InetAddressToSockaddr(JNIEnv *env, jobject iaObj, int port, struct sockaddr 
         if (family == IPv4) { /* will convert to IPv4-mapped address */
             memset((char *) caddr, 0, 16);
             address = getInetAddress_addr(env, iaObj);
+            JNU_CHECK_EXCEPTION_RETURN(env, -1);
             if (address == INADDR_ANY) {
                 /* we would always prefer IPv6 wildcard address
                    caddr[10] = 0xff;
@@ -905,6 +907,7 @@ NET_InetAddressToSockaddr(JNIEnv *env, jobject iaObj, int port, struct sockaddr 
             }
             memset((char *) him4, 0, sizeof(struct sockaddr_in));
             address = getInetAddress_addr(env, iaObj);
+            JNU_CHECK_EXCEPTION_RETURN(env, -1);
             him4->sin_port = htons((short) port);
             him4->sin_addr.s_addr = (uint32_t) htonl(address);
             him4->sin_family = AF_INET;
