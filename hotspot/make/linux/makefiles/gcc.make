@@ -184,6 +184,10 @@ AOUT_FLAGS += $(ARCHFLAG)
 LFLAGS     += $(ARCHFLAG)
 ASFLAGS    += $(ARCHFLAG)
 
+ifeq ($(DEBUG_BINARIES), true)
+  ASFLAGS    += $(ASFLAGS_DEBUG_SYMBOLS)
+endif
+
 # Use C++ Interpreter
 ifdef CC_INTERP
   CFLAGS += -DCC_INTERP

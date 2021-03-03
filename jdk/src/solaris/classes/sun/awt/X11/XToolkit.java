@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2002, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -113,6 +113,12 @@ public final class XToolkit extends UNIXToolkit implements Runnable {
     private static volatile int screenWidth = -1, screenHeight = -1; // Dimensions of default screen
     static long awt_defaultFg; // Pixel
     private static XMouseInfoPeer xPeer;
+
+    /**
+     * Should we check "_NET_WM_STRUT/_NET_WM_STRUT_PARTIAL" during insets
+     * calculation.
+     */
+    private static Boolean checkSTRUT;
 
     static {
         initSecurityWarning();
@@ -717,13 +723,26 @@ public final class XToolkit extends UNIXToolkit implements Runnable {
     }
 
     /*
-     * If we're running in non-Xinerama environment and the current
-     * window manager supports _NET protocol then the screen insets
-     * are calculated using _NET_WM_WORKAREA property of the root
-     * window.
-     * Otherwise, i. e. if Xinerama is on or _NET_WM_WORKAREA is
-     * not set, we try to calculate the insets ourselves using
-     * getScreenInsetsManually method.
+     * If the current window manager supports _NET protocol then the screen
+     * insets are calculated using _NET_WORKAREA property of the root window.
+     * <p>
+     * Note that _NET_WORKAREA is a rectangular area and it does not work
+     * well in the Xinerama mode.
+     * <p>
+     * We will trust the part of this rectangular area only if it starts at the
+     * requested graphics configuration. Below is an example when the
+     * _NET_WORKAREA intersects with the requested graphics configuration but
+     * produces wrong result.
+     *
+     *         //<-x1,y1///////
+     *         //            // ////////////////
+     *         //  SCREEN1   // // SCREEN2    //
+     *         // ********** // //     x2,y2->//
+     *         //////////////// //            //
+     *                          ////////////////
+     *
+     * When two screens overlap and the first contains a dock(*****), then
+     * _NET_WORKAREA may start at point x1,y1 and end at point x2,y2.
      */
     public Insets getScreenInsets(GraphicsConfiguration gc)
     {
@@ -739,28 +758,47 @@ public final class XToolkit extends UNIXToolkit implements Runnable {
             X11GraphicsConfig x11gc = (X11GraphicsConfig)gc;
             X11GraphicsDevice x11gd = (X11GraphicsDevice)x11gc.getDevice();
             long root = XlibUtil.getRootWindow(x11gd.getScreen());
-            Rectangle rootBounds = XlibUtil.getWindowGeometry(root);
-
             X11GraphicsEnvironment x11ge = (X11GraphicsEnvironment)
                 GraphicsEnvironment.getLocalGraphicsEnvironment();
-            if (!x11ge.runningXinerama())
-            {
-                Rectangle workArea = XToolkit.getWorkArea(root);
-                if (workArea != null)
-                {
-                    return new Insets(workArea.y,
-                                      workArea.x,
-                                      rootBounds.height - workArea.height - workArea.y,
-                                      rootBounds.width - workArea.width - workArea.x);
+            if (x11ge.runningXinerama() && checkSTRUT()) {
+                // implementation based on _NET_WM_STRUT/_NET_WM_STRUT_PARTIAL
+                Rectangle rootBounds = XlibUtil.getWindowGeometry(root);
+                Insets insets = getScreenInsetsManually(root, rootBounds,
+                                                        gc.getBounds());
+                if ((insets.left | insets.top | insets.bottom | insets.right) != 0
+                        || rootBounds == null) {
+                    return insets;
                 }
             }
-
-            return getScreenInsetsManually(root, rootBounds, gc.getBounds());
+            Rectangle workArea = XToolkit.getWorkArea(root);
+            Rectangle screen = gc.getBounds();
+            if (workArea != null && screen.contains(workArea.getLocation())) {
+                workArea = workArea.intersection(screen);
+                int top = workArea.y - screen.y;
+                int left = workArea.x - screen.x;
+                int bottom = screen.height - workArea.height - top;
+                int right = screen.width - workArea.width - left;
+                return new Insets(top, left, bottom, right);
+            }
+            // Note that it is better to return zeros than inadequate values
+            return new Insets(0, 0, 0, 0);
         }
         finally
         {
             XToolkit.awtUnlock();
         }
+    }
+
+    /**
+     * Returns the value of "sun.awt.X11.checkSTRUT" property. Default value is
+     * {@code false}.
+     */
+    private static boolean checkSTRUT() {
+        if (checkSTRUT == null) {
+            checkSTRUT = AccessController.doPrivileged(
+                    new GetBooleanAction("sun.awt.X11.checkSTRUT"));
+        }
+        return checkSTRUT;
     }
 
     /*
@@ -769,6 +807,14 @@ public final class XToolkit extends UNIXToolkit implements Runnable {
      * hints' values to screen insets.
      *
      * This method should be called under XToolkit.awtLock()
+     *
+     * This method is unused by default because of two reasons:
+     *  - Iteration over windows may be extremely slow, and execution of
+     *    getScreenInsets() can be x100 slower than in one monitor config.
+     *  - _NET_WM_STRUT/_NET_WM_STRUT_PARTIAL are hints for the applications.
+     *    WM should take into account these hints when "_NET_WORKAREA" is
+     *    calculated, but the system panels do not necessarily contain these
+     *    hints(Gnome 3 for example).
      */
     private Insets getScreenInsetsManually(long root, Rectangle rootBounds, Rectangle screenBounds)
     {

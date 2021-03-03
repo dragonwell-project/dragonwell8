@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2004, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -109,8 +109,8 @@ public class GenericListeningConnector
            throw new IllegalConnectorArgumentsException("Already listening",
                new ArrayList<String>(args.keySet()));
         }
-
         listener = transportService.startListening(address);
+        updateArgumentMapIfRequired(args, listener);
         listenMap.put(args, listener);
         return listener.address();
     }
@@ -178,6 +178,10 @@ public class GenericListeningConnector
 
     public Transport transport() {
         return transport;
+    }
+
+    protected void updateArgumentMapIfRequired(
+        Map<String, ? extends Connector.Argument> args, TransportService.ListenKey listener) {
     }
 
 }
