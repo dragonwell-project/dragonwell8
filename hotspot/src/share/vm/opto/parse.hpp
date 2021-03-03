@@ -142,7 +142,7 @@ public:
 
   void print_value_on(outputStream* st) const PRODUCT_RETURN;
 
-  bool        _forced_inline;     // Inlining was forced by CompilerOracle or ciReplay
+  bool        _forced_inline;     // Inlining was forced by CompilerOracle, ciReplay or annotation
   bool        forced_inline()     const { return _forced_inline; }
   // Count number of nodes in this subtree
   int         count() const;
@@ -551,8 +551,9 @@ class Parse : public GraphKit {
 
   float   dynamic_branch_prediction(float &cnt);
   float   branch_prediction(float &cnt, BoolTest::mask btest, int target_bci);
-  bool    seems_never_taken(float prob);
-  bool    seems_stable_comparison(BoolTest::mask btest, Node* c);
+  bool    seems_never_taken(float prob) const;
+  bool    path_is_suitable_for_uncommon_trap(float prob) const;
+  bool    seems_stable_comparison() const;
 
   void    do_ifnull(BoolTest::mask btest, Node* c);
   void    do_if(BoolTest::mask btest, Node* c);

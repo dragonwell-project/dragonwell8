@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<main>
+    <Root>
+        <SomeTag>
+            <AChildTag>
+                <AnotherChildTag/>
+                <AnotherChildTag/>
+            </AChildTag>
+        </SomeTag>
+    </Root>
+    <Good>
+        <VeryGood>
+            <TheBest>
+                <MegaSuper/>
+                <MegaSuper/>
+            </TheBest>
+        </VeryGood>
+    </Good>
+</main>
