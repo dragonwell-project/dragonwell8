@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2014, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -376,8 +376,6 @@ void Klass::append_to_sibling_list() {
 }
 
 bool Klass::is_loader_alive(BoolObjectClosure* is_alive) {
-  assert(ClassLoaderDataGraph::contains((address)this), "is in the metaspace");
-
 #ifdef ASSERT
   // The class is alive iff the class loader is alive.
   oop loader = class_loader();
@@ -640,7 +638,7 @@ void Klass::collect_statistics(KlassSizeStats *sz) const {
 
 // Verification
 
-void Klass::verify_on(outputStream* st, bool check_dictionary) {
+void Klass::verify_on(outputStream* st) {
 
   // This can be expensive, but it is worth checking that this klass is actually
   // in the CLD graph but not in production.
