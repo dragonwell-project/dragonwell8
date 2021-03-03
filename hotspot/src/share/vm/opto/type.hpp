@@ -882,7 +882,7 @@ protected:
 
   // If not InstanceTop or InstanceBot, indicates that this is
   // a particular instance of this type which is distinct.
-  // This is the the node index of the allocation node creating this instance.
+  // This is the node index of the allocation node creating this instance.
   int           _instance_id;
 
   // Extra type information profiling gave us. We propagate it the
