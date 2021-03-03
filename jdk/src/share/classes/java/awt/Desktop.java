@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2006, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -202,15 +202,11 @@ public class Desktop {
      * @throws NullPointerException if file is null
      * @throws IllegalArgumentException if file doesn't exist
      */
-    private static void checkFileValidation(File file){
-        if (file == null) throw new NullPointerException("File must not be null");
-
+    private static void checkFileValidation(File file) {
         if (!file.exists()) {
             throw new IllegalArgumentException("The file: "
                                                + file.getPath() + " doesn't exist.");
         }
-
-        file.canRead();
     }
 
     /**
@@ -264,6 +260,7 @@ public class Desktop {
      * @see java.awt.AWTPermission
      */
     public void open(File file) throws IOException {
+        file = new File(file.getPath());
         checkAWTPermission();
         checkExec();
         checkActionSupport(Action.OPEN);
@@ -295,6 +292,7 @@ public class Desktop {
      * @see java.awt.AWTPermission
      */
     public void edit(File file) throws IOException {
+        file = new File(file.getPath());
         checkAWTPermission();
         checkExec();
         checkActionSupport(Action.EDIT);
@@ -325,6 +323,7 @@ public class Desktop {
      * allowed to create a subprocess
      */
     public void print(File file) throws IOException {
+        file = new File(file.getPath());
         checkExec();
         SecurityManager sm = System.getSecurityManager();
         if (sm != null) {
