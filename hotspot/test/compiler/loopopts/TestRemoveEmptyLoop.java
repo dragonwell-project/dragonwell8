@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, Huawei Technologies Co. Ltd. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,17 +21,33 @@
  * questions.
  */
 
-/*
+/**
  * @test
- * @bug 7002839
- * @summary Static init deadlock Win32GraphicsEnvironment and WToolkit
- * @run main/othervm -Djava.awt.headless=true GE_init5
+ * @bug 8231988
+ * @summary Unexpected test result caused by C2 IdealLoopTree::do_remove_empty_loop
+ *
+ * @run main/othervm -XX:-TieredCompilation -XX:-BackgroundCompilation
+ *      TestRemoveEmptyLoop
  */
 
-import java.awt.GraphicsEnvironment;
+public class TestRemoveEmptyLoop {
 
-public class GE_init5 {
-    public static void main(String[] args) {
-        GraphicsEnvironment.getLocalGraphicsEnvironment();
+    public void test() {
+        int i = 34;
+        for (; i > 0; i -= 11);
+        if (i < 0) {
+            // do nothing
+        } else {
+            throw new RuntimeException("Test failed.");
+        }
     }
+
+    public static void main(String[] args) {
+        TestRemoveEmptyLoop _instance = new TestRemoveEmptyLoop();
+        for (int i = 0; i < 50000; i++) {
+            _instance.test();
+        }
+        System.out.println("Test passed.");
+    }
+
 }
