@@ -79,6 +79,9 @@ class Matcher : public PhaseTransform {
 
   // Find shared Nodes, or Nodes that otherwise are Matcher roots
   void find_shared( Node *n );
+#ifdef X86
+  bool is_bmi_pattern(Node *n, Node *m);
+#endif
 
   // Debug and profile information for nodes in old space:
   GrowableArray<Node_Notes*>* _old_node_note_array;
@@ -286,6 +289,9 @@ public:
   // CPU supports misaligned vectors store/load.
   static const bool misaligned_vectors_ok();
 
+  // Should original key array reference be passed to AES stubs
+  static const bool pass_original_key_for_aes();
+
   // Used to determine a "low complexity" 64-bit constant.  (Zero is simple.)
   // The standard of comparison is one (StoreL ConL) vs. two (StoreI ConI).
   // Depends on the details of 64-bit constant generation on the CPU.
@@ -336,10 +342,6 @@ public:
   static RegMask divL_proj_mask();
   // Register for MODL projection of divmodL
   static RegMask modL_proj_mask();
-
-  static const RegMask mathExactI_result_proj_mask();
-  static const RegMask mathExactL_result_proj_mask();
-  static const RegMask mathExactI_flags_proj_mask();
 
   // Use hardware DIV instruction when it is faster than
   // a code which use multiply for division by constant.
