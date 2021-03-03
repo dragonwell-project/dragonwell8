@@ -26,12 +26,12 @@
  * @bug 8046703
  * @summary Test verifies that lambda forms are garbage collected
  * @author kshefov
- * @ignore 8057020
  * @library /lib/testlibrary/jsr292 /lib/testlibrary
+ * @ignore 8057020
  * @build TestMethods
  * @build LambdaFormTestCase
  * @build LFGarbageCollectedTest
- * @run main/othervm/timeout=600 -DtestLimit=150 LFGarbageCollectedTest
+ * @run main/othervm LFGarbageCollectedTest
  */
 
 import java.lang.invoke.MethodHandle;

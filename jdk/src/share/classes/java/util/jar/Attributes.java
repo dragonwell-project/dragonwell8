@@ -550,8 +550,8 @@ public class Attributes implements Map<Object,Object>, Cloneable {
          * <code>Name</code> object for <code>Class-Path</code>
          * manifest attribute. Bundled extensions can use this attribute
          * to find other JAR files containing needed classes.
-         * @see <a href="../../../../technotes/guides/extensions/spec.html#bundled">
-         *      Extensions Specification</a>
+         * @see <a href="../../../../technotes/guides/jar/jar.html#classpath">
+         *      JAR file specification</a>
          */
         public static final Name CLASS_PATH = new Name("Class-Path");
 
@@ -567,8 +567,8 @@ public class Attributes implements Map<Object,Object>, Cloneable {
         /**
          * <code>Name</code> object for <code>Sealed</code> manifest attribute
          * used for sealing.
-         * @see <a href="../../../../technotes/guides/extensions/spec.html#sealing">
-         *      Extension Sealing</a>
+         * @see <a href="../../../../technotes/guides/jar/jar.html#sealing">
+         *      Package Sealing</a>
          */
         public static final Name SEALED = new Name("Sealed");
 
@@ -591,9 +591,12 @@ public class Attributes implements Map<Object,Object>, Cloneable {
         /**
          * <code>Name</code> object for <code>Extension-Name</code> manifest attribute
          * used for declaring dependencies on installed extensions.
+         * @deprecated Extension mechanism will be removed in a future release.
+         *             Use class path instead.
          * @see <a href="../../../../technotes/guides/extensions/spec.html#dependency">
          *      Installed extension dependency</a>
          */
+        @Deprecated
         public static final Name EXTENSION_INSTALLATION = new Name("Extension-Installation");
 
         /**
@@ -623,17 +626,23 @@ public class Attributes implements Map<Object,Object>, Cloneable {
         /**
          * <code>Name</code> object for <code>Implementation-Vendor-Id</code>
          * manifest attribute used for package versioning.
-         * @see <a href="../../../../technotes/guides/versioning/spec/versioning2.html#wp90779">
-         *      Java Product Versioning Specification</a>
+         * @deprecated Extension mechanism will be removed in a future release.
+         *             Use class path instead.
+         * @see <a href="../../../../technotes/guides/extensions/versioning.html#applet">
+         *      Optional Package Versioning</a>
          */
+        @Deprecated
         public static final Name IMPLEMENTATION_VENDOR_ID = new Name("Implementation-Vendor-Id");
 
        /**
          * <code>Name</code> object for <code>Implementation-URL</code>
          * manifest attribute used for package versioning.
-         * @see <a href="../../../../technotes/guides/versioning/spec/versioning2.html#wp90779">
-         *      Java Product Versioning Specification</a>
+         * @deprecated Extension mechanism will be removed in a future release.
+         *             Use class path instead.
+         * @see <a href="../../../../technotes/guides/extensions/versioning.html#applet">
+         *      Optional Package Versioning</a>
          */
+        @Deprecated
         public static final Name IMPLEMENTATION_URL = new Name("Implementation-URL");
 
         /**
