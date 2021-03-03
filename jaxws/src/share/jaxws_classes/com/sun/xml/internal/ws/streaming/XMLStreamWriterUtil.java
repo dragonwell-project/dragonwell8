@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2012, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,6 +26,7 @@
 package com.sun.xml.internal.ws.streaming;
 
 import com.sun.istack.internal.Nullable;
+import com.sun.xml.internal.ws.api.streaming.XMLStreamWriterFactory;
 import com.sun.xml.internal.ws.encoding.HasEncoding;
 import com.sun.xml.internal.ws.encoding.SOAPBindingCodec;
 
@@ -57,9 +58,15 @@ public class XMLStreamWriterUtil {
     public static @Nullable OutputStream getOutputStream(XMLStreamWriter writer) throws XMLStreamException {
         Object obj = null;
 
+        XMLStreamWriter xmlStreamWriter =
+                writer instanceof XMLStreamWriterFactory.HasEncodingWriter ?
+                        ((XMLStreamWriterFactory.HasEncodingWriter) writer).getWriter()
+                        : writer;
+
+
         // Hack for JDK6's SJSXP
-        if (writer instanceof Map) {
-            obj = ((Map) writer).get("sjsxp-outputstream");
+        if (xmlStreamWriter instanceof Map) {
+            obj = ((Map) xmlStreamWriter).get("sjsxp-outputstream");
         }
 
         // woodstox
