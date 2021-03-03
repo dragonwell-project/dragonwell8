@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2002, 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -541,10 +541,10 @@ public class DistributionPointFetcher {
                 // set interim reasons mask to the intersection of
                 // reasons in the DP and onlySomeReasons in the IDP
                 boolean[] idpReasonFlags = reasons.getFlags();
-                for (int i = 0; i < idpReasonFlags.length; i++) {
-                    if (idpReasonFlags[i] && pointReasonFlags[i]) {
-                        interimReasonsMask[i] = true;
-                    }
+                for (int i = 0; i < interimReasonsMask.length; i++) {
+                    interimReasonsMask[i] =
+                        (i < idpReasonFlags.length && idpReasonFlags[i]) &&
+                        (i < pointReasonFlags.length && pointReasonFlags[i]);
                 }
             } else {
                 // set interim reasons mask to the value of
@@ -558,7 +558,6 @@ public class DistributionPointFetcher {
                 interimReasonsMask = pointReasonFlags.clone();
             } else {
                 // set interim reasons mask to the special value all-reasons
-                interimReasonsMask = new boolean[9];
                 Arrays.fill(interimReasonsMask, true);
             }
         }
@@ -567,7 +566,9 @@ public class DistributionPointFetcher {
         // not included in the reasons mask
         boolean oneOrMore = false;
         for (int i = 0; i < interimReasonsMask.length && !oneOrMore; i++) {
-            if (!reasonsMask[i] && interimReasonsMask[i]) {
+            if (interimReasonsMask[i] &&
+                    !(i < reasonsMask.length && reasonsMask[i]))
+            {
                 oneOrMore = true;
             }
         }
@@ -693,11 +694,11 @@ public class DistributionPointFetcher {
         }
 
         // update reasonsMask
-        for (int i = 0; i < interimReasonsMask.length; i++) {
-            if (!reasonsMask[i] && interimReasonsMask[i]) {
-                reasonsMask[i] = true;
-            }
+        for (int i = 0; i < reasonsMask.length; i++) {
+            reasonsMask[i] = reasonsMask[i] ||
+                    (i < interimReasonsMask.length && interimReasonsMask[i]);
         }
+
         return true;
     }
 
