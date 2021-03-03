@@ -551,7 +551,7 @@ public class LogManager {
         Logger result = getLogger(name);
         if (result == null) {
             // only allocate the new logger once
-            Logger newLogger = new Logger(name, resourceBundleName, caller, this);
+            Logger newLogger = new Logger(name, resourceBundleName, caller, this, false);
             do {
                 if (addLogger(newLogger)) {
                     // We successfully added the new Logger that we
@@ -598,13 +598,13 @@ public class LogManager {
         } while (logger == null);
 
         // LogManager will set the sysLogger's handlers via LogManager.addLogger method.
-        if (logger != sysLogger && sysLogger.getHandlers().length == 0) {
+        if (logger != sysLogger && sysLogger.accessCheckedHandlers().length == 0) {
             // if logger already exists but handlers not set
             final Logger l = logger;
             AccessController.doPrivileged(new PrivilegedAction<Void>() {
                 @Override
                 public Void run() {
-                    for (Handler hdl : l.getHandlers()) {
+                    for (Handler hdl : l.accessCheckedHandlers()) {
                         sysLogger.addHandler(hdl);
                     }
                     return null;
@@ -922,7 +922,7 @@ public class LogManager {
             Logger result = findLogger(name);
             if (result == null) {
                 // only allocate the new system logger once
-                Logger newLogger = new Logger(name, resourceBundleName, null, getOwner());
+                Logger newLogger = new Logger(name, resourceBundleName, null, getOwner(), true);
                 do {
                     if (addLocalLogger(newLogger)) {
                         // We successfully added the new Logger that we
@@ -1640,7 +1640,7 @@ public class LogManager {
             // We do not call the protected Logger two args constructor here,
             // to avoid calling LogManager.getLogManager() from within the
             // RootLogger constructor.
-            super("", null, null, LogManager.this);
+            super("", null, null, LogManager.this, true);
         }
 
         @Override
@@ -1663,9 +1663,9 @@ public class LogManager {
         }
 
         @Override
-        public Handler[] getHandlers() {
+        Handler[] accessCheckedHandlers() {
             initializeGlobalHandlers();
-            return super.getHandlers();
+            return super.accessCheckedHandlers();
         }
     }
 
