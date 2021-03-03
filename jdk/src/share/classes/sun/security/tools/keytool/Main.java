@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -1689,7 +1689,7 @@ public final class Main {
     private static String getCompatibleSigAlgName(String keyAlgName)
             throws Exception {
         if ("DSA".equalsIgnoreCase(keyAlgName)) {
-            return "SHA1WithDSA";
+            return "SHA256WithDSA";
         } else if ("RSA".equalsIgnoreCase(keyAlgName)) {
             return "SHA256WithRSA";
         } else if ("EC".equalsIgnoreCase(keyAlgName)) {
