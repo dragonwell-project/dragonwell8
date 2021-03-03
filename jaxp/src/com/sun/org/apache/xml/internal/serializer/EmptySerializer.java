@@ -1,13 +1,13 @@
 /*
- * reserved comment block
- * DO NOT REMOVE OR ALTER!
+ * Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
  */
 /*
- * Copyright 2003-2004 The Apache Software Foundation.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
  *
  *     http://www.apache.org/licenses/LICENSE-2.0
  *
@@ -25,19 +25,17 @@ package com.sun.org.apache.xml.internal.serializer;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.Writer;
-import java.util.Hashtable;
 import java.util.Properties;
 import java.util.Vector;
-
 import javax.xml.transform.SourceLocator;
 import javax.xml.transform.Transformer;
-
 import org.w3c.dom.Node;
 import org.xml.sax.Attributes;
 import org.xml.sax.ContentHandler;
 import org.xml.sax.Locator;
 import org.xml.sax.SAXException;
 import org.xml.sax.SAXParseException;
+
 
 /**
  * This class is an adapter class. Its only purpose is to be extended and
@@ -71,11 +69,6 @@ public class EmptySerializer implements SerializationHandler
     }
 
     protected void couldThrowSAXException(String elemQName) throws SAXException
-    {
-        return; // don't do anything.
-    }
-
-    protected void couldThrowException() throws Exception
     {
         return; // don't do anything.
     }
@@ -566,13 +559,6 @@ public class EmptySerializer implements SerializationHandler
     {
         aMethodIsCalled();
         return null;
-    }
-    /**
-     * @see XSLOutputAttributes#setCdataSectionElements
-     */
-    public void setCdataSectionElements(Hashtable h) throws Exception
-    {
-        couldThrowException();
     }
     /**
      * @see XSLOutputAttributes#setDoctype(java.lang.String, java.lang.String)

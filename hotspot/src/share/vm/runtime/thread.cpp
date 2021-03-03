@@ -3307,6 +3307,9 @@ jint Threads::create_vm(JavaVMInitArgs* args, bool* canTryAgain) {
 
   extern void JDK_Version_init();
 
+  // Preinitialize version info.
+  VM_Version::early_initialize();
+
   // Check version
   if (!is_supported_jni_version(args->version)) return JNI_EVERSION;
 
