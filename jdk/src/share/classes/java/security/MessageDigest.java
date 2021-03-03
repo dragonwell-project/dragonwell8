@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1996, 2017, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -59,7 +59,7 @@ import sun.security.util.Debug;
  * and catching the CloneNotSupportedException:
  *
  * <pre>{@code
- * MessageDigest md = MessageDigest.getInstance("SHA");
+ * MessageDigest md = MessageDigest.getInstance("SHA-256");
  *
  * try {
  *     md.update(toChapter1);
@@ -467,7 +467,7 @@ public abstract class MessageDigest extends MessageDigestSpi {
     /**
      * Returns a string that identifies the algorithm, independent of
      * implementation details. The name should be a standard
-     * Java Security name (such as "SHA", "MD5", and so on).
+     * Java Security name (such as "SHA-256").
      * See the MessageDigest section in the <a href=
      * "{@docRoot}/../technotes/guides/security/StandardNames.html#MessageDigest">
      * Java Cryptography Architecture Standard Algorithm Name Documentation</a>
