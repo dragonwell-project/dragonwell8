@@ -2383,6 +2383,10 @@ bool Arguments::check_vm_args_consistency() {
   status &= verify_interval(NmethodSweepFraction, 1, ReservedCodeCacheSize/K, "NmethodSweepFraction");
   status &= verify_interval(NmethodSweepActivity, 0, 2000, "NmethodSweepActivity");
 
+  if (!FLAG_IS_DEFAULT(CICompilerCount) && !FLAG_IS_DEFAULT(CICompilerCountPerCPU) && CICompilerCountPerCPU) {
+    warning("The VM option CICompilerCountPerCPU overrides CICompilerCount.");
+  }
+
   return status;
 }
 
