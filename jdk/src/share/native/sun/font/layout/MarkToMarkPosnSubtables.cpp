@@ -81,6 +81,9 @@ le_int32 MarkToMarkPositioningSubtable::process(const LETableReference &base, Gl
 
     GlyphIterator mark2Iterator(*glyphIterator);
     LEGlyphID mark2Glyph = findMark2Glyph(&mark2Iterator);
+    if (mark2Glyph == 0xFFFF) {
+        return 0;
+    }
     le_int32 mark2Coverage = getBaseCoverage(base, (LEGlyphID) mark2Glyph, success);
     LEReferenceTo<Mark2Array>  mark2Array(base, success, (const Mark2Array *) ((char *) this + SWAPW(baseArrayOffset)));
     if(LE_FAILURE(success)) return 0;
