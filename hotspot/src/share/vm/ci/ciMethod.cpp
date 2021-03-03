@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -945,6 +945,13 @@ bool ciMethod::is_method_handle_intrinsic() const {
 bool ciMethod::is_compiled_lambda_form() const {
   vmIntrinsics::ID iid = _intrinsic_id;  // do not check if loaded
   return iid == vmIntrinsics::_compiledLambdaForm;
+}
+
+// ------------------------------------------------------------------
+// ciMethod::is_object_initializer
+//
+bool ciMethod::is_object_initializer() const {
+   return name() == ciSymbol::object_initializer_name();
 }
 
 // ------------------------------------------------------------------
