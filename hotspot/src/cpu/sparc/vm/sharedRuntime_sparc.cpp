@@ -2706,15 +2706,30 @@ nmethod* SharedRuntime::generate_native_wrapper(MacroAssembler* masm,
   __ verify_thread(); // G2_thread must be correct
   __ reset_last_Java_frame();
 
-  // Unpack oop result
+  // Unbox oop result, e.g. JNIHandles::resolve value in I0.
   if (ret_type == T_OBJECT || ret_type == T_ARRAY) {
-      Label L;
-      __ addcc(G0, I0, G0);
-      __ brx(Assembler::notZero, true, Assembler::pt, L);
-      __ delayed()->ld_ptr(I0, 0, I0);
-      __ mov(G0, I0);
-      __ bind(L);
-      __ verify_oop(I0);
+    Label done, not_weak;
+    __ br_null(I0, false, Assembler::pn, done); // Use NULL as-is.
+    __ delayed()->andcc(I0, JNIHandles::weak_tag_mask, G0); // Test for jweak
+    __ brx(Assembler::zero, true, Assembler::pt, not_weak);
+    __ delayed()->ld_ptr(I0, 0, I0); // Maybe resolve (untagged) jobject.
+    // Resolve jweak.
+    __ ld_ptr(I0, -JNIHandles::weak_tag_value, I0);
+#if INCLUDE_ALL_GCS
+    if (UseG1GC) {
+      // Copy to O0 because macro doesn't allow pre_val in input reg.
+      __ mov(I0, O0);
+      __ g1_write_barrier_pre(noreg /* obj */,
+                              noreg /* index */,
+                              0 /* offset */,
+                              O0 /* pre_val */,
+                              G3_scratch /* tmp */,
+                              true /* preserve_o_regs */);
+    }
+#endif // INCLUDE_ALL_GCS
+    __ bind(not_weak);
+    __ verify_oop(I0);
+    __ bind(done);
   }
 
   if (!is_critical_native) {
