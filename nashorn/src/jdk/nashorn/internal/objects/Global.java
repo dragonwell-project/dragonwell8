@@ -28,6 +28,7 @@ package jdk.nashorn.internal.objects;
 import static jdk.nashorn.internal.lookup.Lookup.MH;
 import static jdk.nashorn.internal.runtime.ECMAErrors.referenceError;
 import static jdk.nashorn.internal.runtime.ECMAErrors.typeError;
+import static jdk.nashorn.internal.runtime.JSType.isString;
 import static jdk.nashorn.internal.runtime.ScriptRuntime.UNDEFINED;
 
 import java.io.IOException;
@@ -41,6 +42,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
 import javax.script.ScriptContext;
@@ -54,7 +56,6 @@ import jdk.nashorn.internal.lookup.Lookup;
 import jdk.nashorn.internal.objects.annotations.Attribute;
 import jdk.nashorn.internal.objects.annotations.Property;
 import jdk.nashorn.internal.objects.annotations.ScriptClass;
-import jdk.nashorn.internal.runtime.ConsString;
 import jdk.nashorn.internal.runtime.Context;
 import jdk.nashorn.internal.runtime.ECMAErrors;
 import jdk.nashorn.internal.runtime.GlobalConstants;
@@ -463,8 +464,7 @@ public final class Global extends ScriptObject implements Scope {
             sm.checkPermission(new RuntimePermission(Context.NASHORN_CREATE_GLOBAL));
         }
 
-        // null check on context
-        context.getClass();
+        Objects.requireNonNull(context);
 
         return $nasgenmap$;
     }
@@ -488,7 +488,7 @@ public final class Global extends ScriptObject implements Scope {
      */
     public static Global instance() {
         final Global global = Context.getGlobal();
-        global.getClass(); // null check
+        Objects.requireNonNull(global);
         return global;
     }
 
@@ -578,16 +578,18 @@ public final class Global extends ScriptObject implements Scope {
             return new NativeBoolean((Boolean)obj, this);
         } else if (obj instanceof Number) {
             return new NativeNumber(((Number)obj).doubleValue(), this);
-        } else if (obj instanceof String || obj instanceof ConsString) {
+        } else if (isString(obj)) {
             return new NativeString((CharSequence)obj, this);
         } else if (obj instanceof Object[]) { // extension
-            return new NativeArray((Object[])obj);
+            return new NativeArray(ArrayData.allocate((Object[])obj), this);
         } else if (obj instanceof double[]) { // extension
-            return new NativeArray((double[])obj);
+            return new NativeArray(ArrayData.allocate((double[])obj), this);
         } else if (obj instanceof long[]) {
-            return new NativeArray((long[])obj);
+            return new NativeArray(ArrayData.allocate((long[])obj), this);
         } else if (obj instanceof int[]) {
-            return new NativeArray((int[])obj);
+            return new NativeArray(ArrayData.allocate((int[]) obj), this);
+        } else if (obj instanceof ArrayData) {
+            return new NativeArray((ArrayData) obj, this);
         } else {
             // FIXME: more special cases? Map? List?
             return obj;
@@ -603,7 +605,7 @@ public final class Global extends ScriptObject implements Scope {
      * @return guarded invocation
      */
     public static GuardedInvocation primitiveLookup(final LinkRequest request, final Object self) {
-        if (self instanceof String || self instanceof ConsString) {
+        if (isString(self)) {
             return NativeString.lookupPrimitive(request, self);
         } else if (self instanceof Number) {
             return NativeNumber.lookupPrimitive(request, self);
@@ -620,7 +622,7 @@ public final class Global extends ScriptObject implements Scope {
      * @return method handle to create wrapper objects for primitive receiver
      */
     public static MethodHandle getPrimitiveWrapFilter(final Object self) {
-        if (self instanceof String || self instanceof ConsString) {
+        if (isString(self)) {
             return NativeString.WRAPFILTER;
         } else if (self instanceof Number) {
             return NativeNumber.WRAPFILTER;
@@ -946,11 +948,11 @@ public final class Global extends ScriptObject implements Scope {
      * This is directly invoked from generated when eval(code) is called in user code
      */
     public static Object directEval(final Object self, final Object str, final Object callThis, final Object location, final boolean strict) {
-        if (!(str instanceof String || str instanceof ConsString)) {
+        if (!isString(str)) {
             return str;
         }
         final Global global = Global.instanceFrom(self);
-        final ScriptObject scope = self instanceof ScriptObject ? (ScriptObject)self : global;
+        final ScriptObject scope = self instanceof ScriptObject && ((ScriptObject)self).isScope() ? (ScriptObject)self : global;
 
         return global.getContext().eval(scope, str.toString(), callThis, location, strict, true);
     }
@@ -1029,12 +1031,17 @@ public final class Global extends ScriptObject implements Scope {
     }
 
     // builtin prototype accessors
-    ScriptObject getFunctionPrototype() {
-        return ScriptFunction.getPrototype(builtinFunction);
+
+    /**
+     * Get the builtin Object prototype.
+      * @return the object prototype.
+     */
+    public ScriptObject getObjectPrototype() {
+        return ScriptFunction.getPrototype(builtinObject);
     }
 
-    ScriptObject getObjectPrototype() {
-        return ScriptFunction.getPrototype(builtinObject);
+    ScriptObject getFunctionPrototype() {
+        return ScriptFunction.getPrototype(builtinFunction);
     }
 
     ScriptObject getArrayPrototype() {
