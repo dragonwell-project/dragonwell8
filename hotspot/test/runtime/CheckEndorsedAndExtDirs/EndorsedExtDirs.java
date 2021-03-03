@@ -26,6 +26,7 @@
  * @bug 8064667
  * @summary Sanity test for -XX:+CheckEndorsedAndExtDirs
  * @library /testlibrary
+ * @build com.oracle.java.testlibrary.*
  * @run main/othervm EndorsedExtDirs
  */
 
