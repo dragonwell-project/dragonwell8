@@ -28,13 +28,12 @@ import java.security.KeyStore;
 import java.security.SecureRandom;
 import java.security.cert.X509Certificate;
 import java.security.interfaces.RSAPrivateCrtKey;
-import java.util.HashSet;
-import java.util.Set;
 
 /*
  * @test
  * @bug 8023546
  * @summary sun/security/mscapi/ShortRSAKey1024.sh fails intermittently
+ * @requires os.family == "windows"
  */
 public class SmallPrimeExponentP {
 
