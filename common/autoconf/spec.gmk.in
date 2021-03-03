@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
 # DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 #
 # This code is free software; you can redistribute it and/or modify it
@@ -150,6 +150,18 @@ HOTSPOT_TOPDIR:=@HOTSPOT_TOPDIR@
 NASHORN_TOPDIR:=@NASHORN_TOPDIR@
 COPYRIGHT_YEAR:=@COPYRIGHT_YEAR@
 
+# Platform naming variables
+LAUNCHER_NAME:=@LAUNCHER_NAME@
+PRODUCT_NAME:=@PRODUCT_NAME@
+PRODUCT_SUFFIX:=@PRODUCT_SUFFIX@
+JDK_RC_PLATFORM_NAME:=@JDK_RC_PLATFORM_NAME@
+COMPANY_NAME:=@COMPANY_NAME@
+MACOSX_BUNDLE_NAME_BASE=@MACOSX_BUNDLE_NAME_BASE@
+MACOSX_BUNDLE_ID_BASE=@MACOSX_BUNDLE_ID_BASE@
+VENDOR_URL:=@VENDOR_URL@
+VENDOR_URL_BUG:=@VENDOR_URL_BUG@
+VENDOR_URL_VM_BUG:=@VENDOR_URL_VM_BUG@
+
 # Location where build customization files may be found
 CUSTOM_MAKE_DIR:=@CUSTOM_MAKE_DIR@
 
@@ -160,14 +172,32 @@ JDK_MICRO_VERSION:=@JDK_MICRO_VERSION@
 JDK_UPDATE_VERSION:=@JDK_UPDATE_VERSION@
 JDK_BUILD_NUMBER:=@JDK_BUILD_NUMBER@
 MILESTONE:=@MILESTONE@
-LAUNCHER_NAME:=@LAUNCHER_NAME@
-PRODUCT_NAME:=@PRODUCT_NAME@
-PRODUCT_SUFFIX:=@PRODUCT_SUFFIX@
-JDK_RC_PLATFORM_NAME:=@JDK_RC_PLATFORM_NAME@
-COMPANY_NAME:=@COMPANY_NAME@
-MACOSX_BUNDLE_NAME_BASE=@MACOSX_BUNDLE_NAME_BASE@
-MACOSX_BUNDLE_ID_BASE=@MACOSX_BUNDLE_ID_BASE@
 USER_RELEASE_SUFFIX=@USER_RELEASE_SUFFIX@
+
+ifneq ($(COMPANY_NAME),)
+  # COMPANY_NAME is set to "N/A" in $AUTOCONF_DIR/version-numbers by default,
+  # but can be customized with the '--with-vendor-name' configure option.
+  # Only export "VENDOR" to the build if COMPANY_NAME contains a real value.
+  # Otherwise the default value for VENDOR, which is used to set the "java.vendor"
+  # and "java.vm.vendor" properties is hard-coded into the source code (i.e. in
+  # System.c in the jdk for "vm.vendor" and vm_version.cpp in the VM for "java.vm.vendor")
+  ifneq ($(COMPANY_NAME), N/A)
+    VERSION_CFLAGS += -DVENDOR='"$(COMPANY_NAME)"'
+  endif
+endif
+
+# Only export VENDOR_URL, VENDOR_URL_BUG and VENDOR_VM_URL_BUG to the build if
+# they are not empty. Otherwise, default values which are defined in the sources
+# will be used.
+ifneq ($(VENDOR_URL),)
+  VERSION_CFLAGS += -DVENDOR_URL='"$(VENDOR_URL)"'
+endif
+ifneq ($(VENDOR_URL_BUG),)
+  VERSION_CFLAGS += -DVENDOR_URL_BUG='"$(VENDOR_URL_BUG)"'
+endif
+ifneq ($(VENDOR_URL_VM_BUG),)
+  VERSION_CFLAGS += -DVENDOR_URL_VM_BUG='"$(VENDOR_URL_VM_BUG)"'
+endif
 
 # Different version strings generated from the above information.
 JDK_VERSION:=@JDK_VERSION@

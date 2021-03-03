@@ -26,7 +26,7 @@
  * @bug 8042235
  * @summary redefining method used by multiple MethodHandles crashes VM
  * @compile -XDignore.symbol.file RedefineMethodUsedByMultipleMethodHandles.java
- * @run main RedefineMethodUsedByMultipleMethodHandles
+ * @run main/othervm RedefineMethodUsedByMultipleMethodHandles
  */
 
 import java.io.*;
