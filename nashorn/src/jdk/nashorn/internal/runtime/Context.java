@@ -737,7 +737,7 @@ public final class Context {
         final ScriptFunction func = getProgramFunction(clazz, scope);
         Object evalThis;
         if (directEval) {
-            evalThis = callThis instanceof ScriptObject || strictFlag ? callThis : global;
+            evalThis = (callThis != UNDEFINED && callThis != null) || strictFlag ? callThis : global;
         } else {
             evalThis = global;
         }
@@ -1228,16 +1228,21 @@ public final class Context {
 
         StoredScript storedScript = null;
         FunctionNode functionNode = null;
-        // We only use the code store here if optimistic types are disabled. With optimistic types, initial compilation
-        // just creates a thin wrapper, and actual code is stored per function in RecompilableScriptFunctionData.
-        final boolean useCodeStore = codeStore != null && !env._parse_only && !env._optimistic_types;
-        final String cacheKey = useCodeStore ? CodeStore.getCacheKey(0, null) : null;
+        // Don't use code store if optimistic types is enabled but lazy compilation is not.
+        // This would store a full script compilation with many wrong optimistic assumptions that would
+        // do more harm than good on later runs with both optimistic types and lazy compilation enabled.
+        final boolean useCodeStore = codeStore != null && !env._parse_only && (!env._optimistic_types || env._lazy_compilation);
+        final String cacheKey = useCodeStore ? CodeStore.getCacheKey("script", null) : null;
 
         if (useCodeStore) {
             storedScript = codeStore.load(source, cacheKey);
         }
 
         if (storedScript == null) {
+            if (env._dest_dir != null) {
+                source.dump(env._dest_dir);
+            }
+
             functionNode = new Parser(env, source, errMan, strict, getLogger(Parser.class)).parse();
 
             if (errMan.hasErrors()) {
