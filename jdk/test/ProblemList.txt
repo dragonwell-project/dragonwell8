@@ -44,7 +44,7 @@
 #     generic-all   Problems on all platforms
 #     generic-ARCH  Where ARCH is one of: sparc, sparcv9, x64, i586, etc.
 #     OSNAME-all    Where OSNAME is one of: solaris, linux, windows, macosx, aix
-#     OSNAME-ARCH   Specific on to one OSNAME and ARCH, e.g. solaris-amd64
+#     OSNAME-ARCH   Specific on to one OSNAME and ARCH, e.g. solaris-x64
 #     OSNAME-REV    Specific on to one OSNAME and REV, e.g. solaris-5.8
 #
 # More than one label is allowed but must be on the same line.
@@ -221,7 +221,7 @@ java/nio/channels/DatagramChannel/BasicMulticastTests.java      linux-i586
 java/nio/channels/DatagramChannel/MulticastSendReceiveTests.java    linux-i586
 
 # 8148996
-java/nio/file/WatchService/WithSecurityManager.java     linux-i586
+java/nio/file/WatchService/WithSecurityManager.java     linux-all
 
 # 8173179
 java/nio/file/Files/probeContentType/Basic.java                  solaris-x64
@@ -258,6 +258,9 @@ javax/rmi/PortableRemoteObject/ConcurrentHashMapTest.java       linux-all
 # 8170248
 javax/rmi/PortableRemoteObject/8146975/RmiIiopReturnValueTest.java  linux-all
 
+# 8205049
+sun/rmi/transport/tcp/DisableRMIOverHttp/DisableRMIOverHTTPTest.java    windows-all
+
 ############################################################################
 
 # jdk_security
@@ -283,8 +286,8 @@ sun/security/krb5/auto/tools/KinitConfPlusProps.java                       windo
 # 8151225
 sun/security/rsa/SpecTest.java                                  linux-i586
 
-# 8173182
-sun/security/pkcs11/MessageDigest/TestCloning.java              solaris-x64
+# 8043951
+sun/security/pkcs11/MessageDigest/TestCloning.java              solaris-all
 
 # 8156709
 sun/security/provider/SecureRandom/StrongSecureRandom.java      macosx-x64
@@ -292,14 +295,25 @@ sun/security/provider/SecureRandom/StrongSecureRandom.java      macosx-x64
 # 8163498
 sun/security/provider/NSASuiteB/TestDSAGenParameterSpec.java    linux-i586
 
+# 8203055
 # 8129560
-sun/security/pkcs11/rsa/TestKeyPairGenerator.java               solaris-all
+sun/security/pkcs11/rsa/TestKeyPairGenerator.java               linux-all,solaris-all
 
 # 8151834
 sun/security/mscapi/SmallPrimeExponentP.java                    windows-i586
 
-#8176354 
+#8176354
 sun/security/ssl/com/sun/net/ssl/internal/ssl/X509KeyManager/PreferredKey.java     generic-all
+
+# 8206909
+com/sun/crypto/provider/CICO/PBEFunc/CICOPBEFuncTest.java       solaris-sparcv9
+
+# 8206911
+javax/xml/crypto/dsig/GenerationTests.java                      solaris-all
+
+# 8206912
+sun/security/krb5/auto/ReplayCacheTestProc.java                 solaris-sparcv9
+
 ############################################################################
 
 # jdk_sound

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -200,6 +200,7 @@ class ConstantPool : public Metadata {
 
   // resolved strings, methodHandles and callsite objects from the constant pool
   objArrayOop resolved_references()  const;
+  objArrayOop resolved_references_or_null()  const;
   // mapping resolved object array indexes to cp indexes and back.
   int object_to_cp_index(int index)         { return _reference_map->at(index); }
   int cp_to_object_index(int index);
