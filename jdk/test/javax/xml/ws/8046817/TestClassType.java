@@ -1,12 +1,10 @@
 /*
- * Copyright (c) 2006, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 only, as
- * published by the Free Software Foundation.  Oracle designates this
- * particular file as subject to the "Classpath" exception as provided
- * by Oracle in the LICENSE file that accompanied this code.
+ * published by the Free Software Foundation.
  *
  * This code is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
@@ -23,20 +21,9 @@
  * questions.
  */
 
-package sun.misc;
+import javax.xml.bind.annotation.XmlType;
 
-import java.net.URLClassLoader;
-import java.net.InetAddress;
-
-public interface JavaNetAccess {
-    /**
-     * return the URLClassPath belonging to the given loader
-     */
-    URLClassPath getURLClassPath (URLClassLoader u);
-
-    /**
-     * Return the original application specified hostname of
-     * the given InetAddress object.
-     */
-    String getOriginalHostName(InetAddress ia);
+@XmlType
+public class TestClassType {
+    public int a;
 }
