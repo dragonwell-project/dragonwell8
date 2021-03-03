@@ -1,6 +1,5 @@
 /*
- * Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
- * Copyright 2012, 2013 SAP AG. All rights reserved.
+ * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -20,35 +19,22 @@
  * Please contact Oracle, 500 Oracle Parkway, Redwood Shores, CA 94065 USA
  * or visit www.oracle.com if you need additional information or have any
  * questions.
- *
  */
 
-#include "precompiled.hpp"
-#include "opto/compile.hpp"
-#include "opto/node.hpp"
-#include "runtime/globals.hpp"
-#include "utilities/debug.hpp"
+import java.security.Provider;
+import java.security.Security;
 
-// processor dependent initialization for ppc
+public class ReadConfInUTF16Env {
+    public static void main(String argv[]) {
+        Provider p = Security.getProvider("SunPKCS11");
+        if (p == null) {
+            p = Security.getProvider("SunPKCS11-Solaris");
+            if (p == null) {
+                System.out.println("Skipping test - no PKCS11 provider available");
+                return;
+            }
+        }
 
-void Compile::pd_compiler2_init() {
-
-  // Power7 and later
-  if (PowerArchitecturePPC64 > 6) {
-    if (FLAG_IS_DEFAULT(UsePopCountInstruction)) {
-      FLAG_SET_ERGO(bool, UsePopCountInstruction, true);
+        System.out.println(p.getName());
     }
-  }
-
-  if (PowerArchitecturePPC64 == 6) {
-    if (FLAG_IS_DEFAULT(InsertEndGroupPPC64)) {
-      FLAG_SET_ERGO(bool, InsertEndGroupPPC64, true);
-    }
-  }
-
-  if (OptimizeFill) {
-    warning("OptimizeFill is not supported on this CPU.");
-    FLAG_SET_DEFAULT(OptimizeFill, false);
-  }
-
 }
