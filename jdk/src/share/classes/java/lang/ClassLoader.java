@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -1724,7 +1724,6 @@ public abstract class ClassLoader {
 
         native long find(String name);
         native void unload(String name, boolean isBuiltin);
-        static native String findBuiltinLib(String name);
 
         public NativeLibrary(Class<?> fromClass, String name, boolean isBuiltin) {
             this.name = name;
@@ -1865,9 +1864,11 @@ public abstract class ClassLoader {
         throw new UnsatisfiedLinkError("no " + name + " in java.library.path");
     }
 
+    private static native String findBuiltinLib(String name);
+
     private static boolean loadLibrary0(Class<?> fromClass, final File file) {
         // Check to see if we're attempting to access a static library
-        String name = NativeLibrary.findBuiltinLib(file.getName());
+        String name = findBuiltinLib(file.getName());
         boolean isBuiltin = (name != null);
         if (!isBuiltin) {
             boolean exists = AccessController.doPrivileged(
