@@ -821,11 +821,12 @@ Array<Klass*>* ClassFileParser::parse_interfaces(int length,
       THREAD, NameSigHash*, HASH_ROW_SIZE);
     initialize_hashtable(interface_names);
     bool dup = false;
+    Symbol* name = NULL;
     {
       debug_only(No_Safepoint_Verifier nsv;)
       for (index = 0; index < length; index++) {
         Klass* k = _local_interfaces->at(index);
-        Symbol* name = InstanceKlass::cast(k)->name();
+        name = InstanceKlass::cast(k)->name();
         // If no duplicates, add (name, NULL) in hashtable interface_names.
         if (!put_after_lookup(name, NULL, interface_names)) {
           dup = true;
@@ -834,7 +835,8 @@ Array<Klass*>* ClassFileParser::parse_interfaces(int length,
       }
     }
     if (dup) {
-      classfile_parse_error("Duplicate interface name in class file %s", CHECK_NULL);
+      classfile_parse_error("Duplicate interface name \"%s\" in class file %s",
+               name->as_C_string(), CHECK_NULL);
     }
   }
   return _local_interfaces;
@@ -1279,11 +1281,13 @@ Array<u2>* ClassFileParser::parse_fields(Symbol* class_name,
       THREAD, NameSigHash*, HASH_ROW_SIZE);
     initialize_hashtable(names_and_sigs);
     bool dup = false;
+    Symbol* name = NULL;
+    Symbol* sig = NULL;
     {
       debug_only(No_Safepoint_Verifier nsv;)
       for (AllFieldStream fs(fields, _cp); !fs.done(); fs.next()) {
-        Symbol* name = fs.name();
-        Symbol* sig = fs.signature();
+        name = fs.name();
+        sig = fs.signature();
         // If no duplicates, add name/signature in hashtable names_and_sigs.
         if (!put_after_lookup(name, sig, names_and_sigs)) {
           dup = true;
@@ -1292,8 +1296,8 @@ Array<u2>* ClassFileParser::parse_fields(Symbol* class_name,
       }
     }
     if (dup) {
-      classfile_parse_error("Duplicate field name&signature in class file %s",
-                            CHECK_NULL);
+      classfile_parse_error("Duplicate field name \"%s\" with signature \"%s\" in class file %s",
+                             name->as_C_string(), sig->as_klass_external_name(), CHECK_NULL);
     }
   }
 
@@ -2580,20 +2584,24 @@ Array<Method*>* ClassFileParser::parse_methods(bool is_interface,
         THREAD, NameSigHash*, HASH_ROW_SIZE);
       initialize_hashtable(names_and_sigs);
       bool dup = false;
+      Symbol* name = NULL;
+      Symbol* sig = NULL;
       {
         debug_only(No_Safepoint_Verifier nsv;)
         for (int i = 0; i < length; i++) {
           Method* m = _methods->at(i);
+          name = m->name();
+          sig = m->signature();
           // If no duplicates, add name/signature in hashtable names_and_sigs.
-          if (!put_after_lookup(m->name(), m->signature(), names_and_sigs)) {
+          if (!put_after_lookup(name, sig, names_and_sigs)) {
             dup = true;
             break;
           }
         }
       }
       if (dup) {
-        classfile_parse_error("Duplicate method name&signature in class file %s",
-                              CHECK_NULL);
+        classfile_parse_error("Duplicate method name \"%s\" with signature \"%s\" in class file %s",
+                              name->as_C_string(), sig->as_klass_external_name(), CHECK_NULL);
       }
     }
   }
