@@ -74,7 +74,7 @@ class TempNewSymbol : public StackObj {
   operator Symbol*()                             { return _temp; }
 };
 
-class SymbolTable : public Hashtable<Symbol*, mtSymbol> {
+class SymbolTable : public RehashableHashtable<Symbol*, mtSymbol> {
   friend class VMStructs;
   friend class ClassFileParser;
 
@@ -110,10 +110,10 @@ private:
   Symbol* lookup(int index, const char* name, int len, unsigned int hash);
 
   SymbolTable()
-    : Hashtable<Symbol*, mtSymbol>(SymbolTableSize, sizeof (HashtableEntry<Symbol*, mtSymbol>)) {}
+    : RehashableHashtable<Symbol*, mtSymbol>(SymbolTableSize, sizeof (HashtableEntry<Symbol*, mtSymbol>)) {}
 
   SymbolTable(HashtableBucket<mtSymbol>* t, int number_of_entries)
-    : Hashtable<Symbol*, mtSymbol>(SymbolTableSize, sizeof (HashtableEntry<Symbol*, mtSymbol>), t,
+    : RehashableHashtable<Symbol*, mtSymbol>(SymbolTableSize, sizeof (HashtableEntry<Symbol*, mtSymbol>), t,
                 number_of_entries) {}
 
   // Arena for permanent symbols (null class loader) that are never unloaded
@@ -252,7 +252,7 @@ public:
   static int parallel_claimed_index()        { return _parallel_claimed_idx; }
 };
 
-class StringTable : public Hashtable<oop, mtSymbol> {
+class StringTable : public RehashableHashtable<oop, mtSymbol> {
   friend class VMStructs;
 
 private:
@@ -278,11 +278,11 @@ private:
   // in the range [start_idx, end_idx).
   static void buckets_unlink_or_oops_do(BoolObjectClosure* is_alive, OopClosure* f, int start_idx, int end_idx, int* processed, int* removed);
 
-  StringTable() : Hashtable<oop, mtSymbol>((int)StringTableSize,
+  StringTable() : RehashableHashtable<oop, mtSymbol>((int)StringTableSize,
                               sizeof (HashtableEntry<oop, mtSymbol>)) {}
 
   StringTable(HashtableBucket<mtSymbol>* t, int number_of_entries)
-    : Hashtable<oop, mtSymbol>((int)StringTableSize, sizeof (HashtableEntry<oop, mtSymbol>), t,
+    : RehashableHashtable<oop, mtSymbol>((int)StringTableSize, sizeof (HashtableEntry<oop, mtSymbol>), t,
                      number_of_entries) {}
 public:
   // The string table
