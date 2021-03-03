@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009, 2012, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,30 +21,36 @@
  * questions.
  */
 
-/*
- * @test
- * @bug 6843127
- * @run main/othervm/timeout=300 -Dsun.net.spi.nameservice.provider.1=ns,mock BadKdc4
- * @summary krb5 should not try to access unavailable kdc too often
+import java.io.File;
+import java.io.FileInputStream;
+import java.security.KeyStore;
+
+/**
+ * Common library for various security test helper functions.
  */
+public final class SecurityUtils {
 
-import java.io.*;
-import java.security.Security;
-
-public class BadKdc4 {
-
-    public static void main(String[] args)
-            throws Exception {
-        Security.setProperty("krb5.kdc.bad.policy", "");
-        BadKdc.go(
-            "121212222222(32){1,2}121212222222(32){1,2}",
-            "121212222222(32){1,2}121212222222(32){1,2}",
-            // refresh
-            "121212222222(32){1,2}121212222222(32){1,2}",
-            // k3 off k2 on
-            "121212(22){1,2}121212(22){1,2}",
-            // k1 on
-            "(12){2,4}"
-        );
+    private static String getCacerts() {
+        String sep = File.separator;
+        return System.getProperty("java.home") + sep
+                + "lib" + sep + "security" + sep + "cacerts";
     }
+
+    /**
+     * Returns the cacerts keystore with the configured CA certificates.
+     */
+    public static KeyStore getCacertsKeyStore() throws Exception {
+        File file = new File(getCacerts());
+        if (!file.exists()) {
+            return null;
+        }
+
+        KeyStore ks = KeyStore.getInstance(KeyStore.getDefaultType());
+        try (FileInputStream fis = new FileInputStream(file)) {
+            ks.load(fis, null);
+        }
+        return ks;
+    }
+
+    private SecurityUtils() {}
 }
