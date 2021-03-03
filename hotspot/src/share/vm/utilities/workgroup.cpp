@@ -464,7 +464,6 @@ bool SubTasksDone::is_task_claimed(uint t) {
   if (old == 0) {
     old = Atomic::cmpxchg(1, &_tasks[t], 0);
   }
-  assert(_tasks[t] == 1, "What else?");
   bool res = old != 0;
 #ifdef ASSERT
   if (!res) {
