@@ -5080,6 +5080,7 @@ void TestVirtualSpaceNode_test();
 void TestNewSize_test();
 void TestKlass_test();
 void Test_linked_list();
+void TestChunkedList_test();
 #if INCLUDE_ALL_GCS
 void TestOldFreeSpaceCalculation_test();
 void TestG1BiasedArray_test();
@@ -5108,6 +5109,7 @@ void execute_internal_vm_tests() {
     run_unit_test(TestNewSize_test());
     run_unit_test(TestKlass_test());
     run_unit_test(Test_linked_list());
+    run_unit_test(TestChunkedList_test());
 #if INCLUDE_VM_STRUCTS
     run_unit_test(VMStructs::test());
 #endif

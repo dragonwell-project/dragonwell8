@@ -46,6 +46,7 @@ PerfCounter*  RuntimeService::_application_time_ticks = NULL;
 PerfCounter*  RuntimeService::_thread_interrupt_signaled_count = NULL;
 PerfCounter*  RuntimeService::_interrupted_before_count = NULL;
 PerfCounter*  RuntimeService::_interrupted_during_count = NULL;
+double RuntimeService::_last_safepoint_sync_time_sec = 0.0;
 
 void RuntimeService::init() {
   // Make sure the VM version is initialized
@@ -128,6 +129,7 @@ void RuntimeService::record_safepoint_begin() {
 
   // update the time stamp to begin recording safepoint time
   _safepoint_timer.update();
+  _last_safepoint_sync_time_sec = 0.0;
   if (UsePerfData) {
     _total_safepoints->inc();
     if (_app_timer.is_updated()) {
@@ -139,6 +141,9 @@ void RuntimeService::record_safepoint_begin() {
 void RuntimeService::record_safepoint_synchronized() {
   if (UsePerfData) {
     _sync_time_ticks->inc(_safepoint_timer.ticks_since_update());
+  }
+  if (PrintGCApplicationStoppedTime) {
+    _last_safepoint_sync_time_sec = last_safepoint_time_sec();
   }
 }
 
@@ -155,8 +160,10 @@ void RuntimeService::record_safepoint_end() {
     gclog_or_tty->date_stamp(PrintGCDateStamps);
     gclog_or_tty->stamp(PrintGCTimeStamps);
     gclog_or_tty->print_cr("Total time for which application threads "
-                           "were stopped: %3.7f seconds",
-                           last_safepoint_time_sec());
+                           "were stopped: %3.7f seconds, "
+                           "Stopping threads took: %3.7f seconds",
+                           last_safepoint_time_sec(),
+                           _last_safepoint_sync_time_sec);
   }
 
   // update the time stamp to begin recording app time
