@@ -34,6 +34,7 @@ package sun.security.krb5;
 import sun.security.krb5.internal.*;
 import sun.security.krb5.internal.crypto.KeyUsage;
 import java.io.IOException;
+
 import sun.security.util.DerValue;
 
 /**
@@ -62,7 +63,6 @@ public class KrbCred {
 
         PrincipalName client = tgt.getClient();
         PrincipalName tgService = tgt.getServer();
-        PrincipalName server = serviceTicket.getServer();
         if (!serviceTicket.getClient().equals(client))
             throw new KrbException(Krb5.KRB_ERR_GENERIC,
                                 "Client principal does not match");
@@ -75,15 +75,9 @@ public class KrbCred {
         options.set(KDCOptions.FORWARDED, true);
         options.set(KDCOptions.FORWARDABLE, true);
 
-        HostAddresses sAddrs = null;
-        // XXX Also NT_GSS_KRB5_PRINCIPAL can be a host based principal
-        // GSSName.NT_HOSTBASED_SERVICE should display with KRB_NT_SRV_HST
-        if (server.getNameType() == PrincipalName.KRB_NT_SRV_HST)
-            sAddrs=  new HostAddresses(server);
-
         KrbTgsReq tgsReq = new KrbTgsReq(options, tgt, tgService,
                 null, null, null, null, null,
-                sAddrs, // Only non-null for KRB_NT_SRV_HST, see JDK-8132111
+                null,   // No easy way to get addresses right
                 null, null, null);
         credMessg = createMessage(tgsReq.sendAndGetCreds(), key);
 
@@ -96,7 +90,6 @@ public class KrbCred {
         EncryptionKey sessionKey
             = delegatedCreds.getSessionKey();
         PrincipalName princ = delegatedCreds.getClient();
-        Realm realm = princ.getRealm();
         PrincipalName tgService = delegatedCreds.getServer();
 
         KrbCredInfo credInfo = new KrbCredInfo(sessionKey,
