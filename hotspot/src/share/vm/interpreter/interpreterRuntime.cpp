@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -1047,7 +1047,8 @@ IRT_ENTRY(void, InterpreterRuntime::post_field_modification(JavaThread *thread,
   char sig_type = '\0';
 
   switch(cp_entry->flag_state()) {
-    case btos: sig_type = 'Z'; break;
+    case btos: sig_type = 'B'; break;
+    case ztos: sig_type = 'Z'; break;
     case ctos: sig_type = 'C'; break;
     case stos: sig_type = 'S'; break;
     case itos: sig_type = 'I'; break;
