@@ -100,6 +100,7 @@ import javax.net.ssl.*;
 import javax.net.ssl.SSLEngineResult.*;
 import java.io.*;
 import java.nio.*;
+import java.security.Security;
 import java.security.KeyStore;
 import java.security.KeyFactory;
 import java.security.Security;
@@ -377,9 +378,10 @@ public class DHEKeySizing {
     }
 
     public static void main(String args[]) throws Exception {
-        // reset the security property to make sure that the algorithms
+        // reset security properties to make sure that the algorithms
         // and keys used in this test are not disabled.
         Security.setProperty("jdk.tls.disabledAlgorithms", "");
+        Security.setProperty("jdk.certpath.disabledAlgorithms", "");
 
         if (args.length != 4) {
             System.out.println(
