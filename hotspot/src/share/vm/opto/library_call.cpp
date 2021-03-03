@@ -322,6 +322,7 @@ class LibraryCallKit : public GraphKit {
   bool inline_updateCRC32();
   bool inline_updateBytesCRC32();
   bool inline_updateByteBufferCRC32();
+  bool inline_multiplyToLen();
 };
 
 
@@ -330,8 +331,12 @@ CallGenerator* Compile::make_vm_intrinsic(ciMethod* m, bool is_virtual) {
   vmIntrinsics::ID id = m->intrinsic_id();
   assert(id != vmIntrinsics::_none, "must be a VM intrinsic");
 
-  if (DisableIntrinsic[0] != '\0'
-      && strstr(DisableIntrinsic, vmIntrinsics::name_at(id)) != NULL) {
+  ccstr disable_intr = NULL;
+
+  if ((DisableIntrinsic[0] != '\0'
+       && strstr(DisableIntrinsic, vmIntrinsics::name_at(id)) != NULL) ||
+      (method_has_option_value("DisableIntrinsic", disable_intr)
+       && strstr(disable_intr, vmIntrinsics::name_at(id)) != NULL)) {
     // disabled by a user request on the command line:
     // example: -XX:DisableIntrinsic=_hashCode,_getClass
     return NULL;
@@ -513,6 +518,10 @@ CallGenerator* Compile::make_vm_intrinsic(ciMethod* m, bool is_virtual) {
   case vmIntrinsics::_aescrypt_encryptBlock:
   case vmIntrinsics::_aescrypt_decryptBlock:
     if (!UseAESIntrinsics) return NULL;
+    break;
+
+  case vmIntrinsics::_multiplyToLen:
+    if (!UseMultiplyToLenIntrinsic) return NULL;
     break;
 
   case vmIntrinsics::_cipherBlockChaining_encryptAESCrypt:
@@ -911,6 +920,9 @@ bool LibraryCallKit::try_to_inline(int predicate) {
 
   case vmIntrinsics::_digestBase_implCompressMB:
     return inline_digestBase_implCompressMB(predicate);
+
+  case vmIntrinsics::_multiplyToLen:
+    return inline_multiplyToLen();
 
   case vmIntrinsics::_encodeISOArray:
     return inline_encodeISOArray();
@@ -2650,7 +2662,8 @@ bool LibraryCallKit::inline_unsafe_access(bool is_native_ptr, bool is_store, Bas
   if (need_mem_bar) insert_mem_bar(Op_MemBarCPUOrder);
 
   if (!is_store) {
-    Node* p = make_load(control(), adr, value_type, type, adr_type, MemNode::unordered, is_volatile);
+    MemNode::MemOrd mo = is_volatile ? MemNode::acquire : MemNode::unordered;
+    Node* p = make_load(control(), adr, value_type, type, adr_type, mo, is_volatile);
     // load value
     switch (type) {
     case T_BOOLEAN:
@@ -5734,6 +5747,108 @@ bool LibraryCallKit::inline_encodeISOArray() {
   return true;
 }
 
+//-------------inline_multiplyToLen-----------------------------------
+bool LibraryCallKit::inline_multiplyToLen() {
+  assert(UseMultiplyToLenIntrinsic, "not implementated on this platform");
+
+  address stubAddr = StubRoutines::multiplyToLen();
+  if (stubAddr == NULL) {
+    return false; // Intrinsic's stub is not implemented on this platform
+  }
+  const char* stubName = "multiplyToLen";
+
+  assert(callee()->signature()->size() == 5, "multiplyToLen has 5 parameters");
+
+  Node* x    = argument(1);
+  Node* xlen = argument(2);
+  Node* y    = argument(3);
+  Node* ylen = argument(4);
+  Node* z    = argument(5);
+
+  const Type* x_type = x->Value(&_gvn);
+  const Type* y_type = y->Value(&_gvn);
+  const TypeAryPtr* top_x = x_type->isa_aryptr();
+  const TypeAryPtr* top_y = y_type->isa_aryptr();
+  if (top_x  == NULL || top_x->klass()  == NULL ||
+      top_y == NULL || top_y->klass() == NULL) {
+    // failed array check
+    return false;
+  }
+
+  BasicType x_elem = x_type->isa_aryptr()->klass()->as_array_klass()->element_type()->basic_type();
+  BasicType y_elem = y_type->isa_aryptr()->klass()->as_array_klass()->element_type()->basic_type();
+  if (x_elem != T_INT || y_elem != T_INT) {
+    return false;
+  }
+
+  // Set the original stack and the reexecute bit for the interpreter to reexecute
+  // the bytecode that invokes BigInteger.multiplyToLen() if deoptimization happens
+  // on the return from z array allocation in runtime.
+  { PreserveReexecuteState preexecs(this);
+    jvms()->set_should_reexecute(true);
+
+    Node* x_start = array_element_address(x, intcon(0), x_elem);
+    Node* y_start = array_element_address(y, intcon(0), y_elem);
+    // 'x_start' points to x array + scaled xlen
+    // 'y_start' points to y array + scaled ylen
+
+    // Allocate the result array
+    Node* zlen = _gvn.transform(new(C) AddINode(xlen, ylen));
+    ciKlass* klass = ciTypeArrayKlass::make(T_INT);
+    Node* klass_node = makecon(TypeKlassPtr::make(klass));
+
+    IdealKit ideal(this);
+
+#define __ ideal.
+     Node* one = __ ConI(1);
+     Node* zero = __ ConI(0);
+     IdealVariable need_alloc(ideal), z_alloc(ideal);  __ declarations_done();
+     __ set(need_alloc, zero);
+     __ set(z_alloc, z);
+     __ if_then(z, BoolTest::eq, null()); {
+       __ increment (need_alloc, one);
+     } __ else_(); {
+       // Update graphKit memory and control from IdealKit.
+       sync_kit(ideal);
+       Node* zlen_arg = load_array_length(z);
+       // Update IdealKit memory and control from graphKit.
+       __ sync_kit(this);
+       __ if_then(zlen_arg, BoolTest::lt, zlen); {
+         __ increment (need_alloc, one);
+       } __ end_if();
+     } __ end_if();
+
+     __ if_then(__ value(need_alloc), BoolTest::ne, zero); {
+       // Update graphKit memory and control from IdealKit.
+       sync_kit(ideal);
+       Node * narr = new_array(klass_node, zlen, 1);
+       // Update IdealKit memory and control from graphKit.
+       __ sync_kit(this);
+       __ set(z_alloc, narr);
+     } __ end_if();
+
+     sync_kit(ideal);
+     z = __ value(z_alloc);
+     // Can't use TypeAryPtr::INTS which uses Bottom offset.
+     _gvn.set_type(z, TypeOopPtr::make_from_klass(klass));
+     // Final sync IdealKit and GraphKit.
+     final_sync(ideal);
+#undef __
+
+    Node* z_start = array_element_address(z, intcon(0), T_INT);
+
+    Node* call = make_runtime_call(RC_LEAF|RC_NO_FP,
+                                   OptoRuntime::multiplyToLen_Type(),
+                                   stubAddr, stubName, TypePtr::BOTTOM,
+                                   x_start, xlen, y_start, ylen, z_start, zlen);
+  } // original reexecute is set back here
+
+  C->set_has_split_ifs(true); // Has chance for split-if optimization
+  set_result(z);
+  return true;
+}
+
+
 /**
  * Calculate CRC32 for byte.
  * int java.util.zip.CRC32.update(int crc, int b)
@@ -5912,8 +6027,19 @@ Node * LibraryCallKit::load_field_from_object(Node * fromObj, const char * field
     type = Type::get_const_basic_type(bt);
   }
 
+  if (support_IRIW_for_not_multiple_copy_atomic_cpu && is_vol) {
+    insert_mem_bar(Op_MemBarVolatile);   // StoreLoad barrier
+  }
   // Build the load.
-  Node* loadedField = make_load(NULL, adr, type, bt, adr_type, MemNode::unordered, is_vol);
+  MemNode::MemOrd mo = is_vol ? MemNode::acquire : MemNode::unordered;
+  Node* loadedField = make_load(NULL, adr, type, bt, adr_type, mo, is_vol);
+  // If reference is volatile, prevent following memory ops from
+  // floating up past the volatile read.  Also prevents commoning
+  // another volatile read.
+  if (is_vol) {
+    // Memory barrier includes bogus read of value to force load BEFORE membar
+    insert_mem_bar(Op_MemBarAcquire, loadedField);
+  }
   return loadedField;
 }
 
