@@ -51,8 +51,12 @@ public class LWMouseInfoPeer implements MouseInfoPeer {
             return false;
         }
 
-        final Object windowPeer = AWTAccessor.getComponentAccessor().getPeer(w);
-        return LWWindowPeer.getWindowUnderCursor() == windowPeer;
+        LWWindowPeer windowPeer = (LWWindowPeer)AWTAccessor.getComponentAccessor().getPeer(w);
+        if (windowPeer == null) {
+            return false;
+        }
+
+        return LWToolkit.getLWToolkit().getPlatformWindowUnderMouse() == windowPeer.getPlatformWindow();
     }
 
 }
