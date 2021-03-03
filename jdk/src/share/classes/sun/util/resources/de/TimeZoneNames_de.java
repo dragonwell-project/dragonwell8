@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2014, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -570,6 +570,9 @@ public final class TimeZoneNames_de extends TimeZoneNamesBundle {
             {"Antarctica/Syowa", new String[] {"Syowa Zeit", "SYOT",
                                                "Syowa Sommerzeit", "SYOST",
                                                "Syowa Zeit", "SYOT"}},
+            {"Antarctica/Troll", new String[] {"Koordinierte Universalzeit", "UTC",
+                                               "Mitteleurop\u00e4ische Sommerzeit", "MESZ",
+                                               "Troll Time", "ATT"}},
             {"Antarctica/Vostok", new String[] {"Vostok Zeit", "VOST",
                                                 "Vostok Sommerzeit", "VOSST",
                                                 "Vostok Zeit", "VOST"}},
@@ -578,7 +581,7 @@ public final class TimeZoneNames_de extends TimeZoneNamesBundle {
             {"Asia/Almaty", new String[] {"Alma Ata Zeit", "ALMT",
                                           "Alma-Ata Sommerzeit", "ALMST",
                                           "Alma Ata Zeit", "ALMT"}},
-            {"Asia/Amman", ARAST},
+            {"Asia/Amman", EET},
             {"Asia/Anadyr", new String[] {"Anadyr Zeit", "ANAT",
                                           "Anadyr Sommerzeit", "ANAST",
                                           "Anadyr Zeit", "ANAT"}},
@@ -838,7 +841,7 @@ public final class TimeZoneNames_de extends TimeZoneNamesBundle {
                                             "Samarische Zeit", "SAMT"}},
             {"Europe/San_Marino", CET},
             {"Europe/Sarajevo", CET},
-            {"Europe/Simferopol", EET},
+            {"Europe/Simferopol", MSK},
             {"Europe/Skopje", CET},
             {"Europe/Sofia", EET},
             {"Europe/Stockholm", CET},
