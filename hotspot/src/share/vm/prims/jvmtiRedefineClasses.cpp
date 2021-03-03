@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -42,6 +42,7 @@
 #include "runtime/deoptimization.hpp"
 #include "runtime/relocator.hpp"
 #include "utilities/bitMap.inline.hpp"
+#include "utilities/events.hpp"
 
 PRAGMA_FORMAT_MUTE_WARNINGS_FOR_GCC
 
@@ -171,6 +172,9 @@ void VM_RedefineClasses::doit() {
 void VM_RedefineClasses::doit_epilogue() {
   // Free os::malloc allocated memory.
   os::free(_scratch_classes);
+
+  // Reset the_class_oop to null for error printing.
+  _the_class_oop = NULL;
 
   if (RC_TRACE_ENABLED(0x00000004)) {
     // Used to have separate timers for "doit" and "all", but the timer
@@ -4096,6 +4100,13 @@ void VM_RedefineClasses::redefine_single_class(jclass the_jclass,
     java_lang_Class::classRedefinedCount(the_class_mirror),
     os::available_memory() >> 10));
 
+  {
+    ResourceMark rm(THREAD);
+    Events::log_redefinition(THREAD, "redefined class name=%s, count=%d",
+                             the_class->external_name(),
+                             java_lang_Class::classRedefinedCount(the_class_mirror));
+
+  }
   RC_TIMER_STOP(_timer_rsc_phase2);
 } // end redefine_single_class()
 
@@ -4238,5 +4249,13 @@ void VM_RedefineClasses::dump_methods() {
     tty->print(" --  ");
     m->print_name(tty);
     tty->cr();
+  }
+}
+
+void VM_RedefineClasses::print_on_error(outputStream* st) const {
+  VM_Operation::print_on_error(st);
+  if (_the_class_oop != NULL) {
+    ResourceMark rm;
+    st->print_cr(", redefining class %s", _the_class_oop->external_name());
   }
 }
