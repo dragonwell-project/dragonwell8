@@ -364,6 +364,7 @@ struct ToolkitThreadProc_Data {
     HANDLE hCompleted;
 
     jobject thread;
+    jobject threadGroup;
 };
 
 void ToolkitThreadProc(void *param)
@@ -376,7 +377,7 @@ void ToolkitThreadProc(void *param)
     JavaVMAttachArgs attachArgs;
     attachArgs.version  = JNI_VERSION_1_2;
     attachArgs.name     = "AWT-Windows";
-    attachArgs.group    = NULL;
+    attachArgs.group    = data->threadGroup;
 
     jint res = jvm->AttachCurrentThreadAsDaemon((void **)&env, &attachArgs);
     if (res < 0) {
@@ -415,17 +416,18 @@ void ToolkitThreadProc(void *param)
 /*
  * Class:     sun_awt_windows_WToolkit
  * Method:    startToolkitThread
- * Signature: (Ljava/lang/Runnable;)Z
+ * Signature: (Ljava/lang/Runnable;Ljava/lang/ThreadGroup)Z
  */
 JNIEXPORT jboolean JNICALL
-Java_sun_awt_windows_WToolkit_startToolkitThread(JNIEnv *env, jclass cls, jobject thread)
+Java_sun_awt_windows_WToolkit_startToolkitThread(JNIEnv *env, jclass cls, jobject thread, jobject threadGroup)
 {
     AwtToolkit& tk = AwtToolkit::GetInstance();
 
     ToolkitThreadProc_Data data;
     data.result = false;
     data.thread = env->NewGlobalRef(thread);
-    if (data.thread == NULL) {
+    data.threadGroup = env->NewGlobalRef(threadGroup);
+    if (data.thread == NULL || data.threadGroup == NULL) {
         return JNI_FALSE;
     }
     data.hCompleted = ::CreateEvent(NULL, FALSE, FALSE, NULL);
@@ -443,6 +445,7 @@ Java_sun_awt_windows_WToolkit_startToolkitThread(JNIEnv *env, jclass cls, jobjec
     ::CloseHandle(data.hCompleted);
 
     env->DeleteGlobalRef(data.thread);
+    env->DeleteGlobalRef(data.threadGroup);
 
     return result ? JNI_TRUE : JNI_FALSE;
 }
