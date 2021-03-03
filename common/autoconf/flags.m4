@@ -450,6 +450,7 @@ AC_DEFUN_ONCE([FLAGS_SETUP_COMPILER_FLAGS_FOR_JDK],
   # Later we will also have CFLAGS and LDFLAGS for the hotspot subrepo build.
   #
 
+  FDLIBM_CFLAGS=""
   # Setup compiler/platform specific flags to CFLAGS_JDK,
   # CXXFLAGS_JDK and CCXXFLAGS_JDK (common to C and CXX?)
   if test "x$TOOLCHAIN_TYPE" = xgcc; then
@@ -474,6 +475,37 @@ AC_DEFUN_ONCE([FLAGS_SETUP_COMPILER_FLAGS_FOR_JDK],
         ;;
     esac
     TOOLCHAIN_CHECK_COMPILER_VERSION(6, FLAGS_SETUP_GCC6_COMPILER_FLAGS)
+
+    # Check that the compiler supports -ffp-contract=off flag
+    # Set FDLIBM_CFLAGS to -ffp-contract=off if it does.
+    # For GCC < 4.6, on x86, x86_64 and ppc check for
+    # -mno-fused-madd and -fno-strict-aliasing. If they exist,
+    # use them as a substitute for -ffp-contract=off.
+    #
+    # These flags are required for GCC-based builds of
+    # fdlibm with optimization without losing precision.
+    # Notably, -ffp-contract=off needs to be added for GCC >= 4.6,
+    #          -mno-fused-madd -fno-strict-aliasing for GCC < 4.6
+    COMPILER_FP_CONTRACT_OFF_FLAG="-ffp-contract=off"
+    FLAGS_CXX_COMPILER_CHECK_ARGUMENTS([[$]COMPILER_FP_CONTRACT_OFF_FLAG -Werror],
+                                       [], [COMPILER_FP_CONTRACT_OFF_FLAG=""])
+    if test "x$COMPILER_FP_CONTRACT_OFF_FLAG" = x; then
+      if test "$OPENJDK_TARGET_CPU_ARCH" = "x86" ||
+         test "$OPENJDK_TARGET_CPU_ARCH" = "x86_64" ||
+         test "$OPENJDK_TARGET_CPU_ARCH" = "ppc"; then
+        M_NO_FUSED_ADD_FLAG="-mno-fused-madd"
+        FLAGS_CXX_COMPILER_CHECK_ARGUMENTS([[$]M_NO_FUSED_ADD_FLAG -Werror],
+                                           [], [M_NO_FUSED_ADD_FLAG=""])
+        NO_STRICT_ALIASING_FLAG="-fno-strict-aliasing"
+        FLAGS_CXX_COMPILER_CHECK_ARGUMENTS([[$]NO_STRICT_ALIASING_FLAG -Werror],
+                                           [], [NO_STRICT_ALIASING_FLAG=""])
+        if test "x$M_NO_FUSED_ADD_FLAG" != "x" && test "x$NO_STRICT_ALIASING_FLAG" != "x"; then
+          FDLIBM_CFLAGS="$M_NO_FUSED_ADD_FLAG $NO_STRICT_ALIASING_FLAG"
+        fi
+      fi
+    else
+      FDLIBM_CFLAGS="$COMPILER_FP_CONTRACT_OFF_FLAG"
+    fi
   elif test "x$TOOLCHAIN_TYPE" = xsolstudio; then
     CCXXFLAGS_JDK="$CCXXFLAGS $CCXXFLAGS_JDK -DTRACING -DMACRO_MEMSYS_OPS -DBREAKPTS"
     if test "x$OPENJDK_TARGET_CPU_ARCH" = xx86; then
@@ -505,6 +537,7 @@ AC_DEFUN_ONCE([FLAGS_SETUP_COMPILER_FLAGS_FOR_JDK],
           -D_STATIC_CPPLIB -D_DISABLE_DEPRECATE_STATIC_CPPLIB"
     fi
   fi
+  AC_SUBST(FDLIBM_CFLAGS)
 
   ###############################################################################
 
