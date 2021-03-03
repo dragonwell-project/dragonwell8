@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
 # DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 #
 # This code is free software; you can redistribute it and/or modify it
@@ -265,7 +265,10 @@ $(IMAGES_OUTPUTDIR)/lib$(PROFILE)/_the.jars.contents: $(BUILD_TOOLS) $(IMAGES_OU
 $(IMAGES_OUTPUTDIR)/lib$(PROFILE)/_the.rt.jar.contents: $(IMAGES_OUTPUTDIR)/lib$(PROFILE)/_the.jars.contents
 	$(MKDIR) -p $(@D)
 	$(RM) $@ $@.tmp
-	$(GREP) -e '\.class$$' $(IMAGES_OUTPUTDIR)/lib$(PROFILE)/_the.jars.contents > $@.tmp
+	# Cygwin grep does not match $ as end of line if there are windows line
+	# endings in the input.
+	$(TR) -d '\r' < $(IMAGES_OUTPUTDIR)/lib$(PROFILE)/_the.jars.contents \
+	       | $(GREP) -e '\.class$$' > $@.tmp
         ifneq ($(PROFILE), )
           ifneq ($(strip $(RT_JAR_INCLUDE_TYPES)), )
            # Add back classes from excluded packages (fixing the $ substitution in the process)
@@ -279,9 +282,11 @@ $(IMAGES_OUTPUTDIR)/lib$(PROFILE)/_the.rt.jar.contents: $(IMAGES_OUTPUTDIR)/lib$
 $(IMAGES_OUTPUTDIR)/lib$(PROFILE)/_the.resources.jar.contents: $(IMAGES_OUTPUTDIR)/lib$(PROFILE)/_the.jars.contents
 	$(MKDIR) -p $(@D)
 	$(RM) $@ $@.tmp
-	$(GREP) -v -e '\.class$$' \
-	    -e '/_the\.*' -e '^_the\.*' -e '\\_the\.*' -e 'javac_state' \
-	    $(IMAGES_OUTPUTDIR)/lib$(PROFILE)/_the.jars.contents > $@.tmp
+	# Cygwin grep does not match $ as end of line if there are windows line
+	# endings in the input.
+	$(TR) -d '\r' < $(IMAGES_OUTPUTDIR)/lib$(PROFILE)/_the.jars.contents \
+	        | $(GREP) -v -e '\.class$$' \
+	              -e '/_the\.*' -e '^_the\.*' -e '\\_the\.*' -e 'javac_state' > $@.tmp
         ifneq ($(PROFILE), )
 	  # Strip out all META-INF/services/ entries
 	  $(GREP) -v -e 'META-INF/services/' $@.tmp > $@.tmp2

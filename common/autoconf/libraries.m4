@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
 # DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 #
 # This code is free software; you can redistribute it and/or modify it
@@ -97,21 +97,23 @@ AC_DEFUN_ONCE([LIB_SETUP_X11],
   # Check if the user has specified sysroot, but not --x-includes or --x-libraries.
   # Make a simple check for the libraries at the sysroot, and setup --x-includes and
   # --x-libraries for the sysroot, if that seems to be correct.
-  if test "x$SYS_ROOT" != "x/"; then
-    if test "x$x_includes" = xNONE; then
-      if test -f "$SYS_ROOT/usr/X11R6/include/X11/Xlib.h"; then
-        x_includes="$SYS_ROOT/usr/X11R6/include"
-      elif test -f "$SYS_ROOT/usr/include/X11/Xlib.h"; then
-        x_includes="$SYS_ROOT/usr/include"
+  if test "x$OPENJDK_TARGET_OS" = "xlinux"; then
+    if test "x$SYSROOT" != "x"; then
+      if test "x$x_includes" = xNONE; then
+        if test -f "$SYSROOT/usr/X11R6/include/X11/Xlib.h"; then
+          x_includes="$SYSROOT/usr/X11R6/include"
+        elif test -f "$SYSROOT/usr/include/X11/Xlib.h"; then
+          x_includes="$SYSROOT/usr/include"
+        fi
       fi
-    fi
-    if test "x$x_libraries" = xNONE; then
-      if test -f "$SYS_ROOT/usr/X11R6/lib/libX11.so"; then
-        x_libraries="$SYS_ROOT/usr/X11R6/lib"
-      elif test "$SYS_ROOT/usr/lib64/libX11.so" && test "x$OPENJDK_TARGET_CPU_BITS" = x64; then
-        x_libraries="$SYS_ROOT/usr/lib64"
-      elif test -f "$SYS_ROOT/usr/lib/libX11.so"; then
-        x_libraries="$SYS_ROOT/usr/lib"
+      if test "x$x_libraries" = xNONE; then
+        if test -f "$SYSROOT/usr/X11R6/lib/libX11.so"; then
+          x_libraries="$SYSROOT/usr/X11R6/lib"
+        elif test "$SYSROOT/usr/lib64/libX11.so" && test "x$OPENJDK_TARGET_CPU_BITS" = x64; then
+          x_libraries="$SYSROOT/usr/lib64"
+        elif test -f "$SYSROOT/usr/lib/libX11.so"; then
+          x_libraries="$SYSROOT/usr/lib"
+        fi
       fi
     fi
   fi
@@ -131,11 +133,15 @@ AC_DEFUN_ONCE([LIB_SETUP_X11],
     AC_MSG_ERROR([Could not find X11 libraries. $HELP_MSG])
   fi
 
+
   if test "x$OPENJDK_TARGET_OS" = xsolaris; then
     OPENWIN_HOME="/usr/openwin"
+    X_CFLAGS="-I$SYSROOT$OPENWIN_HOME/include -I$SYSROOT$OPENWIN_HOME/include/X11/extensions"
+    X_LIBS="-L$SYSROOT$OPENWIN_HOME/sfw/lib$OPENJDK_TARGET_CPU_ISADIR \
+        -L$SYSROOT$OPENWIN_HOME/lib$OPENJDK_TARGET_CPU_ISADIR \
+        -R$OPENWIN_HOME/sfw/lib$OPENJDK_TARGET_CPU_ISADIR \
+        -R$OPENWIN_HOME/lib$OPENJDK_TARGET_CPU_ISADIR"
   fi
-  AC_SUBST(OPENWIN_HOME)
-
 
   #
   # Weird Sol10 something check...TODO change to try compile
@@ -224,14 +230,14 @@ AC_DEFUN_ONCE([LIB_SETUP_CUPS],
       # Getting nervous now? Lets poke around for standard Solaris third-party
       # package installation locations.
       AC_MSG_CHECKING([for cups headers])
-      if test -s /opt/sfw/cups/include/cups/cups.h; then
+      if test -s $SYSROOT/opt/sfw/cups/include/cups/cups.h; then
         # An SFW package seems to be installed!
         CUPS_FOUND=yes
-        CUPS_CFLAGS="-I/opt/sfw/cups/include"
-      elif test -s /opt/csw/include/cups/cups.h; then
+        CUPS_CFLAGS="-I$SYSROOT/opt/sfw/cups/include"
+      elif test -s $SYSROOT/opt/csw/include/cups/cups.h; then
         # A CSW package seems to be installed!
         CUPS_FOUND=yes
-        CUPS_CFLAGS="-I/opt/csw/include"
+        CUPS_CFLAGS="-I$SYSROOT/opt/csw/include"
       fi
       AC_MSG_RESULT([$CUPS_FOUND])
     fi
@@ -245,12 +251,95 @@ AC_DEFUN_ONCE([LIB_SETUP_CUPS],
 
 ])
 
+AC_DEFUN([LIB_BUILD_FREETYPE],
+[
+  FREETYPE_SRC_PATH="$1"
+  BUILD_FREETYPE=yes
+
+  # Check if the freetype sources are acessible..
+  if ! test -d $FREETYPE_SRC_PATH; then
+    AC_MSG_WARN([--with-freetype-src specified, but can't find path "$FREETYPE_SRC_PATH" - ignoring --with-freetype-src])
+    BUILD_FREETYPE=no
+  fi
+  # ..and contain a vc2010 project file
+  vcxproj_path="$FREETYPE_SRC_PATH/builds/windows/vc2010/freetype.vcxproj"
+  if test "x$BUILD_FREETYPE" = xyes && ! test -s $vcxproj_path; then
+    AC_MSG_WARN([Can't find project file $vcxproj_path (you may try a newer freetype version) - ignoring --with-freetype-src])
+    BUILD_FREETYPE=no
+  fi
+  # Now check if configure found a version of 'msbuild.exe'
+  if test "x$BUILD_FREETYPE" = xyes && test "x$MSBUILD" == x ; then
+    AC_MSG_WARN([Can't find an msbuild.exe executable (you may try to install .NET 4.0) - ignoring --with-freetype-src])
+    BUILD_FREETYPE=no
+  fi
+
+  # Ready to go..
+  if test "x$BUILD_FREETYPE" = xyes; then
+
+    # msbuild requires trailing slashes for output directories
+    freetype_lib_path="$FREETYPE_SRC_PATH/lib$OPENJDK_TARGET_CPU_BITS/"
+    freetype_lib_path_unix="$freetype_lib_path"
+    freetype_obj_path="$FREETYPE_SRC_PATH/obj$OPENJDK_TARGET_CPU_BITS/"
+    BASIC_WINDOWS_REWRITE_AS_WINDOWS_MIXED_PATH(vcxproj_path)
+    BASIC_WINDOWS_REWRITE_AS_WINDOWS_MIXED_PATH(freetype_lib_path)
+    BASIC_WINDOWS_REWRITE_AS_WINDOWS_MIXED_PATH(freetype_obj_path)
+    if test "x$OPENJDK_TARGET_CPU_BITS" = x64; then
+      freetype_platform=x64
+    else
+      freetype_platform=win32
+    fi
+
+    # The original freetype project file is for VS 2010 (i.e. 'v100'),
+    # so we have to adapt the toolset if building with any other toolsed (i.e. SDK).
+    # Currently 'PLATFORM_TOOLSET' is set in 'TOOLCHAIN_CHECK_POSSIBLE_VISUAL_STUDIO_ROOT'/
+    # 'TOOLCHAIN_CHECK_POSSIBLE_WIN_SDK_ROOT' in toolchain_windows.m4
+    AC_MSG_NOTICE([Trying to compile freetype sources with PlatformToolset=$PLATFORM_TOOLSET to $freetype_lib_path_unix ...])
+
+    # First we try to build the freetype.dll
+    $ECHO -e "@echo off\n"\
+	     "$MSBUILD $vcxproj_path "\
+		       "/p:PlatformToolset=$PLATFORM_TOOLSET "\
+		       "/p:Configuration=\"Release Multithreaded\" "\
+		       "/p:Platform=$freetype_platform "\
+		       "/p:ConfigurationType=DynamicLibrary "\
+		       "/p:TargetName=freetype "\
+		       "/p:OutDir=\"$freetype_lib_path\" "\
+		       "/p:IntDir=\"$freetype_obj_path\" > freetype.log" > freetype.bat
+    cmd /c freetype.bat
+
+    if test -s "$freetype_lib_path_unix/freetype.dll"; then
+      # If that succeeds we also build freetype.lib
+      $ECHO -e "@echo off\n"\
+	       "$MSBUILD $vcxproj_path "\
+			 "/p:PlatformToolset=$PLATFORM_TOOLSET "\
+			 "/p:Configuration=\"Release Multithreaded\" "\
+			 "/p:Platform=$freetype_platform "\
+			 "/p:ConfigurationType=StaticLibrary "\
+			 "/p:TargetName=freetype "\
+			 "/p:OutDir=\"$freetype_lib_path\" "\
+			 "/p:IntDir=\"$freetype_obj_path\" >> freetype.log" > freetype.bat
+      cmd /c freetype.bat
+
+      if test -s "$freetype_lib_path_unix/freetype.lib"; then
+	# Once we build both, lib and dll, set freetype lib and include path appropriately
+	POTENTIAL_FREETYPE_INCLUDE_PATH="$FREETYPE_SRC_PATH/include"
+	POTENTIAL_FREETYPE_LIB_PATH="$freetype_lib_path_unix"
+	AC_MSG_NOTICE([Compiling freetype sources succeeded! (see freetype.log for build results)])
+      else
+	BUILD_FREETYPE=no
+      fi
+    else
+      BUILD_FREETYPE=no
+    fi
+  fi
+])
+
 AC_DEFUN([LIB_CHECK_POTENTIAL_FREETYPE],
 [
   POTENTIAL_FREETYPE_INCLUDE_PATH="$1"
   POTENTIAL_FREETYPE_LIB_PATH="$2"
   METHOD="$3"
-  
+
   # First check if the files exists.
   if test -s "$POTENTIAL_FREETYPE_INCLUDE_PATH/ft2build.h"; then
     # We found an arbitrary include file. That's a good sign.
@@ -302,6 +391,8 @@ AC_DEFUN_ONCE([LIB_SETUP_FREETYPE],
       [specify directory for the freetype include files])])
   AC_ARG_WITH(freetype-lib, [AS_HELP_STRING([--with-freetype-lib],
       [specify directory for the freetype library])])
+  AC_ARG_WITH(freetype-src, [AS_HELP_STRING([--with-freetype-src],
+      [specify directory with freetype sources to automatically build the library (experimental, Windows-only)])])
   AC_ARG_ENABLE(freetype-bundling, [AS_HELP_STRING([--disable-freetype-bundling],
       [disable bundling of the freetype library with the build result @<:@enabled on Windows or when using --with-freetype, disabled otherwise@:>@])])
 
@@ -310,7 +401,7 @@ AC_DEFUN_ONCE([LIB_SETUP_FREETYPE],
   FREETYPE_BUNDLE_LIB_PATH=
 
   if test "x$FREETYPE_NOT_NEEDED" = xyes; then
-    if test "x$with_freetype" != x || test "x$with_freetype_include" != x || test "x$with_freetype_lib" != x; then
+    if test "x$with_freetype" != x || test "x$with_freetype_include" != x || test "x$with_freetype_lib" != x || test "x$with_freetype_src" != x; then
       AC_MSG_WARN([freetype not used, so --with-freetype is ignored])
     fi
     if test "x$enable_freetype_bundling" != x; then
@@ -321,6 +412,25 @@ AC_DEFUN_ONCE([LIB_SETUP_FREETYPE],
 
     BUNDLE_FREETYPE="$enable_freetype_bundling"
 
+    if  test "x$with_freetype_src" != x; then
+      if test "x$OPENJDK_TARGET_OS" = xwindows; then
+        # Try to build freetype if --with-freetype-src was given on Windows
+        LIB_BUILD_FREETYPE([$with_freetype_src])
+        if test "x$BUILD_FREETYPE" = xyes; then
+          # Okay, we built it. Check that it works.
+          LIB_CHECK_POTENTIAL_FREETYPE($POTENTIAL_FREETYPE_INCLUDE_PATH, $POTENTIAL_FREETYPE_LIB_PATH, [--with-freetype-src])
+          if test "x$FOUND_FREETYPE" != xyes; then
+            AC_MSG_ERROR([Can not use the built freetype at location given by --with-freetype-src])
+          fi
+        else
+          AC_MSG_NOTICE([User specified --with-freetype-src but building freetype failed. (see freetype.log for build results)])
+          AC_MSG_ERROR([Consider building freetype manually and using --with-freetype instead.])
+        fi
+      else
+        AC_MSG_WARN([--with-freetype-src is currently only supported on Windows - ignoring])
+      fi
+    fi
+
     if test "x$with_freetype" != x || test "x$with_freetype_include" != x || test "x$with_freetype_lib" != x; then
       # User has specified settings
 
@@ -328,12 +438,12 @@ AC_DEFUN_ONCE([LIB_SETUP_FREETYPE],
         # If not specified, default is to bundle freetype
         BUNDLE_FREETYPE=yes
       fi
-      
+
       if test "x$with_freetype" != x; then
         POTENTIAL_FREETYPE_INCLUDE_PATH="$with_freetype/include"
         POTENTIAL_FREETYPE_LIB_PATH="$with_freetype/lib"
       fi
-      
+
       # Allow --with-freetype-lib and --with-freetype-include to override
       if test "x$with_freetype_include" != x; then
         POTENTIAL_FREETYPE_INCLUDE_PATH="$with_freetype_include"
@@ -385,24 +495,27 @@ AC_DEFUN_ONCE([LIB_SETUP_FREETYPE],
         fi
       fi
 
-      if test "x$FOUND_FREETYPE" != xyes; then
-        # Check modules using pkg-config, but only if we have it (ugly output results otherwise)
-        if test "x$PKG_CONFIG" != x; then
-          PKG_CHECK_MODULES(FREETYPE, freetype2, [FOUND_FREETYPE=yes], [FOUND_FREETYPE=no])
-          if test "x$FOUND_FREETYPE" = xyes; then
-            # On solaris, pkg_check adds -lz to freetype libs, which isn't necessary for us.
-            FREETYPE_LIBS=`$ECHO $FREETYPE_LIBS | $SED 's/-lz//g'`
-            # 64-bit libs for Solaris x86 are installed in the amd64 subdirectory, change lib to lib/amd64
-            if test "x$OPENJDK_TARGET_OS" = xsolaris && test "x$OPENJDK_TARGET_CPU" = xx86_64; then
-              FREETYPE_LIBS=`$ECHO $FREETYPE_LIBS | $SED 's?/lib?/lib/amd64?g'`
-            fi
-            # BDEPS_CHECK_MODULE will set FREETYPE_CFLAGS and _LIBS, but we don't get a lib path for bundling.
-            if test "x$BUNDLE_FREETYPE" = xyes; then
-              AC_MSG_NOTICE([Found freetype using pkg-config, but ignoring since we can not bundle that])
-              FOUND_FREETYPE=no
-            else
-              AC_MSG_CHECKING([for freetype])
-              AC_MSG_RESULT([yes (using pkg-config)])
+      # If we have a sysroot, assume that's where we are supposed to look and skip pkg-config.
+      if test "x$SYSROOT" = x; then
+        if test "x$FOUND_FREETYPE" != xyes; then
+          # Check modules using pkg-config, but only if we have it (ugly output results otherwise)
+          if test "x$PKG_CONFIG" != x; then
+            PKG_CHECK_MODULES(FREETYPE, freetype2, [FOUND_FREETYPE=yes], [FOUND_FREETYPE=no])
+            if test "x$FOUND_FREETYPE" = xyes; then
+              # On solaris, pkg_check adds -lz to freetype libs, which isn't necessary for us.
+              FREETYPE_LIBS=`$ECHO $FREETYPE_LIBS | $SED 's/-lz//g'`
+              # 64-bit libs for Solaris x86 are installed in the amd64 subdirectory, change lib to lib/amd64
+              if test "x$OPENJDK_TARGET_OS" = xsolaris && test "x$OPENJDK_TARGET_CPU" = xx86_64; then
+                FREETYPE_LIBS=`$ECHO $FREETYPE_LIBS | $SED 's?/lib?/lib/amd64?g'`
+              fi
+              # BDEPS_CHECK_MODULE will set FREETYPE_CFLAGS and _LIBS, but we don't get a lib path for bundling.
+              if test "x$BUNDLE_FREETYPE" = xyes; then
+                AC_MSG_NOTICE([Found freetype using pkg-config, but ignoring since we can not bundle that])
+                FOUND_FREETYPE=no
+              else
+                AC_MSG_CHECKING([for freetype])
+                AC_MSG_RESULT([yes (using pkg-config)])
+              fi
             fi
           fi
         fi
@@ -420,21 +533,21 @@ AC_DEFUN_ONCE([LIB_SETUP_FREETYPE],
             LIB_CHECK_POTENTIAL_FREETYPE([$FREETYPE_BASE_DIR/include], [$FREETYPE_BASE_DIR/lib], [well-known location])
           fi
         else
-          if test "x$SYS_ROOT" = "x/"; then
-            FREETYPE_ROOT=
-          else
-            FREETYPE_ROOT="$SYS_ROOT"
-          fi
-          FREETYPE_BASE_DIR="$FREETYPE_ROOT/usr"
+          FREETYPE_BASE_DIR="$SYSROOT/usr"
           LIB_CHECK_POTENTIAL_FREETYPE([$FREETYPE_BASE_DIR/include], [$FREETYPE_BASE_DIR/lib], [well-known location])
 
           if test "x$FOUND_FREETYPE" != xyes; then
-            FREETYPE_BASE_DIR="$FREETYPE_ROOT/usr/X11"
+            FREETYPE_BASE_DIR="$SYSROOT/usr/X11"
             LIB_CHECK_POTENTIAL_FREETYPE([$FREETYPE_BASE_DIR/include], [$FREETYPE_BASE_DIR/lib], [well-known location])
           fi
 
           if test "x$FOUND_FREETYPE" != xyes; then
-            FREETYPE_BASE_DIR="$FREETYPE_ROOT/usr"
+            FREETYPE_BASE_DIR="$SYSROOT/usr/sfw"
+            LIB_CHECK_POTENTIAL_FREETYPE([$FREETYPE_BASE_DIR/include], [$FREETYPE_BASE_DIR/lib], [well-known location])
+          fi
+
+          if test "x$FOUND_FREETYPE" != xyes; then
+            FREETYPE_BASE_DIR="$SYSROOT/usr"
             if test "x$OPENJDK_TARGET_CPU_BITS" = x64; then
               LIB_CHECK_POTENTIAL_FREETYPE([$FREETYPE_BASE_DIR/include], [$FREETYPE_BASE_DIR/lib/x86_64-linux-gnu], [well-known location])
             else
@@ -462,7 +575,7 @@ AC_DEFUN_ONCE([LIB_SETUP_FREETYPE],
         FREETYPE_CFLAGS="-I$FREETYPE_INCLUDE_PATH"
       fi
     fi
-    
+
     if test "x$FREETYPE_LIBS" = x; then
       BASIC_FIXUP_PATH(FREETYPE_LIB_PATH)
       if test "x$OPENJDK_TARGET_OS" = xwindows; then
@@ -478,7 +591,7 @@ AC_DEFUN_ONCE([LIB_SETUP_FREETYPE],
     PREV_CXXCFLAGS="$CXXFLAGS"
     PREV_LIBS="$LIBS"
     PREV_CXX="$CXX"
-    CXXFLAGS="$CXXFLAGS $FREETYPE_CFLAGS" 
+    CXXFLAGS="$CXXFLAGS $FREETYPE_CFLAGS"
     LIBS="$LIBS $FREETYPE_LIBS"
     CXX="$FIXPATH $CXX"
     AC_LINK_IFELSE([AC_LANG_SOURCE([[
@@ -496,9 +609,9 @@ AC_DEFUN_ONCE([LIB_SETUP_FREETYPE],
           AC_MSG_RESULT([no])
           AC_MSG_NOTICE([Could not compile and link with freetype. This might be a 32/64-bit mismatch.])
           AC_MSG_NOTICE([Using FREETYPE_CFLAGS=$FREETYPE_CFLAGS and FREETYPE_LIBS=$FREETYPE_LIBS])
-          
+
           HELP_MSG_MISSING_DEPENDENCY([freetype])
-          
+
           AC_MSG_ERROR([Can not continue without freetype. $HELP_MSG])
         ]
     )
@@ -564,8 +677,11 @@ AC_DEFUN_ONCE([LIB_SETUP_ALSA],
     if test "x$ALSA_FOUND" = xno; then
       BDEPS_CHECK_MODULE(ALSA, alsa, xxx, [ALSA_FOUND=yes], [ALSA_FOUND=no])
     fi
-    if test "x$ALSA_FOUND" = xno; then
-      PKG_CHECK_MODULES(ALSA, alsa, [ALSA_FOUND=yes], [ALSA_FOUND=no])
+    # Do not try pkg-config if we have a sysroot set.
+    if test "x$SYSROOT" = x; then
+      if test "x$ALSA_FOUND" = xno; then
+        PKG_CHECK_MODULES(ALSA, alsa, [ALSA_FOUND=yes], [ALSA_FOUND=no])
+      fi
     fi
     if test "x$ALSA_FOUND" = xno; then
       AC_CHECK_HEADERS([alsa/asoundlib.h],
@@ -863,14 +979,24 @@ AC_DEFUN_ONCE([LIB_SETUP_STATIC_LINK_LIBSTDCPP],
   fi
 
   # libCrun is the c++ runtime-library with SunStudio (roughly the equivalent of gcc's libstdc++.so)
-  if test "x$OPENJDK_TARGET_OS" = xsolaris && test "x$LIBCXX" = x; then
-    LIBCXX="/usr/lib${OPENJDK_TARGET_CPU_ISADIR}/libCrun.so.1"
+  if test "x$TOOLCHAIN_TYPE" = xsolstudio && test "x$LIBCXX" = x; then
+    LIBCXX="${SYSROOT}/usr/lib${OPENJDK_TARGET_CPU_ISADIR}/libCrun.so.1"
   fi
 
   # TODO better (platform agnostic) test
-  if test "x$OPENJDK_TARGET_OS" = xmacosx && test "x$LIBCXX" = x && test "x$GCC" = xyes; then
+  if test "x$OPENJDK_TARGET_OS" = xmacosx && test "x$LIBCXX" = x && test "x$TOOLCHAIN_TYPE" = xgcc; then
     LIBCXX="-lstdc++"
   fi
 
   AC_SUBST(LIBCXX)
+])
+
+AC_DEFUN_ONCE([LIB_SETUP_ON_WINDOWS],
+[
+  if test "x$OPENJDK_TARGET_OS" = "xwindows"; then
+    TOOLCHAIN_SETUP_VS_RUNTIME_DLLS
+    BASIC_DEPRECATED_ARG_WITH([dxsdk])
+    BASIC_DEPRECATED_ARG_WITH([dxsdk-lib])
+    BASIC_DEPRECATED_ARG_WITH([dxsdk-include])
+  fi
 ])

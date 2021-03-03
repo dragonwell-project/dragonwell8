@@ -122,7 +122,7 @@ CFLAGS += $(CFLAGS/NOEX)
 
 # Extra flags from gnumake's invocation or environment
 CFLAGS += $(EXTRA_CFLAGS)
-LFLAGS += $(EXTRA_CFLAGS)
+LFLAGS += $(EXTRA_CFLAGS) $(EXTRA_LDFLAGS)
 
 # Don't set excutable bit on stack segment
 # the same could be done by separate execstack command
