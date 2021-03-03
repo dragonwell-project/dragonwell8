@@ -41,4 +41,12 @@ public:
   }
 };
 
+class AllocationContextStats: public StackObj {
+public:
+  inline void clear() { }
+  inline void update(bool full_gc) { }
+  inline void update_at_remark() { }
+  inline bool available() { return false; }
+};
+
 #endif // SHARE_VM_GC_IMPLEMENTATION_G1_G1ALLOCATIONCONTEXT_HPP
