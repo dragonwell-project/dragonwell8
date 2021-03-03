@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 1997, 2014, Oracle and/or its affiliates. All rights reserved.
- * Copyright 2012, 2014 SAP AG. All rights reserved.
+ * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright 2012, 2018 SAP AG. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -45,7 +45,7 @@ int VM_Version::_features = VM_Version::unknown_m;
 int VM_Version::_measured_cache_line_size = 128; // default value
 const char* VM_Version::_features_str = "";
 bool VM_Version::_is_determine_features_test_running = false;
-
+uint64_t VM_Version::_dscr_val = 0;
 
 #define MSG(flag)   \
   if (flag && !FLAG_IS_DEFAULT(flag))                                  \
@@ -60,7 +60,9 @@ void VM_Version::initialize() {
 
   // If PowerArchitecturePPC64 hasn't been specified explicitly determine from features.
   if (FLAG_IS_DEFAULT(PowerArchitecturePPC64)) {
-    if (VM_Version::has_popcntw()) {
+    if (VM_Version::has_lqarx()) {
+      FLAG_SET_ERGO(uintx, PowerArchitecturePPC64, 8);
+    } else if (VM_Version::has_popcntw()) {
       FLAG_SET_ERGO(uintx, PowerArchitecturePPC64, 7);
     } else if (VM_Version::has_cmpb()) {
       FLAG_SET_ERGO(uintx, PowerArchitecturePPC64, 6);
@@ -71,8 +73,14 @@ void VM_Version::initialize() {
     }
   }
   guarantee(PowerArchitecturePPC64 == 0 || PowerArchitecturePPC64 == 5 ||
-            PowerArchitecturePPC64 == 6 || PowerArchitecturePPC64 == 7,
-            "PowerArchitecturePPC64 should be 0, 5, 6 or 7");
+            PowerArchitecturePPC64 == 6 || PowerArchitecturePPC64 == 7 ||
+            PowerArchitecturePPC64 == 8,
+            "PowerArchitecturePPC64 should be 0, 5, 6, 7, or 8");
+
+  // Power 8: Configure Data Stream Control Register.
+  if (PowerArchitecturePPC64 >= 8) {
+    config_dscr();
+  }
 
   if (!UseSIGTRAP) {
     MSG(TrapBasedICMissChecks);
@@ -102,7 +110,7 @@ void VM_Version::initialize() {
   // Create and print feature-string.
   char buf[(num_features+1) * 16]; // Max 16 chars per feature.
   jio_snprintf(buf, sizeof(buf),
-               "ppc64%s%s%s%s%s%s%s%s%s%s",
+               "ppc64%s%s%s%s%s%s%s%s%s%s%s%s%s",
                (has_fsqrt()   ? " fsqrt"   : ""),
                (has_isel()    ? " isel"    : ""),
                (has_lxarxeh() ? " lxarxeh" : ""),
@@ -112,12 +120,17 @@ void VM_Version::initialize() {
                (has_popcntw() ? " popcntw" : ""),
                (has_fcfids()  ? " fcfids"  : ""),
                (has_vand()    ? " vand"    : ""),
+               (has_lqarx()   ? " lqarx"   : ""),
                (has_vcipher() ? " aes"     : ""),
-               (has_vpmsumb() ? " vpmsumb" : "")
+               (has_vpmsumb() ? " vpmsumb" : ""),
+               (has_mfdscr()  ? " mfdscr"  : ""),
+               (has_vsx()     ? " vsx"     : "")
                // Make sure number of %s matches num_features!
               );
   _features_str = strdup(buf);
-  NOT_PRODUCT(if (Verbose) print_features(););
+  if (Verbose) {
+    print_features();
+  }
 
   // PPC64 supports 8-byte compare-exchange operations (see
   // Atomic::cmpxchg and StubGenerator::generate_atomic_cmpxchg_ptr)
@@ -485,8 +498,11 @@ void VM_Version::determine_features() {
   a->popcntw(R7, R5);                          // code[7] -> popcntw
   a->fcfids(F3, F4);                           // code[8] -> fcfids
   a->vand(VR0, VR0, VR0);                      // code[9] -> vand
-  a->vcipher(VR0, VR1, VR2);                   // code[10] -> vcipher
-  a->vpmsumb(VR0, VR1, VR2);                   // code[11] -> vpmsumb
+  a->lqarx_unchecked(R7, R3_ARG1, R4_ARG2, 1); // code[10] -> lqarx_m
+  a->vcipher(VR0, VR1, VR2);                   // code[11] -> vcipher
+  a->vpmsumb(VR0, VR1, VR2);                   // code[12] -> vpmsumb
+  a->mfdscr(R0);                               // code[13] -> mfdscr
+  a->lxvd2x(VSR0, 0, R3_ARG1);                 // code[14] -> vsx
   a->blr();
 
   // Emit function to set one cache line to zero. Emit function descriptor and get pointer to it.
@@ -530,8 +546,11 @@ void VM_Version::determine_features() {
   if (code[feature_cntr++]) features |= popcntw_m;
   if (code[feature_cntr++]) features |= fcfids_m;
   if (code[feature_cntr++]) features |= vand_m;
+  if (code[feature_cntr++]) features |= lqarx_m;
   if (code[feature_cntr++]) features |= vcipher_m;
   if (code[feature_cntr++]) features |= vpmsumb_m;
+  if (code[feature_cntr++]) features |= mfdscr_m;
+  if (code[feature_cntr++]) features |= vsx_m;
 
   // Print the detection code.
   if (PrintAssembly) {
@@ -543,6 +562,69 @@ void VM_Version::determine_features() {
   _features = features;
 }
 
+// Power 8: Configure Data Stream Control Register.
+void VM_Version::config_dscr() {
+  assert(has_lqarx(), "Only execute on Power 8 or later!");
+
+  // 7 InstWords for each call (function descriptor + blr instruction).
+  const int code_size = (2+2*7)*BytesPerInstWord;
+
+  // Allocate space for the code.
+  ResourceMark rm;
+  CodeBuffer cb("config_dscr", code_size, 0);
+  MacroAssembler* a = new MacroAssembler(&cb);
+
+  // Emit code.
+  uint64_t (*get_dscr)() = (uint64_t(*)())(void *)a->function_entry();
+  uint32_t *code = (uint32_t *)a->pc();
+  a->mfdscr(R3);
+  a->blr();
+
+  void (*set_dscr)(long) = (void(*)(long))(void *)a->function_entry();
+  a->mtdscr(R3);
+  a->blr();
+
+  uint32_t *code_end = (uint32_t *)a->pc();
+  a->flush();
+
+  // Print the detection code.
+  if (PrintAssembly) {
+    ttyLocker ttyl;
+    tty->print_cr("Decoding dscr configuration stub at " INTPTR_FORMAT " before execution:", p2i(code));
+    Disassembler::decode((u_char*)code, (u_char*)code_end, tty);
+  }
+
+  // Apply the configuration if needed.
+  _dscr_val = (*get_dscr)();
+  if (Verbose) {
+    tty->print_cr("dscr value was 0x%lx" , _dscr_val);
+  }
+  bool change_requested = false;
+  if (DSCR_PPC64 != (uintx)-1) {
+    _dscr_val = DSCR_PPC64;
+    change_requested = true;
+  }
+  if (DSCR_DPFD_PPC64 <= 7) {
+    uint64_t mask = 0x7;
+    if ((_dscr_val & mask) != DSCR_DPFD_PPC64) {
+      _dscr_val = (_dscr_val & ~mask) | (DSCR_DPFD_PPC64);
+      change_requested = true;
+    }
+  }
+  if (DSCR_URG_PPC64 <= 7) {
+    uint64_t mask = 0x7 << 6;
+    if ((_dscr_val & mask) != DSCR_DPFD_PPC64 << 6) {
+      _dscr_val = (_dscr_val & ~mask) | (DSCR_URG_PPC64 << 6);
+      change_requested = true;
+    }
+  }
+  if (change_requested) {
+    (*set_dscr)(_dscr_val);
+    if (Verbose) {
+      tty->print_cr("dscr was set to 0x%lx" , (*get_dscr)());
+    }
+  }
+}
 
 static int saved_features = 0;
 

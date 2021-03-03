@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008, 2011, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2008, 2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -115,9 +115,21 @@ public class Basic {
                 store.type());
 
             // check space attributes are accessible
-            store.getTotalSpace();
-            store.getUnallocatedSpace();
-            store.getUsableSpace();
+            try {
+                store.getTotalSpace();
+                store.getUnallocatedSpace();
+                store.getUsableSpace();
+            } catch (NoSuchFileException nsfe) {
+                // ignore exception as the store could have been
+                // deleted since the iterator was instantiated
+                System.err.format("%s was not found\n", store);
+            } catch (AccessDeniedException ade) {
+                // ignore exception as the lack of ability to access the
+                // store due to lack of file permission or similar does not
+                // reflect whether the space attributes would be accessible
+                // were access to be permitted
+                System.err.format("%s is inaccessible\n", store);
+            }
 
             // two distinct FileStores should not be equal
             assertTrue(!store.equals(prev));
