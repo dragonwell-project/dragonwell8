@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -50,13 +50,10 @@ import java.sql.SQLException;
  * The inherited methods <code>getMessage</code>, <code>getSQLState</code>,
  * and <code>getErrorCode</code> retrieve information contained in a
  * <code>RowSetWarning</code> object.
+ *
+ * @since 1.5
  */
 public class RowSetWarning extends SQLException {
-
-    /**
-     * RowSetWarning object handle.
-     */
-     private RowSetWarning rwarning;
 
     /**
      * Constructs a <code>RowSetWarning</code> object
@@ -109,7 +106,7 @@ public class RowSetWarning extends SQLException {
      * @param reason a <code>String</code> giving a description of the
      *        warning;
      * @param SQLState an XOPEN code identifying the warning; if a non standard
-     *        XPOEN <i>SQLState</i> is supplied, no exception is thrown.
+     *        XOPEN <i>SQLState</i> is supplied, no exception is thrown.
      * @param vendorCode a database vendor-specific warning code
      */
     public RowSetWarning(java.lang.String reason, java.lang.String SQLState, int vendorCode) {
@@ -126,7 +123,15 @@ public class RowSetWarning extends SQLException {
      * @see #setNextWarning
      */
     public RowSetWarning getNextWarning() {
-        return rwarning;
+        SQLException warning = getNextException();
+        if (  warning == null || warning instanceof RowSetWarning) {
+            return (RowSetWarning)warning;
+        } else {
+            // The chained value isn't a RowSetWarning.
+            // This is a programming error by whoever added it to
+            // the RowSetWarning chain.  We throw a Java "Error".
+            throw new Error("RowSetWarning chain holds value that is not a RowSetWarning: ");
+        }
     }
 
     /**
@@ -139,7 +144,7 @@ public class RowSetWarning extends SQLException {
      * @see #getNextWarning
      */
     public void setNextWarning(RowSetWarning warning) {
-        rwarning = warning;
+        setNextException(warning);
     }
 
     static final long serialVersionUID = 6678332766434564774L;

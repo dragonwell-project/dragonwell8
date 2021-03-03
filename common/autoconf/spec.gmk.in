@@ -167,6 +167,7 @@ USER_RELEASE_SUFFIX=@USER_RELEASE_SUFFIX@
 # Different version strings generated from the above information.
 JDK_VERSION:=@JDK_VERSION@
 RUNTIME_NAME=$(PRODUCT_NAME) $(PRODUCT_SUFFIX)
+COOKED_JDK_UPDATE_VERSION:=@COOKED_JDK_UPDATE_VERSION@
 COOKED_BUILD_NUMBER:=@COOKED_BUILD_NUMBER@
 # These variables need to be generated here so that MILESTONE and
 # JDK_BUILD_NUMBER can be overridden on the make command line.
