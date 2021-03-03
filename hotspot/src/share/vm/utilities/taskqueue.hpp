@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -453,6 +453,9 @@ public:
   // Push task t onto the queue or onto the overflow stack.  Return true.
   inline bool push(E t);
 
+  // Try to push task t onto the queue only. Returns true if successful, false otherwise.
+  inline bool try_push_to_taskqueue(E t);
+
   // Attempt to pop from the overflow stack; return true if anything was popped.
   inline bool pop_overflow(E& t);
 
@@ -486,6 +489,10 @@ bool OverflowTaskQueue<E, F, N>::pop_overflow(E& t)
   return true;
 }
 
+template <class E, MEMFLAGS F, unsigned int N>
+bool OverflowTaskQueue<E, F, N>::try_push_to_taskqueue(E t) {
+  return taskqueue_t::push(t);
+}
 class TaskQueueSetSuper {
 protected:
   static int randomParkAndMiller(int* seed0);
