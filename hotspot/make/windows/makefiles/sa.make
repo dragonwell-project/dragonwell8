@@ -44,7 +44,9 @@ HS_COMMON_SRC_REL = src
 HS_ALT_SRC_REL=src/closed
 HS_ALT_SRC = $(WorkSpace)/$(HS_ALT_SRC_REL)
 !ifndef HS_ALT_MAKE
+!if exist($(WorkSpace)/make/closed)
 HS_ALT_MAKE=$(WorkSpace)/make/closed
+!endif
 !endif
 !endif
 

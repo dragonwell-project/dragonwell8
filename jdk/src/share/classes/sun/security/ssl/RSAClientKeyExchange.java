@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1996, 2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -67,7 +67,8 @@ final class RSAClientKeyExchange extends HandshakeMessage {
             ProtocolVersion maxVersion,
             SecureRandom generator, PublicKey publicKey) throws IOException {
         if (publicKey.getAlgorithm().equals("RSA") == false) {
-            throw new SSLKeyException("Public key not of type RSA");
+            throw new SSLKeyException("Public key not of type RSA: " +
+                publicKey.getAlgorithm());
         }
         this.protocolVersion = protocolVersion;
 
@@ -98,7 +99,8 @@ final class RSAClientKeyExchange extends HandshakeMessage {
             int messageSize, PrivateKey privateKey) throws IOException {
 
         if (privateKey.getAlgorithm().equals("RSA") == false) {
-            throw new SSLKeyException("Private key not of type RSA");
+            throw new SSLKeyException("Private key not of type RSA: " +
+                 privateKey.getAlgorithm());
         }
 
         if (currentVersion.v >= ProtocolVersion.TLS10.v) {
@@ -113,10 +115,31 @@ final class RSAClientKeyExchange extends HandshakeMessage {
 
         byte[] encoded = null;
         try {
+            boolean needFailover = false;
             Cipher cipher = JsseJce.getCipher(JsseJce.CIPHER_RSA_PKCS1);
-            boolean needFailover = !KeyUtil.isOracleJCEProvider(
-                    cipher.getProvider().getName());
+            try {
+                // Try UNWRAP_MODE mode firstly.
+                cipher.init(Cipher.UNWRAP_MODE, privateKey,
+                        new TlsRsaPremasterSecretParameterSpec(
+                                maxVersion.v, currentVersion.v),
+                        generator);
+
+                // The provider selection can be delayed, please don't call
+                // any Cipher method before the call to Cipher.init().
+                needFailover = !KeyUtil.isOracleJCEProvider(
+                        cipher.getProvider().getName());
+            } catch (InvalidKeyException | UnsupportedOperationException iue) {
+                if (debug != null && Debug.isOn("handshake")) {
+                    System.out.println("The Cipher provider " +
+                        cipher.getProvider().getName() +
+                        " caused exception: " + iue.getMessage());
+                }
+
+                needFailover = true;
+            }
+
             if (needFailover) {
+                // Use DECRYPT_MODE and dispose the previous initialization.
                 cipher.init(Cipher.DECRYPT_MODE, privateKey);
                 boolean failed = false;
                 try {
@@ -132,17 +155,14 @@ final class RSAClientKeyExchange extends HandshakeMessage {
                                 maxVersion.v, currentVersion.v,
                                 encoded, generator);
             } else {
-                cipher.init(Cipher.UNWRAP_MODE, privateKey,
-                        new TlsRsaPremasterSecretParameterSpec(
-                                maxVersion.v, currentVersion.v),
-                        generator);
+                // the cipher should have been initialized
                 preMaster = (SecretKey)cipher.unwrap(encrypted,
                         "TlsRsaPremasterSecret", Cipher.SECRET_KEY);
             }
         } catch (InvalidKeyException ibk) {
             // the message is too big to process with RSA
-            throw new SSLProtocolException(
-                "Unable to process PreMasterSecret, may be too big");
+            throw new SSLException(
+                "Unable to process PreMasterSecret", ibk);
         } catch (Exception e) {
             // unlikely to happen, otherwise, must be a provider exception
             if (debug != null && Debug.isOn("handshake")) {
