@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -493,7 +493,7 @@ class MethodFamily : public ResourceObj {
 };
 
 Symbol* MethodFamily::generate_no_defaults_message(TRAPS) const {
-  return SymbolTable::new_symbol("No qualifying defaults found", CHECK_NULL);
+  return SymbolTable::new_symbol("No qualifying defaults found", THREAD);
 }
 
 Symbol* MethodFamily::generate_method_message(Symbol *klass_name, Method* method, TRAPS) const {

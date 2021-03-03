@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2018, Oracle and/or its affiliates. All rights reserved.
  * Copyright 2012, 2013 SAP AG. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -706,7 +706,7 @@ static char* get_user_name_slow(int vmid, TRAPS) {
 // return the name of the user that owns the JVM indicated by the given vmid.
 //
 static char* get_user_name(int vmid, TRAPS) {
-  return get_user_name_slow(vmid, CHECK_NULL);
+  return get_user_name_slow(vmid, THREAD);
 }
 
 // return the file name of the backing store file for the named

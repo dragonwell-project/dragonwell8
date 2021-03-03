@@ -105,9 +105,15 @@ GENERATEDFILES = $(GENERATEDNAMES:%=$(OUTDIR)/%)
 
 all: $(EXEC)
 
+ADLC_LD_FLAGS=
+ifeq ($(STATIC_CXX), true)
+  ADLC_LD_FLAGS = $(STATIC_LIBGCC) $(ADLC_STATIC_STDCXX)
+endif
+
+
 $(EXEC) : $(OBJECTS)
 	@echo Making adlc
-	$(QUIETLY) $(filter-out $(ARCHFLAG),$(HOST.LINK_NOPROF.CXX)) -o $(EXEC) $(OBJECTS)
+	$(QUIETLY) $(filter-out $(ARCHFLAG),$(HOST.LINK_NOPROF.CXX)) $(ADLC_LD_FLAGS) -o $(EXEC) $(OBJECTS)
 
 # Random dependencies:
 $(OBJECTS): opcodes.hpp classes.hpp adlc.hpp adlcVMDeps.hpp adlparse.hpp archDesc.hpp arena.hpp dict2.hpp filebuff.hpp forms.hpp formsopt.hpp formssel.hpp

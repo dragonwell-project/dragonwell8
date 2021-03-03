@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -682,7 +682,7 @@ objArrayHandle Reflection::get_parameter_types(methodHandle method, int paramete
 }
 
 objArrayHandle Reflection::get_exception_types(methodHandle method, TRAPS) {
-  return method->resolved_checked_exceptions(CHECK_(objArrayHandle()));
+  return method->resolved_checked_exceptions(THREAD);
 }
 
 
