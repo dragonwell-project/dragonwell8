@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -35,7 +35,7 @@ public class Resources_zh_TW extends java.util.ListResourceBundle {
     private static final Object[][] contents = {
         {"NEWLINE", "\n"},
         {"Warning.A.public.key.for.alias.signers.i.does.not.exist.Make.sure.a.KeyStore.is.properly.configured.",
-                "\u8B66\u544A: \u5225\u540D {0} \u7684\u516C\u958B\u91D1\u9470\u4E0D\u5B58\u5728\u3002\u8ACB\u78BA\u5B9A\u91D1\u9470\u5132\u5B58\u5EAB\u914D\u7F6E\u6B63\u78BA\u3002"},
+                "\u8B66\u544A: \u5225\u540D {0} \u7684\u516C\u958B\u91D1\u9470\u4E0D\u5B58\u5728\u3002\u8ACB\u78BA\u5B9A\u91D1\u9470\u5132\u5B58\u5EAB\u8A2D\u5B9A\u6B63\u78BA\u3002"},
         {"Warning.Class.not.found.class", "\u8B66\u544A: \u627E\u4E0D\u5230\u985E\u5225 {0}"},
         {"Warning.Invalid.argument.s.for.constructor.arg",
                 "\u8B66\u544A: \u7121\u6548\u7684\u5EFA\u69CB\u5B50\u5F15\u6578: {0}"},
