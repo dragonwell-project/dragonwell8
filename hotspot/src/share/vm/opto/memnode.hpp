@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -74,6 +74,8 @@ protected:
     init_class_id(Class_Mem);
     debug_only(_adr_type=at; adr_type();)
   }
+
+  static bool check_if_adr_maybe_raw(Node* adr);
 
 public:
   // Helpers for the optimizer.  Documented in memnode.cpp.
