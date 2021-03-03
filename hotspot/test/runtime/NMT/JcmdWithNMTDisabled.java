@@ -26,7 +26,6 @@
  * @key nmt jcmd
  * @summary Verify that jcmd correctly reports that NMT is not enabled
  * @library /testlibrary
- * @ignore
  * First run without enabling NMT
  * @run main/othervm JcmdWithNMTDisabled
  * Then run with explicitly disabling NMT, should not be any difference
