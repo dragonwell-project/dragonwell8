@@ -1452,16 +1452,18 @@ void GraphKit::set_all_memory_call(Node* call, bool separate_io_proj) {
 // factory methods in "int adr_idx"
 Node* GraphKit::make_load(Node* ctl, Node* adr, const Type* t, BasicType bt,
                           int adr_idx,
-                          MemNode::MemOrd mo, bool require_atomic_access) {
+                          MemNode::MemOrd mo, LoadNode::ControlDependency control_dependency, bool require_atomic_access) {
   assert(adr_idx != Compile::AliasIdxTop, "use other make_load factory" );
   const TypePtr* adr_type = NULL; // debug-mode-only argument
   debug_only(adr_type = C->get_adr_type(adr_idx));
   Node* mem = memory(adr_idx);
   Node* ld;
   if (require_atomic_access && bt == T_LONG) {
-    ld = LoadLNode::make_atomic(C, ctl, mem, adr, adr_type, t, mo);
+    ld = LoadLNode::make_atomic(C, ctl, mem, adr, adr_type, t, mo, control_dependency);
+  } else if (require_atomic_access && bt == T_DOUBLE) {
+    ld = LoadDNode::make_atomic(C, ctl, mem, adr, adr_type, t, mo, control_dependency);
   } else {
-    ld = LoadNode::make(_gvn, ctl, mem, adr, adr_type, t, bt, mo);
+    ld = LoadNode::make(_gvn, ctl, mem, adr, adr_type, t, bt, mo, control_dependency);
   }
   ld = _gvn.transform(ld);
   if ((bt == T_OBJECT) && C->do_escape_analysis() || C->eliminate_boxing()) {
@@ -1482,6 +1484,8 @@ Node* GraphKit::store_to_memory(Node* ctl, Node* adr, Node *val, BasicType bt,
   Node* st;
   if (require_atomic_access && bt == T_LONG) {
     st = StoreLNode::make_atomic(C, ctl, mem, adr, adr_type, val, mo);
+  } else if (require_atomic_access && bt == T_DOUBLE) {
+    st = StoreDNode::make_atomic(C, ctl, mem, adr, adr_type, val, mo);
   } else {
     st = StoreNode::make(_gvn, ctl, mem, adr, adr_type, val, bt, mo);
   }
