@@ -123,6 +123,13 @@ class ClassReader {
         return e;
     }
 
+    private Entry checkValid(Entry e) {
+         if (e == INVALID_ENTRY) {
+            throw new IllegalStateException("Invalid constant pool reference");
+        }
+         return e;
+    }
+
     /** Throw a ClassFormatException if the entry does not match the expected tag type. */
     private Entry checkTag(Entry e, byte tag) throws ClassFormatException {
         if (e == null || !e.tagMatches(tag)) {
@@ -225,6 +232,29 @@ class ClassReader {
         return null;  // OK
     }
 
+    // use this identity for invalid references
+    private static final Entry INVALID_ENTRY = new Entry((byte) -1) {
+        @Override
+        public boolean equals(Object o) {
+            throw new IllegalStateException("Should not call this");
+        }
+
+        @Override
+        protected int computeValueHash() {
+            throw new IllegalStateException("Should not call this");
+        }
+
+        @Override
+        public int compareTo(Object o) {
+            throw new IllegalStateException("Should not call this");
+        }
+
+        @Override
+        public String stringValue() {
+            throw new IllegalStateException("Should not call this");
+        }
+    };
+
     void readConstantPool() throws IOException {
         int length = in.readUnsignedShort();
         //System.err.println("reading CP, length="+length);
@@ -233,7 +263,7 @@ class ClassReader {
         int fptr = 0;
 
         Entry[] cpMap = new Entry[length];
-        cpMap[0] = null;
+        cpMap[0] = INVALID_ENTRY;
         for (int i = 1; i < length; i++) {
             //System.err.println("reading CP elt, i="+i);
             int tag = in.readByte();
@@ -254,13 +284,13 @@ class ClassReader {
                 case CONSTANT_Long:
                     {
                         cpMap[i] = ConstantPool.getLiteralEntry(in.readLong());
-                        cpMap[++i] = null;
+                        cpMap[++i] = INVALID_ENTRY;
                     }
                     break;
                 case CONSTANT_Double:
                     {
                         cpMap[i] = ConstantPool.getLiteralEntry(in.readDouble());
-                        cpMap[++i] = null;
+                        cpMap[++i] = INVALID_ENTRY;
                     }
                     break;
 
@@ -315,7 +345,7 @@ class ClassReader {
                 int ref2 = fixups[fi++];
                 if (verbose > 3)
                     Utils.log.fine("  cp["+cpi+"] = "+ConstantPool.tagName(tag)+"{"+ref+","+ref2+"}");
-                if (ref >= 0 && cpMap[ref] == null || ref2 >= 0 && cpMap[ref2] == null) {
+                if (ref >= 0 && checkValid(cpMap[ref]) == null || ref2 >= 0 && checkValid(cpMap[ref2]) == null) {
                     // Defer.
                     fixups[fptr++] = cpi;
                     fixups[fptr++] = tag;
@@ -364,7 +394,6 @@ class ClassReader {
 
         cls.cpMap = cpMap;
     }
-
     private /*non-static*/
     class UnresolvedEntry extends Entry {
         final Object[] refsOrIndexes;
