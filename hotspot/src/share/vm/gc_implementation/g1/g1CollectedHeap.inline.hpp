@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2014, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -165,7 +165,7 @@ inline bool G1CollectedHeap::isMarkedNext(oop obj) const {
 // points into the heap.
 inline bool G1CollectedHeap::in_cset_fast_test(oop obj) {
   assert(_in_cset_fast_test != NULL, "sanity");
-  assert(_g1_committed.contains((HeapWord*) obj), err_msg("Given reference outside of heap, is "PTR_FORMAT, (HeapWord*)obj));
+  assert(_g1_committed.contains((HeapWord*) obj), err_msg("Given reference outside of heap, is "PTR_FORMAT, p2i((HeapWord*)obj)));
   // no need to subtract the bottom of the heap from obj,
   // _in_cset_fast_test is biased
   uintx index = cast_from_oop<uintx>(obj) >> HeapRegion::LogOfHRGrainBytes;

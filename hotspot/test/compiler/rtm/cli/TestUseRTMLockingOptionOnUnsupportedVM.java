@@ -72,7 +72,8 @@ public class TestUseRTMLockingOptionOnUnsupportedVM
                 "-XX:-UseRTMLocking");
         // verify that it is off by default
         CommandLineOptionTest.verifyOptionValueForSameVM("UseRTMLocking",
-                TestUseRTMLockingOptionOnUnsupportedVM.DEFAULT_VALUE);
+                TestUseRTMLockingOptionOnUnsupportedVM.DEFAULT_VALUE,
+                CommandLineOptionTest.UNLOCK_EXPERIMENTAL_VM_OPTIONS);
     }
 
     public static void main(String args[]) throws Throwable {
