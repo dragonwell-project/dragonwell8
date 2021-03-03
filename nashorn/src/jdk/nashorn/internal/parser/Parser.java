@@ -2644,7 +2644,7 @@ loop:
         // name is null, generate anonymous name
         boolean isAnonymous = false;
         if (name == null) {
-            final String tmpName = getDefaultValidFunctionName(functionLine);
+            final String tmpName = getDefaultValidFunctionName(functionLine, isStatement);
             name = new IdentNode(functionToken, Token.descPosition(functionToken), tmpName);
             isAnonymous = true;
         }
@@ -2653,7 +2653,15 @@ loop:
         final List<IdentNode> parameters = formalParameterList();
         expect(RPAREN);
 
-        FunctionNode functionNode = functionBody(functionToken, name, parameters, FunctionNode.Kind.NORMAL, functionLine);
+        FunctionNode functionNode;
+        // Hide the current default name across function boundaries. E.g. "x3 = function x1() { function() {}}"
+        // If we didn't hide the current default name, then the innermost anonymous function would receive "x3".
+        hideDefaultName();
+        try {
+            functionNode = functionBody(functionToken, name, parameters, FunctionNode.Kind.NORMAL, functionLine);
+        } finally {
+            defaultNames.pop();
+        }
 
         if (isStatement) {
             if (topLevel || useBlockScope()) {
@@ -2722,9 +2730,17 @@ loop:
         return functionNode;
     }
 
-    private String getDefaultValidFunctionName(final int functionLine) {
+    private String getDefaultValidFunctionName(final int functionLine, final boolean isStatement) {
         final String defaultFunctionName = getDefaultFunctionName();
-        return isValidIdentifier(defaultFunctionName) ? defaultFunctionName : ANON_FUNCTION_PREFIX.symbolName() + functionLine;
+        if (isValidIdentifier(defaultFunctionName)) {
+            if (isStatement) {
+                // The name will be used as the LHS of a symbol assignment. We add the anonymous function
+                // prefix to ensure that it can't clash with another variable.
+                return ANON_FUNCTION_PREFIX.symbolName() + defaultFunctionName;
+            }
+            return defaultFunctionName;
+        }
+        return ANON_FUNCTION_PREFIX.symbolName() + functionLine;
     }
 
     private static boolean isValidIdentifier(final String name) {
@@ -2758,6 +2774,10 @@ loop:
 
     private void markDefaultNameUsed() {
         defaultNames.pop();
+        hideDefaultName();
+    }
+
+    private void hideDefaultName() {
         // Can be any value as long as getDefaultFunctionName doesn't recognize it as something it can extract a value
         // from. Can't be null
         defaultNames.push("");
