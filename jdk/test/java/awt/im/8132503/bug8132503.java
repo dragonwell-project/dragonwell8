@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -19,34 +19,29 @@
  * Please contact Oracle, 500 Oracle Parkway, Redwood Shores, CA 94065 USA
  * or visit www.oracle.com if you need additional information or have any
  * questions.
- *
  */
 
-#include "precompiled.hpp"
-#include "runtime/thread.inline.hpp"
-#include "runtime/threadLocalStorage.hpp"
+/* @test
+   @bug 8132503
+   @summary [macosx] Chinese full stop symbol cannot be entered with Pinyin IM on OS X
+   @author Anton Litvinov
+   @run applet/manual=yesno bug8132503.html
+ */
 
-// True thread-local variable
-__thread Thread * ThreadLocalStorage::_thr_current = NULL;
+import javax.swing.JApplet;
+import javax.swing.JScrollPane;
+import javax.swing.JTextArea;
+import javax.swing.SwingUtilities;
 
-// Implementations needed to support the shared API
-
-void ThreadLocalStorage::pd_invalidate_all() {} // nothing to do
-
-bool ThreadLocalStorage::_initialized = false;
-
-void ThreadLocalStorage::init() {
-  _initialized = true;
-}
-
-bool ThreadLocalStorage::is_initialized() {
-  return _initialized;
-}
-
-Thread* ThreadLocalStorage::get_thread_slow() {
-    return thread();
-}
-
-extern "C" Thread* get_thread() {
-  return ThreadLocalStorage::thread();
+public class bug8132503 extends JApplet {
+    @Override
+    public void init() {
+        SwingUtilities.invokeLater(new Runnable() {
+            @Override
+            public void run() {
+                JTextArea textArea = new JTextArea("Text area of the test.", 40, 40);
+                add(new JScrollPane(textArea));
+            }
+        });
+    }
 }
