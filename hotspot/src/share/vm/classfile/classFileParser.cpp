@@ -3751,18 +3751,24 @@ instanceKlassHandle ClassFileParser::parseClassFile(Symbol* name,
       Exceptions::fthrow(
         THREAD_AND_LOCATION,
         vmSymbols::java_lang_UnsupportedClassVersionError(),
-        "Unsupported major.minor version %u.%u",
+        "Unsupported class file version %u.%u, "
+        "this version of the Java Runtime only recognizes class file versions up to %u.%u",
         major_version,
-        minor_version);
+        minor_version,
+        JAVA_MAX_SUPPORTED_VERSION,
+        JAVA_MAX_SUPPORTED_MINOR_VERSION);
     } else {
       ResourceMark rm(THREAD);
       Exceptions::fthrow(
         THREAD_AND_LOCATION,
         vmSymbols::java_lang_UnsupportedClassVersionError(),
-        "%s : Unsupported major.minor version %u.%u",
+        "%s has been compiled by a more recent version of the Java Runtime (class file version %u.%u), "
+        "this version of the Java Runtime only recognizes class file versions up to %u.%u",
         name->as_C_string(),
         major_version,
-        minor_version);
+        minor_version,
+        JAVA_MAX_SUPPORTED_VERSION,
+        JAVA_MAX_SUPPORTED_MINOR_VERSION);
     }
     return nullHandle;
   }
@@ -4175,8 +4181,12 @@ ClassFileParser::~ClassFileParser() {
 
   clear_class_metadata();
 
-  // deallocate the klass if already created.
-  MetadataFactory::free_metadata(_loader_data, _klass);
+  // deallocate the klass if already created.  Don't directly deallocate, but add
+  // to the deallocate list so that the klass is removed from the CLD::_klasses list
+  // at a safepoint.
+  if (_klass != NULL) {
+    _loader_data->add_to_deallocate_list(_klass);
+  }
   _klass = NULL;
 }
 
