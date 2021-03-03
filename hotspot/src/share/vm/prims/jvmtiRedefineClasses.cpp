@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -332,7 +332,7 @@ void VM_RedefineClasses::append_entry(constantPoolHandle scratch_cp,
       int new_name_and_type_ref_i = find_or_append_indirect_entry(scratch_cp, name_and_type_ref_i,
                                                           merge_cp_p, merge_cp_length_p, THREAD);
 
-      const char *entry_name;
+      const char *entry_name = NULL;
       switch (scratch_cp->tag_at(scratch_i).value()) {
       case JVM_CONSTANT_Fieldref:
         entry_name = "Fieldref";
@@ -3925,6 +3925,10 @@ void VM_RedefineClasses::redefine_single_class(jclass the_jclass,
   the_class->set_methods(_new_methods);
   scratch_class->set_methods(_old_methods);     // To prevent potential GCing of the old methods,
                                           // and to be able to undo operation easily.
+
+  Array<int>* old_ordering = the_class->method_ordering();
+  the_class->set_method_ordering(scratch_class->method_ordering());
+  scratch_class->set_method_ordering(old_ordering);
 
   ConstantPool* old_constants = the_class->constants();
   the_class->set_constants(scratch_class->constants());
