@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -39,6 +39,7 @@ import sun.awt.*;
 import sun.lwawt.macosx.*;
 import sun.print.*;
 import sun.security.util.SecurityConstants;
+import sun.misc.ThreadGroupUtils;
 
 public abstract class LWToolkit extends SunToolkit implements Runnable {
 
@@ -72,30 +73,17 @@ public abstract class LWToolkit extends SunToolkit implements Runnable {
     protected final void init() {
         AWTAutoShutdown.notifyToolkitThreadBusy();
 
-        ThreadGroup mainTG = AccessController.doPrivileged(
-            new PrivilegedAction<ThreadGroup>() {
-                public ThreadGroup run() {
-                    ThreadGroup currentTG = Thread.currentThread().getThreadGroup();
-                    ThreadGroup parentTG = currentTG.getParent();
-                    while (parentTG != null) {
-                        currentTG = parentTG;
-                        parentTG = currentTG.getParent();
-                    }
-                    return currentTG;
-                }
-            }
-        );
+        ThreadGroup rootTG = AccessController.doPrivileged(
+                (PrivilegedAction<ThreadGroup>) ThreadGroupUtils::getRootThreadGroup);
 
         Runtime.getRuntime().addShutdownHook(
-            new Thread(mainTG, new Runnable() {
-                public void run() {
-                    shutdown();
-                    waitForRunState(STATE_CLEANUP);
-                }
+            new Thread(rootTG, () -> {
+                shutdown();
+                waitForRunState(STATE_CLEANUP);
             })
         );
 
-        Thread toolkitThread = new Thread(mainTG, this, "AWT-LW");
+        Thread toolkitThread = new Thread(rootTG, this, "AWT-LW");
         toolkitThread.setDaemon(true);
         toolkitThread.setPriority(Thread.NORM_PRIORITY + 1);
         toolkitThread.start();
