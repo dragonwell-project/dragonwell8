@@ -2247,7 +2247,18 @@ public class Window extends Container implements Accessible {
             }
             firePropertyChange("alwaysOnTop", oldAlwaysOnTop, alwaysOnTop);
         }
-        for (WeakReference<Window> ref : ownedWindowList) {
+        setOwnedWindowsAlwaysOnTop(alwaysOnTop);
+    }
+
+    @SuppressWarnings({"rawtypes", "unchecked"})
+    private void setOwnedWindowsAlwaysOnTop(boolean alwaysOnTop) {
+        WeakReference<Window>[] ownedWindowArray;
+        synchronized (ownedWindowList) {
+            ownedWindowArray = new WeakReference[ownedWindowList.size()];
+            ownedWindowList.copyInto(ownedWindowArray);
+        }
+
+        for (WeakReference<Window> ref : ownedWindowArray) {
             Window window = ref.get();
             if (window != null) {
                 try {
