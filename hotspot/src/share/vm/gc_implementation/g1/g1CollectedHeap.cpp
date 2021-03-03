@@ -1464,6 +1464,9 @@ bool G1CollectedHeap::do_collection(bool explicit_gc,
       // Rebuild the strong code root lists for each region
       rebuild_strong_code_roots();
 
+      // Purge code root memory
+      purge_code_root_memory();
+
       if (true) { // FIXME
         MetaspaceGC::compute_new_size();
       }

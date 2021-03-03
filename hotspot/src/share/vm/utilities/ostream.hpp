@@ -258,6 +258,7 @@ class gcLogFileStream : public fileStream {
 #ifndef PRODUCT
 // unit test for checking -Xloggc:<filename> parsing result
 void test_loggc_filename();
+void test_snprintf();
 #endif
 
 void ostream_init();

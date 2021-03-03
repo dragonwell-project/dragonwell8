@@ -72,16 +72,16 @@ class FileDispatcherImpl extends FileDispatcher {
         return writev0(fd, address, len);
     }
 
+    long seek(FileDescriptor fd, long offset) throws IOException {
+        return seek0(fd, offset);
+    }
+
     int force(FileDescriptor fd, boolean metaData) throws IOException {
         return force0(fd, metaData);
     }
 
     int truncate(FileDescriptor fd, long size) throws IOException {
         return truncate0(fd, size);
-    }
-
-    int allocate(FileDescriptor fd, long size) throws IOException {
-        return allocate0(fd, size);
     }
 
     long size(FileDescriptor fd) throws IOException {
@@ -143,10 +143,10 @@ class FileDispatcherImpl extends FileDispatcher {
     static native int force0(FileDescriptor fd, boolean metaData)
         throws IOException;
 
-    static native int truncate0(FileDescriptor fd, long size)
+    static native long seek0(FileDescriptor fd, long size)
         throws IOException;
 
-    static native int allocate0(FileDescriptor fd, long size)
+    static native int truncate0(FileDescriptor fd, long size)
         throws IOException;
 
     static native long size0(FileDescriptor fd) throws IOException;

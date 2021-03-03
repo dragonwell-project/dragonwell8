@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -186,14 +186,6 @@ const jlong max_jlong = CONST64(0x7fffffffffffffff);
 #if _MSC_VER >= 1400
 #pragma warning( disable : 4996 ) // unsafe string functions. Same as define _CRT_SECURE_NO_WARNINGS/_CRT_SECURE_NO_DEPRICATE
 #endif
-
-inline int vsnprintf(char* buf, size_t count, const char* fmt, va_list argptr) {
-  // If number of characters written == count, Windows doesn't write a
-  // terminating NULL, so we do it ourselves.
-  int ret = _vsnprintf(buf, count, fmt, argptr);
-  if (count > 0) buf[count-1] = '\0';
-  return ret;
-}
 
 // Portability macros
 #define PRAGMA_INTERFACE
