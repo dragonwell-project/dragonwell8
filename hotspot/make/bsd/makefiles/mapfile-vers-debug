@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2002, 2013, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2002, 2014, Oracle and/or its affiliates. All rights reserved.
 # DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 #
 # This code is free software; you can redistribute it and/or modify it
@@ -82,6 +82,7 @@
                 _JVM_EnableCompiler
                 _JVM_Exit
                 _JVM_FillInStackTrace
+                _JVM_FindClassFromCaller
                 _JVM_FindClassFromClass
                 _JVM_FindClassFromClassLoader
                 _JVM_FindClassFromBootLoader
