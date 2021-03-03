@@ -1171,7 +1171,7 @@ void CallStubImpl::emit_trampoline_stub(MacroAssembler &_masm, int destination_t
   // Start the stub.
   address stub = __ start_a_stub(Compile::MAX_stubs_size/2);
   if (stub == NULL) {
-    Compile::current()->env()->record_out_of_memory_failure();
+    ciEnv::current()->record_failure("CodeCache is full");
     return;
   }
 
@@ -1249,7 +1249,7 @@ EmitCallOffsets emit_call_with_trampoline_stub(MacroAssembler &_masm, address en
 
     // Emit the trampoline stub which will be related to the branch-and-link below.
     CallStubImpl::emit_trampoline_stub(_masm, entry_point_toc_offset, offsets.insts_call_instruction_offset);
-    if (Compile::current()->env()->failing()) { return offsets; } // Code cache may be full.
+    if (ciEnv::current()->failing()) { return offsets; } // Code cache may be full.
     __ relocate(rtype);
   }
 
@@ -3488,7 +3488,7 @@ encode %{
 
         // Emit the trampoline stub which will be related to the branch-and-link below.
         CallStubImpl::emit_trampoline_stub(_masm, entry_point_toc_offset, start_offset);
-        if (Compile::current()->env()->failing()) { return; } // Code cache may be full.
+        if (ciEnv::current()->failing()) { return; } // Code cache may be full.
         __ relocate(_optimized_virtual ?
                     relocInfo::opt_virtual_call_type : relocInfo::static_call_type);
       }
@@ -3501,7 +3501,11 @@ encode %{
       __ bl(__ pc());  // Emits a relocation.
 
       // The stub for call to interpreter.
-      CompiledStaticCall::emit_to_interp_stub(cbuf);
+      address stub = CompiledStaticCall::emit_to_interp_stub(cbuf);
+      if (stub == NULL) {
+        ciEnv::current()->record_failure("CodeCache is full"); 
+        return;
+      }
     }
   %}
 
@@ -3546,7 +3550,11 @@ encode %{
 
     assert(_method, "execute next statement conditionally");
     // The stub for call to interpreter.
-    CompiledStaticCall::emit_to_interp_stub(cbuf);
+    address stub = CompiledStaticCall::emit_to_interp_stub(cbuf);
+    if (stub == NULL) {
+      ciEnv::current()->record_failure("CodeCache is full"); 
+      return;
+    }
 
     // Restore original sp.
     __ ld(R11_scratch1, 0, R1_SP); // Load caller sp.
@@ -5461,7 +5469,7 @@ instruct loadUI2L(iRegLdst dst, memory mem, immL_32bits mask) %{
 %}
 
 // Match loading integer and casting it to long.
-instruct loadI2L(iRegLdst dst, memory mem) %{
+instruct loadI2L(iRegLdst dst, memoryAlg4 mem) %{
   match(Set dst (ConvI2L (LoadI mem)));
   predicate(_kids[0]->_leaf->as_Load()->is_unordered());
   ins_cost(MEMORY_REF_COST);
@@ -5477,7 +5485,7 @@ instruct loadI2L(iRegLdst dst, memory mem) %{
 %}
 
 // Match loading integer and casting it to long - acquire.
-instruct loadI2L_ac(iRegLdst dst, memory mem) %{
+instruct loadI2L_ac(iRegLdst dst, memoryAlg4 mem) %{
   match(Set dst (ConvI2L (LoadI mem)));
   ins_cost(3*MEMORY_REF_COST);
 
