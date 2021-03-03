@@ -27,7 +27,7 @@
  * @summary More krb5 tests
  * @library ../../../../java/security/testlibrary/
  * @compile -XDignore.symbol.file ReplayCacheTestProc.java
- * @run main/othervm/timeout=100 ReplayCacheTestProc
+ * @run main/othervm/timeout=100 -Dsun.net.spi.nameservice.provider.1=ns,mock ReplayCacheTestProc
  */
 
 import java.io.*;
@@ -277,6 +277,7 @@ public class ReplayCacheTestProc {
                 .prop("sun.security.jgss.native", "true")
                 .prop("javax.security.auth.useSubjectCredsOnly", "false")
                 .prop("sun.security.nativegss.debug", "true")
+                .prop("sun.net.spi.nameservice.provider.1", "ns,mock")
                 .debug("N"+i)
                 .start();
     }
@@ -287,6 +288,7 @@ public class ReplayCacheTestProc {
                 .args("S"+i)
                 .prop("sun.security.krb5.rcache", "dfl")
                 .prop("java.io.tmpdir", cwd)
+                .prop("sun.net.spi.nameservice.provider.1", "ns,mock")
                 .start();
     }
     // generates hash of authenticator inside ap-req inside initsectoken
