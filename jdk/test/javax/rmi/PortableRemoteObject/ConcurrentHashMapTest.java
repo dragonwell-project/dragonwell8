@@ -28,7 +28,11 @@
  * @library /lib/testlibrary
  * @build jdk.testlibrary.*
  * @build Test HelloInterface HelloServer HelloClient HelloImpl _HelloImpl_Tie _HelloInterface_Stub ConcurrentHashMapTest
- * @run main/othervm -Djava.naming.provider.url=iiop://localhost:1050 -Djava.naming.factory.initial=com.sun.jndi.cosnaming.CNCtxFactory  ConcurrentHashMapTest
+ * @run main/othervm -Djava.naming.provider.url=iiop://localhost:1050
+ *    -Djava.naming.factory.initial=com.sun.jndi.cosnaming.CNCtxFactory  ConcurrentHashMapTest
+ * @run main/othervm/secure=java.lang.SecurityManager/policy=jtreg.test.policy
+ *    -Djava.naming.provider.url=iiop://localhost:1050
+ *    -Djava.naming.factory.initial=com.sun.jndi.cosnaming.CNCtxFactory ConcurrentHashMapTest
  */
 
 
