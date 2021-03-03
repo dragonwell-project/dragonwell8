@@ -22,6 +22,8 @@
  *
  */
 
+import sun.misc.IOUtils;
+
 public class VictimClassLoader extends ClassLoader {
     public static long counter = 0;
 
@@ -72,8 +74,10 @@ public class VictimClassLoader extends ClassLoader {
     }
 
     static byte[] readFully(java.io.InputStream in, int len) throws java.io.IOException {
-        // Warning here:
-        return sun.misc.IOUtils.readFully(in, len, true);
+        byte[] b = IOUtils.readAllBytes(in);
+        if (len != -1 && b.length != len)
+            throw new java.io.IOException("Expected:" + len + ", actual:" + b.length);
+        return b;
     }
 
     public void finalize() {
