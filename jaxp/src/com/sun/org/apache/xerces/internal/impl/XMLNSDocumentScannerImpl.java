@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
  */
 
 /*
@@ -405,7 +405,7 @@ public class XMLNSDocumentScannerImpl
         if (DEBUG_START_END_ELEMENT) System.out.println(this.getClass().toString() +">>> scanAttribute()");
 
         // name
-        fEntityScanner.scanQName(fAttributeQName, NameType.ATTRIBUTE);
+        fEntityScanner.scanQName(fAttributeQName, NameType.ATTRIBUTENAME);
 
         // equals
         fEntityScanner.skipSpaces();
