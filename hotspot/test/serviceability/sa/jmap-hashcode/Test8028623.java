@@ -33,20 +33,25 @@
 
 import com.oracle.java.testlibrary.JDKToolLauncher;
 import com.oracle.java.testlibrary.OutputBuffer;
+import com.oracle.java.testlibrary.Platform;
 import com.oracle.java.testlibrary.ProcessTools;
 
 import java.io.File;
 
 public class Test8028623 {
 
-  public static int Ã = 1;
+  public static int \u00CB = 1;
   public static String dumpFile = "heap.out";
 
   public static void main (String[] args) {
 
-    System.out.println(Ã);
+    System.out.println(\u00CB);
 
     try {
+        if (!Platform.shouldSAAttach()) {
+            System.out.println("SA attach not expected to work - test skipped.");
+            return;
+        }
         int pid = ProcessTools.getProcessId();
         JDKToolLauncher jmap = JDKToolLauncher.create("jmap")
                                               .addToolArg("-F")
