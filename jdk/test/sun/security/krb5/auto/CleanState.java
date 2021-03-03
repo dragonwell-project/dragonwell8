@@ -25,7 +25,7 @@
  * @test
  * @bug 6716534
  * @compile -XDignore.symbol.file CleanState.java
- * @run main/othervm CleanState
+ * @run main/othervm -Dsun.net.spi.nameservice.provider.1=ns,mock CleanState
  * @summary Krb5LoginModule has not cleaned temp info between authentication attempts
  */
 import com.sun.security.auth.module.Krb5LoginModule;
