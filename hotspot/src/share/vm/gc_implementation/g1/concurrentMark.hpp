@@ -793,14 +793,9 @@ public:
   }
 
   // Verify that there are no CSet oops on the stacks (taskqueues /
-  // global mark stack), enqueued SATB buffers, per-thread SATB
-  // buffers, and fingers (global / per-task). The boolean parameters
-  // decide which of the above data structures to verify. If marking
-  // is not in progress, it's a no-op.
-  void verify_no_cset_oops(bool verify_stacks,
-                           bool verify_enqueued_buffers,
-                           bool verify_thread_buffers,
-                           bool verify_fingers) PRODUCT_RETURN;
+  // global mark stack) and fingers (global / per-task).
+  // If marking is not in progress, it's a no-op.
+  void verify_no_cset_oops() PRODUCT_RETURN;
 
   bool isPrevMarked(oop p) const {
     assert(p != NULL && p->is_oop(), "expected an oop");
@@ -1108,6 +1103,12 @@ private:
   void regular_clock_call();
   bool concurrent() { return _concurrent; }
 
+  // Test whether obj might have already been passed over by the
+  // mark bitmap scan, and so needs to be pushed onto the mark stack.
+  bool is_below_finger(oop obj, HeapWord* global_finger) const;
+
+  template<bool scan> void process_grey_object(oop obj);
+
 public:
   // It resets the task; it should be called right at the beginning of
   // a marking phase.
@@ -1155,12 +1156,22 @@ public:
 
   void set_cm_oop_closure(G1CMOopClosure* cm_oop_closure);
 
-  // It grays the object by marking it and, if necessary, pushing it
-  // on the local queue
+  // Increment the number of references this task has visited.
+  void increment_refs_reached() { ++_refs_reached; }
+
+  // Grey the object by marking it.  If not already marked, push it on
+  // the local queue if below the finger.
+  // Precondition: obj is in region.
+  // Precondition: obj is below region's NTAMS.
+  inline void make_reference_grey(oop obj, HeapRegion* region);
+
+  // Grey the object (by calling make_grey_reference) if required,
+  // e.g. obj is below its containing region's NTAMS.
+  // Precondition: obj is a valid heap object.
   inline void deal_with_reference(oop obj);
 
   // It scans an object and visits its children.
-  void scan_object(oop obj);
+  void scan_object(oop obj) { process_grey_object<true>(obj); }
 
   // It pushes an object on the local queue.
   inline void push(oop obj);
