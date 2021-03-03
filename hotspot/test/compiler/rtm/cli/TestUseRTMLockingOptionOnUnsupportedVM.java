@@ -53,27 +53,17 @@ public class TestUseRTMLockingOptionOnUnsupportedVM
     public void runTestCases() throws Throwable {
         String errorMessage
                 = RTMGenericCommandLineOptionTest.RTM_UNSUPPORTED_VM_ERROR;
-        String experimentalOptionError
-                = CommandLineOptionTest.getExperimentalOptionErrorMessage(
-                "UseRTMLocking");
-        // verify that options is experimental
-        CommandLineOptionTest.verifySameJVMStartup(
-                new String[] { experimentalOptionError }, null, ExitCode.FAIL,
-                "-XX:+UseRTMLocking");
         // verify that we can't use +UseRTMLocking
         CommandLineOptionTest.verifySameJVMStartup(
                 new String[] { errorMessage }, null, ExitCode.FAIL,
-                CommandLineOptionTest.UNLOCK_EXPERIMENTAL_VM_OPTIONS,
                 "-XX:+UseRTMLocking");
         // verify that we can turn it off
         CommandLineOptionTest.verifySameJVMStartup(null,
                 new String[] { errorMessage }, ExitCode.OK,
-                CommandLineOptionTest.UNLOCK_EXPERIMENTAL_VM_OPTIONS,
                 "-XX:-UseRTMLocking");
         // verify that it is off by default
         CommandLineOptionTest.verifyOptionValueForSameVM("UseRTMLocking",
-                TestUseRTMLockingOptionOnUnsupportedVM.DEFAULT_VALUE,
-                CommandLineOptionTest.UNLOCK_EXPERIMENTAL_VM_OPTIONS);
+                TestUseRTMLockingOptionOnUnsupportedVM.DEFAULT_VALUE);
     }
 
     public static void main(String args[]) throws Throwable {

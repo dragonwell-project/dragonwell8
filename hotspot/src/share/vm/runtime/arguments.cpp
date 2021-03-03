@@ -98,6 +98,8 @@ const char*  Arguments::_gc_log_filename        = NULL;
 bool   Arguments::_has_profile                  = false;
 size_t Arguments::_conservative_max_heap_alignment = 0;
 uintx  Arguments::_min_heap_size                = 0;
+uintx  Arguments::_min_heap_free_ratio          = 0;
+uintx  Arguments::_max_heap_free_ratio          = 0;
 Arguments::Mode Arguments::_mode                = _mixed;
 bool   Arguments::_java_compiler                = false;
 bool   Arguments::_xdebug_mode                  = false;
@@ -294,6 +296,7 @@ static ObsoleteFlag obsolete_jvm_flags[] = {
   { "UseMPSS",                       JDK_Version::jdk(8), JDK_Version::jdk(9) },
   { "UseStringCache",                JDK_Version::jdk(8), JDK_Version::jdk(9) },
   { "UseOldInlining",                JDK_Version::jdk(9), JDK_Version::jdk(10) },
+  { "AutoShutdownNMT",               JDK_Version::jdk(9), JDK_Version::jdk(10) },
 #ifdef PRODUCT
   { "DesiredMethodLimit",
                            JDK_Version::jdk_update(7, 2), JDK_Version::jdk(8) },
@@ -1398,10 +1401,26 @@ bool verify_object_alignment() {
                 (int)ObjectAlignmentInBytes, os::vm_page_size());
     return false;
   }
+  if(SurvivorAlignmentInBytes == 0) {
+    SurvivorAlignmentInBytes = ObjectAlignmentInBytes;
+  } else {
+    if (!is_power_of_2(SurvivorAlignmentInBytes)) {
+      jio_fprintf(defaultStream::error_stream(),
+            "error: SurvivorAlignmentInBytes=%d must be power of 2\n",
+            (int)SurvivorAlignmentInBytes);
+      return false;
+    }
+    if (SurvivorAlignmentInBytes < ObjectAlignmentInBytes) {
+      jio_fprintf(defaultStream::error_stream(),
+          "error: SurvivorAlignmentInBytes=%d must be greater than ObjectAlignmentInBytes=%d \n",
+          (int)SurvivorAlignmentInBytes, (int)ObjectAlignmentInBytes);
+      return false;
+    }
+  }
   return true;
 }
 
-uintx Arguments::max_heap_for_compressed_oops() {
+size_t Arguments::max_heap_for_compressed_oops() {
   // Avoid sign flip.
   assert(OopEncodingHeapMax > (uint64_t)os::vm_page_size(), "Unusual page size");
   // We need to fit both the NULL page and the heap into the memory budget, while
@@ -1505,8 +1524,10 @@ void Arguments::set_conservative_max_heap_alignment() {
     heap_alignment = G1CollectedHeap::conservative_max_heap_alignment();
   }
 #endif // INCLUDE_ALL_GCS
-  _conservative_max_heap_alignment = MAX3(heap_alignment, os::max_page_size(),
-    CollectorPolicy::compute_heap_alignment());
+  _conservative_max_heap_alignment = MAX4(heap_alignment,
+                                          (size_t)os::vm_allocation_granularity(),
+                                          os::max_page_size(),
+                                          CollectorPolicy::compute_heap_alignment());
 }
 
 void Arguments::set_ergonomics_flags() {
@@ -1578,9 +1599,11 @@ void Arguments::set_parallel_gc_flags() {
     // unless the user actually sets these flags.
     if (FLAG_IS_DEFAULT(MinHeapFreeRatio)) {
       FLAG_SET_DEFAULT(MinHeapFreeRatio, 0);
+      _min_heap_free_ratio = MinHeapFreeRatio;
     }
     if (FLAG_IS_DEFAULT(MaxHeapFreeRatio)) {
       FLAG_SET_DEFAULT(MaxHeapFreeRatio, 100);
+      _max_heap_free_ratio = MaxHeapFreeRatio;
     }
   }
 
@@ -1955,6 +1978,8 @@ bool Arguments::verify_MinHeapFreeRatio(FormatBuffer<80>& err_msg, uintx min_hea
                   MaxHeapFreeRatio);
     return false;
   }
+  // This does not set the flag itself, but stores the value in a safe place for later usage.
+  _min_heap_free_ratio = min_heap_free_ratio;
   return true;
 }
 
@@ -1969,6 +1994,8 @@ bool Arguments::verify_MaxHeapFreeRatio(FormatBuffer<80>& err_msg, uintx max_hea
                   MinHeapFreeRatio);
     return false;
   }
+  // This does not set the flag itself, but stores the value in a safe place for later usage.
+  _max_heap_free_ratio = max_heap_free_ratio;
   return true;
 }
 
@@ -2325,7 +2352,7 @@ bool Arguments::check_vm_args_consistency() {
 
   if (PrintNMTStatistics) {
 #if INCLUDE_NMT
-    if (MemTracker::tracking_level() == MemTracker::NMT_off) {
+    if (MemTracker::tracking_level() == NMT_off) {
 #endif // INCLUDE_NMT
       warning("PrintNMTStatistics is disabled, because native memory tracking is not enabled");
       PrintNMTStatistics = false;
@@ -2386,6 +2413,8 @@ bool Arguments::check_vm_args_consistency() {
   if (!FLAG_IS_DEFAULT(CICompilerCount) && !FLAG_IS_DEFAULT(CICompilerCountPerCPU) && CICompilerCountPerCPU) {
     warning("The VM option CICompilerCountPerCPU overrides CICompilerCount.");
   }
+
+  status &= check_vm_args_consistency_ext();
 
   return status;
 }
@@ -3513,15 +3542,24 @@ jint Arguments::parse(const JavaVMInitArgs* args) {
       CommandLineFlags::printFlags(tty, false);
       vm_exit(0);
     }
-    if (match_option(option, "-XX:NativeMemoryTracking", &tail)) {
 #if INCLUDE_NMT
-      MemTracker::init_tracking_options(tail);
-#else
-      jio_fprintf(defaultStream::error_stream(),
-        "Native Memory Tracking is not supported in this VM\n");
-      return JNI_ERR;
-#endif
+    if (match_option(option, "-XX:NativeMemoryTracking", &tail)) {
+      // The launcher did not setup nmt environment variable properly.
+//      if (!MemTracker::check_launcher_nmt_support(tail)) {
+//        warning("Native Memory Tracking did not setup properly, using wrong launcher?");
+//      }
+
+      // Verify if nmt option is valid.
+      if (MemTracker::verify_nmt_option()) {
+        // Late initialization, still in single-threaded mode.
+        if (MemTracker::tracking_level() >= NMT_summary) {
+          MemTracker::init();
+        }
+      } else {
+        vm_exit_during_initialization("Syntax error, expecting -XX:NativeMemoryTracking=[off|summary|detail]", NULL);
+      }
     }
+#endif
 
 
 #ifndef PRODUCT
@@ -3772,10 +3810,6 @@ jint Arguments::apply_ergo() {
     // nothing to use the profiling, turn if off
     FLAG_SET_DEFAULT(TypeProfileLevel, 0);
   }
-  if (UseTypeSpeculation && FLAG_IS_DEFAULT(ReplaceInParentMaps)) {
-    // Doing the replace in parent maps helps speculation
-    FLAG_SET_DEFAULT(ReplaceInParentMaps, true);
-  }
 #endif
 
   if (PrintAssembly && FLAG_IS_DEFAULT(DebugNonSafepoints)) {
@@ -3833,18 +3867,24 @@ jint Arguments::apply_ergo() {
 }
 
 jint Arguments::adjust_after_os() {
-#if INCLUDE_ALL_GCS
-  if (UseParallelGC || UseParallelOldGC) {
-    if (UseNUMA) {
+  if (UseNUMA) {
+    if (UseParallelGC || UseParallelOldGC) {
       if (FLAG_IS_DEFAULT(MinHeapDeltaBytes)) {
-        FLAG_SET_DEFAULT(MinHeapDeltaBytes, 64*M);
+         FLAG_SET_DEFAULT(MinHeapDeltaBytes, 64*M);
       }
-      // For those collectors or operating systems (eg, Windows) that do
-      // not support full UseNUMA, we will map to UseNUMAInterleaving for now
-      UseNUMAInterleaving = true;
+    }
+    // UseNUMAInterleaving is set to ON for all collectors and
+    // platforms when UseNUMA is set to ON. NUMA-aware collectors
+    // such as the parallel collector for Linux and Solaris will
+    // interleave old gen and survivor spaces on top of NUMA
+    // allocation policy for the eden space.
+    // Non NUMA-aware collectors such as CMS, G1 and Serial-GC on
+    // all platforms and ParallelGC on Windows will interleave all
+    // of the heap spaces across NUMA nodes.
+    if (FLAG_IS_DEFAULT(UseNUMAInterleaving)) {
+      FLAG_SET_ERGO(bool, UseNUMAInterleaving, true);
     }
   }
-#endif // INCLUDE_ALL_GCS
   return JNI_OK;
 }
 

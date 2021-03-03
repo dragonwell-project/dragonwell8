@@ -84,8 +84,8 @@ class ExtendedOopClosure : public OopClosure {
   //
   // Providing default implementations of the _nv functions unfortunately
   // removes the compile-time safeness, but reduces the clutter for the
-  // ExtendedOopClosures that don't need to walk the metadata. Currently,
-  // only CMS needs these.
+  // ExtendedOopClosures that don't need to walk the metadata.
+  // Currently, only CMS and G1 need these.
 
   virtual bool do_metadata() { return do_metadata_nv(); }
   bool do_metadata_v()       { return do_metadata(); }
@@ -128,17 +128,33 @@ class KlassClosure : public Closure {
   virtual void do_klass(Klass* k) = 0;
 };
 
-class KlassToOopClosure : public KlassClosure {
-  OopClosure* _oop_closure;
+class CLDClosure : public Closure {
  public:
-  KlassToOopClosure(OopClosure* oop_closure) : _oop_closure(oop_closure) {}
+  virtual void do_cld(ClassLoaderData* cld) = 0;
+};
+
+class KlassToOopClosure : public KlassClosure {
+  friend class MetadataAwareOopClosure;
+  friend class MetadataAwareOopsInGenClosure;
+
+  OopClosure* _oop_closure;
+
+  // Used when _oop_closure couldn't be set in an initialization list.
+  void initialize(OopClosure* oop_closure) {
+    assert(_oop_closure == NULL, "Should only be called once");
+    _oop_closure = oop_closure;
+  }
+
+ public:
+  KlassToOopClosure(OopClosure* oop_closure = NULL) : _oop_closure(oop_closure) {}
+
   virtual void do_klass(Klass* k);
 };
 
-class CLDToOopClosure {
-  OopClosure* _oop_closure;
+class CLDToOopClosure : public CLDClosure {
+  OopClosure*       _oop_closure;
   KlassToOopClosure _klass_closure;
-  bool _must_claim_cld;
+  bool              _must_claim_cld;
 
  public:
   CLDToOopClosure(OopClosure* oop_closure, bool must_claim_cld = true) :
@@ -147,6 +163,46 @@ class CLDToOopClosure {
       _must_claim_cld(must_claim_cld) {}
 
   void do_cld(ClassLoaderData* cld);
+};
+
+class CLDToKlassAndOopClosure : public CLDClosure {
+  friend class SharedHeap;
+  friend class G1CollectedHeap;
+ protected:
+  OopClosure*   _oop_closure;
+  KlassClosure* _klass_closure;
+  bool          _must_claim_cld;
+ public:
+  CLDToKlassAndOopClosure(KlassClosure* klass_closure,
+                          OopClosure* oop_closure,
+                          bool must_claim_cld) :
+                              _oop_closure(oop_closure),
+                              _klass_closure(klass_closure),
+                              _must_claim_cld(must_claim_cld) {}
+  void do_cld(ClassLoaderData* cld);
+};
+
+// The base class for all concurrent marking closures,
+// that participates in class unloading.
+// It's used to proxy through the metadata to the oops defined in them.
+class MetadataAwareOopClosure: public ExtendedOopClosure {
+  KlassToOopClosure _klass_closure;
+
+ public:
+  MetadataAwareOopClosure() : ExtendedOopClosure() {
+    _klass_closure.initialize(this);
+  }
+  MetadataAwareOopClosure(ReferenceProcessor* rp) : ExtendedOopClosure(rp) {
+    _klass_closure.initialize(this);
+  }
+
+  virtual bool do_metadata()    { return do_metadata_nv(); }
+  inline  bool do_metadata_nv() { return true; }
+
+  virtual void do_klass(Klass* k);
+  void do_klass_nv(Klass* k);
+
+  virtual void do_class_loader_data(ClassLoaderData* cld);
 };
 
 // ObjectClosure is used for iterating through an object space
@@ -170,19 +226,6 @@ class ObjectToOopClosure: public ObjectClosure {
 public:
   void do_object(oop obj);
   ObjectToOopClosure(ExtendedOopClosure* cl) : _cl(cl) {}
-};
-
-// A version of ObjectClosure with "memory" (see _previous_address below)
-class UpwardsObjectClosure: public BoolObjectClosure {
-  HeapWord* _previous_address;
- public:
-  UpwardsObjectClosure() : _previous_address(NULL) { }
-  void set_previous(HeapWord* addr) { _previous_address = addr; }
-  HeapWord* previous()              { return _previous_address; }
-  // A return value of "true" can be used by the caller to decide
-  // if this object's end should *NOT* be recorded in
-  // _previous_address above.
-  virtual bool do_object_bm(oop obj, MemRegion mr) = 0;
 };
 
 // A version of ObjectClosure that is expected to be robust
@@ -240,14 +283,26 @@ class CodeBlobClosure : public Closure {
   virtual void do_code_blob(CodeBlob* cb) = 0;
 };
 
-
-class MarkingCodeBlobClosure : public CodeBlobClosure {
+// Applies an oop closure to all ref fields in code blobs
+// iterated over in an object iteration.
+class CodeBlobToOopClosure : public CodeBlobClosure {
+  OopClosure* _cl;
+  bool _fix_relocations;
+ protected:
+  void do_nmethod(nmethod* nm);
  public:
+  CodeBlobToOopClosure(OopClosure* cl, bool fix_relocations) : _cl(cl), _fix_relocations(fix_relocations) {}
+  virtual void do_code_blob(CodeBlob* cb);
+
+  const static bool FixRelocations = true;
+};
+
+class MarkingCodeBlobClosure : public CodeBlobToOopClosure {
+ public:
+  MarkingCodeBlobClosure(OopClosure* cl, bool fix_relocations) : CodeBlobToOopClosure(cl, fix_relocations) {}
   // Called for each code blob, but at most once per unique blob.
-  virtual void do_newly_marked_nmethod(nmethod* nm) = 0;
 
   virtual void do_code_blob(CodeBlob* cb);
-    // = { if (!nmethod(cb)->test_set_oops_do_mark())  do_newly_marked_nmethod(cb); }
 
   class MarkScope : public StackObj {
   protected:
@@ -259,23 +314,6 @@ class MarkingCodeBlobClosure : public CodeBlobClosure {
       // = { if (active) nmethod::oops_do_marking_epilogue(); }
   };
 };
-
-
-// Applies an oop closure to all ref fields in code blobs
-// iterated over in an object iteration.
-class CodeBlobToOopClosure: public MarkingCodeBlobClosure {
-  OopClosure* _cl;
-  bool _do_marking;
-public:
-  virtual void do_newly_marked_nmethod(nmethod* cb);
-    // = { cb->oops_do(_cl); }
-  virtual void do_code_blob(CodeBlob* cb);
-    // = { if (_do_marking)  super::do_code_blob(cb); else cb->oops_do(_cl); }
-  CodeBlobToOopClosure(OopClosure* cl, bool do_marking)
-    : _cl(cl), _do_marking(do_marking) {}
-};
-
-
 
 // MonitorClosure is used for iterating over monitors in the monitors cache
 
@@ -344,5 +382,17 @@ class SymbolClosure : public StackObj {
     *p = (Symbol*)(intptr_t(sym) | (intptr_t(*p) & 1));
   }
 };
+
+
+// Helper defines for ExtendOopClosure
+
+#define if_do_metadata_checked(closure, nv_suffix)       \
+  /* Make sure the non-virtual and the virtual versions match. */     \
+  assert(closure->do_metadata##nv_suffix() == closure->do_metadata(), \
+      "Inconsistency in do_metadata");                                \
+  if (closure->do_metadata##nv_suffix())
+
+#define assert_should_ignore_metadata(closure, nv_suffix)                                  \
+  assert(!closure->do_metadata##nv_suffix(), "Code to handle metadata is not implemented")
 
 #endif // SHARE_VM_MEMORY_ITERATOR_HPP
