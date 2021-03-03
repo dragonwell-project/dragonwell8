@@ -504,8 +504,13 @@ void ErrorContext::stackmap_details(outputStream* ss, const Method* method) cons
     stack_map_frame* sm_frame = sm_table->entries();
     streamIndentor si2(ss);
     int current_offset = -1;
+    address end_of_sm_table = (address)sm_table + method->stackmap_data()->length();
     for (u2 i = 0; i < sm_table->number_of_entries(); ++i) {
       ss->indent();
+      if (!sm_frame->verify((address)sm_frame, end_of_sm_table)) {
+        sm_frame->print_truncated(ss, current_offset);
+        return;
+      }
       sm_frame->print_on(ss, current_offset);
       ss->cr();
       current_offset += sm_frame->offset_delta();
