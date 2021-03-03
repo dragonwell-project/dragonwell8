@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -343,8 +343,8 @@ class java_lang_Thread : AllStatic {
   // Set JavaThread for instance
   static void set_thread(oop java_thread, JavaThread* thread);
   // Name
-  static typeArrayOop name(oop java_thread);
-  static void set_name(oop java_thread, typeArrayOop name);
+  static oop name(oop java_thread);
+  static void set_name(oop java_thread, oop name);
   // Priority
   static ThreadPriority priority(oop java_thread);
   static void set_priority(oop java_thread, ThreadPriority priority);
