@@ -1142,11 +1142,11 @@ class CommandLineFlags {
           "Prevent spurious or premature wakeups from object.wait "         \
           "(Solaris only)")                                                 \
                                                                             \
-  product(intx, NativeMonitorTimeout, -1, "(Unstable)")                     \
+  experimental(intx, NativeMonitorTimeout, -1, "(Unstable)")                \
                                                                             \
-  product(intx, NativeMonitorFlags, 0, "(Unstable)")                        \
+  experimental(intx, NativeMonitorFlags, 0, "(Unstable)")                   \
                                                                             \
-  product(intx, NativeMonitorSpinLimit, 20, "(Unstable)")                   \
+  experimental(intx, NativeMonitorSpinLimit, 20, "(Unstable)")              \
                                                                             \
   develop(bool, UsePthreads, false,                                         \
           "Use pthread-based instead of libthread-based synchronization "   \
