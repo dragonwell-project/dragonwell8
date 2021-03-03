@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1996, 2014, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -313,6 +313,9 @@ public class VM {
 
         // used by sun.launcher.LauncherHelper
         props.remove("sun.java.launcher.diag");
+
+        // used by sun.misc.URLClassPath
+        props.remove("sun.cds.enableSharedLookupCache");
     }
 
     // Initialize any miscellenous operating system settings that need to be

@@ -104,6 +104,28 @@ WB_ENTRY(jboolean, WB_IsClassAlive(JNIEnv* env, jobject target, jstring name))
   return closure.found();
 WB_END
 
+WB_ENTRY(jboolean, WB_ClassKnownToNotExist(JNIEnv* env, jobject o, jobject loader, jstring name))
+  ThreadToNativeFromVM ttnfv(thread);   // can't be in VM when we call JNI
+  const char* class_name = env->GetStringUTFChars(name, NULL);
+  jboolean result = JVM_KnownToNotExist(env, loader, class_name);
+  env->ReleaseStringUTFChars(name, class_name);
+  return result;
+WB_END
+
+WB_ENTRY(jobjectArray, WB_GetLookupCacheURLs(JNIEnv* env, jobject o, jobject loader))
+  ThreadToNativeFromVM ttnfv(thread);   // can't be in VM when we call JNI
+  return JVM_GetResourceLookupCacheURLs(env, loader);
+WB_END
+
+WB_ENTRY(jintArray, WB_GetLookupCacheMatches(JNIEnv* env, jobject o, jobject loader, jstring name))
+  ThreadToNativeFromVM ttnfv(thread);   // can't be in VM when we call JNI
+  const char* resource_name = env->GetStringUTFChars(name, NULL);
+  jintArray result = JVM_GetResourceLookupCache(env, loader, resource_name);
+
+  env->ReleaseStringUTFChars(name, resource_name);
+  return result;
+WB_END
+
 WB_ENTRY(jlong, WB_GetCompressedOopsMaxHeapSize(JNIEnv* env, jobject o)) {
   return (jlong)Arguments::max_heap_for_compressed_oops();
 }
@@ -382,19 +404,10 @@ WB_ENTRY(jint, WB_DeoptimizeMethod(JNIEnv* env, jobject o, jobject method, jbool
   CHECK_JNI_EXCEPTION_(env, result);
   MutexLockerEx mu(Compile_lock);
   methodHandle mh(THREAD, Method::checked_resolve_jmethod_id(jmid));
-  nmethod* code;
   if (is_osr) {
-    int bci = InvocationEntryBci;
-    while ((code = mh->lookup_osr_nmethod_for(bci, CompLevel_none, false)) != NULL) {
-      code->mark_for_deoptimization();
-      ++result;
-      bci = code->osr_entry_bci() + 1;
-    }
-  } else {
-    code = mh->code();
-  }
-  if (code != NULL) {
-    code->mark_for_deoptimization();
+    result += mh->mark_osr_nmethods();
+  } else if (mh->code() != NULL) {
+    mh->code()->mark_for_deoptimization();
     ++result;
   }
   result += CodeCache::mark_for_deoptimization(mh());
@@ -939,6 +952,11 @@ static JNINativeMethod methods[] = {
   {CC"isObjectInOldGen",   CC"(Ljava/lang/Object;)Z", (void*)&WB_isObjectInOldGen  },
   {CC"getHeapOopSize",     CC"()I",                   (void*)&WB_GetHeapOopSize    },
   {CC"isClassAlive0",      CC"(Ljava/lang/String;)Z", (void*)&WB_IsClassAlive      },
+  {CC"classKnownToNotExist",
+                           CC"(Ljava/lang/ClassLoader;Ljava/lang/String;)Z",(void*)&WB_ClassKnownToNotExist},
+  {CC"getLookupCacheURLs", CC"(Ljava/lang/ClassLoader;)[Ljava/net/URL;",    (void*)&WB_GetLookupCacheURLs},
+  {CC"getLookupCacheMatches", CC"(Ljava/lang/ClassLoader;Ljava/lang/String;)[I",
+                                                      (void*)&WB_GetLookupCacheMatches},
   {CC"parseCommandLine",
       CC"(Ljava/lang/String;[Lsun/hotspot/parser/DiagnosticCommand;)[Ljava/lang/Object;",
       (void*) &WB_ParseCommandLine

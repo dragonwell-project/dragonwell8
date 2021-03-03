@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2014, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -38,6 +38,7 @@ import java.util.jar.Attributes.Name;
 import java.net.JarURLConnection;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.net.URLClassLoader;
 import java.net.URLConnection;
 import java.net.HttpURLConnection;
 import java.net.URLStreamHandler;
@@ -52,6 +53,7 @@ import java.security.PrivilegedExceptionAction;
 import java.security.cert.Certificate;
 import sun.misc.FileURLMapper;
 import sun.net.util.URLUtil;
+import sun.security.action.GetPropertyAction;
 
 /**
  * This class is used to maintain a search path of URLs for loading classes
@@ -63,15 +65,18 @@ public class URLClassPath {
     final static String USER_AGENT_JAVA_VERSION = "UA-Java-Version";
     final static String JAVA_VERSION;
     private static final boolean DEBUG;
+    private static final boolean DEBUG_LOOKUP_CACHE;
     private static final boolean DISABLE_JAR_CHECKING;
 
     static {
         JAVA_VERSION = java.security.AccessController.doPrivileged(
-            new sun.security.action.GetPropertyAction("java.version"));
+            new GetPropertyAction("java.version"));
         DEBUG        = (java.security.AccessController.doPrivileged(
-            new sun.security.action.GetPropertyAction("sun.misc.URLClassPath.debug")) != null);
+            new GetPropertyAction("sun.misc.URLClassPath.debug")) != null);
+        DEBUG_LOOKUP_CACHE = (java.security.AccessController.doPrivileged(
+            new GetPropertyAction("sun.misc.URLClassPath.debugLookupCache")) != null);
         String p = java.security.AccessController.doPrivileged(
-            new sun.security.action.GetPropertyAction("sun.misc.URLClassPath.disableJarChecking"));
+            new GetPropertyAction("sun.misc.URLClassPath.disableJarChecking"));
         DISABLE_JAR_CHECKING = p != null ? p.equals("true") || p.equals("") : false;
     }
 
@@ -149,6 +154,12 @@ public class URLClassPath {
 
             urls.add(0, url);
             path.add(url);
+
+            if (lookupCacheURLs != null) {
+                // The lookup cache is no longer valid, since getLookupCache()
+                // does not consider the newly added url.
+                disableAllLookupCaches();
+            }
         }
     }
 
@@ -172,7 +183,8 @@ public class URLClassPath {
      */
     public URL findResource(String name, boolean check) {
         Loader loader;
-        for (int i = 0; (loader = getLoader(i)) != null; i++) {
+        int[] cache = getLookupCache(name);
+        for (int i = 0; (loader = getNextLoader(cache, i)) != null; i++) {
             URL url = loader.findResource(name, check);
             if (url != null) {
                 return url;
@@ -195,7 +207,8 @@ public class URLClassPath {
         }
 
         Loader loader;
-        for (int i = 0; (loader = getLoader(i)) != null; i++) {
+        int[] cache = getLookupCache(name);
+        for (int i = 0; (loader = getNextLoader(cache, i)) != null; i++) {
             Resource res = loader.getResource(name, check);
             if (res != null) {
                 return res;
@@ -215,6 +228,7 @@ public class URLClassPath {
                                      final boolean check) {
         return new Enumeration<URL>() {
             private int index = 0;
+            private int[] cache = getLookupCache(name);
             private URL url = null;
 
             private boolean next() {
@@ -222,7 +236,7 @@ public class URLClassPath {
                     return true;
                 } else {
                     Loader loader;
-                    while ((loader = getLoader(index++)) != null) {
+                    while ((loader = getNextLoader(cache, index++)) != null) {
                         url = loader.findResource(name, check);
                         if (url != null) {
                             return true;
@@ -262,6 +276,7 @@ public class URLClassPath {
                                     final boolean check) {
         return new Enumeration<Resource>() {
             private int index = 0;
+            private int[] cache = getLookupCache(name);
             private Resource res = null;
 
             private boolean next() {
@@ -269,7 +284,7 @@ public class URLClassPath {
                     return true;
                 } else {
                     Loader loader;
-                    while ((loader = getLoader(index++)) != null) {
+                    while ((loader = getNextLoader(cache, index++)) != null) {
                         res = loader.getResource(name, check);
                         if (res != null) {
                             return true;
@@ -296,6 +311,151 @@ public class URLClassPath {
 
     public Enumeration<Resource> getResources(final String name) {
         return getResources(name, true);
+    }
+
+    private static volatile boolean lookupCacheEnabled
+        = "true".equals(VM.getSavedProperty("sun.cds.enableSharedLookupCache"));
+    private URL[] lookupCacheURLs;
+    private ClassLoader lookupCacheLoader;
+
+    synchronized void initLookupCache(ClassLoader loader) {
+        if ((lookupCacheURLs = getLookupCacheURLs(loader)) != null) {
+            lookupCacheLoader = loader;
+        } else {
+            // This JVM instance does not support lookup cache.
+            disableAllLookupCaches();
+        }
+    }
+
+    static void disableAllLookupCaches() {
+        lookupCacheEnabled = false;
+    }
+
+    private static native URL[] getLookupCacheURLs(ClassLoader loader);
+    private static native int[] getLookupCacheForClassLoader(ClassLoader loader,
+                                                             String name);
+    private static native boolean knownToNotExist0(ClassLoader loader,
+                                                   String className);
+
+    synchronized boolean knownToNotExist(String className) {
+        if (lookupCacheURLs != null && lookupCacheEnabled) {
+            return knownToNotExist0(lookupCacheLoader, className);
+        }
+
+        // Don't know if this class exists or not -- need to do a full search.
+        return false;
+    }
+
+    /**
+     * Returns an array of the index to lookupCacheURLs that may
+     * contain the specified resource. The values in the returned
+     * array are in strictly ascending order and must be a valid index
+     * to lookupCacheURLs array.
+     *
+     * This method returns an empty array if the specified resource
+     * cannot be found in this URLClassPath. If there is no lookup
+     * cache or it's disabled, this method returns null and the lookup
+     * should search the entire classpath.
+     *
+     * Example: if lookupCacheURLs contains {a.jar, b.jar, c.jar, d.jar}
+     * and package "foo" only exists in a.jar and c.jar,
+     * getLookupCache("foo/Bar.class") will return {0, 2}
+     *
+     * @param name the resource name
+     * @return an array of the index to lookupCacheURLs that may contain the
+     *         specified resource; or null if no lookup cache is used.
+     */
+    private synchronized int[] getLookupCache(String name) {
+        if (lookupCacheURLs == null || !lookupCacheEnabled) {
+            return null;
+        }
+
+        int[] cache = getLookupCacheForClassLoader(lookupCacheLoader, name);
+        if (cache != null && cache.length > 0) {
+            int maxindex = cache[cache.length - 1]; // cache[] is strictly ascending.
+            if (!ensureLoaderOpened(maxindex)) {
+                if (DEBUG_LOOKUP_CACHE) {
+                    System.out.println("Expanded loaders FAILED " +
+                                       loaders.size() + " for maxindex=" + maxindex);
+                }
+                return null;
+            }
+        }
+
+        return cache;
+    }
+
+    private boolean ensureLoaderOpened(int index) {
+        if (loaders.size() <= index) {
+            // Open all Loaders up to, and including, index
+            if (getLoader(index) == null) {
+                return false;
+            }
+            if (!lookupCacheEnabled) {
+                // cache was invalidated as the result of the above call.
+                return false;
+            }
+            if (DEBUG_LOOKUP_CACHE) {
+                System.out.println("Expanded loaders " + loaders.size() +
+                                   " to index=" + index);
+            }
+        }
+        return true;
+    }
+
+    /*
+     * The CLASS-PATH attribute was expanded by the VM when building
+     * the resource lookup cache in the same order as the getLoader
+     * method does. This method validates if the URL from the lookup
+     * cache matches the URL of the Loader at the given index;
+     * otherwise, this method disables the lookup cache.
+     */
+    private synchronized void validateLookupCache(int index,
+                                                  String urlNoFragString) {
+        if (lookupCacheURLs != null && lookupCacheEnabled) {
+            if (index < lookupCacheURLs.length &&
+                urlNoFragString.equals(
+                    URLUtil.urlNoFragString(lookupCacheURLs[index]))) {
+                return;
+            }
+            if (DEBUG || DEBUG_LOOKUP_CACHE) {
+                System.out.println("WARNING: resource lookup cache invalidated "
+                                   + "for lookupCacheLoader at " + index);
+            }
+            disableAllLookupCaches();
+        }
+    }
+
+    /**
+     * Returns the next Loader that may contain the resource to
+     * lookup. If the given cache is null, return loaders.get(index)
+     * that may be lazily created; otherwise, cache[index] is the next
+     * Loader that may contain the resource to lookup and so returns
+     * loaders.get(cache[index]).
+     *
+     * If cache is non-null, loaders.get(cache[index]) must be present.
+     *
+     * @param cache lookup cache. If null, search the entire class path
+     * @param index index to the given cache array; or to the loaders list.
+     */
+    private synchronized Loader getNextLoader(int[] cache, int index) {
+        if (closed) {
+            return null;
+        }
+        if (cache != null) {
+            if (index < cache.length) {
+                Loader loader = loaders.get(cache[index]);
+                if (DEBUG_LOOKUP_CACHE) {
+                    System.out.println("HASCACHE: Loading from : " + cache[index]
+                                       + " = " + loader.getBaseURL());
+                }
+                return loader;
+            } else {
+                return null; // finished iterating over cache[]
+            }
+        } else {
+            return getLoader(index);
+        }
     }
 
     /*
@@ -341,8 +501,12 @@ public class URLClassPath {
                 continue;
             }
             // Finally, add the Loader to the search path.
+            validateLookupCache(loaders.size(), urlNoFragString);
             loaders.add(loader);
             lmap.put(urlNoFragString, loader);
+        }
+        if (DEBUG_LOOKUP_CACHE) {
+            System.out.println("NOCACHE: Loading from : " + index );
         }
         return loaders.get(index);
     }
