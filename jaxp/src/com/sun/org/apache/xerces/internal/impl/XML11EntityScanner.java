@@ -905,7 +905,7 @@ public class XML11EntityScanner
         }
         int length = fCurrentEntity.position - offset;
         fCurrentEntity.columnNumber += length - newlines;
-        if (fCurrentEntity.reference) {
+        if (fCurrentEntity.isGE) {
             checkLimit(Limit.TOTAL_ENTITY_SIZE_LIMIT, fCurrentEntity, offset, length);
         }
         content.setValues(fCurrentEntity.ch, offset, length);
@@ -1052,6 +1052,9 @@ public class XML11EntityScanner
         }
         int length = fCurrentEntity.position - offset;
         fCurrentEntity.columnNumber += length - newlines;
+        if (fCurrentEntity.isGE) {
+            checkLimit(Limit.TOTAL_ENTITY_SIZE_LIMIT, fCurrentEntity, offset, length);
+        }
         content.setValues(fCurrentEntity.ch, offset, length);
 
         // return next character
