@@ -1,12 +1,10 @@
 /*
- * Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 only, as
- * published by the Free Software Foundation.  Oracle designates this
- * particular file as subject to the "Classpath" exception as provided
- * by Oracle in the LICENSE file that accompanied this code.
+ * published by the Free Software Foundation.
  *
  * This code is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
@@ -23,19 +21,19 @@
  * questions.
  */
 
-package sun.misc;
+package ws;
 
-import java.io.ObjectInputStream;
+import javax.jws.WebMethod;
+import javax.jws.WebService;
+import javax.jws.soap.SOAPBinding;
+import javax.jws.soap.SOAPBinding.Style;
+import javax.jws.soap.SOAPBinding.Use;
 
-/**
- * The interface to specify methods for accessing {@code ObjectInputStream}
- * @author sjiang
- */
-public interface JavaObjectInputStreamAccess {
-    /**
-     * Sets a descriptor validating.
-     * @param ois stream to have the descriptors validated
-     * @param validator validator used to validate a descriptor.
-     */
-    public void setValidator(ObjectInputStream ois, ObjectStreamClassValidator validator);
+//Web service endpoint interface
+@WebService
+@SOAPBinding(style = Style.DOCUMENT, use = Use.LITERAL)
+public interface HelloWorld {
+
+    @WebMethod
+    String getHelloWorldAsString(String name);
 }
