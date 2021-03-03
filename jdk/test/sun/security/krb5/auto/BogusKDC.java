@@ -36,7 +36,7 @@ import javax.security.auth.login.LoginException;
  * @bug 4515853 8075297
  * @summary Checks that Kerberos client tries slave KDC
  *          if master KDC is not responding
- * @run main/othervm BogusKDC
+ * @run main/othervm -Dsun.net.spi.nameservice.provider.1=ns,mock BogusKDC
  */
 public class BogusKDC {
 
