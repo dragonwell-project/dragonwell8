@@ -36,12 +36,13 @@ ifeq ($(OPENJDK_TARGET_OS), solaris)
   BUILD_LIBFDLIBM_OPTIMIZATION := HIGH
 endif
 
-ifeq ($(OPENJDK_TARGET_OS), linux)
-  ifeq ($(OPENJDK_TARGET_CPU), ppc64)
-    BUILD_LIBFDLIBM_OPTIMIZATION := HIGH
-  else ifeq ($(OPENJDK_TARGET_CPU), ppc64le)
-    BUILD_LIBFDLIBM_OPTIMIZATION := HIGH
-  endif
+
+# If FDLIBM_CFLAGS is non-empty we know that we can optimize
+# fdlibm when adding those extra C flags. Currently GCC only.
+LIBFDLIBM_CFLAGS :=
+ifneq ($(FDLIBM_CFLAGS), )
+  BUILD_LIBFDLIBM_OPTIMIZATION := HIGH
+  LIBFDLIBM_CFLAGS := $(FDLIBM_CFLAGS)
 endif
 
 ifneq ($(OPENJDK_TARGET_OS), macosx)
@@ -60,8 +61,7 @@ ifneq ($(OPENJDK_TARGET_OS), macosx)
           -I$(JDK_TOPDIR)/src/share/native/java/lang/fdlibm/include, \
       CFLAGS_windows_debug := -DLOGGING, \
       CFLAGS_aix := -qfloat=nomaf, \
-      CFLAGS_linux_ppc64 := -mno-fused-madd -fno-strict-aliasing, \
-      CFLAGS_linux_ppc64le := -ffp-contract=off, \
+      CFLAGS_linux := $(LIBFDLIBM_CFLAGS), \
       ARFLAGS := $(ARFLAGS), \
       OBJECT_DIR := $(JDK_OUTPUTDIR)/objs/libfdlibm, \
       DEBUG_SYMBOLS := $(DEBUG_ALL_BINARIES)))
