@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -31,25 +31,17 @@
 #include "runtime/registerMap.hpp"
 #include "utilities/top.hpp"
 #ifdef COMPILER2
-#ifdef TARGET_ARCH_MODEL_x86_32
+#if defined ADGLOBALS_MD_HPP
+# include ADGLOBALS_MD_HPP
+#elif defined TARGET_ARCH_MODEL_x86_32
 # include "adfiles/adGlobals_x86_32.hpp"
-#endif
-#ifdef TARGET_ARCH_MODEL_x86_64
+#elif defined TARGET_ARCH_MODEL_x86_64
 # include "adfiles/adGlobals_x86_64.hpp"
-#endif
-#ifdef TARGET_ARCH_MODEL_sparc
+#elif defined TARGET_ARCH_MODEL_sparc
 # include "adfiles/adGlobals_sparc.hpp"
-#endif
-#ifdef TARGET_ARCH_MODEL_zero
+#elif defined TARGET_ARCH_MODEL_zero
 # include "adfiles/adGlobals_zero.hpp"
-#endif
-#ifdef TARGET_ARCH_MODEL_arm
-# include "adfiles/adGlobals_arm.hpp"
-#endif
-#ifdef TARGET_ARCH_MODEL_ppc_32
-# include "adfiles/adGlobals_ppc_32.hpp"
-#endif
-#ifdef TARGET_ARCH_MODEL_ppc_64
+#elif defined TARGET_ARCH_MODEL_ppc_64
 # include "adfiles/adGlobals_ppc_64.hpp"
 #endif
 #endif // COMPILER2
@@ -90,6 +82,15 @@ class frame VALUE_OBJ_CLASS_SPEC {
  public:
   // Constructors
   frame();
+
+#ifndef PRODUCT
+  // This is a generic constructor which is only used by pns() in debug.cpp.
+  // pns (i.e. print native stack) uses this constructor to create a starting
+  // frame for stack walking. The implementation of this constructor is platform
+  // dependent (i.e. SPARC doesn't need an 'fp' argument an will ignore it) but
+  // we want to keep the signature generic because pns() is shared code.
+  frame(void* sp, void* fp, void* pc);
+#endif
 
   // Accessors
 
