@@ -867,15 +867,11 @@ assertEquals("[A, B, C]", (String) caToString2.invokeExact('A', "BC".toCharArray
         MethodType postSpreadType = asSpreaderChecks(arrayType, arrayLength);
         int arity = type().parameterCount();
         int spreadArgPos = arity - arrayLength;
-        if (USE_LAMBDA_FORM_EDITOR) {
-            MethodHandle afterSpread = this.asType(postSpreadType);
-            BoundMethodHandle mh = afterSpread.rebind();
-            LambdaForm lform = mh.editor().spreadArgumentsForm(1 + spreadArgPos, arrayType, arrayLength);
-            MethodType preSpreadType = postSpreadType.replaceParameterTypes(spreadArgPos, arity, arrayType);
-            return mh.copyWith(preSpreadType, lform);
-        } else {
-            return MethodHandleImpl.makeSpreadArguments(this, arrayType, spreadArgPos, arrayLength);
-        }
+        MethodHandle afterSpread = this.asType(postSpreadType);
+        BoundMethodHandle mh = afterSpread.rebind();
+        LambdaForm lform = mh.editor().spreadArgumentsForm(1 + spreadArgPos, arrayType, arrayLength);
+        MethodType preSpreadType = postSpreadType.replaceParameterTypes(spreadArgPos, arity, arrayType);
+        return mh.copyWith(preSpreadType, lform);
     }
 
     /**
@@ -996,23 +992,15 @@ assertEquals("[123]", (String) longsToString.invokeExact((long)123));
     public MethodHandle asCollector(Class<?> arrayType, int arrayLength) {
         asCollectorChecks(arrayType, arrayLength);
         int collectArgPos = type().parameterCount() - 1;
-        if (USE_LAMBDA_FORM_EDITOR) {
-            BoundMethodHandle mh = rebind();
-            MethodType resultType = type().asCollectorType(arrayType, arrayLength);
-            MethodHandle newArray = MethodHandleImpl.varargsArray(arrayType, arrayLength);
-            LambdaForm lform = mh.editor().collectArgumentArrayForm(1 + collectArgPos, newArray);
-            if (lform != null) {
-                return mh.copyWith(resultType, lform);
-            }
-            lform = mh.editor().collectArgumentsForm(1 + collectArgPos, newArray.type().basicType());
-            return mh.copyWithExtendL(resultType, lform, newArray);
-        } else {
-            MethodHandle target = this;
-            if (arrayType != type().parameterType(collectArgPos))
-                target = MethodHandleImpl.makePairwiseConvert(this, type().changeParameterType(collectArgPos, arrayType), true);
-            MethodHandle collector = MethodHandleImpl.varargsArray(arrayType, arrayLength);
-            return MethodHandles.collectArguments(target, collectArgPos, collector);
+        BoundMethodHandle mh = rebind();
+        MethodType resultType = type().asCollectorType(arrayType, arrayLength);
+        MethodHandle newArray = MethodHandleImpl.varargsArray(arrayType, arrayLength);
+        LambdaForm lform = mh.editor().collectArgumentArrayForm(1 + collectArgPos, newArray);
+        if (lform != null) {
+            return mh.copyWith(resultType, lform);
         }
+        lform = mh.editor().collectArgumentsForm(1 + collectArgPos, newArray.type().basicType());
+        return mh.copyWithExtendL(resultType, lform, newArray);
     }
 
     /**
@@ -1438,10 +1426,9 @@ assertEquals("[three, thee, tee]", asListFix.invoke((Object)argv).toString());
     /*non-public*/
     void updateForm(LambdaForm newForm) {
         if (form == newForm)  return;
-        assert(this instanceof DirectMethodHandle && this.internalMemberName().isStatic());
-        // ISSUE: Should we have a memory fence here?
+        newForm.prepare();  // as in MethodHandle.<init>
         UNSAFE.putObject(this, FORM_OFFSET, newForm);
-        this.form.prepare();  // as in MethodHandle.<init>
+        UNSAFE.fullFence();
     }
 
     private static final long FORM_OFFSET;
