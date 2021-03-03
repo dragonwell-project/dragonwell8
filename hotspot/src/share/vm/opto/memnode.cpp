@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -2370,7 +2370,7 @@ StoreNode* StoreNode::make(PhaseGVN& gvn, Node* ctl, Node* mem, Node* adr, const
          ctl != NULL, "raw memory operations should have control edge");
 
   switch (bt) {
-  case T_BOOLEAN:
+  case T_BOOLEAN: val = gvn.transform(new (C) AndINode(val, gvn.intcon(0x1))); // Fall through to T_BYTE case
   case T_BYTE:    return new (C) StoreBNode(ctl, mem, adr, adr_type, val, mo);
   case T_INT:     return new (C) StoreINode(ctl, mem, adr, adr_type, val, mo);
   case T_CHAR:
