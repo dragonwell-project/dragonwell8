@@ -2898,19 +2898,20 @@ search:
                     return comp;
                 }
             } else {
-                // First, prefer application types.
-                comp = compareIndices(primaryTypes, primaryType1, primaryType2,
-                                      UNKNOWN_OBJECT_LOSES);
-                if (comp != 0) {
-                    return comp;
-                }
-
+                // First, prefer text types
                 if (flavor1.isFlavorTextType()) {
                     return 1;
                 }
 
                 if (flavor2.isFlavorTextType()) {
                     return -1;
+                }
+
+                // Next, prefer application types.
+                comp = compareIndices(primaryTypes, primaryType1, primaryType2,
+                        UNKNOWN_OBJECT_LOSES);
+                if (comp != 0) {
+                    return comp;
                 }
 
                 // Next, look for application/x-java-* types. Prefer unknown
