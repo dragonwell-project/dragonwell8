@@ -179,7 +179,9 @@ class JarVerifier {
             name = name.substring(1);
 
         // only set the jev object for entries that have a signature
-        if (sigFileSigners.get(name) != null) {
+        // (either verified or not)
+        if (sigFileSigners.get(name) != null ||
+                verifiedSigners.get(name) != null) {
             mev.setEntry(name, je);
             return;
         }
@@ -685,6 +687,8 @@ class JarVerifier {
                 } else {
                     matchUnsigned = true;
                 }
+            } else {
+                matchUnsigned = true;
             }
         }
 
@@ -787,23 +791,7 @@ class JarVerifier {
 
     // true if file is part of the signature mechanism itself
     static boolean isSigningRelated(String name) {
-        name = name.toUpperCase(Locale.ENGLISH);
-        if (!name.startsWith("META-INF/")) {
-            return false;
-        }
-        name = name.substring(9);
-        if (name.indexOf('/') != -1) {
-            return false;
-        }
-        if (name.endsWith(".DSA")
-                || name.endsWith(".RSA")
-                || name.endsWith(".SF")
-                || name.endsWith(".EC")
-                || name.startsWith("SIG-")
-                || name.equals("MANIFEST.MF")) {
-            return true;
-        }
-        return false;
+        return SignatureFileVerifier.isSigningRelated(name);
     }
 
     private Enumeration<String> unsignedEntryNames(JarFile jar) {
