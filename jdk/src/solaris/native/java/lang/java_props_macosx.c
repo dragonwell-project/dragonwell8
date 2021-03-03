@@ -47,6 +47,8 @@ char *getPosixLocale(int cat) {
 #define LOCALEIDLENGTH  128
 char *getMacOSXLocale(int cat) {
     const char* retVal = NULL;
+    char languageString[LOCALEIDLENGTH];
+    char localeString[LOCALEIDLENGTH];
 
     switch (cat) {
     case LC_MESSAGES:
@@ -66,7 +68,6 @@ char *getMacOSXLocale(int cat) {
                 CFRelease(languages);
                 return NULL;
             }
-            char languageString[LOCALEIDLENGTH];
             if (CFStringGetCString(primaryLanguage, languageString,
                                    LOCALEIDLENGTH, CFStringGetSystemEncoding()) == false) {
                 CFRelease(languages);
@@ -81,7 +82,6 @@ char *getMacOSXLocale(int cat) {
             // from Portuguese in Portugal), but this is missing when using the
             // "Portuguese (Brazil)" language.
             // If language is "pt" and the current locale is pt_BR, return pt_BR.
-            char localeString[LOCALEIDLENGTH];
             if (strcmp(retVal, "pt") == 0 &&
                     CFStringGetCString(CFLocaleGetIdentifier(CFLocaleCopyCurrent()),
                                        localeString, LOCALEIDLENGTH, CFStringGetSystemEncoding()) &&
@@ -92,7 +92,6 @@ char *getMacOSXLocale(int cat) {
         break;
     default:
         {
-            char localeString[LOCALEIDLENGTH];
             if (!CFStringGetCString(CFLocaleGetIdentifier(CFLocaleCopyCurrent()),
                                     localeString, LOCALEIDLENGTH, CFStringGetSystemEncoding())) {
                 return NULL;
