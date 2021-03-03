@@ -75,6 +75,9 @@ public class WhiteBox {
   // Memory
   public native long getObjectAddress(Object o);
   public native int  getHeapOopSize();
+  public native int  getVMPageSize();
+  public native long getVMLargePageSize();
+
   public native boolean isObjectInOldGen(Object o);
   public native long getObjectSize(Object o);
 
@@ -84,6 +87,8 @@ public class WhiteBox {
     return isClassAlive0(name.replace('.', '/'));
   }
   private native boolean isClassAlive0(String name);
+  public native boolean isMonitorInflated(Object obj);
+  public native void forceSafepoint();
 
   // Resource/Class Lookup Cache
   public native boolean classKnownToNotExist(ClassLoader loader, String name);
