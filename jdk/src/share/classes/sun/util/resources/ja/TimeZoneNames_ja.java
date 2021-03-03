@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2014, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -570,6 +570,9 @@ public final class TimeZoneNames_ja extends TimeZoneNamesBundle {
             {"Antarctica/Syowa", new String[] {"\u662d\u548c\u57fa\u5730\u6642\u9593", "SYOT",
                                                "\u662d\u548c\u57fa\u5730\u590f\u6642\u9593", "SYOST",
                                                "\u662D\u548C\u57FA\u5730\u6642\u9593", "SYOT"}},
+            {"Antarctica/Troll", new String[] {"\u5354\u5b9a\u4e16\u754c\u6642", "UTC",
+                                               "\u4e2d\u90e8\u30e8\u30fc\u30ed\u30c3\u30d1\u590f\u6642\u9593", "CEST",
+                                               "Troll Time", "ATT"}},
             {"Antarctica/Vostok", new String[] {"\u30dc\u30b9\u30c8\u30fc\u30af\u57fa\u5730\u6642\u9593", "VOST",
                                                 "\u30dc\u30b9\u30c8\u30fc\u30af\u57fa\u5730\u590f\u6642\u9593", "VOSST",
                                                 "\u30DC\u30B9\u30C8\u30FC\u30AF\u6642\u9593", "VOST"}},
@@ -578,7 +581,7 @@ public final class TimeZoneNames_ja extends TimeZoneNamesBundle {
             {"Asia/Almaty", new String[] {"\u30a2\u30eb\u30de\u30a2\u30bf\u6642\u9593", "ALMT",
                                           "\u30a2\u30eb\u30de\u30a2\u30bf\u590f\u6642\u9593", "ALMST",
                                           "\u30A2\u30EB\u30DE\u30A2\u30BF\u6642\u9593", "ALMT"}},
-            {"Asia/Amman", ARAST},
+            {"Asia/Amman", EET},
             {"Asia/Anadyr", new String[] {"\u30a2\u30ca\u30c9\u30a5\u30a4\u30ea\u6642\u9593", "ANAT",
                                           "\u30a2\u30ca\u30c9\u30a5\u30a4\u30ea\u590f\u6642\u9593", "ANAST",
                                           "\u30A2\u30CA\u30C7\u30A3\u30EA\u6642\u9593", "ANAT"}},
@@ -838,7 +841,7 @@ public final class TimeZoneNames_ja extends TimeZoneNamesBundle {
                                             "\u30B5\u30DE\u30E9\u6642\u9593", "SAMT"}},
             {"Europe/San_Marino", CET},
             {"Europe/Sarajevo", CET},
-            {"Europe/Simferopol", EET},
+            {"Europe/Simferopol", MSK},
             {"Europe/Skopje", CET},
             {"Europe/Sofia", EET},
             {"Europe/Stockholm", CET},
