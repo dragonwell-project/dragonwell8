@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
 # DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 #
 # This code is free software; you can redistribute it and/or modify it
@@ -267,10 +267,12 @@ $(IMAGES_OUTPUTDIR)/lib$(PROFILE)/_the.rt.jar.contents: $(IMAGES_OUTPUTDIR)/lib$
 	$(RM) $@ $@.tmp
 	$(GREP) -e '\.class$$' $(IMAGES_OUTPUTDIR)/lib$(PROFILE)/_the.jars.contents > $@.tmp
         ifneq ($(PROFILE), )
-          # # Add back classes from excluded packages (fixing the $ substitution in the process)
-	  for type in $(subst \$$,\, $(RT_JAR_INCLUDE_TYPES)) ; do \
-	    $(ECHO) $$type >> $@.tmp ; \
-	  done
+          ifneq ($(strip $(RT_JAR_INCLUDE_TYPES)), )
+           # Add back classes from excluded packages (fixing the $ substitution in the process)
+	    for type in $(subst \$$,\, $(RT_JAR_INCLUDE_TYPES)) ; do \
+	      $(ECHO) $$type >> $@.tmp ; \
+	    done
+          endif
         endif
 	$(MV) $@.tmp $@
 
@@ -281,15 +283,15 @@ $(IMAGES_OUTPUTDIR)/lib$(PROFILE)/_the.resources.jar.contents: $(IMAGES_OUTPUTDI
 	    -e '/_the\.*' -e '^_the\.*' -e '\\_the\.*' -e 'javac_state' \
 	    $(IMAGES_OUTPUTDIR)/lib$(PROFILE)/_the.jars.contents > $@.tmp
         ifneq ($(PROFILE), )
-          # # Strip out all META-INF/services/ entries
-	  $(GREP) -v -e 'META-INF/services/' $@.tmp > $@.tmp2
-          # # Add back the required services
-          # # FIXME: On Solaris if PROFILE_INCLUDE_METAINF_SERVICES is not defined
-          # # we get a syntax error from sh. That doesn't happen on linux
-	  for service in $(PROFILE_INCLUDE_METAINF_SERVICES) ; do \
-	    $(ECHO) $$service >> $@.tmp2; \
-	  done
-	  $(MV) $@.tmp2 $@.tmp
+          ifneq ($(strip $(PROFILE_INCLUDE_METAINF_SERVICES)), )
+            # Strip out all META-INF/services/ entries
+	    $(GREP) -v -e 'META-INF/services/' $@.tmp > $@.tmp2
+	    # Add back the required services
+	    for service in $(PROFILE_INCLUDE_METAINF_SERVICES) ; do \
+	      $(ECHO) $$service >> $@.tmp2; \
+	    done
+	    $(MV) $@.tmp2 $@.tmp
+          endif
         endif
 	$(MV) $@.tmp $@
 
@@ -306,6 +308,15 @@ BEANLESS_CLASSES = $(IMAGES_OUTPUTDIR)/beanless
 # make expansion and shell expansion. In this particular case $< will contain a single $ while
 # $@ will contain \$. So we have to pass $< in single-quotes to avoid shell expansion
 $(BEANLESS_CLASSES)/%: $(JDK_OUTPUTDIR)/classes/%
+	$(MKDIR) -p $(@D)
+	$(TOOL_REMOVEMETHODS) '$<' $@ addPropertyChangeListener removePropertyChangeListener
+
+# Code these targets explicitly because the target "%" expansion does
+# not work with the inline "$" in the file name.
+$(BEANLESS_CLASSES)/java/util/jar/Pack200\$$Packer.class: $(JDK_OUTPUTDIR)/classes/java/util/jar/Pack200$$Packer.class
+	$(MKDIR) -p $(@D)
+	$(TOOL_REMOVEMETHODS) '$<' $@ addPropertyChangeListener removePropertyChangeListener
+$(BEANLESS_CLASSES)/java/util/jar/Pack200\$$Unpacker.class: $(JDK_OUTPUTDIR)/classes/java/util/jar/Pack200$$Unpacker.class
 	$(MKDIR) -p $(@D)
 	$(TOOL_REMOVEMETHODS) '$<' $@ addPropertyChangeListener removePropertyChangeListener
 
