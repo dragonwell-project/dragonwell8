@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
  */
 
 /*
@@ -1545,9 +1545,8 @@ public class XMLDocumentFragmentScannerImpl
         //can safely add the attribute later..
         XMLString tmpStr = getString();
 
-        scanAttributeValue(tmpStr, fTempString2,
-                fAttributeQName.rawname, attributes,
-                attIndex, isVC, fCurrentElement.rawname);
+        scanAttributeValue(tmpStr, fTempString2, fAttributeQName.rawname, attributes,
+                attIndex, isVC, fCurrentElement.rawname, false);
 
         // content
         int oldLen = attributes.getLength();
