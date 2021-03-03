@@ -1140,37 +1140,6 @@ included with JRE 8, JDK 8, and OpenJDK 8.
 
 --------------------------------------------------------------------------------
 
-%% This notice is provided with respect to JSON, which may be included 
-with JRE 8 & JDK 8.
-
---- begin of LICENSE ---
-
-Copyright (c) 2002 JSON.org
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-The Software shall be used for Good, not Evil.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
-
---- end of LICENSE ---
-
--------------------------------------------------------------------------------
-
 %% This notice is provided with respect to Kerberos functionality, which 
 which may be included with JRE 8, JDK 8, and OpenJDK 8.
 
@@ -1250,7 +1219,7 @@ included with JDK 8 and OpenJDK 8 source distributions.
 
 -------------------------------------------------------------------------------
 
-%% This notice is provided with respect to libpng 1.6.16, which may be
+%% This notice is provided with respect to libpng 1.6.16, which may be 
 included with JRE 8, JDK 8, and OpenJDK 8.
 
 --- begin of LICENSE ---
@@ -1370,7 +1339,7 @@ December 22, 2014
 
 -------------------------------------------------------------------------------
 
-%% This notice is provided with respect to libungif 4.1.3, which may be 
+%% This notice is provided with respect to GIFLIB 5.1.1 & libungif 4.1.3, which may be 
 included with JRE 8, JDK 8, and OpenJDK 8.
 
 --- begin of LICENSE ---
@@ -1399,13 +1368,13 @@ THE SOFTWARE.
 
 -------------------------------------------------------------------------------
 
-%% This notice is provided with respect to Little CMS 2.5, which may be 
+%% This notice is provided with respect to Little CMS 2.7, which may be 
 included with JRE 8, JDK 8, and OpenJDK 8.
 
 --- begin of LICENSE ---
 
 Little CMS
-Copyright (c) 1998-2011 Marti Maria Saguer
+Copyright (c) 1998-2015 Marti Maria Saguer
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
