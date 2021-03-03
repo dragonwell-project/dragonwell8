@@ -74,14 +74,11 @@ public final class TlsRsaPremasterSecretGenerator extends KeyGeneratorSpi {
                 "TlsRsaPremasterSecretGenerator must be initialized");
         }
 
-        byte[] b = spec.getEncodedSecret();
-        if (b == null) {
-            if (random == null) {
-                random = new SecureRandom();
-            }
-            b = new byte[48];
-            random.nextBytes(b);
+        if (random == null) {
+            random = new SecureRandom();
         }
+        byte[] b = new byte[48];
+        random.nextBytes(b);
         b[0] = (byte)spec.getMajorVersion();
         b[1] = (byte)spec.getMinorVersion();
 
