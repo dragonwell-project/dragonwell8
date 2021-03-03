@@ -58,12 +58,15 @@ le_uint32 LigatureSubstitutionSubtable::process(const LETableReference &base, Gl
         if( LE_FAILURE(success) ) { return 0; }
         le_uint16 ligCount = SWAPW(ligSetTable->ligatureCount);
 
-        LEReferenceTo<Offset> ligatureTableOffsetArray(base, success, ligSetTable->ligatureTableOffsetArray, ligCount);
+        LEReferenceToArrayOf<Offset> ligatureTableOffsetArray(base, success, ligSetTable->ligatureTableOffsetArray, ligCount);
         for (le_uint16 lig = 0; LE_SUCCESS(success) && lig < ligCount; lig += 1) {
             Offset ligTableOffset = SWAPW(ligSetTable->ligatureTableOffsetArray[lig]);
             LEReferenceTo<LigatureTable>   ligTable(ligSetTable, success, ligTableOffset);
             if(LE_FAILURE(success)) { return 0; }
             le_uint16 compCount = SWAPW(ligTable->compCount) - 1;
+            LEReferenceToArrayOf<TTGlyphID>
+                componentArrayRef(base, success, ligTable->componentArray, compCount);
+            if (LE_FAILURE(success)) { return 0; }
             le_int32 startPosition = glyphIterator->getCurrStreamPosition();
             TTGlyphID ligGlyph = SWAPW(ligTable->ligGlyph);
             le_uint16 comp;
