@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,6 +25,7 @@
 
 package javax.xml.validation;
 
+import com.sun.org.apache.xerces.internal.jaxp.validation.XMLSchemaFactory;
 import java.io.File;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
@@ -169,7 +170,7 @@ class SchemaFactoryFinder  {
             String r = ss.getSystemProperty(propertyName);
             if(r!=null) {
                 debugPrintln("The value is '"+r+"'");
-                sf = createInstance(r, true);
+                sf = createInstance(r);
                 if(sf!=null)    return sf;
             } else
                 debugPrintln("The property is undefined.");
@@ -203,7 +204,7 @@ class SchemaFactoryFinder  {
             debugPrintln("found " + factoryClassName + " in $java.home/jaxp.properties");
 
             if (factoryClassName != null) {
-                sf = createInstance(factoryClassName, true);
+                sf = createInstance(factoryClassName);
                 if(sf != null){
                     return sf;
                 }
@@ -228,7 +229,7 @@ class SchemaFactoryFinder  {
         // platform default
         if(schemaLanguage.equals("http://www.w3.org/2001/XMLSchema")) {
             debugPrintln("attempting to use the platform default XML Schema validator");
-            return createInstance("com.sun.org.apache.xerces.internal.jaxp.validation.XMLSchemaFactory", true);
+            return new XMLSchemaFactory();
         }
 
         debugPrintln("all things were tried, but none was found. bailing out.");
@@ -275,11 +276,7 @@ class SchemaFactoryFinder  {
      * @return null
      *      if it fails. Error messages will be printed by this method.
      */
-    SchemaFactory createInstance( String className ) {
-        return createInstance( className, false );
-    }
-
-    SchemaFactory createInstance( String className, boolean useServicesMechanism ) {
+    SchemaFactory createInstance(String className) {
         SchemaFactory schemaFactory = null;
 
         debugPrintln("createInstance(" + className + ")");
@@ -298,12 +295,7 @@ class SchemaFactoryFinder  {
                     throw new ClassCastException(clazz.getName()
                                 + " cannot be cast to " + SchemaFactory.class);
                 }
-                if (!useServicesMechanism) {
-                    schemaFactory = newInstanceNoServiceLoader(clazz);
-                }
-                if (schemaFactory == null) {
-                    schemaFactory = (SchemaFactory) clazz.newInstance();
-                }
+                schemaFactory = (SchemaFactory) clazz.newInstance();
         } catch (ClassCastException classCastException) {
                 debugPrintln("could not instantiate " + clazz.getName());
                 if (debug) {
@@ -325,50 +317,6 @@ class SchemaFactoryFinder  {
         }
 
         return schemaFactory;
-    }
-
-    /**
-     * Try to construct using newXMLSchemaFactoryNoServiceLoader
-     *   method if available.
-     */
-    private static SchemaFactory newInstanceNoServiceLoader(
-         Class<?> providerClass
-    ) {
-        // Retain maximum compatibility if no security manager.
-        if (System.getSecurityManager() == null) {
-            return null;
-        }
-        try {
-            final Method creationMethod =
-                providerClass.getDeclaredMethod(
-                    "newXMLSchemaFactoryNoServiceLoader"
-                );
-            final int modifiers = creationMethod.getModifiers();
-
-            // Do not call the method if it's not public static.
-            if (!Modifier.isStatic(modifiers) || !Modifier.isPublic(modifiers)) {
-                return null;
-            }
-
-            // Only calls "newXMLSchemaFactoryNoServiceLoader" if it's
-            // declared to return an instance of SchemaFactory.
-            final Class<?> returnType = creationMethod.getReturnType();
-            if (SERVICE_CLASS.isAssignableFrom(returnType)) {
-                return SERVICE_CLASS.cast(creationMethod.invoke(null, (Object[])null));
-            } else {
-                // Should not happen since
-                // XMLSchemaFactory.newXMLSchemaFactoryNoServiceLoader is
-                // declared to return XMLSchemaFactory.
-                throw new ClassCastException(returnType
-                            + " cannot be cast to " + SERVICE_CLASS);
-            }
-        } catch(ClassCastException e) {
-            throw new SchemaFactoryConfigurationError(e.getMessage(), e);
-        } catch (NoSuchMethodException exc) {
-            return null;
-        } catch (Exception exc) {
-            return null;
-        }
     }
 
     // Call isSchemaLanguageSupported with initial context.
