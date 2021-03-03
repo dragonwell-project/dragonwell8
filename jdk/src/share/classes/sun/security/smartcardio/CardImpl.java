@@ -244,9 +244,6 @@ final class CardImpl extends Card {
                     "sun.security.smartcardio.invertCardReset", "false")));
 
     public void disconnect(boolean reset) throws CardException {
-        if (invertReset) {
-            reset = !reset;
-        }
         if (reset) {
             checkSecurity("reset");
         }
@@ -254,6 +251,10 @@ final class CardImpl extends Card {
             return;
         }
         checkExclusive();
+        // to preserve old behaviour, don't change flag until here
+        if (invertReset) {
+            reset = !reset;
+        }
         try {
             SCardDisconnect(cardId, (reset ? SCARD_RESET_CARD : SCARD_LEAVE_CARD));
         } catch (PCSCException e) {

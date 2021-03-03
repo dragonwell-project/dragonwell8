@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2001, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,32 +23,32 @@
  * questions.
  */
 
-/*
- * Fix 4221246: Export functions for Netscape to use to get AWT info
+package sun.management;
+
+import java.util.Collections;
+import java.util.List;
+import java.lang.management.PlatformManagedObject;
+
+/**
+ * Class to allow for an extended set of platform MXBeans
  */
+public final class ExtendedPlatformComponent {
+    private ExtendedPlatformComponent() {} // Don't create any instances
 
-#ifndef _AWT_PLUGIN_H_
-#define _AWT_PLUGIN_H_
+    /**
+     * Get the extended set of platform MXBeans that should be registered in the
+     * platform MBeanServer, or an empty list if there are no such MXBeans.
+     */
+    public static List<? extends PlatformManagedObject> getMXBeans() {
+        return Collections.emptyList();
+    }
 
-#include <jni.h>
-#include <X11/Xlib.h>
-#include <X11/Xutil.h>
-
-void getAwtLockFunctions(void (**AwtLock)(JNIEnv *),
-                         void (**AwtUnlock)(JNIEnv *),
-                         void (**AwtNoFlushUnlock)(JNIEnv *),
-                         void *);
-
-void getExtAwtData(Display *,
-                   int32_t,
-                   int32_t *,      /* awt_depth */
-                   Colormap *,     /* awt_cmap  */
-                   Visual **,      /* awt_visInfo.visual */
-                   int32_t *,      /* awt_num_colors */
-                   void *);
-
-void getAwtData(int32_t *, Colormap *, Visual **, int32_t *, void *);
-
-Display *getAwtDisplay(void);
-
-#endif /* _AWT_PLUGIN_H_ */
+    /**
+     * Returns the extended platform MXBean implementing the given
+     * mxbeanInterface, or null if there is no such MXBean.
+     */
+    public static <T extends PlatformManagedObject>
+            T getMXBean(Class<T> mxbeanInterface) {
+        return null;
+    }
+}
