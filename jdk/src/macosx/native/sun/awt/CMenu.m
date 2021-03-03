@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -38,7 +38,7 @@
 - (id)initWithPeer:(jobject)peer {
 AWT_ASSERT_APPKIT_THREAD;
     // Create the new NSMenu
-    self = [super initWithPeer:peer asSeparator:[NSNumber numberWithBool:NO]];
+    self = [super initWithPeer:peer asSeparator:NO];
     if (self) {
         fMenu = [NSMenu javaMenuWithTitle:@""];
         [fMenu retain];
@@ -52,7 +52,6 @@ AWT_ASSERT_APPKIT_THREAD;
     fMenu = nil;
     [super dealloc];
 }
-//- (void)finalize { [super finalize]; }
 
 - (void)addJavaSubmenu:(CMenu *)submenu {
     [ThreadUtilities performOnMainThread:@selector(addNativeItem_OnAppKitThread:) on:self withObject:submenu waitUntilDone:YES];
@@ -134,14 +133,13 @@ AWT_ASSERT_APPKIT_THREAD;
 
 CMenu * createCMenu (jobject cPeerObjGlobal) {
 
-    CMenu *aCMenu = nil;
+    __block CMenu *aCMenu = nil;
 
-    // We use an array here only to be able to get a return value
-    NSMutableArray *args = [[NSMutableArray alloc] initWithObjects:[NSValue valueWithBytes:&cPeerObjGlobal objCType:@encode(jobject)], nil];
+    [ThreadUtilities performOnMainThreadWaiting:YES block:^(){
 
-    [ThreadUtilities performOnMainThread:@selector(_create_OnAppKitThread:) on:[CMenu alloc] withObject:args waitUntilDone:YES];
-
-    aCMenu = (CMenu *)[args objectAtIndex: 0];
+        aCMenu = [[CMenu alloc] initWithPeer:cPeerObjGlobal];
+        // the aCMenu is released in CMenuComponent.dispose()
+    }];
 
     if (aCMenu == nil) {
         return 0L;
@@ -169,10 +167,6 @@ JNF_COCOA_ENTER(env);
 
     // Add it to the parent menu
     [((CMenu *)jlong_to_ptr(parentMenu)) addJavaSubmenu: aCMenu];
-    if (aCMenu) {
-        CFRetain(aCMenu); // GC
-        [aCMenu release];
-    }
 
 JNF_COCOA_EXIT(env);
 
@@ -209,10 +203,6 @@ JNF_COCOA_ENTER(env);
         [parent javaSetHelpMenu: aCMenu];
     }
 
-    if (aCMenu) {
-        CFRetain(aCMenu); // GC
-        [aCMenu release];
-    }
 JNF_COCOA_EXIT(env);
     return ptr_to_jlong(aCMenu);
 }
@@ -275,13 +265,9 @@ Java_sun_lwawt_macosx_CMenu_nativeGetNSMenu
     NSMenu* nsMenu = NULL;
 
 JNF_COCOA_ENTER(env);
-    nsMenu = [((CMenu *)jlong_to_ptr(menuObject)) menu];
-JNF_COCOA_EXIT(env);
-
     // Strong retain this menu; it'll get released in Java_apple_laf_ScreenMenu_addMenuListeners
-    if (nsMenu) {
-        CFRetain(nsMenu); // GC
-    }
+    nsMenu = [[((CMenu *)jlong_to_ptr(menuObject)) menu] retain];
+JNF_COCOA_EXIT(env);
 
     return ptr_to_jlong(nsMenu);
 }
