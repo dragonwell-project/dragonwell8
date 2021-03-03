@@ -162,6 +162,7 @@ public class WhiteBox {
   }
   public native boolean enqueueMethodForCompilation(Executable method, int compLevel, int entry_bci);
   public native void    clearMethodState(Executable method);
+  public native void    markMethodProfiled(Executable method);
   public native int     getMethodEntryBci(Executable method);
   public native Object[] getNMethod(Executable method, boolean isOsr);
 
