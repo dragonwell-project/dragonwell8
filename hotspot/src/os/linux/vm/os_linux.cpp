@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -722,6 +722,10 @@ static void _expand_stack_to(address bottom) {
     assert(p != NULL && p <= (volatile char *)bottom, "alloca problem?");
     p[0] = '\0';
   }
+}
+
+void os::Linux::expand_stack_to(address bottom) {
+  _expand_stack_to(bottom);
 }
 
 bool os::Linux::manually_expand_stack(JavaThread * t, address addr) {
@@ -6333,10 +6337,16 @@ extern char** environ;
 // or -1 on failure (e.g. can't fork a new process).
 // Unlike system(), this function can be called from signal handler. It
 // doesn't block SIGINT et al.
-int os::fork_and_exec(char* cmd) {
+int os::fork_and_exec(char* cmd, bool use_vfork_if_available) {
   const char * argv[4] = {"sh", "-c", cmd, NULL};
 
-  pid_t pid = fork();
+  pid_t pid ;
+
+  if (use_vfork_if_available) {
+    pid = vfork();
+  } else {
+    pid = fork();
+  }
 
   if (pid < 0) {
     // fork failed

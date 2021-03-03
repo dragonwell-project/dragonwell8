@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -105,11 +105,21 @@ class CharacterData00 extends CharacterData {
     }
 
     boolean isJavaIdentifierStart(int ch) {
+        // isJavaIdentifierStart strictly conforms to code points assigned
+        // in Unicode 6.2. Since code points {32FF} and {20BB..20BF} are not
+        // from Unicode 6.2, return false.
+        if(ch == 0x32FF || (ch>= 0x20BB && ch<= 0x20BF))
+            return false;
         int props = getProperties(ch);
         return ((props & $$maskIdentifierInfo) >= $$lowJavaStart);
     }
 
     boolean isJavaIdentifierPart(int ch) {
+        // isJavaIdentifierPart strictly conforms to code points assigned
+        // in Unicode 6.2. Since code points {32FF} and {20BB..20BF} are not
+        // from Unicode 6.2, return false.
+        if(ch == 0x32FF || (ch>= 0x20BB && ch<= 0x20BF))
+            return false;
         int props = getProperties(ch);
         return ((props & $$nonzeroJavaPart) != 0);
     }
