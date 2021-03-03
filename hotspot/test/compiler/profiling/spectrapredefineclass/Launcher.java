@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -19,33 +19,29 @@
  * Please contact Oracle, 500 Oracle Parkway, Redwood Shores, CA 94065 USA
  * or visit www.oracle.com if you need additional information or have any
  * questions.
- *
  */
+import java.io.PrintWriter;
+import com.oracle.java.testlibrary.*;
 
-#include "precompiled.hpp"
-#include "oops/compiledICHolder.hpp"
-#include "oops/oop.inline2.hpp"
+/*
+ * @test
+ * @bug 8038636
+ * @library /testlibrary
+ * @build Agent
+ * @run main ClassFileInstaller Agent
+ * @run main Launcher
+ * @run main/othervm -XX:-TieredCompilation -XX:-BackgroundCompilation -XX:-UseOnStackReplacement -XX:TypeProfileLevel=222 -Xmx1M -XX:ReservedCodeCacheSize=3M Agent
+ */
+public class Launcher {
+    public static void main(String[] args) throws Exception  {
 
-volatile int CompiledICHolder::_live_count;
-volatile int CompiledICHolder::_live_not_claimed_count;
+      PrintWriter pw = new PrintWriter("MANIFEST.MF");
+      pw.println("Agent-Class: Agent");
+      pw.println("Can-Retransform-Classes: true");
+      pw.close();
 
-
-// Printing
-
-void CompiledICHolder::print_on(outputStream* st) const {
-  st->print("%s", internal_name());
-  st->print(" - metadata: "); holder_metadata()->print_value_on(st); st->cr();
-  st->print(" - klass:    "); holder_klass()->print_value_on(st); st->cr();
-}
-
-void CompiledICHolder::print_value_on(outputStream* st) const {
-  st->print("%s", internal_name());
-}
-
-
-// Verification
-
-void CompiledICHolder::verify_on(outputStream* st) {
-  guarantee(holder_metadata()->is_method() || holder_metadata()->is_klass(), "should be method or klass");
-  guarantee(holder_klass()->is_klass(),   "should be klass");
+      ProcessBuilder pb = new ProcessBuilder();
+      pb.command(new String[] { JDKToolFinder.getJDKTool("jar"), "cmf", "MANIFEST.MF", System.getProperty("test.classes",".") + "/agent.jar", "Agent.class"});
+      pb.start().waitFor();
+    }
 }
