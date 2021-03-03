@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2010, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -80,7 +80,7 @@ DirtyCardQueueSet::DirtyCardQueueSet(bool notify_when_complete) :
 
 // Determines how many mutator threads can process the buffers in parallel.
 uint DirtyCardQueueSet::num_par_ids() {
-  return (uint)os::processor_count();
+  return (uint)os::initial_active_processor_count();
 }
 
 void DirtyCardQueueSet::initialize(CardTableEntryClosure* cl, Monitor* cbl_mon, Mutex* fl_lock,
