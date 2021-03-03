@@ -52,7 +52,7 @@ Java_sun_misc_URLClassPath_knownToNotExist0(JNIEnv *env, jclass cls, jobject loa
 
     clname = getUTF(env, classname, buf, sizeof(buf));
     if (clname == NULL) {
-        JNU_ThrowOutOfMemoryError(env, NULL);
+        // getUTF() throws OOME before returning NULL, no need to throw OOME here
         return result;
     }
     VerifyFixClassname(clname);
@@ -94,7 +94,7 @@ Java_sun_misc_URLClassPath_getLookupCacheForClassLoader(JNIEnv *env, jclass cls,
 
     resname = getUTF(env, resource_name, buf, sizeof(buf));
     if (resname == NULL) {
-        JNU_ThrowOutOfMemoryError(env, NULL);
+        // getUTF() throws OOME before returning NULL, no need to throw OOME here
         return result;
     }
     result = JVM_GetResourceLookupCache(env, loader, resname);
