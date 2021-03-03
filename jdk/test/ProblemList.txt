@@ -234,6 +234,12 @@ sun/security/pkcs11/sslecc/ClientJSSEServerJSSE.java            solaris-all
 java/security/KeyPairGenerator/SolarisShortDSA.java             solaris-all
 sun/security/tools/keytool/standard.sh                          solaris-all
 
+# 8026393
+sun/security/tools/jarsigner/warnings/BadKeyUsageTest.java      generic-all
+
+# 8158827
+sun/security/krb5/auto/tools/KinitConfPlusProps.java                       windows-all
+
 ############################################################################
 
 # jdk_sound

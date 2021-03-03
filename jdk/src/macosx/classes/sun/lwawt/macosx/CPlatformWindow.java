@@ -427,9 +427,6 @@ public class CPlatformWindow extends CFRetainedResource implements PlatformWindo
 
     @Override // PlatformWindow
     public void dispose() {
-        if (owner != null) {
-            CWrapper.NSWindow.removeChildWindow(owner.getNSWindowPtr(), getNSWindowPtr());
-        }
         contentView.dispose();
         nativeDispose(getNSWindowPtr());
         CPlatformWindow.super.dispose();
@@ -526,25 +523,6 @@ public class CPlatformWindow extends CFRetainedResource implements PlatformWindo
     public void setVisible(boolean visible) {
         final long nsWindowPtr = getNSWindowPtr();
 
-        // Process parent-child relationship when hiding
-        if (!visible) {
-            // Unparent my children
-            for (Window w : target.getOwnedWindows()) {
-                WindowPeer p = (WindowPeer)w.getPeer();
-                if (p instanceof LWWindowPeer) {
-                    CPlatformWindow pw = (CPlatformWindow)((LWWindowPeer)p).getPlatformWindow();
-                    if (pw != null && pw.isVisible()) {
-                        CWrapper.NSWindow.removeChildWindow(nsWindowPtr, pw.getNSWindowPtr());
-                    }
-                }
-            }
-
-            // Unparent myself
-            if (owner != null && owner.isVisible()) {
-                CWrapper.NSWindow.removeChildWindow(owner.getNSWindowPtr(), nsWindowPtr);
-            }
-        }
-
         // Configure stuff
         updateIconImages();
         updateFocusabilityForAutoRequestFocus(false);
@@ -618,19 +596,19 @@ public class CPlatformWindow extends CFRetainedResource implements PlatformWindo
 
         // Manage parent-child relationship when showing
         if (visible) {
-            // Add myself as a child
+            // Order myself above my parent
             if (owner != null && owner.isVisible()) {
-                CWrapper.NSWindow.addChildWindow(owner.getNSWindowPtr(), nsWindowPtr, CWrapper.NSWindow.NSWindowAbove);
+                CWrapper.NSWindow.orderWindow(nsWindowPtr, CWrapper.NSWindow.NSWindowAbove, owner.getNSWindowPtr());
                 applyWindowLevel(target);
             }
 
-            // Add my own children to myself
+            // Order my own children above myself
             for (Window w : target.getOwnedWindows()) {
                 WindowPeer p = (WindowPeer)w.getPeer();
                 if (p instanceof LWWindowPeer) {
                     CPlatformWindow pw = (CPlatformWindow)((LWWindowPeer)p).getPlatformWindow();
                     if (pw != null && pw.isVisible()) {
-                        CWrapper.NSWindow.addChildWindow(nsWindowPtr, pw.getNSWindowPtr(), CWrapper.NSWindow.NSWindowAbove);
+                        CWrapper.NSWindow.orderWindow(pw.getNSWindowPtr(), CWrapper.NSWindow.NSWindowAbove, nsWindowPtr);
                         pw.applyWindowLevel(w);
                     }
                 }
@@ -1059,8 +1037,8 @@ public class CPlatformWindow extends CFRetainedResource implements PlatformWindo
             // Order the window to front of the stack of child windows
             final long nsWindowSelfPtr = getNSWindowPtr();
             final long nsWindowOwnerPtr = owner.getNSWindowPtr();
-            CWrapper.NSWindow.removeChildWindow(nsWindowOwnerPtr, nsWindowSelfPtr);
-            CWrapper.NSWindow.addChildWindow(nsWindowOwnerPtr, nsWindowSelfPtr, CWrapper.NSWindow.NSWindowAbove);
+            CWrapper.NSWindow.orderFront(nsWindowOwnerPtr);
+            CWrapper.NSWindow.orderWindow(nsWindowSelfPtr, CWrapper.NSWindow.NSWindowAbove, nsWindowOwnerPtr);
         }
 
         applyWindowLevel(target);
