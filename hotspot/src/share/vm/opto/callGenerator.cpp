@@ -188,7 +188,10 @@ JVMState* VirtualCallGenerator::generate(JVMState* jvms) {
   // the call instruction will have a seemingly deficient out-count.
   // (The bailout says something misleading about an "infinite loop".)
   if (kit.gvn().type(receiver)->higher_equal(TypePtr::NULL_PTR)) {
-    kit.inc_sp(method()->arg_size());  // restore arguments
+    assert(Bytecodes::is_invoke(kit.java_bc()), err_msg("%d: %s", kit.java_bc(), Bytecodes::name(kit.java_bc())));
+    ciMethod* declared_method = kit.method()->get_method_at_bci(kit.bci());
+    int arg_size = declared_method->signature()->arg_size_for_bc(kit.java_bc());
+    kit.inc_sp(arg_size);  // restore arguments
     kit.uncommon_trap(Deoptimization::Reason_null_check,
                       Deoptimization::Action_none,
                       NULL, "null receiver");
@@ -1119,7 +1122,10 @@ CallGenerator::for_uncommon_trap(ciMethod* m,
 JVMState* UncommonTrapCallGenerator::generate(JVMState* jvms) {
   GraphKit kit(jvms);
   // Take the trap with arguments pushed on the stack.  (Cf. null_check_receiver).
-  int nargs = method()->arg_size();
+  // Callsite signature can be different from actual method being called (i.e _linkTo* sites).
+  // Use callsite signature always.
+  ciMethod* declared_method = kit.method()->get_method_at_bci(kit.bci());
+  int nargs = declared_method->arg_size();
   kit.inc_sp(nargs);
   assert(nargs <= kit.sp() && kit.sp() <= jvms->stk_size(), "sane sp w/ args pushed");
   if (_reason == Deoptimization::Reason_class_check &&

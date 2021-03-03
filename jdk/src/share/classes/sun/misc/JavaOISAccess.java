@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2012, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,41 +23,11 @@
  * questions.
  */
 
-package sun.lwawt.macosx;
+package sun.misc;
 
+import java.io.ObjectInputStream;
 
-import java.io.*;
-import javax.print.attribute.*;
-
-public final class NSPrintInfo implements PrintJobAttribute, PrintRequestAttribute, Serializable, Cloneable {
-
-    private long fNSPrintInfo;
-
-    public NSPrintInfo(long nsPrintInfo) {
-        fNSPrintInfo = nsPrintInfo;
-    }
-
-    public long getValue() {
-        return fNSPrintInfo;
-    }
-
-    public boolean equals(Object object) {
-        return (object != null && object instanceof NSPrintInfo && fNSPrintInfo == ((NSPrintInfo)object).fNSPrintInfo);
-    }
-
-    public int hashCode() {
-        return (int)fNSPrintInfo;
-    }
-
-    public String toString() {
-        return "" + fNSPrintInfo;
-    }
-
-    public final Class<? extends Attribute> getCategory() {
-        return NSPrintInfo.class;
-    }
-
-    public final String getName() {
-        return "nsPrintInfo";
-    }
+public interface JavaOISAccess {
+    void setObjectInputFilter(ObjectInputStream stream, ObjectInputFilter filter);
+    ObjectInputFilter getObjectInputFilter(ObjectInputStream stream);
 }

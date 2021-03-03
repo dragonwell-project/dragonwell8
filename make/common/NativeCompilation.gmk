@@ -297,17 +297,21 @@ define SetupNativeCompilation
     $$(shell $(RM) -f $$($1_SUPERFLUOUS_OBJS))
   endif
 
-  # Pickup extra OPENJDK_TARGET_OS_API and/or OPENJDK_TARGET_OS dependent variables for CFLAGS.
-  $1_EXTRA_CFLAGS:=$$($1_CFLAGS_$(OPENJDK_TARGET_OS_API)) $$($1_CFLAGS_$(OPENJDK_TARGET_OS))
+  # Pickup extra OPENJDK_TARGET_OS_API, OPENJDK_TARGET_OS, and/or OPENJDK_TARGET_OS plus
+  # OPENJDK_TARGET_CPU pair dependent variables for CFLAGS.
+  $1_EXTRA_CFLAGS:=$$($1_CFLAGS_$(OPENJDK_TARGET_OS_API)) $$($1_CFLAGS_$(OPENJDK_TARGET_OS)) \
+      $$($1_CFLAGS_$(OPENJDK_TARGET_OS)_$(OPENJDK_TARGET_CPU))
   ifneq ($(DEBUG_LEVEL),release)
     # Pickup extra debug dependent variables for CFLAGS
     $1_EXTRA_CFLAGS+=$$($1_CFLAGS_debug)
     $1_EXTRA_CFLAGS+=$$($1_CFLAGS_$(OPENJDK_TARGET_OS_API)_debug)
     $1_EXTRA_CFLAGS+=$$($1_CFLAGS_$(OPENJDK_TARGET_OS)_debug)
+    $1_EXTRA_CFLAGS+=$$($1_CFLAGS_$(OPENJDK_TARGET_OS)_$(OPENJDK_TARGET_CPU)_debug)
   else
     $1_EXTRA_CFLAGS+=$$($1_CFLAGS_release)
     $1_EXTRA_CFLAGS+=$$($1_CFLAGS_$(OPENJDK_TARGET_OS_API)_release)
     $1_EXTRA_CFLAGS+=$$($1_CFLAGS_$(OPENJDK_TARGET_OS)_release)
+    $1_EXTRA_CFLAGS+=$$($1_CFLAGS_$(OPENJDK_TARGET_OS)_$(OPENJDK_TARGET_CPU)_release)
   endif
 
   # Pickup extra OPENJDK_TARGET_OS_API and/or OPENJDK_TARGET_OS dependent variables for CXXFLAGS.
