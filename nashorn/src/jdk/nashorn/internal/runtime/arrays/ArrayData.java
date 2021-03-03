@@ -81,14 +81,11 @@ public abstract class ArrayData {
         }
 
         private ArrayData toRealArrayData() {
-            return toRealArrayData(0);
+            return new IntArrayData(0);
         }
 
         private ArrayData toRealArrayData(final int index) {
             final IntArrayData newData = new IntArrayData(index + 1);
-            if (index == 0) {
-                return newData;
-            }
             return new DeletedRangeArrayFilter(newData, 0, index);
         }
 
@@ -122,7 +119,7 @@ public abstract class ArrayData {
 
         @Override
         public ArrayData convert(final Class<?> type) {
-            return toRealArrayData(0).convert(type);
+            return toRealArrayData().convert(type);
         }
 
         @Override
