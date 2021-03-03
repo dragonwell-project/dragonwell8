@@ -92,19 +92,6 @@ inline void os::dll_unload(void *lib) {
 
 inline const int os::default_file_open_flags() { return 0;}
 
-inline DIR* os::opendir(const char* dirname)
-{
-  assert(dirname != NULL, "just checking");
-  return ::opendir(dirname);
-}
-
-inline int os::readdir_buf_size(const char *path)
-{
-  // according to aix sys/limits, NAME_MAX must be retrieved at runtime. */
-  const long my_NAME_MAX = pathconf(path, _PC_NAME_MAX);
-  return my_NAME_MAX + sizeof(dirent) + 1;
-}
-
 inline jlong os::lseek(int fd, jlong offset, int whence) {
   return (jlong) ::lseek64(fd, offset, whence);
 }
@@ -119,28 +106,6 @@ inline char* os::native_path(char *path) {
 
 inline int os::ftruncate(int fd, jlong length) {
   return ::ftruncate64(fd, length);
-}
-
-inline struct dirent* os::readdir(DIR* dirp, dirent *dbuf)
-{
-  dirent* p;
-  int status;
-  assert(dirp != NULL, "just checking");
-
-  // NOTE: Linux readdir_r (on RH 6.2 and 7.2 at least) is NOT like the POSIX
-  // version. Here is the doc for this function:
-  // http://www.gnu.org/manual/glibc-2.2.3/html_node/libc_262.html
-
-  if((status = ::readdir_r(dirp, dbuf, &p)) != 0) {
-    errno = status;
-    return NULL;
-  } else
-    return p;
-}
-
-inline int os::closedir(DIR *dirp) {
-  assert(dirp != NULL, "argument is NULL");
-  return ::closedir(dirp);
 }
 
 // macros for restartable system calls

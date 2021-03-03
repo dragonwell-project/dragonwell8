@@ -47,6 +47,7 @@ protected:
     vpmsumb,
     mfdscr,
     vsx,
+    vshasig,
     num_features // last entry to count features
   };
   enum Feature_Flag_Set {
@@ -63,6 +64,7 @@ protected:
     dcba_m                = (1 << dcba   ),
     lqarx_m               = (1 << lqarx  ),
     vcipher_m             = (1 << vcipher),
+    vshasig_m             = (1 << vshasig),
     vpmsumb_m             = (1 << vpmsumb),
     mfdscr_m              = (1 << mfdscr ),
     vsx_m                 = (1 << vsx    ),
@@ -99,6 +101,7 @@ public:
   static bool has_vpmsumb() { return (_features & vpmsumb_m) != 0; }
   static bool has_mfdscr()  { return (_features & mfdscr_m) != 0; }
   static bool has_vsx()     { return (_features & vsx_m) != 0; }
+  static bool has_vshasig() { return (_features & vshasig_m) != 0; }
 
   static const char* cpu_features() { return _features_str; }
 
