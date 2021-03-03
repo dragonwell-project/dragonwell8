@@ -150,8 +150,8 @@ public:
       if(isEmpty()) {
         //err = LE_MISSING_FONT_TABLE_ERROR;
         clear(); // it's just empty. Not an error.
-      } else if(offset >= fParent->fLength) {
-        LE_DEBUG_TR3("offset out of range: (%p) +%d", NULL, offset);
+      } else if(offset >= fParent->fLength || (offset & 0x01)) {
+        LE_DEBUG_TR3("offset out of range or odd alignment: (%p) +%d", NULL, offset);
         err = LE_INDEX_OUT_OF_BOUNDS_ERROR;
         clear();
       } else {
@@ -470,7 +470,12 @@ _TRTRACE("INFO: new RTAO")
 #endif
 
   const T& getObject(le_uint32 i, LEErrorCode &success) const {
-    return *getAlias(i,success);
+      const T *ret = getAlias(i, success);
+      if (LE_FAILURE(success) || ret==NULL) {
+          return *(new T(0));
+      } else {
+          return *ret;
+     }
   }
 
   /**
