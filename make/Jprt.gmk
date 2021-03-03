@@ -145,6 +145,9 @@ $(BUILD_DIR_ROOT)/.bridge2configureOptsLatest: FRC
           ifdef ALT_INSTALL_UPX_FILENAME
 	    @$(ECHO) " --with-upx-filename=$(call UnixPath,$(ALT_INSTALL_UPX_FILENAME)) " >> $@.tmp
           endif
+          ifdef ALT_BSDIFF_DIR
+	    @$(ECHO) " --with-bsdiff-dir=$(call UnixPath,$(ALT_BSDIFF_DIR)) " >> $@.tmp
+          endif
           ifdef ALT_CCSS_SIGNING_DIR
 	    @$(ECHO) " --with-ccss-signing=$(call UnixPath,$(ALT_CCSS_SIGNING_DIR)) " >> $@.tmp
           endif
