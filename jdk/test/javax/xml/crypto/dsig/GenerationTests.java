@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,11 +23,12 @@
 
 /**
  * @test
- * @bug 4635230 6283345 6303830 6824440 6867348 7094155 8038184 8038349 8074784
+ * @bug 4635230 6283345 6303830 6824440 6867348 7094155 8038184
+ * 8038349 8074784 8210736
  * @summary Basic unit tests for generating XML Signatures with JSR 105
  * @compile -XDignore.symbol.file KeySelectors.java SignatureValidator.java
  *     X509KeySelector.java GenerationTests.java
- * @run main/othervm GenerationTests
+ * @run main/othervm -Dsun.net.httpserver.nodelay=true GenerationTests
  * @author Sean Mullan
  */
 
@@ -46,6 +47,7 @@ import java.security.NoSuchAlgorithmException;
 import java.security.PrivateKey;
 import java.security.PublicKey;
 import java.security.SecureRandom;
+import java.security.Security;
 import java.security.cert.Certificate;
 import java.security.cert.CertificateFactory;
 import java.security.cert.X509CRL;
@@ -119,6 +121,9 @@ public class GenerationTests {
         "http://www.w3.org/2009/xmldsig11#dsa-sha256";
 
     private static final String BOGUS = "bogus";
+
+    private static final String OS = System.getProperty("os.name");
+    private static boolean secondChanceGranted = false;
 
     private static final  String xslt = ""
           + "<xsl:stylesheet xmlns:xsl='http://www.w3.org/1999/XSL/Transform'\n"
@@ -1312,7 +1317,7 @@ public class GenerationTests {
             }
         }
 
-        System.out.println("Test case passed");
+        if (result) System.out.println("Test case passed");
     }
 
     static boolean test_create_detached_signature(String canonicalizationMethod,
@@ -1442,7 +1447,15 @@ public class GenerationTests {
         boolean success = signature.validate(vc);
         if (!success) {
             System.out.println("Core signature validation failed");
-            return false;
+            if (!secondChanceGranted && OS.contains("SunOS")) {
+                removePKCS11Provider();
+                // set up the test again
+                return test_create_detached_signature(canonicalizationMethod,
+                    signatureMethod, digestMethod, transform,
+                    keyInfo, contentType, port);
+            } else {
+                return false;
+            }
         }
 
         success = signature.getSignatureValue().validate(vc);
@@ -1452,6 +1465,18 @@ public class GenerationTests {
         }
 
         return true;
+    }
+
+    /*
+     * Helper method for cases where we're running on unpatched
+     * solaris systems where PKCS11 native libraries are unpatched
+     */
+    private static void removePKCS11Provider() throws Exception {
+        secondChanceGranted = true;
+        Security.removeProvider("SunPKCS11-Solaris");
+        System.out.println("Second chance granted. Provider list: "
+                + Arrays.toString(Security.getProviders()));
+        setup();
     }
 
     private static final String DSA_Y =

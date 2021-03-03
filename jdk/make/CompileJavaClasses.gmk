@@ -170,10 +170,6 @@ ifdef BUILD_HEADLESS_ONLY
   EXCLUDES += sun/applet
 endif
 
-ifdef OPENJDK
-  EXCLUDES += sun/java2d/cmm/kcms
-endif
-
 # Used on windows and macosx
 ifeq (, $(filter $(OPENJDK_TARGET_OS), windows macosx))
   EXFILES += sun/awt/AWTCharset.java
