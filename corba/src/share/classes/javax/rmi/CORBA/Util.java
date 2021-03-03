@@ -414,7 +414,7 @@ Tie#deactivate}
                 // set to allow the loading of the Util delegate
                 // which provides access to custom ValueHandler
                 sm.checkPermission(new SerializablePermission(
-                        "enableCustomValueHanlder"));
+                        "enableCustomValueHandler"));
             }
         }
     }
