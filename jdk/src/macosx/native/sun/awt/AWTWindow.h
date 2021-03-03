@@ -46,6 +46,7 @@
     NSWindow *nsWindow;
     AWTWindow *ownerWindow;
     jint preFullScreenLevel;
+    BOOL isMinimizing;
 }
 
 // An instance of either AWTWindow_Normal or AWTWindow_Panel
@@ -59,6 +60,7 @@
 @property (nonatomic) jint styleBits;
 @property (nonatomic) BOOL isEnabled;
 @property (nonatomic) jint preFullScreenLevel;
+@property (nonatomic) BOOL isMinimizing;
 
 
 - (id) initWithPlatformWindow:(JNFWeakJObjectWrapper *)javaPlatformWindow
