@@ -24,7 +24,7 @@
 /*
  * @test
  * @bug 6815182
- * @run main/othervm SpnegoReqFlags
+ * @run main/othervm -Dsun.net.spi.nameservice.provider.1=ns,mock SpnegoReqFlags
  * @summary GSSAPI/SPNEGO does not work with server using MIT Kerberos library
  */
 
