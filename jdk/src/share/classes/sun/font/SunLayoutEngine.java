@@ -35,6 +35,7 @@ import java.awt.geom.Point2D;
 import java.lang.ref.SoftReference;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.Locale;
+import java.util.WeakHashMap;
 
 /*
  * different ways to do this
@@ -149,12 +150,40 @@ public final class SunLayoutEngine implements LayoutEngine, LayoutEngineFactory 
         this.key = key;
     }
 
+    static WeakHashMap<Font2D, Boolean> aatInfo = new WeakHashMap<>();
+
+    private boolean isAAT(Font2D font) {
+        Boolean aatObj;
+        synchronized (aatInfo) {
+            aatObj = aatInfo.get(font);
+        }
+        if (aatObj != null) {
+            return aatObj.booleanValue();
+        }
+        boolean aat = false;
+        if (font instanceof TrueTypeFont) {
+            TrueTypeFont ttf = (TrueTypeFont)font;
+            aat =  ttf.getDirectoryEntry(TrueTypeFont.morxTag) != null ||
+                   ttf.getDirectoryEntry(TrueTypeFont.mortTag) != null;
+        } else if (font instanceof PhysicalFont) {
+            PhysicalFont pf = (PhysicalFont)font;
+            aat =  pf.getTableBytes(TrueTypeFont.morxTag) != null ||
+                   pf.getTableBytes(TrueTypeFont.mortTag) != null;
+        }
+        synchronized (aatInfo) {
+            aatInfo.put(font, Boolean.valueOf(aat));
+        }
+        return aat;
+    }
+
     public void layout(FontStrikeDesc desc, float[] mat, int gmask,
                        int baseIndex, TextRecord tr, int typo_flags,
                        Point2D.Float pt, GVData data) {
         Font2D font = key.font();
         FontStrike strike = font.getStrike(desc);
-        long layoutTables = font.getLayoutTableCache();
+        // Ignore layout tables for RTL AAT fonts due to lack of support in ICU
+        long layoutTables = (((typo_flags & 0x80000000) != 0) && isAAT(font)) ? 0 :
+                                font.getLayoutTableCache();
         nativeLayout(font, strike, mat, gmask, baseIndex,
              tr.text, tr.start, tr.limit, tr.min, tr.max,
              key.script(), key.lang(), typo_flags, pt, data,

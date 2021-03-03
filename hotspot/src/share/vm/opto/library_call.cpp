@@ -6225,10 +6225,16 @@ bool LibraryCallKit::inline_updateBytesCRC32() {
   // Call the stub.
   address stubAddr = StubRoutines::updateBytesCRC32();
   const char *stubName = "updateBytesCRC32";
-
-  Node* call = make_runtime_call(RC_LEAF|RC_NO_FP, OptoRuntime::updateBytesCRC32_Type(),
-                                 stubAddr, stubName, TypePtr::BOTTOM,
-                                 crc, src_start, length);
+  Node* call;
+  if (CCallingConventionRequiresIntsAsLongs) {
+   call =  make_runtime_call(RC_LEAF|RC_NO_FP, OptoRuntime::updateBytesCRC32_Type(),
+                             stubAddr, stubName, TypePtr::BOTTOM,
+                             crc XTOP, src_start, length XTOP);
+  } else {
+    call = make_runtime_call(RC_LEAF|RC_NO_FP, OptoRuntime::updateBytesCRC32_Type(),
+                             stubAddr, stubName, TypePtr::BOTTOM,
+                             crc, src_start, length);
+  }
   Node* result = _gvn.transform(new (C) ProjNode(call, TypeFunc::Parms));
   set_result(result);
   return true;
@@ -6257,10 +6263,16 @@ bool LibraryCallKit::inline_updateByteBufferCRC32() {
   // Call the stub.
   address stubAddr = StubRoutines::updateBytesCRC32();
   const char *stubName = "updateBytesCRC32";
-
-  Node* call = make_runtime_call(RC_LEAF|RC_NO_FP, OptoRuntime::updateBytesCRC32_Type(),
-                                 stubAddr, stubName, TypePtr::BOTTOM,
-                                 crc, src_start, length);
+  Node* call;
+  if (CCallingConventionRequiresIntsAsLongs) {
+    call = make_runtime_call(RC_LEAF|RC_NO_FP, OptoRuntime::updateBytesCRC32_Type(),
+                      stubAddr, stubName, TypePtr::BOTTOM,
+                      crc XTOP, src_start, length XTOP);
+  } else {
+    call = make_runtime_call(RC_LEAF|RC_NO_FP, OptoRuntime::updateBytesCRC32_Type(),
+                             stubAddr, stubName, TypePtr::BOTTOM,
+                             crc, src_start, length);
+  }
   Node* result = _gvn.transform(new (C) ProjNode(call, TypeFunc::Parms));
   set_result(result);
   return true;
