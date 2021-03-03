@@ -242,7 +242,7 @@ typedef TwoOopHashtable<Klass*, mtClass>      KlassTwoOopHashtable;
 typedef Hashtable<Klass*, mtClass>            KlassHashtable;
 typedef HashtableEntry<Klass*, mtClass>       KlassHashtableEntry;
 typedef TwoOopHashtable<Symbol*, mtClass>     SymbolTwoOopHashtable;
-typedef BinaryTreeDictionary<Metablock, FreeList> MetablockTreeDictionary;
+typedef BinaryTreeDictionary<Metablock, FreeList<Metablock> > MetablockTreeDictionary;
 
 //--------------------------------------------------------------------------------
 // VM_STRUCTS
@@ -1938,15 +1938,6 @@ typedef BinaryTreeDictionary<Metablock, FreeList> MetablockTreeDictionary;
   declare_c2_type(CmpF3Node, CmpFNode)                                    \
   declare_c2_type(CmpDNode, CmpNode)                                      \
   declare_c2_type(CmpD3Node, CmpDNode)                                    \
-  declare_c2_type(MathExactNode, MultiNode)                               \
-  declare_c2_type(MathExactINode, MathExactNode)                          \
-  declare_c2_type(AddExactINode, MathExactINode)                          \
-  declare_c2_type(AddExactLNode, MathExactLNode)                          \
-  declare_c2_type(SubExactINode, MathExactINode)                          \
-  declare_c2_type(SubExactLNode, MathExactLNode)                          \
-  declare_c2_type(NegExactINode, MathExactINode)                          \
-  declare_c2_type(MulExactINode, MathExactINode)                          \
-  declare_c2_type(FlagsProjNode, ProjNode)                                \
   declare_c2_type(BoolNode, Node)                                         \
   declare_c2_type(AbsNode, Node)                                          \
   declare_c2_type(AbsINode, AbsNode)                                      \
@@ -2027,6 +2018,15 @@ typedef BinaryTreeDictionary<Metablock, FreeList> MetablockTreeDictionary;
   declare_c2_type(ExtractLNode, ExtractNode)                              \
   declare_c2_type(ExtractFNode, ExtractNode)                              \
   declare_c2_type(ExtractDNode, ExtractNode)                              \
+  declare_c2_type(OverflowNode, CmpNode)                                  \
+  declare_c2_type(OverflowINode, OverflowNode)                            \
+  declare_c2_type(OverflowAddINode, OverflowINode)                        \
+  declare_c2_type(OverflowSubINode, OverflowINode)                        \
+  declare_c2_type(OverflowMulINode, OverflowINode)                        \
+  declare_c2_type(OverflowLNode, OverflowNode)                            \
+  declare_c2_type(OverflowAddLNode, OverflowLNode)                        \
+  declare_c2_type(OverflowSubLNode, OverflowLNode)                        \
+  declare_c2_type(OverflowMulLNode, OverflowLNode)                        \
                                                                           \
   /*********************/                                                 \
   /* Adapter Blob Entries */                                              \
