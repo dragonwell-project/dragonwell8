@@ -24,7 +24,7 @@
 /*
  * @test
  * @bug 6843127
- * @run main/othervm/timeout=300 BadKdc3
+ * @run main/othervm/timeout=300 -Dsun.net.spi.nameservice.provider.1=ns,mock BadKdc3
  * @summary krb5 should not try to access unavailable kdc too often
  */
 
