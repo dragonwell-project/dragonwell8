@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -50,6 +50,7 @@ bool Abstract_VM_Version::_supports_atomic_getset8 = false;
 bool Abstract_VM_Version::_supports_atomic_getadd4 = false;
 bool Abstract_VM_Version::_supports_atomic_getadd8 = false;
 unsigned int Abstract_VM_Version::_logical_processors_per_package = 1U;
+unsigned int Abstract_VM_Version::_L1_data_cache_line_size = 0;
 int Abstract_VM_Version::_reserve_for_allocation_prefetch = 0;
 
 #ifndef HOTSPOT_RELEASE_VERSION
@@ -296,7 +297,7 @@ unsigned int Abstract_VM_Version::nof_parallel_worker_threads(
     // processor after the first 8.  For example, on a 72 cpu machine
     // and a chosen fraction of 5/8
     // use 8 + (72 - 8) * (5/8) == 48 worker threads.
-    unsigned int ncpus = (unsigned int) os::active_processor_count();
+    unsigned int ncpus = (unsigned int) os::initial_active_processor_count();
     return (ncpus <= switch_pt) ?
            ncpus :
           (switch_pt + ((ncpus - switch_pt) * num) / den);
