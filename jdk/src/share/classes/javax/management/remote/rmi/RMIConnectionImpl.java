@@ -361,7 +361,6 @@ public class RMIConnectionImpl implements RMIConnection, Unreferenced {
                              "connectionId=" + connectionId
                              +", className=" + className
                              +", name=" + name
-                             +", params=" + objects(values)
                              +", signature=" + strings(signature));
 
             return (ObjectInstance)
@@ -427,7 +426,6 @@ public class RMIConnectionImpl implements RMIConnection, Unreferenced {
                  +", className=" + className
                  +", name=" + name
                  +", loaderName=" + loaderName
-                 +", params=" + objects(values)
                  +", signature=" + strings(signature));
 
             return (ObjectInstance)
@@ -719,7 +717,7 @@ public class RMIConnectionImpl implements RMIConnection, Unreferenced {
             if (debug) logger.debug("setAttribute",
                              "connectionId=" + connectionId
                              +", name="+name
-                             +", attribute="+attr);
+                             +", attribute name="+attr.getName());
 
             doPrivilegedOperation(
               SET_ATTRIBUTE,
@@ -770,7 +768,7 @@ public class RMIConnectionImpl implements RMIConnection, Unreferenced {
             if (debug) logger.debug("setAttributes",
                              "connectionId=" + connectionId
                              +", name="+name
-                             +", attributes="+attrlist);
+                             +", attribute names="+RMIConnector.getAttributesNames(attrlist));
 
             return (AttributeList)
                 doPrivilegedOperation(
@@ -825,7 +823,6 @@ public class RMIConnectionImpl implements RMIConnection, Unreferenced {
                              "connectionId=" + connectionId
                              +", name="+name
                              +", operationName="+operationName
-                             +", params="+objects(values)
                              +", signature="+strings(signature));
 
             return
