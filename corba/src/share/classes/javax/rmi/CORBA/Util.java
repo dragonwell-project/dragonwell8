@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -45,6 +45,7 @@ import javax.rmi.CORBA.Tie;
 import java.rmi.Remote;
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.SerializablePermission;
 import java.net.MalformedURLException ;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
@@ -63,8 +64,22 @@ public class Util {
     private static final javax.rmi.CORBA.UtilDelegate utilDelegate;
     private static final String UtilClassKey = "javax.rmi.CORBA.UtilClass";
 
+    private static final String ALLOW_CREATEVALUEHANDLER_PROP = "jdk.rmi.CORBA.allowCustomValueHandler";
+    private static boolean allowCustomValueHandler;
+
     static {
         utilDelegate = (javax.rmi.CORBA.UtilDelegate)createDelegate(UtilClassKey);
+        allowCustomValueHandler = readAllowCustomValueHandlerProperty();
+    }
+
+    private static boolean readAllowCustomValueHandlerProperty () {
+       return AccessController
+        .doPrivileged(new PrivilegedAction<Boolean>() {
+            @Override
+            public Boolean run() {
+                return Boolean.getBoolean(ALLOW_CREATEVALUEHANDLER_PROP);
+            }
+        });
     }
 
     private Util(){}
@@ -111,7 +126,7 @@ public class Util {
      * Writes a java.lang.Object as a CORBA Object. If <code>obj</code> is
      * an exported RMI-IIOP server object, the tie is found
      * and wired to <code>obj</code>, then written to
-<code>out.write_Object(org.omg.CORBA.Object)</code>.
+     * <code>out.write_Object(org.omg.CORBA.Object)</code>.
      * If <code>obj</code> is a CORBA Object, it is written to
      * <code>out.write_Object(org.omg.CORBA.Object)</code>.
      * @param out the stream in which to write the object.
@@ -195,6 +210,8 @@ Tie#deactivate}
      * @return a class which implements the ValueHandler interface.
      */
     public static ValueHandler createValueHandler() {
+
+        isCustomSerializationPermitted();
 
         if (utilDelegate != null) {
             return utilDelegate.createValueHandler();
@@ -336,6 +353,7 @@ Tie#deactivate}
     // security reasons. If you know a better solution how to share this code
     // then remove it from PortableRemoteObject. Also in Stub.java
     private static Object createDelegate(String classKey) {
+
         String className = (String)
             AccessController.doPrivileged(new GetPropertyAction(classKey));
         if (className == null) {
@@ -388,4 +406,16 @@ Tie#deactivate}
             new GetORBPropertiesFileAction());
     }
 
+    private static void isCustomSerializationPermitted() {
+        SecurityManager sm = System.getSecurityManager();
+        if (!allowCustomValueHandler) {
+            if ( sm != null) {
+                // check that a serialization permission has been
+                // set to allow the loading of the Util delegate
+                // which provides access to custom ValueHandler
+                sm.checkPermission(new SerializablePermission(
+                        "enableCustomValueHanlder"));
+            }
+        }
+    }
 }
