@@ -598,7 +598,7 @@ public class ErrorMessages_de extends ListResourceBundle {
         "TransformerFactory erkennt Attribut \"{0}\" nicht."},
 
         {ErrorMsg.JAXP_INVALID_ATTR_VALUE_ERR,
-        "Falscher Wert f\u00FCr Attribut ''{0}'' angegeben."},
+        "Falscher Wert f\u00FCr Attribut \"{0}\" angegeben."},
 
         /*
          * Note to translators:  "setResult()" and "startDocument()" are Java
