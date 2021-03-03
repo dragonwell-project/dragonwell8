@@ -597,6 +597,9 @@ public class ErrorMessages_sv extends ListResourceBundle {
         {ErrorMsg.JAXP_INVALID_ATTR_ERR,
         "TransformerFactory k\u00E4nner inte igen attributet ''{0}''."},
 
+        {ErrorMsg.JAXP_INVALID_ATTR_VALUE_ERR,
+        "Fel v\u00E4rde har angetts f\u00F6r attributet ''{0}''."},
+
         /*
          * Note to translators:  "setResult()" and "startDocument()" are Java
          * method names that should not be translated.
