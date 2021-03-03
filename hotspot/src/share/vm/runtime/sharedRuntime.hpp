@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -184,7 +184,7 @@ class SharedRuntime: AllStatic {
 
   // exception handling and implicit exceptions
   static address compute_compiled_exc_handler(nmethod* nm, address ret_pc, Handle& exception,
-                                              bool force_unwind, bool top_frame_only);
+                                              bool force_unwind, bool top_frame_only, bool& recursive_exception_occurred);
   enum ImplicitExceptionKind {
     IMPLICIT_NULL,
     IMPLICIT_DIVIDE_BY_ZERO,
