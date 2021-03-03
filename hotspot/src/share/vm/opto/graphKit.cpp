@@ -420,7 +420,7 @@ void GraphKit::combine_exception_states(SafePointNode* ex_map, SafePointNode* ph
       }
       const Type* srctype = _gvn.type(src);
       if (phi->type() != srctype) {
-        const Type* dsttype = phi->type()->meet(srctype);
+        const Type* dsttype = phi->type()->meet_speculative(srctype);
         if (phi->type() != dsttype) {
           phi->set_type(dsttype);
           _gvn.set_type(phi, dsttype);
@@ -1223,7 +1223,7 @@ Node* GraphKit::null_check_common(Node* value, BasicType type,
         // See if mixing in the NULL pointer changes type.
         // If so, then the NULL pointer was not allowed in the original
         // type.  In other words, "value" was not-null.
-        if (t->meet(TypePtr::NULL_PTR) != t) {
+        if (t->meet(TypePtr::NULL_PTR) != t->remove_speculative()) {
           // same as: if (!TypePtr::NULL_PTR->higher_equal(t)) ...
           explicit_null_checks_elided++;
           return value;           // Elided null check quickly!
@@ -1356,7 +1356,7 @@ Node* GraphKit::null_check_common(Node* value, BasicType type,
 // Cast obj to not-null on this path
 Node* GraphKit::cast_not_null(Node* obj, bool do_replace_in_map) {
   const Type *t = _gvn.type(obj);
-  const Type *t_not_null = t->join(TypePtr::NOTNULL);
+  const Type *t_not_null = t->join_speculative(TypePtr::NOTNULL);
   // Object is already not-null?
   if( t == t_not_null ) return obj;
 
@@ -2994,22 +2994,28 @@ Node* GraphKit::gen_checkcast(Node *obj, Node* superklass,
   }
 
   Node* cast_obj = NULL;
-  const TypeOopPtr* obj_type = _gvn.type(obj)->is_oopptr();
-  // We may not have profiling here or it may not help us. If we have
-  // a speculative type use it to perform an exact cast.
-  ciKlass* spec_obj_type = obj_type->speculative_type();
-  if (spec_obj_type != NULL ||
-      (data != NULL &&
-       // Counter has never been decremented (due to cast failure).
-       // ...This is a reasonable thing to expect.  It is true of
-       // all casts inserted by javac to implement generic types.
-       data->as_CounterData()->count() >= 0)) {
-    cast_obj = maybe_cast_profiled_receiver(not_null_obj, tk->klass(), spec_obj_type, safe_for_replace);
-    if (cast_obj != NULL) {
-      if (failure_control != NULL) // failure is now impossible
-        (*failure_control) = top();
-      // adjust the type of the phi to the exact klass:
-      phi->raise_bottom_type(_gvn.type(cast_obj)->meet(TypePtr::NULL_PTR));
+  if (tk->klass_is_exact()) {
+    // The following optimization tries to statically cast the speculative type of the object
+    // (for example obtained during profiling) to the type of the superklass and then do a
+    // dynamic check that the type of the object is what we expect. To work correctly
+    // for checkcast and aastore the type of superklass should be exact.
+    const TypeOopPtr* obj_type = _gvn.type(obj)->is_oopptr();
+    // We may not have profiling here or it may not help us. If we have
+    // a speculative type use it to perform an exact cast.
+    ciKlass* spec_obj_type = obj_type->speculative_type();
+    if (spec_obj_type != NULL ||
+        (data != NULL &&
+         // Counter has never been decremented (due to cast failure).
+         // ...This is a reasonable thing to expect.  It is true of
+         // all casts inserted by javac to implement generic types.
+         data->as_CounterData()->count() >= 0)) {
+      cast_obj = maybe_cast_profiled_receiver(not_null_obj, tk->klass(), spec_obj_type, safe_for_replace);
+      if (cast_obj != NULL) {
+        if (failure_control != NULL) // failure is now impossible
+          (*failure_control) = top();
+        // adjust the type of the phi to the exact klass:
+        phi->raise_bottom_type(_gvn.type(cast_obj)->meet_speculative(TypePtr::NULL_PTR));
+      }
     }
   }
 
