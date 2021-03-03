@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -50,6 +50,7 @@ import java.util.jar.Attributes.Name;
 import java.util.jar.JarFile;
 import java.util.jar.Manifest;
 import sun.misc.Resource;
+import sun.misc.SharedSecrets;
 import sun.misc.URLClassPath;
 import sun.net.www.ParseUtil;
 import sun.security.util.SecurityConstants;
@@ -486,13 +487,13 @@ public class URLClassLoader extends SecureClassLoader implements Closeable {
     protected Package definePackage(String name, Manifest man, URL url)
         throws IllegalArgumentException
     {
-        String path = name.replace('.', '/').concat("/");
         String specTitle = null, specVersion = null, specVendor = null;
         String implTitle = null, implVersion = null, implVendor = null;
         String sealed = null;
         URL sealBase = null;
 
-        Attributes attr = man.getAttributes(path);
+        Attributes attr = SharedSecrets.javaUtilJarAccess()
+                .getTrustedAttributes(man, name.replace('.', '/').concat("/"));
         if (attr != null) {
             specTitle   = attr.getValue(Name.SPECIFICATION_TITLE);
             specVersion = attr.getValue(Name.SPECIFICATION_VERSION);
@@ -536,10 +537,12 @@ public class URLClassLoader extends SecureClassLoader implements Closeable {
     /*
      * Returns true if the specified package name is sealed according to the
      * given manifest.
+     *
+     * @throws SecurityException if the package name is untrusted in the manifest
      */
     private boolean isSealed(String name, Manifest man) {
-        String path = name.replace('.', '/').concat("/");
-        Attributes attr = man.getAttributes(path);
+        Attributes attr = SharedSecrets.javaUtilJarAccess()
+                .getTrustedAttributes(man, name.replace('.', '/').concat("/"));
         String sealed = null;
         if (attr != null) {
             sealed = attr.getValue(Name.SEALED);
