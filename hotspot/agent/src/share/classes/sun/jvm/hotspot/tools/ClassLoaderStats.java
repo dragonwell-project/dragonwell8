@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -103,11 +103,12 @@ public class ClassLoaderStats extends Tool {
       }
 
       SystemDictionary dict = VM.getVM().getSystemDictionary();
-      dict.classesDo(new SystemDictionary.ClassAndLoaderVisitor() {
-                        public void visit(Klass k, Oop loader) {
+      dict.classesDo(new SystemDictionary.ClassVisitor() {
+                        public void visit(Klass k) {
                            if (! (k instanceof InstanceKlass)) {
                               return;
                            }
+                           Oop loader = ((InstanceKlass) k).getClassLoader();
                            LoaderData ld = (loader != null) ? (LoaderData)loaderMap.get(loader)
                                                             : bootstrapLoaderData;
                            if (ld != null) {
