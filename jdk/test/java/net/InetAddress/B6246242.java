@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2006, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,7 +23,7 @@
 
 /**
  * @test
- * @bug 6246242
+ * @bug 6246242 8135259
  * @summary UnknownHostException contains wrong error message
  */
 
@@ -36,7 +36,7 @@ public class B6246242 {
             a = InetAddress.getByName("foo.bar");
         } catch (UnknownHostException e) {
             String s = e.getMessage();
-            if (s.indexOf("foo.bar: foo.bar") >= 0)
+            if (s.contains("foo.bar: foo.bar") || s.contains("unknown error"))
                 throw new RuntimeException("UnknownHostException has wrong message: " + s);
         }
     }
