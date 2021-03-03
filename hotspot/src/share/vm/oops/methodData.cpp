@@ -1153,7 +1153,7 @@ void MethodData::init() {
   _backedge_counter_start = 0;
   _num_loops = 0;
   _num_blocks = 0;
-  _would_profile = true;
+  _would_profile = unknown;
 
 #if INCLUDE_RTM_OPT
   _rtm_state = NoRTM; // No RTM lock eliding by default
