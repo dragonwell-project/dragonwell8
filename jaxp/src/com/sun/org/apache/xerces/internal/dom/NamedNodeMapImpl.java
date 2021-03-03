@@ -1,6 +1,5 @@
 /*
- * reserved comment block
- * DO NOT REMOVE OR ALTER!
+ * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
  */
 /*
  * Copyright 1999-2002,2004,2005 The Apache Software Foundation.
@@ -608,7 +607,8 @@ public class NamedNodeMapImpl
         throws IOException, ClassNotFoundException {
         in.defaultReadObject();
         if (nodes != null) {
-            nodes = new ArrayList(nodes);
+            // cast to Vector is required
+            nodes = new ArrayList((Vector)nodes);
         }
     }
 
