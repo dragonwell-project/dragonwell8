@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -364,6 +364,8 @@ class Arguments : AllStatic {
 
   // Aggressive optimization flags.
   static void set_aggressive_opts_flags();
+
+  static jint set_aggressive_heap_flags();
 
   // Argument parsing
   static void do_pd_flag_adjustments();

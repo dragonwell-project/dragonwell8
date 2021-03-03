@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -60,6 +60,15 @@ public final class Utils {
      * Returns the value of 'test.java.opts'system property.
      */
     public static final String JAVA_OPTIONS = System.getProperty("test.java.opts", "").trim();
+
+    public static final String TEST_JDK = System.getProperty("test.jdk");
+
+    public static final String COMPILE_JDK= System.getProperty("compile.jdk", TEST_JDK);
+
+    public static final String TEST_SRC = System.getProperty("test.src", "").trim();
+
+    public static final String TEST_CLASSES = System.getProperty("test.classes", ".");
+
 
     private static Unsafe unsafe = null;
 
