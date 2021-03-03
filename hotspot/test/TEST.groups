@@ -61,7 +61,6 @@ jdk = \
 # can be resolved in some cases by using tools from the compile-jdk.
 #
 needs_jdk = \
-  gc/TestG1ZeroPGCTJcmdThreadPrint.java \
   gc/metaspace/CompressedClassSpaceSizeInJmapHeap.java \
   gc/metaspace/TestMetaspacePerfCounters.java \
   gc/metaspace/TestPerfCountersAndMemoryPools.java \
@@ -216,6 +215,7 @@ needs_full_vm_compact1 = \
   runtime/NMT \
   gc/class_unloading/TestCMSClassUnloadingEnabledHWM.java \
   gc/class_unloading/TestG1ClassUnloadingHWM.java \
+  gc/ergonomics/TestDynamicNumberOfGCThreads.java \
   gc/g1/TestRegionAlignment.java \
   gc/g1/TestShrinkToOneRegion.java \
   gc/metaspace/G1AddMetaspaceDependency.java \
