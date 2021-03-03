@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -29,6 +29,7 @@ import com.sun.jdi.connect.spi.*;
 import java.util.Map;
 import java.util.HashMap;
 import java.io.IOException;
+import com.sun.jdi.connect.spi.TransportService;
 
 /*
  * An ListeningConnector that uses the SocketTransportService
@@ -91,5 +92,22 @@ public class SocketListeningConnector extends GenericListeningConnector {
 
     public String description() {
         return getString("socket_listening.description");
+    }
+
+    // If the port is auto detected update the argument map with the bound port number.
+    @Override
+    protected void updateArgumentMapIfRequired(
+        Map<String, ? extends Connector.Argument> args, TransportService.ListenKey listener) {
+        if (isWildcardPort(args)) {
+            String[] address = listener.address().split(":");
+            if (address.length > 1) {
+                args.get(ARG_PORT).setValue(address[1]);
+            }
+        }
+    }
+
+    private boolean isWildcardPort(Map<String, ? extends Connector.Argument> args) {
+        String port = args.get(ARG_PORT).value();
+        return port.isEmpty() || Integer.valueOf(port) == 0;
     }
 }
