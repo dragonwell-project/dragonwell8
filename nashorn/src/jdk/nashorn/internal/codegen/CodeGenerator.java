@@ -38,7 +38,6 @@ import static jdk.nashorn.internal.codegen.CompilerConstants.SCOPE;
 import static jdk.nashorn.internal.codegen.CompilerConstants.SPLIT_PREFIX;
 import static jdk.nashorn.internal.codegen.CompilerConstants.THIS;
 import static jdk.nashorn.internal.codegen.CompilerConstants.VARARGS;
-import static jdk.nashorn.internal.codegen.CompilerConstants.constructorNoLookup;
 import static jdk.nashorn.internal.codegen.CompilerConstants.interfaceCallNoLookup;
 import static jdk.nashorn.internal.codegen.CompilerConstants.methodDescriptor;
 import static jdk.nashorn.internal.codegen.CompilerConstants.staticCallNoLookup;
@@ -86,7 +85,6 @@ import jdk.nashorn.internal.ir.BinaryNode;
 import jdk.nashorn.internal.ir.Block;
 import jdk.nashorn.internal.ir.BlockStatement;
 import jdk.nashorn.internal.ir.BreakNode;
-import jdk.nashorn.internal.ir.BreakableNode;
 import jdk.nashorn.internal.ir.CallNode;
 import jdk.nashorn.internal.ir.CaseNode;
 import jdk.nashorn.internal.ir.CatchNode;
@@ -103,6 +101,7 @@ import jdk.nashorn.internal.ir.IfNode;
 import jdk.nashorn.internal.ir.IndexNode;
 import jdk.nashorn.internal.ir.JoinPredecessorExpression;
 import jdk.nashorn.internal.ir.JumpStatement;
+import jdk.nashorn.internal.ir.JumpToInlinedFinally;
 import jdk.nashorn.internal.ir.LabelNode;
 import jdk.nashorn.internal.ir.LexicalContext;
 import jdk.nashorn.internal.ir.LexicalContextNode;
@@ -186,9 +185,6 @@ final class CodeGenerator extends NodeOperatorVisitor<CodeGeneratorLexicalContex
 
     private static final String GLOBAL_OBJECT = Type.getInternalName(Global.class);
 
-    private static final String SCRIPTFUNCTION_IMPL_NAME = Type.getInternalName(ScriptFunctionImpl.class);
-    private static final Type   SCRIPTFUNCTION_IMPL_TYPE   = Type.typeFor(ScriptFunction.class);
-
     private static final Call CREATE_REWRITE_EXCEPTION = CompilerConstants.staticCallNoLookup(RewriteException.class,
             "create", RewriteException.class, UnwarrantedOptimismException.class, Object[].class, String[].class);
     private static final Call CREATE_REWRITE_EXCEPTION_REST_OF = CompilerConstants.staticCallNoLookup(RewriteException.class,
@@ -200,6 +196,11 @@ final class CodeGenerator extends NodeOperatorVisitor<CodeGeneratorLexicalContex
             "ensureLong", long.class, Object.class, int.class);
     private static final Call ENSURE_NUMBER = CompilerConstants.staticCallNoLookup(OptimisticReturnFilters.class,
             "ensureNumber", double.class, Object.class, int.class);
+
+    private static final Call CREATE_FUNCTION_OBJECT = CompilerConstants.staticCallNoLookup(ScriptFunctionImpl.class,
+            "create", ScriptFunction.class, Object[].class, int.class, ScriptObject.class);
+    private static final Call CREATE_FUNCTION_OBJECT_NO_SCOPE = CompilerConstants.staticCallNoLookup(ScriptFunctionImpl.class,
+            "create", ScriptFunction.class, Object[].class, int.class);
 
     private static final Class<?> ITERATOR_CLASS = Iterator.class;
     static {
@@ -342,8 +343,14 @@ final class CodeGenerator extends NodeOperatorVisitor<CodeGeneratorLexicalContex
     // This is called the temporal dead zone (TDZ). See https://gist.github.com/rwaldron/f0807a758aa03bcdd58a
     private void checkTemporalDeadZone(final IdentNode identNode) {
         if (identNode.isDead()) {
-            method.load(identNode.getSymbol().getName());
-            method.invoke(ScriptRuntime.THROW_REFERENCE_ERROR);
+            method.load(identNode.getSymbol().getName()).invoke(ScriptRuntime.THROW_REFERENCE_ERROR);
+        }
+    }
+
+    // Runtime check for assignment to ES6 const
+    private void checkAssignTarget(final Expression expression) {
+        if (expression instanceof IdentNode && ((IdentNode)expression).getSymbol().isConst()) {
+            method.load(((IdentNode)expression).getSymbol().getName()).invoke(ScriptRuntime.THROW_CONST_TYPE_ERROR);
         }
     }
 
@@ -786,72 +793,84 @@ final class CodeGenerator extends NodeOperatorVisitor<CodeGeneratorLexicalContex
 
             @Override
             public boolean enterASSIGN(final BinaryNode binaryNode) {
+                checkAssignTarget(binaryNode.lhs());
                 loadASSIGN(binaryNode);
                 return false;
             }
 
             @Override
             public boolean enterASSIGN_ADD(final BinaryNode binaryNode) {
+                checkAssignTarget(binaryNode.lhs());
                 loadASSIGN_ADD(binaryNode);
                 return false;
             }
 
             @Override
             public boolean enterASSIGN_BIT_AND(final BinaryNode binaryNode) {
+                checkAssignTarget(binaryNode.lhs());
                 loadASSIGN_BIT_AND(binaryNode);
                 return false;
             }
 
             @Override
             public boolean enterASSIGN_BIT_OR(final BinaryNode binaryNode) {
+                checkAssignTarget(binaryNode.lhs());
                 loadASSIGN_BIT_OR(binaryNode);
                 return false;
             }
 
             @Override
             public boolean enterASSIGN_BIT_XOR(final BinaryNode binaryNode) {
+                checkAssignTarget(binaryNode.lhs());
                 loadASSIGN_BIT_XOR(binaryNode);
                 return false;
             }
 
             @Override
             public boolean enterASSIGN_DIV(final BinaryNode binaryNode) {
+                checkAssignTarget(binaryNode.lhs());
                 loadASSIGN_DIV(binaryNode);
                 return false;
             }
 
             @Override
             public boolean enterASSIGN_MOD(final BinaryNode binaryNode) {
+                checkAssignTarget(binaryNode.lhs());
                 loadASSIGN_MOD(binaryNode);
                 return false;
             }
 
             @Override
             public boolean enterASSIGN_MUL(final BinaryNode binaryNode) {
+                checkAssignTarget(binaryNode.lhs());
                 loadASSIGN_MUL(binaryNode);
                 return false;
             }
 
             @Override
             public boolean enterASSIGN_SAR(final BinaryNode binaryNode) {
+                checkAssignTarget(binaryNode.lhs());
                 loadASSIGN_SAR(binaryNode);
                 return false;
             }
 
             @Override
             public boolean enterASSIGN_SHL(final BinaryNode binaryNode) {
+                checkAssignTarget(binaryNode.lhs());
                 loadASSIGN_SHL(binaryNode);
                 return false;
             }
 
             @Override
             public boolean enterASSIGN_SHR(final BinaryNode binaryNode) {
+                checkAssignTarget(binaryNode.lhs());
                 loadASSIGN_SHR(binaryNode);
                 return false;
             }
 
             @Override
             public boolean enterASSIGN_SUB(final BinaryNode binaryNode) {
+                checkAssignTarget(binaryNode.lhs());
                 loadASSIGN_SUB(binaryNode);
                 return false;
             }
@@ -1061,6 +1080,7 @@ final class CodeGenerator extends NodeOperatorVisitor<CodeGeneratorLexicalContex
 
             @Override
             public boolean enterDECINC(final UnaryNode unaryNode) {
+                checkAssignTarget(unaryNode.getExpression());
                 loadDECINC(unaryNode);
                 return false;
             }
@@ -1109,7 +1129,14 @@ final class CodeGenerator extends NodeOperatorVisitor<CodeGeneratorLexicalContex
 
     @Override
     public boolean enterBlock(final Block block) {
-        method.label(block.getEntryLabel());
+        final Label entryLabel = block.getEntryLabel();
+        if (entryLabel.isBreakTarget()) {
+            // Entry label is a break target only for an inlined finally block.
+            assert !method.isReachable();
+            method.breakLabel(entryLabel, lc.getUsedSlotCount());
+        } else {
+            method.label(entryLabel);
+        }
         if(!method.isReachable()) {
             return false;
         }
@@ -1239,6 +1266,11 @@ final class CodeGenerator extends NodeOperatorVisitor<CodeGeneratorLexicalContex
         return enterJumpStatement(breakNode);
     }
 
+    @Override
+    public boolean enterJumpToInlinedFinally(final JumpToInlinedFinally jumpToInlinedFinally) {
+        return enterJumpStatement(jumpToInlinedFinally);
+    }
+
     private boolean enterJumpStatement(final JumpStatement jump) {
         if(!method.isReachable()) {
             return false;
@@ -1246,9 +1278,8 @@ final class CodeGenerator extends NodeOperatorVisitor<CodeGeneratorLexicalContex
         enterStatement(jump);
 
         method.beforeJoinPoint(jump);
-        final BreakableNode target = jump.getTarget(lc);
-        popScopesUntil(target);
-        final Label targetLabel = jump.getTargetLabel(target);
+        popScopesUntil(jump.getPopScopeLimit(lc));
+        final Label targetLabel = jump.getTargetLabel(lc);
         targetLabel.markAsBreakTarget();
         method._goto(targetLabel);
 
@@ -2242,13 +2273,16 @@ final class CodeGenerator extends NodeOperatorVisitor<CodeGeneratorLexicalContex
         } else {
             methodEmitter.loadConstants().load(index).arrayload();
             if (object instanceof ArrayData) {
-                // avoid cast to non-public ArrayData subclass
                 methodEmitter.checkcast(ArrayData.class);
                 methodEmitter.invoke(virtualCallNoLookup(ArrayData.class, "copy", ArrayData.class));
             } else if (cls != Object.class) {
                 methodEmitter.checkcast(cls);
             }
         }
+    }
+
+    private void loadConstantsAndIndex(final Object object, final MethodEmitter methodEmitter) {
+        methodEmitter.loadConstants().load(compiler.getConstantData().add(object));
     }
 
     // literal values
@@ -3049,6 +3083,14 @@ final class CodeGenerator extends NodeOperatorVisitor<CodeGeneratorLexicalContex
         if (method.isReachable()) {
             method._goto(skip);
         }
+
+        for (final Block inlinedFinally : tryNode.getInlinedFinallies()) {
+            TryNode.getLabelledInlinedFinallyBlock(inlinedFinally).accept(this);
+            // All inlined finallies end with a jump or a return
+            assert !method.isReachable();
+        }
+
+
         method._catch(recovery);
         method.store(vmException, EXCEPTION_TYPE);
 
@@ -3099,6 +3141,7 @@ final class CodeGenerator extends NodeOperatorVisitor<CodeGeneratorLexicalContex
             if (isConditionalCatch) {
                 loadExpressionAsBoolean(exceptionCondition);
                 nextCatch = new Label("next_catch");
+                nextCatch.markAsBreakTarget();
                 method.ifeq(nextCatch);
             } else {
                 nextCatch = null;
@@ -3107,15 +3150,14 @@ final class CodeGenerator extends NodeOperatorVisitor<CodeGeneratorLexicalContex
             catchBody.accept(this);
             leaveBlock(catchBlock);
             lc.pop(catchBlock);
-            if(method.isReachable()) {
-                method._goto(afterCatch);
-            }
             if(nextCatch != null) {
-                method.label(nextCatch);
+                if(method.isReachable()) {
+                    method._goto(afterCatch);
+                }
+                method.breakLabel(nextCatch, lc.getUsedSlotCount());
             }
         }
 
-        assert !method.isReachable();
         // afterCatch could be the same as skip, except that we need to establish that the vmException is dead.
         method.label(afterCatch);
         if(method.isReachable()) {
@@ -3124,6 +3166,8 @@ final class CodeGenerator extends NodeOperatorVisitor<CodeGeneratorLexicalContex
         method.label(skip);
 
         // Finally body is always inlined elsewhere so it doesn't need to be emitted
+        assert tryNode.getFinallyBody() == null;
+
         return false;
     }
 
@@ -4322,15 +4366,13 @@ final class CodeGenerator extends NodeOperatorVisitor<CodeGeneratorLexicalContex
         final RecompilableScriptFunctionData data = compiler.getScriptFunctionData(functionNode.getId());
 
         if (functionNode.isProgram() && !compiler.isOnDemandCompilation()) {
-            final CompileUnit fnUnit = functionNode.getCompileUnit();
-            final MethodEmitter createFunction = fnUnit.getClassEmitter().method(
+            final MethodEmitter createFunction = functionNode.getCompileUnit().getClassEmitter().method(
                     EnumSet.of(Flag.PUBLIC, Flag.STATIC), CREATE_PROGRAM_FUNCTION.symbolName(),
                     ScriptFunction.class, ScriptObject.class);
             createFunction.begin();
-            createFunction._new(SCRIPTFUNCTION_IMPL_NAME, SCRIPTFUNCTION_IMPL_TYPE).dup();
-            loadConstant(data, fnUnit, createFunction);
+            loadConstantsAndIndex(data, createFunction);
             createFunction.load(SCOPE_TYPE, 0);
-            createFunction.invoke(constructorNoLookup(SCRIPTFUNCTION_IMPL_NAME, RecompilableScriptFunctionData.class, ScriptObject.class));
+            createFunction.invoke(CREATE_FUNCTION_OBJECT);
             createFunction._return();
             createFunction.end();
         }
@@ -4345,15 +4387,14 @@ final class CodeGenerator extends NodeOperatorVisitor<CodeGeneratorLexicalContex
             return;
         }
 
-        method._new(SCRIPTFUNCTION_IMPL_NAME, SCRIPTFUNCTION_IMPL_TYPE).dup();
-        loadConstant(data);
+        loadConstantsAndIndex(data, method);
 
         if (functionNode.needsParentScope()) {
             method.loadCompilerConstant(SCOPE);
+            method.invoke(CREATE_FUNCTION_OBJECT);
         } else {
-            method.loadNull();
+            method.invoke(CREATE_FUNCTION_OBJECT_NO_SCOPE);
         }
-        method.invoke(constructorNoLookup(SCRIPTFUNCTION_IMPL_NAME, RecompilableScriptFunctionData.class, ScriptObject.class));
     }
 
     // calls on Global class.

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -926,6 +926,9 @@ class JavaThread: public Thread {
   // support for JNI critical regions
   jint    _jni_active_critical;                  // count of entries into JNI critical region
 
+  // Checked JNI: function name requires exception check
+  char* _pending_jni_exception_check_fn;
+
   // For deadlock detection.
   int _depth_first_number;
 
@@ -1407,6 +1410,12 @@ class JavaThread: public Thread {
                           _jni_active_critical--;
                           assert(_jni_active_critical >= 0,
                                  "JNI critical nesting problem?"); }
+
+  // Checked JNI, is the programmer required to check for exceptions, specify which function name
+  bool is_pending_jni_exception_check() const { return _pending_jni_exception_check_fn != NULL; }
+  void clear_pending_jni_exception_check() { _pending_jni_exception_check_fn = NULL; }
+  const char* get_pending_jni_exception_check() const { return _pending_jni_exception_check_fn; }
+  void set_pending_jni_exception_check(const char* fn_name) { _pending_jni_exception_check_fn = (char*) fn_name; }
 
   // For deadlock detection
   int depth_first_number() { return _depth_first_number; }
