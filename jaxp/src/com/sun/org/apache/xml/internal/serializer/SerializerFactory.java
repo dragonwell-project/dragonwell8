@@ -1,13 +1,13 @@
 /*
- * reserved comment block
- * DO NOT REMOVE OR ALTER!
+ * Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
  */
 /*
- * Copyright 1999-2004 The Apache Software Foundation.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
  *
  *     http://www.apache.org/licenses/LICENSE-2.0
  *
@@ -22,14 +22,11 @@
  */
 package com.sun.org.apache.xml.internal.serializer;
 
-import java.util.Hashtable;
-import java.util.Properties;
-
-import javax.xml.transform.OutputKeys;
-
+import com.sun.org.apache.xalan.internal.utils.ObjectFactory;
 import com.sun.org.apache.xml.internal.serializer.utils.MsgKey;
 import com.sun.org.apache.xml.internal.serializer.utils.Utils;
-import com.sun.org.apache.xalan.internal.utils.ObjectFactory;
+import java.util.Properties;
+import javax.xml.transform.OutputKeys;
 import org.xml.sax.ContentHandler;
 
 /**
@@ -70,10 +67,6 @@ public final class SerializerFactory
   private SerializerFactory() {
 
   }
-  /**
-   * Associates output methods to default output formats.
-   */
-  private static Hashtable m_formats = new Hashtable();
 
   /**
    * Returns a serializer for the specified output method. The output method
