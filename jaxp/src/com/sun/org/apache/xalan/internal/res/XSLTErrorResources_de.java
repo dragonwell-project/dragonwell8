@@ -1359,7 +1359,7 @@ public class XSLTErrorResources_de extends ListResourceBundle
   {  "optionE", "   [-E (Entit\u00E4tsreferenzen nicht einblenden)]"},
   {  "optionV",  "   [-E (Entit\u00E4tsreferenzen nicht einblenden)]"},
   {  "optionQC", "   [-QC (Stille Musterkonfliktwarnungen)]"},
-  {  "optionQ", "   [-Q  (Stiller Modus)]"},
+  {  "optionQ", "   [-Q  (Silent-Modus)]"},
   {  "optionLF", "   [-LF (Nur Zeilenvorsch\u00FCbe bei Ausgabe verwenden {Standard ist CR/LF})]"},
   {  "optionCR", "   [-CR (Nur Zeilenschaltungen bei Ausgabe verwenden {Standard ist CR/LF})]"},
   { "optionESCAPE", "   [-ESCAPE (Escapezeichen {Standard ist <>&\"'\r\n}]"},
