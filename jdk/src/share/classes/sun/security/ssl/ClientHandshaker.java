@@ -1381,12 +1381,12 @@ final class ClientHandshaker extends Handshaker {
 
         // add elliptic curves and point format extensions
         if (cipherSuites.containsEC()) {
-            SupportedEllipticCurvesExtension ece =
-                SupportedEllipticCurvesExtension.createExtension(algorithmConstraints);
+            EllipticCurvesExtension ece =
+                EllipticCurvesExtension.createExtension(algorithmConstraints);
             if (ece != null) {
                 clientHelloMessage.extensions.add(ece);
                 clientHelloMessage.extensions.add(
-                   SupportedEllipticPointFormatsExtension.DEFAULT);
+                   EllipticPointFormatsExtension.DEFAULT);
             }
         }
 
