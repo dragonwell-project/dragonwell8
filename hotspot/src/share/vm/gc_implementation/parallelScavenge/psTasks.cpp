@@ -65,7 +65,7 @@ void ScavengeRootsTask::do_it(GCTaskManager* manager, uint which) {
     case threads:
     {
       ResourceMark rm;
-      CLDToOopClosure* cld_closure = NULL; // Not needed. All CLDs are already visited.
+      CLDClosure* cld_closure = NULL; // Not needed. All CLDs are already visited.
       Threads::oops_do(&roots_closure, cld_closure, NULL);
     }
     break;
@@ -100,7 +100,7 @@ void ScavengeRootsTask::do_it(GCTaskManager* manager, uint which) {
 
     case code_cache:
       {
-        CodeBlobToOopClosure each_scavengable_code_blob(&roots_to_old_closure, /*do_marking=*/ true);
+        MarkingCodeBlobClosure each_scavengable_code_blob(&roots_to_old_closure, CodeBlobToOopClosure::FixRelocations);
         CodeCache::scavenge_root_nmethods_do(&each_scavengable_code_blob);
       }
       break;
@@ -122,8 +122,8 @@ void ThreadRootsTask::do_it(GCTaskManager* manager, uint which) {
 
   PSPromotionManager* pm = PSPromotionManager::gc_thread_promotion_manager(which);
   PSScavengeRootsClosure roots_closure(pm);
-  CLDToOopClosure* roots_from_clds = NULL;  // Not needed. All CLDs are already visited.
-  CodeBlobToOopClosure roots_in_blobs(&roots_closure, /*do_marking=*/ true);
+  CLDClosure* roots_from_clds = NULL;  // Not needed. All CLDs are already visited.
+  MarkingCodeBlobClosure roots_in_blobs(&roots_closure, CodeBlobToOopClosure::FixRelocations);
 
   if (_java_thread != NULL)
     _java_thread->oops_do(&roots_closure, roots_from_clds, &roots_in_blobs);
