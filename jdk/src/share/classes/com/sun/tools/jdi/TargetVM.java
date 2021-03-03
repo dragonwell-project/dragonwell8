@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2011, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2017, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -35,7 +35,7 @@ import java.io.IOException;
 
 public class TargetVM implements Runnable {
     private Map<String, Packet> waitingQueue = new HashMap<String, Packet>(32,0.75f);
-    private boolean shouldListen = true;
+    private volatile boolean shouldListen = true;
     private List<EventQueue> eventQueues = Collections.synchronizedList(new ArrayList<EventQueue>(2));
     private VirtualMachineImpl vm;
     private Connection connection;
@@ -173,6 +173,9 @@ public class TargetVM implements Runnable {
 
         // inform the VM mamager that this VM is history
         vm.vmManager.disposeVirtualMachine(vm);
+        if (eventController != null) {
+            eventController.release();
+        }
 
         // close down all the event queues
         // Closing a queue causes a VMDisconnectEvent to
@@ -234,7 +237,7 @@ public class TargetVM implements Runnable {
 
     private EventController eventController() {
         if (eventController == null) {
-            eventController = new EventController(vm);
+            eventController = new EventController();
         }
         return eventController;
     }
@@ -323,13 +326,11 @@ public class TargetVM implements Runnable {
         } catch (IOException ioe) { }
     }
 
-    static private class EventController extends Thread {
-        VirtualMachineImpl vm;
+    private class EventController extends Thread {
         int controlRequest = 0;
 
-        EventController(VirtualMachineImpl vm) {
+        EventController() {
             super(vm.threadGroupForJDI(), "JDI Event Control Thread");
-            this.vm = vm;
             setDaemon(true);
             setPriority((MAX_PRIORITY + NORM_PRIORITY)/2);
             super.start();
@@ -351,6 +352,9 @@ public class TargetVM implements Runnable {
                 synchronized(this) {
                     while (controlRequest == 0) {
                         try {wait();} catch (InterruptedException e) {}
+                        if (!shouldListen) {
+                           return;
+                        }
                     }
                     currentRequest = controlRequest;
                     controlRequest = 0;

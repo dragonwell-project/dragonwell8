@@ -103,7 +103,7 @@ public class RegistryImpl extends java.rmi.server.RemoteServer
     private static final int REGISTRY_MAX_DEPTH = 20;
 
     /** Registry maximum array size in remote invocations. **/
-    private static final int REGISTRY_MAX_ARRAY_SIZE = 10000;
+    private static final int REGISTRY_MAX_ARRAY_SIZE = 1_000_000;
 
     /**
      * The registryFilter created from the value of the {@code "sun.rmi.registry.registryFilter"}
@@ -123,7 +123,7 @@ public class RegistryImpl extends java.rmi.server.RemoteServer
             props = Security.getProperty(REGISTRY_FILTER_PROPNAME);
         }
         if (props != null) {
-            filter = ObjectInputFilter.Config.createFilter(props);
+            filter = ObjectInputFilter.Config.createFilter2(props);
             Log regLog = Log.getLog("sun.rmi.registry", "registry", -1);
             if (regLog.isLoggable(Log.BRIEF)) {
                 regLog.log(Log.BRIEF, "registryFilter = " + filter);
@@ -419,17 +419,10 @@ public class RegistryImpl extends java.rmi.server.RemoteServer
         Class<?> clazz = filterInfo.serialClass();
         if (clazz != null) {
             if (clazz.isArray()) {
-                if (filterInfo.arrayLength() >= 0 && filterInfo.arrayLength() > REGISTRY_MAX_ARRAY_SIZE) {
-                    return ObjectInputFilter.Status.REJECTED;
-                }
-                do {
-                    // Arrays are allowed depending on the component type
-                    clazz = clazz.getComponentType();
-                } while (clazz.isArray());
-            }
-            if (clazz.isPrimitive()) {
-                // Arrays of primitives are allowed
-                return ObjectInputFilter.Status.ALLOWED;
+                // Arrays are REJECTED only if they exceed the limit
+                return (filterInfo.arrayLength() >= 0 && filterInfo.arrayLength() > REGISTRY_MAX_ARRAY_SIZE)
+                    ? ObjectInputFilter.Status.REJECTED
+                    : ObjectInputFilter.Status.UNDECIDED;
             }
             if (String.class == clazz
                     || java.lang.Number.class.isAssignableFrom(clazz)

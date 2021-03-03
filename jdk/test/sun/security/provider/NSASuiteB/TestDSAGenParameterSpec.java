@@ -31,34 +31,25 @@ import java.security.NoSuchProviderException;
 import java.security.spec.DSAGenParameterSpec;
 import java.security.spec.DSAParameterSpec;
 import java.security.spec.InvalidParameterSpecException;
-import java.util.Arrays;
-import java.util.List;
 
 /*
  * @test
  * @bug 8075286
  * @summary Verify that DSAGenParameterSpec can and can only be used to generate
  *          DSA within some certain range of key sizes as described in the class
- *          specification (L, N) as (1024, 160), (2048, 224), (2048, 256) and
- *          (3072, 256) should be OK for DSAGenParameterSpec. But the real
- *          implementation SUN doesn't support (3072, 256).
- * @run main TestDSAGenParameterSpec
+ *          specification (L, N) as (1024, 160), (2048, 224) and (2048, 256)
+ *          should be OK for DSAGenParameterSpec.
+ * @run main TestDSAGenParameterSpec 512 160
+ * @run main TestDSAGenParameterSpec 1024 160 true
+ * @run main TestDSAGenParameterSpec 1024 224
+ * @run main TestDSAGenParameterSpec 2048 160
+ * @run main/timeout=300 TestDSAGenParameterSpec 2048 224 true
+ * @run main/timeout=300 TestDSAGenParameterSpec 2048 256 true
  */
 public class TestDSAGenParameterSpec {
 
     private static final String ALGORITHM_NAME = "DSA";
     private static final String PROVIDER_NAME = "SUN";
-
-    private static final List<DataTuple> DATA = Arrays.asList(
-            new DataTuple(1024, 160, true, true),
-            new DataTuple(2048, 224, true, true),
-            new DataTuple(2048, 256, true, true),
-            new DataTuple(3072, 256, true, false),
-            new DataTuple(1024, 224),
-            new DataTuple(2048, 160),
-            new DataTuple(4096, 256),
-            new DataTuple(512, 160),
-            new DataTuple(3072, 224));
 
     private static void testDSAGenParameterSpec(DataTuple dataTuple)
             throws NoSuchAlgorithmException, NoSuchProviderException,
@@ -66,8 +57,8 @@ public class TestDSAGenParameterSpec {
         System.out.printf("Test case: primePLen=%d, " + "subprimeQLen=%d%n",
                 dataTuple.primePLen, dataTuple.subprimeQLen);
 
-        AlgorithmParameterGenerator apg =
-                AlgorithmParameterGenerator.getInstance(ALGORITHM_NAME,
+        AlgorithmParameterGenerator apg
+                = AlgorithmParameterGenerator.getInstance(ALGORITHM_NAME,
                         PROVIDER_NAME);
 
         DSAGenParameterSpec genParamSpec = createGenParameterSpec(dataTuple);
@@ -83,21 +74,14 @@ public class TestDSAGenParameterSpec {
             checkParam(param, genParamSpec);
             System.out.println("Test case passed");
         } catch (InvalidParameterException ipe) {
-            // The DSAGenParameterSpec API support this, but the real
-            // implementation in SUN doesn't
-            if (!dataTuple.isSunProviderSupported) {
-                System.out.println("Test case passed: expected "
-                        + "InvalidParameterException is caught");
-            } else {
-                throw new RuntimeException("Test case failed.", ipe);
-            }
+            throw new RuntimeException("Test case failed.", ipe);
         }
     }
 
     private static void checkParam(AlgorithmParameters param,
             DSAGenParameterSpec genParam) throws InvalidParameterSpecException,
-                    NoSuchAlgorithmException, NoSuchProviderException,
-                    InvalidAlgorithmParameterException {
+            NoSuchAlgorithmException, NoSuchProviderException,
+            InvalidAlgorithmParameterException {
         String algorithm = param.getAlgorithm();
         if (!algorithm.equalsIgnoreCase(ALGORITHM_NAME)) {
             throw new RuntimeException(
@@ -126,11 +110,9 @@ public class TestDSAGenParameterSpec {
             throw new RuntimeException("Wrong seed length");
         }
 
-        // use the parameters to generate real DSA keys
         KeyPairGenerator keyGen = KeyPairGenerator.getInstance(ALGORITHM_NAME,
                 PROVIDER_NAME);
         keyGen.initialize(spec);
-        keyGen.generateKeyPair();
     }
 
     private static DSAGenParameterSpec createGenParameterSpec(
@@ -157,10 +139,25 @@ public class TestDSAGenParameterSpec {
     }
 
     public static void main(String[] args) throws Exception {
-        for (DataTuple dataTuple : DATA) {
-            testDSAGenParameterSpec(dataTuple);
+        if (args == null || args.length < 2) {
+            throw new RuntimeException("Invalid number of arguments to generate"
+                    + " DSA parameter.");
         }
-        System.out.println("All tests passed");
+        DataTuple dataTuple = null;
+        switch (args.length) {
+            case 3:
+                dataTuple = new DataTuple(Integer.valueOf(args[0]),
+                        Integer.valueOf(args[1]), Boolean.valueOf(args[2]));
+                break;
+            case 2:
+                dataTuple = new DataTuple(Integer.valueOf(args[0]),
+                        Integer.valueOf(args[1]), false);
+                break;
+            default:
+                throw new RuntimeException("Unsupported arguments found.");
+        }
+        testDSAGenParameterSpec(dataTuple);
+
     }
 
     private static class DataTuple {
@@ -168,18 +165,12 @@ public class TestDSAGenParameterSpec {
         private int primePLen;
         private int subprimeQLen;
         private boolean isDSASpecSupported;
-        private boolean isSunProviderSupported;
 
         private DataTuple(int primePLen, int subprimeQLen,
-                boolean isDSASpecSupported, boolean isSunProviderSupported) {
+                boolean isDSASpecSupported) {
             this.primePLen = primePLen;
             this.subprimeQLen = subprimeQLen;
             this.isDSASpecSupported = isDSASpecSupported;
-            this.isSunProviderSupported = isSunProviderSupported;
-        }
-
-        private DataTuple(int primePLen, int subprimeQLen) {
-            this(primePLen, subprimeQLen, false, false);
         }
     }
 }
