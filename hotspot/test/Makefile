@@ -180,8 +180,8 @@ ifdef TESTDIRS
   JTREG_TESTDIRS = $(TESTDIRS)
 endif
 
-# Default JTREG to run (win32 script works for everybody)
-JTREG = $(JT_HOME)/win32/bin/jtreg
+# Default JTREG to run
+JTREG = $(JT_HOME)/bin/jtreg
 
 # Option to tell jtreg to not run tests marked with "ignore"
 ifeq ($(PLATFORM), windows)
