@@ -35,7 +35,6 @@ import java.security.Security;
 import java.util.Objects;
 
 import org.testng.Assert;
-import org.testng.TestNG;
 import org.testng.annotations.BeforeSuite;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
@@ -43,10 +42,6 @@ import org.testng.annotations.Test;
 /*
  * @test
  * @library /java/rmi/testlibrary
- * @modules java.rmi/sun.rmi.registry
- *          java.rmi/sun.rmi.server
- *          java.rmi/sun.rmi.transport
- *          java.rmi/sun.rmi.transport.tcp
  * @build TestLibrary
  * @summary Test filters for the RMI Registry
  * @run testng/othervm RegistryFilterTest
@@ -65,21 +60,14 @@ public class RegistryFilterTest {
 
     static final int REGISTRY_MAX_DEPTH = 20;
 
-    static final int REGISTRY_MAX_ARRAY = 10000;
+    static final int REGISTRY_MAX_ARRAY = 1_000_000;
 
     static final String registryFilter =
             System.getProperty("sun.rmi.registry.registryFilter",
                     Security.getProperty("sun.rmi.registry.registryFilter"));
 
-    @DataProvider(name = "bindAllowed")
-    static Object[][] bindAllowedObjects() {
-        Object[][] objects = {
-        };
-        return objects;
-    }
-
     /**
-     * Data RMI Regiry bind test.
+     * Data RMI Registry bind test.
      * - name
      * - Object
      * - true/false if object is blacklisted by a filter (implicit or explicit)
@@ -90,9 +78,11 @@ public class RegistryFilterTest {
         Object[][] data = {
                 { "byte[max]", new XX(new byte[REGISTRY_MAX_ARRAY]), false },
                 { "String", new XX("now is the time"), false},
-                { "String[]", new XX(new String[3]), false},
-                { "Long[4]", new XX(new Long[4]), registryFilter != null },
+                { "String[3]", new XX(new String[3]), false},
+                { "Long[4]", new XX(new Long[4]), false },
+                { "Object[REGISTRY_MAX_ARRAY]", new XX(new Object[REGISTRY_MAX_ARRAY]), false },
                 { "rej-byte[toobig]", new XX(new byte[REGISTRY_MAX_ARRAY + 1]), true },
+                { "rej-Object[toobig]", new XX(new Object[REGISTRY_MAX_ARRAY + 1]), true },
                 { "rej-MarshalledObject", createMarshalledObject(), true },
                 { "rej-RejectableClass", new RejectableClass(), registryFilter != null},
         };
