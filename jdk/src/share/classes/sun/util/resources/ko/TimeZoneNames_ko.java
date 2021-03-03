@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2014, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -570,6 +570,9 @@ public final class TimeZoneNames_ko extends TimeZoneNamesBundle {
             {"Antarctica/Syowa", new String[] {"Syowa \uc2dc\uac04", "SYOT",
                                                "Syowa \uc77c\uad11\uc808\uc57d\uc2dc\uac04", "SYOST",
                                                "\uC1FC\uC640 \uD45C\uC900\uC2DC", "SYOT"}},
+            {"Antarctica/Troll", new String[] {"\uc138\uacc4 \ud45c\uc900\uc2dc", "UTC",
+                                               "\uc911\uc559 \uc720\ub7fd \uc77c\uad11\uc808\uc57d\uc2dc\uac04", "CEST",
+                                               "Troll Time", "ATT"}},
             {"Antarctica/Vostok", new String[] {"Vostok \uc2dc\uac04", "VOST",
                                                 "Vostok \uc77c\uad11\uc808\uc57d\uc2dc\uac04", "VOSST",
                                                 "\uBCF4\uC2A4\uD1A1 \uD45C\uC900\uC2DC", "VOST"}},
@@ -578,7 +581,7 @@ public final class TimeZoneNames_ko extends TimeZoneNamesBundle {
             {"Asia/Almaty", new String[] {"\uc54c\ub9c8\uc544\ud0c0 \uc2dc\uac04", "ALMT",
                                           "\uc54c\ub9c8\uc544\ud0c0 \uc77c\uad11\uc808\uc57d\uc2dc\uac04", "ALMST",
                                           "\uC54C\uB9C8\uC544\uD0C0 \uD45C\uC900\uC2DC", "ALMT"}},
-            {"Asia/Amman", ARAST},
+            {"Asia/Amman", EET},
             {"Asia/Anadyr", new String[] {"\uc544\ub098\ub514\ub974 \uc2dc\uac04", "ANAT",
                                           "\uc544\ub098\ub514\ub974 \uc77c\uad11\uc808\uc57d\uc2dc\uac04", "ANAST",
                                           "\uC544\uB098\uB514\uB9AC \uD45C\uC900\uC2DC", "ANAT"}},
@@ -838,7 +841,7 @@ public final class TimeZoneNames_ko extends TimeZoneNamesBundle {
                                             "\uC0AC\uB9C8\uB77C \uD45C\uC900\uC2DC", "SAMT"}},
             {"Europe/San_Marino", CET},
             {"Europe/Sarajevo", CET},
-            {"Europe/Simferopol", EET},
+            {"Europe/Simferopol", MSK},
             {"Europe/Skopje", CET},
             {"Europe/Sofia", EET},
             {"Europe/Stockholm", CET},
