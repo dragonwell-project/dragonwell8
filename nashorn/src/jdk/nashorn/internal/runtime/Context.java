@@ -32,6 +32,7 @@ import static jdk.nashorn.internal.codegen.CompilerConstants.STRICT_MODE;
 import static jdk.nashorn.internal.lookup.Lookup.MH;
 import static jdk.nashorn.internal.runtime.ECMAErrors.typeError;
 import static jdk.nashorn.internal.runtime.ScriptRuntime.UNDEFINED;
+import static jdk.nashorn.internal.runtime.Source.sourceFor;
 
 import java.io.File;
 import java.io.IOException;
@@ -490,6 +491,39 @@ public final class Context {
     }
 
     /**
+     * Interface to represent compiled code that can be re-used across many
+     * global scope instances
+     */
+    public static interface MultiGlobalCompiledScript {
+        /**
+         * Obtain script function object for a specific global scope object.
+         *
+         * @param newGlobal global scope for which function object is obtained
+         * @return script function for script level expressions
+         */
+        public ScriptFunction getFunction(final Global newGlobal);
+    }
+
+    /**
+     * Compile a top level script.
+     *
+     * @param source the script source
+     * @return reusable compiled script across many global scopes.
+     */
+    public MultiGlobalCompiledScript compileScript(final Source source) {
+        final Class<?> clazz = compile(source, this.errors, this._strict);
+        final MethodHandle runMethodHandle = getRunScriptHandle(clazz);
+        final boolean strict = isStrict(clazz);
+
+        return new MultiGlobalCompiledScript() {
+            @Override
+            public ScriptFunction getFunction(final Global newGlobal) {
+                return Context.getGlobal().newScriptFunction(RUN_SCRIPT.symbolName(), runMethodHandle, newGlobal, strict);
+            }
+        };
+    }
+
+    /**
      * Entry point for {@code eval}
      *
      * @param initialScope The scope of this eval call
@@ -502,7 +536,7 @@ public final class Context {
      */
     public Object eval(final ScriptObject initialScope, final String string, final Object callThis, final Object location, final boolean strict) {
         final String  file       = (location == UNDEFINED || location == null) ? "<eval>" : location.toString();
-        final Source  source     = new Source(file, string);
+        final Source  source     = sourceFor(file, string);
         final boolean directEval = location != UNDEFINED; // is this direct 'eval' call or indirectly invoked eval?
         final Global  global = Context.getGlobal();
 
@@ -569,7 +603,7 @@ public final class Context {
                         public Source run() {
                             try {
                                 final URL resURL = Context.class.getResource(resource);
-                                return (resURL != null)? new Source(srcStr, resURL) : null;
+                                return (resURL != null)? sourceFor(srcStr, resURL) : null;
                             } catch (final IOException exp) {
                                 return null;
                             }
@@ -601,7 +635,7 @@ public final class Context {
             final String srcStr = (String)src;
             if (srcStr.startsWith(LOAD_CLASSPATH)) {
                 URL url = getResourceURL(srcStr.substring(LOAD_CLASSPATH.length()));
-                source = (url != null)? new Source(url.toString(), url) : null;
+                source = (url != null)? sourceFor(url.toString(), url) : null;
             } else {
                 final File file = new File(srcStr);
                 if (srcStr.indexOf(':') != -1) {
@@ -614,31 +648,31 @@ public final class Context {
                         } catch (final MalformedURLException e) {
                             url = file.toURI().toURL();
                         }
-                        source = new Source(url.toString(), url);
+                        source = sourceFor(url.toString(), url);
                     }
                 } else if (file.isFile()) {
-                    source = new Source(srcStr, file);
+                    source = sourceFor(srcStr, file);
                 }
             }
         } else if (src instanceof File && ((File)src).isFile()) {
             final File file = (File)src;
-            source = new Source(file.getName(), file);
+            source = sourceFor(file.getName(), file);
         } else if (src instanceof URL) {
             final URL url = (URL)src;
-            source = new Source(url.toString(), url);
+            source = sourceFor(url.toString(), url);
         } else if (src instanceof ScriptObject) {
             final ScriptObject sobj = (ScriptObject)src;
             if (sobj.has("script") && sobj.has("name")) {
                 final String script = JSType.toString(sobj.get("script"));
                 final String name   = JSType.toString(sobj.get("name"));
-                source = new Source(name, script);
+                source = sourceFor(name, script);
             }
         } else if (src instanceof Map) {
             final Map<?,?> map = (Map<?,?>)src;
             if (map.containsKey("script") && map.containsKey("name")) {
                 final String script = JSType.toString(map.get("script"));
                 final String name   = JSType.toString(map.get("name"));
-                source = new Source(name, script);
+                source = sourceFor(name, script);
             }
         }
 
@@ -949,14 +983,8 @@ public final class Context {
         return ScriptRuntime.apply(script, thiz);
     }
 
-    private static ScriptFunction getRunScriptFunction(final Class<?> script, final ScriptObject scope) {
-        if (script == null) {
-            return null;
-        }
-
-        // Get run method - the entry point to the script
-        final MethodHandle runMethodHandle =
-                MH.findStatic(
+    private static MethodHandle getRunScriptHandle(final Class<?> script) {
+        return MH.findStatic(
                     MethodHandles.lookup(),
                     script,
                     RUN_SCRIPT.symbolName(),
@@ -964,14 +992,24 @@ public final class Context {
                         Object.class,
                         ScriptFunction.class,
                         Object.class));
+    }
 
-        boolean strict;
-
+    private static boolean isStrict(final Class<?> script) {
         try {
-            strict = script.getField(STRICT_MODE.symbolName()).getBoolean(null);
+            return script.getField(STRICT_MODE.symbolName()).getBoolean(null);
         } catch (final NoSuchFieldException | SecurityException | IllegalArgumentException | IllegalAccessException e) {
-            strict = false;
+            return false;
         }
+    }
+
+    private static ScriptFunction getRunScriptFunction(final Class<?> script, final ScriptObject scope) {
+        if (script == null) {
+            return null;
+        }
+
+        // Get run method - the entry point to the script
+        final MethodHandle runMethodHandle = getRunScriptHandle(script);
+        boolean strict = isStrict(script);
 
         // Package as a JavaScript function and pass function back to shell.
         return Context.getGlobal().newScriptFunction(RUN_SCRIPT.symbolName(), runMethodHandle, scope, strict);
