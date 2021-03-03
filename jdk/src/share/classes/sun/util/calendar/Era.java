@@ -49,7 +49,7 @@ import java.util.TimeZone;
  *                           Taisho           1912-07-30 midnight local time
  *                           Showa            1926-12-26 midnight local time
  *                           Heisei           1989-01-08 midnight local time
- *                           NewEra           2019-05-01 midnight local time
+ *                           Reiwa            2019-05-01T00:00:00 local time
  *   Julian calendar         BeforeCommonEra  -292275055-05-16T16:47:04.192Z
  *                           CommonEra        0000-12-30 midnight local time
  *   Taiwanese calendar      MinGuo           1911-01-01 midnight local time
