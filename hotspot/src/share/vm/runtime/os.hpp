@@ -561,8 +561,7 @@ class os: AllStatic {
 
   // Reading directories.
   static DIR*           opendir(const char* dirname);
-  static int            readdir_buf_size(const char *path);
-  static struct dirent* readdir(DIR* dirp, dirent* dbuf);
+  static struct dirent* readdir(DIR* dirp);
   static int            closedir(DIR* dirp);
 
   // Dynamic library extension

@@ -47,10 +47,15 @@ else
 LFLAGS_JSIG += -mt -xnolib
 endif
 
+# Optimize jsig lib unless it's a slowdebug build
+ifneq ($(DEBUG_LEVEL), slowdebug)
+  JSIG_OPT_FLAGS = -xO4 -g
+endif
+
 $(LIBJSIG): $(JSIGSRCDIR)/jsig.c $(LIBJSIG_MAPFILE)
 	@echo Making signal interposition lib...
 	$(QUIETLY) $(CC) $(SYMFLAG) $(ARCHFLAG) $(SHARED_FLAG) $(PICFLAG) \
-                         $(LFLAGS_JSIG) -o $@ $(JSIGSRCDIR)/jsig.c -ldl
+                         $(LFLAGS_JSIG) $(JSIG_OPT_FLAGS) -o $@ $(JSIGSRCDIR)/jsig.c -ldl
 ifeq ($(ENABLE_FULL_DEBUG_SYMBOLS),1)
 	$(QUIETLY) $(OBJCOPY) --only-keep-debug $@ $(LIBJSIG_DEBUGINFO)
 	$(QUIETLY) $(OBJCOPY) --add-gnu-debuglink=$(LIBJSIG_DEBUGINFO) $@

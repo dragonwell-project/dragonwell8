@@ -125,7 +125,9 @@ ifeq ($(PROFILE), )
       wsimport$(EXE_SUFFIX) \
       schemagen$(EXE_SUFFIX) \
       jsadebugd$(EXE_SUFFIX) \
-      jhat$(EXE_SUFFIX)
+      jhat$(EXE_SUFFIX) \
+      clhsdb$(EXE_SUFFIX) \
+      hsdb$(EXE_SUFFIX)
 endif
 
 WINDOWS_JDK_BIN_FILES = \
