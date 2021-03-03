@@ -152,6 +152,8 @@ class Compile : public Phase {
       _element = e;
     }
 
+    BasicType basic_type() const;
+
     void print_on(outputStream* st) PRODUCT_RETURN;
   };
 
