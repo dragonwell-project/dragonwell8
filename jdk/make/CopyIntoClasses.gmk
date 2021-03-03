@@ -195,9 +195,9 @@ OUT_SERVICES_FILES := $(addprefix $(JDK_OUTPUTDIR)/classes/META-INF/services/, \
     $(shell $(PRINTF) "$(SRC_SERVICES_FILES)\n" | $(SED) -e 's|/[^ ]*/META-INF/services/||g'))
 OUT_SERVICES_FILES_COLON := $(addsuffix :, $(OUT_SERVICES_FILES))
 # Exception handling for print services with no META-INF directory
-SRC_SERVICES_FILES_PRINT = $(wildcard $(JDK_TOPDIR)/src/$(OPENJDK_TARGET_OS_API_DIR)/classes/sun/print/services/*)
+SRC_SERVICES_FILES_PRINT = $(wildcard $(JDK_TOPDIR)/src/share/classes/sun/print/services/*)
 OUT_SERVICES_FILES_PRINT = $(addprefix $(JDK_OUTPUTDIR)/classes/META-INF/services/, \
-    $(patsubst $(JDK_TOPDIR)/src/$(OPENJDK_TARGET_OS_API_DIR)/classes/sun/print/services/%, %, \
+    $(patsubst $(JDK_TOPDIR)/src/share/classes/sun/print/services/%, %, \
     $(SRC_SERVICES_FILES_PRINT)))
 OUT_SERVICES_FILES_PRINT_COLON = $(addsuffix :, $(OUT_SERVICES_FILES_PRINT))
 RULES_SERVICES_PRINT = $(join $(OUT_SERVICES_FILES_PRINT_COLON), $(SRC_SERVICES_FILES_PRINT))
