@@ -30,10 +30,16 @@
  * @run main/manual TestTransmit
  */
 
-import java.io.*;
-import java.util.*;
-
-import javax.smartcardio.*;
+import java.io.BufferedReader;
+import java.io.ByteArrayOutputStream;
+import java.io.FileReader;
+import java.io.IOException;
+import java.io.StringReader;
+import javax.smartcardio.Card;
+import javax.smartcardio.CardChannel;
+import javax.smartcardio.CardTerminal;
+import javax.smartcardio.CommandAPDU;
+import javax.smartcardio.ResponseAPDU;
 
 public class TestTransmit extends Utils {
 
@@ -78,7 +84,7 @@ public class TestTransmit extends Utils {
         }
 
         // disconnect
-        card.disconnect(false);
+        card.disconnect(true);
 
         System.out.println("OK.");
     }
