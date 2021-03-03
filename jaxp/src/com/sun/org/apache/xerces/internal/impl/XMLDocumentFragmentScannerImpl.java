@@ -1309,6 +1309,7 @@ public class XMLDocumentFragmentScannerImpl
 
         fAttributes.removeAllAttributes();
 
+        checkDepth(rawname);
         if(!seekCloseOfStartTag()){
             fReadingAttributes = true;
             fAttributeCacheUsedCount =0;
@@ -1911,6 +1912,21 @@ public class XMLDocumentFragmentScannerImpl
     } // scanEntityReference()
 
     // utility methods
+
+    /**
+     * Check if the depth exceeds the maxElementDepth limit
+     * @param elementName name of the current element
+     */
+    void checkDepth(String elementName) {
+        fLimitAnalyzer.addValue(Limit.MAX_ELEMENT_DEPTH_LIMIT, elementName, fElementStack.fDepth);
+        if (fSecurityManager.isOverLimit(Limit.MAX_ELEMENT_DEPTH_LIMIT,fLimitAnalyzer)) {
+            fSecurityManager.debugPrint(fLimitAnalyzer);
+            reportFatalError("MaxElementDepthLimit", new Object[]{elementName,
+                fLimitAnalyzer.getTotalValue(Limit.MAX_ELEMENT_DEPTH_LIMIT),
+                fSecurityManager.getLimit(Limit.MAX_ELEMENT_DEPTH_LIMIT),
+                "maxElementDepth"});
+        }
+    }
 
     /**
      * Calls document handler with a single character resulting from
