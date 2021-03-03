@@ -28,7 +28,6 @@
  *  loaded class list are prepared classes.
  *  @author Robert Field
  *
- *  @library scaffold
  *  @run build JDIScaffold VMConnection
  *  @run compile -g InnerTarg.java
  *  @run build UnpreparedClasses

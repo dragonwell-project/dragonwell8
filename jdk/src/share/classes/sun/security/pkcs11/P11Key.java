@@ -47,7 +47,6 @@ import static sun.security.pkcs11.wrapper.PKCS11Constants.*;
 
 import sun.security.util.DerValue;
 import sun.security.util.Length;
-import sun.security.util.ECUtil;
 
 /**
  * Key implementation classes.
@@ -993,7 +992,7 @@ abstract class P11Key implements Key, Length {
             if (encoded == null) {
                 fetchValues();
                 try {
-                    Key key = ECUtil.generateECPrivateKey(s, params);
+                    Key key = P11ECUtil.generateECPrivateKey(s, params);
                     encoded = key.getEncoded();
                 } catch (InvalidKeySpecException e) {
                     throw new ProviderException(e);
@@ -1067,7 +1066,7 @@ abstract class P11Key implements Key, Length {
             if (encoded == null) {
                 fetchValues();
                 try {
-                    return ECUtil.x509EncodeECPublicKey(w, params);
+                    return P11ECUtil.x509EncodeECPublicKey(w, params);
                 } catch (InvalidKeySpecException e) {
                     throw new ProviderException(e);
                 }

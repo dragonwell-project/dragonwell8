@@ -283,15 +283,15 @@ $(IMAGES_OUTPUTDIR)/lib$(PROFILE)/_the.resources.jar.contents: $(IMAGES_OUTPUTDI
 	    -e '/_the\.*' -e '^_the\.*' -e '\\_the\.*' -e 'javac_state' \
 	    $(IMAGES_OUTPUTDIR)/lib$(PROFILE)/_the.jars.contents > $@.tmp
         ifneq ($(PROFILE), )
+	  # Strip out all META-INF/services/ entries
+	  $(GREP) -v -e 'META-INF/services/' $@.tmp > $@.tmp2
           ifneq ($(strip $(PROFILE_INCLUDE_METAINF_SERVICES)), )
-            # Strip out all META-INF/services/ entries
-	    $(GREP) -v -e 'META-INF/services/' $@.tmp > $@.tmp2
 	    # Add back the required services
 	    for service in $(PROFILE_INCLUDE_METAINF_SERVICES) ; do \
 	      $(ECHO) $$service >> $@.tmp2; \
 	    done
-	    $(MV) $@.tmp2 $@.tmp
           endif
+	  $(MV) $@.tmp2 $@.tmp
         endif
 	$(MV) $@.tmp $@
 
