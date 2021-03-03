@@ -26,7 +26,7 @@
  * @bug 8015669
  * @summary KerberosPrincipal::equals should ignore name-type
  * @compile -XDignore.symbol.file KPEquals.java
- * @run main/othervm KPEquals
+ * @run main/othervm -Dsun.net.spi.nameservice.provider.1=ns,mock KPEquals
  */
 
 import sun.security.jgss.GSSUtil;
