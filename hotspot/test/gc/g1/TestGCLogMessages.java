@@ -23,7 +23,7 @@
 
 /*
  * @test TestGCLogMessages
- * @bug 8035406 8027295 8035398 8019342 8027959 8027962
+ * @bug 8035406 8027295 8035398 8019342 8027959 8048179 8027962
  * @summary Ensure that the PrintGCDetails output for a minor GC with G1
  * includes the expected necessary messages.
  * @key gc
@@ -81,6 +81,7 @@ public class TestGCLogMessages {
         new LogMessageWithLevel("Non-Young Free CSet", Level.FINEST),
         // Humongous Eager Reclaim
         new LogMessageWithLevel("Humongous Reclaim", Level.FINER),
+        new LogMessageWithLevel("Humongous Register", Level.FINER),
     };
 
     void checkMessagesAtLevel(OutputAnalyzer output, LogMessageWithLevel messages[], Level level) throws Exception {
