@@ -100,7 +100,7 @@ VerifyLocalVariableTableOnRetransformTest
         // The HotSpot VM hands us class file bytes at initial class
         // load time that match the .class file contents. However,
         // according to the following spec that is not required:
-        // http://docs.oracle.com/javase/7/docs/api/java/lang/instrument/Instrumentation.html#retransformClasses(java.lang.Class...)
+        // https://docs.oracle.com/javase/7/docs/api/java/lang/instrument/Instrumentation.html#retransformClasses(java.lang.Class...)
         // This test exists to catch any unintentional change in
         // behavior by the HotSpot VM. If this behavior is intentionally
         // changed in the future, then this test will need to be

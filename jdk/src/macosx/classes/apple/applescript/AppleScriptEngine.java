@@ -155,7 +155,7 @@ public class AppleScriptEngine implements ScriptEngine {
         TRACE("init()");
         // set up our context
 /* TODO -- name of current executable?  bad java documentation at:
- * http://docs.oracle.com/javase/6/docs/api/javax/script/ScriptEngine.html#FILENAME */
+ * https://docs.oracle.com/javase/6/docs/api/javax/script/ScriptEngine.html#FILENAME */
         put(ScriptEngine.FILENAME, "");
         put(ScriptEngine.ENGINE, getEngine());
         put(ScriptEngine.ENGINE_VERSION, getEngineVersion());
