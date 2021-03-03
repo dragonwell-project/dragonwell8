@@ -1,5 +1,5 @@
 #
-# Copyright (c) 1997, 2013, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 1997, 2014, Oracle and/or its affiliates. All rights reserved.
 # DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 #
 # This code is free software; you can redistribute it and/or modify it
@@ -269,6 +269,9 @@ SUNWprivate_1.1 {
 		Java_sun_reflect_Reflection_getCallerClass__;
 		Java_sun_reflect_Reflection_getCallerClass__I;
 		Java_sun_reflect_Reflection_getClassAccessFlags;
+		Java_sun_misc_URLClassPath_knownToNotExist0;
+                Java_sun_misc_URLClassPath_getLookupCacheURLs;
+                Java_sun_misc_URLClassPath_getLookupCacheForClassLoader;
                 Java_sun_misc_Version_getJdkVersionInfo;
                 Java_sun_misc_Version_getJdkSpecialVersion;
                 Java_sun_misc_Version_getJvmVersionInfo;
