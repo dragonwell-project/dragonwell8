@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1996, 2017, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -66,6 +66,13 @@ abstract class DSA extends SignatureSpi {
 
     /* Are we debugging? */
     private static final boolean debug = false;
+
+    /* The number of bits used in exponent blinding */
+    private static final int BLINDING_BITS = 7;
+
+    /* The constant component of the exponent blinding value */
+    private static final BigInteger BLINDING_CONSTANT =
+        BigInteger.valueOf(1 << BLINDING_BITS);
 
     /* The parameter object */
     private DSAParams params;
@@ -267,14 +274,20 @@ abstract class DSA extends SignatureSpi {
         BigInteger s = null;
         // first decode the signature.
         try {
-            DerInputStream in = new DerInputStream(signature, offset, length);
+            // Enforce strict DER checking for signatures
+            DerInputStream in =
+                new DerInputStream(signature, offset, length, false);
             DerValue[] values = in.getSequence(2);
 
+            // check number of components in the read sequence
+            // and trailing data
+            if ((values.length != 2) || (in.available() != 0)) {
+                throw new IOException("Invalid encoding for signature");
+            }
             r = values[0].getBigInteger();
             s = values[1].getBigInteger();
-
         } catch (IOException e) {
-            throw new SignatureException("invalid encoding for signature");
+            throw new SignatureException("Invalid encoding for signature", e);
         }
 
         // some implementations do not correctly encode values in the ASN.1
@@ -306,8 +319,19 @@ abstract class DSA extends SignatureSpi {
         return null;
     }
 
+
     private BigInteger generateR(BigInteger p, BigInteger q, BigInteger g,
                          BigInteger k) {
+
+        // exponent blinding to hide information from timing channel
+        SecureRandom random = getSigningRandom();
+        // start with a random blinding component
+        BigInteger blindingValue = new BigInteger(BLINDING_BITS, random);
+        // add the fixed blinding component
+        blindingValue = blindingValue.add(BLINDING_CONSTANT);
+        // replace k with a blinded value that is congruent (mod q)
+        k = k.add(q.multiply(blindingValue));
+
         BigInteger temp = g.modPow(k, p);
         return temp.mod(q);
     }
@@ -366,13 +390,14 @@ abstract class DSA extends SignatureSpi {
         return t5.mod(q);
     }
 
-    // NOTE: This following impl is defined in FIPS 186-4 AppendixB.2.1.
     protected BigInteger generateK(BigInteger q) {
+        // Implementation defined in FIPS 186-4 AppendixB.2.1.
         SecureRandom random = getSigningRandom();
         byte[] kValue = new byte[(q.bitLength() + 7)/8 + 8];
 
         random.nextBytes(kValue);
-        return new BigInteger(1, kValue).mod(q.subtract(BigInteger.ONE)).add(BigInteger.ONE);
+        return new BigInteger(1, kValue).mod(
+                q.subtract(BigInteger.ONE)).add(BigInteger.ONE);
     }
 
     // Use the application-specified SecureRandom Object if provided.
