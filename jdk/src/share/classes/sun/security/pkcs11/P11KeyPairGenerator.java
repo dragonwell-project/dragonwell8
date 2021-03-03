@@ -228,29 +228,34 @@ final class P11KeyPairGenerator extends KeyPairGeneratorSpi {
         // check native range first
         if ((minKeySize != -1) && (keySize < minKeySize)) {
             throw new InvalidAlgorithmParameterException(algorithm +
-                " key must be at least " + minKeySize + " bits");
+                " key must be at least " + minKeySize + " bits. " +
+                "The specific key size " + keySize + " is not supported");
         }
         if ((maxKeySize != -1) && (keySize > maxKeySize)) {
             throw new InvalidAlgorithmParameterException(algorithm +
-                " key must be at most " + maxKeySize + " bits");
+                " key must be at most " + maxKeySize + " bits. " +
+                "The specific key size " + keySize + " is not supported");
         }
 
         // check our own algorithm-specific limits also
         if (algorithm.equals("EC")) {
             if (keySize < 112) {
-                throw new InvalidAlgorithmParameterException
-                    ("Key size must be at least 112 bit");
+                    throw new InvalidAlgorithmParameterException(
+                    "EC key size must be at least 112 bit. " +
+                    "The specific key size " + keySize + " is not supported");
             }
             if (keySize > 2048) {
                 // sanity check, nobody really wants keys this large
-                throw new InvalidAlgorithmParameterException
-                    ("Key size must be at most 2048 bit");
+                throw new InvalidAlgorithmParameterException(
+                    "EC key size must be at most 2048 bit. " +
+                    "The specific key size " + keySize + " is not supported");
             }
         } else {
             // RSA, DH, DSA
             if (keySize < 512) {
-                throw new InvalidAlgorithmParameterException
-                    ("Key size must be at least 512 bit");
+                throw new InvalidAlgorithmParameterException(algorithm +
+                    " key size must be at least 512 bit. " +
+                    "The specific key size " + keySize + " is not supported");
             }
             if (algorithm.equals("RSA")) {
                 BigInteger tmpExponent = rsaPublicExponent;
@@ -271,8 +276,10 @@ final class P11KeyPairGenerator extends KeyPairGeneratorSpi {
                 if (algorithm.equals("DH") && (params != null)) {
                     // sanity check, nobody really wants keys this large
                     if (keySize > 64 * 1024) {
-                        throw new InvalidAlgorithmParameterException
-                            ("Key size must be at most 65536 bit");
+                        throw new InvalidAlgorithmParameterException(
+                            "DH key size must be at most 65536 bit. " +
+                            "The specific key size " +
+                            keySize + " is not supported");
                     }
                 } else {
                     // this restriction is in the spec for DSA
@@ -282,7 +289,9 @@ final class P11KeyPairGenerator extends KeyPairGeneratorSpi {
                         ((keySize > 1024) || ((keySize & 0x3f) != 0))) {
                         throw new InvalidAlgorithmParameterException(algorithm +
                             " key must be multiples of 64 if less than 1024 bits" +
-                            ", or 2048 bits");
+                            ", or 2048 bits. " +
+                            "The specific key size " +
+                            keySize + " is not supported");
                     }
                 }
             }
