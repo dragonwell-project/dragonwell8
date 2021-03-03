@@ -169,7 +169,7 @@ public:
 
   // Mem size in bytes.
   size_t mem_size() const {
-    return sizeof(this) + _bm.size_in_words() * HeapWordSize;
+    return sizeof(PerRegionTable) + _bm.size_in_words() * HeapWordSize;
   }
 
   // Requires "from" to be in "hr()".
@@ -372,17 +372,17 @@ void FromCardCache::initialize(uint n_par_rs, uint max_num_regions) {
                                                        _max_regions,
                                                        &_static_mem_size);
 
-  for (uint i = 0; i < n_par_rs; i++) {
-    for (uint j = 0; j < _max_regions; j++) {
-      set(i, j, InvalidCard);
-    }
-  }
+  invalidate(0, _max_regions);
 }
 
-void FromCardCache::shrink(uint new_num_regions) {
+void FromCardCache::invalidate(uint start_idx, size_t new_num_regions) {
+  guarantee((size_t)start_idx + new_num_regions <= max_uintx,
+            err_msg("Trying to invalidate beyond maximum region, from %u size "SIZE_FORMAT,
+                    start_idx, new_num_regions));
   for (uint i = 0; i < HeapRegionRemSet::num_par_rem_sets(); i++) {
-    assert(new_num_regions <= _max_regions, "Must be within max.");
-    for (uint j = new_num_regions; j < _max_regions; j++) {
+    uint end_idx = (start_idx + (uint)new_num_regions);
+    assert(end_idx <= _max_regions, "Must be within max.");
+    for (uint j = start_idx; j < end_idx; j++) {
       set(i, j, InvalidCard);
     }
   }
@@ -406,12 +406,12 @@ void FromCardCache::clear(uint region_idx) {
   }
 }
 
-void OtherRegionsTable::init_from_card_cache(uint max_regions) {
+void OtherRegionsTable::initialize(uint max_regions) {
   FromCardCache::initialize(HeapRegionRemSet::num_par_rem_sets(), max_regions);
 }
 
-void OtherRegionsTable::shrink_from_card_cache(uint new_num_regions) {
-  FromCardCache::shrink(new_num_regions);
+void OtherRegionsTable::invalidate(uint start_idx, size_t num_regions) {
+  FromCardCache::invalidate(start_idx, num_regions);
 }
 
 void OtherRegionsTable::print_from_card_cache() {
@@ -694,6 +694,9 @@ void OtherRegionsTable::scrub(CardTableModRefBS* ctbs,
   clear_fcc();
 }
 
+bool OtherRegionsTable::is_empty() const {
+  return occ_sparse() == 0 && occ_coarse() == 0 && _first_all_fine_prts == NULL;
+}
 
 size_t OtherRegionsTable::occupied() const {
   size_t sum = occ_fine();
@@ -735,7 +738,7 @@ size_t OtherRegionsTable::mem_size() const {
   sum += (sizeof(PerRegionTable*) * _max_fine_entries);
   sum += (_coarse_map.size_in_words() * HeapWordSize);
   sum += (_sparse_table.mem_size());
-  sum += sizeof(*this) - sizeof(_sparse_table); // Avoid double counting above.
+  sum += sizeof(OtherRegionsTable) - sizeof(_sparse_table); // Avoid double counting above.
   return sum;
 }
 
@@ -770,30 +773,6 @@ void OtherRegionsTable::clear() {
   clear_fcc();
 }
 
-void OtherRegionsTable::clear_incoming_entry(HeapRegion* from_hr) {
-  MutexLockerEx x(_m, Mutex::_no_safepoint_check_flag);
-  size_t hrs_ind = (size_t) from_hr->hrs_index();
-  size_t ind = hrs_ind & _mod_max_fine_entries_mask;
-  if (del_single_region_table(ind, from_hr)) {
-    assert(!_coarse_map.at(hrs_ind), "Inv");
-  } else {
-    _coarse_map.par_at_put(hrs_ind, 0);
-  }
-  // Check to see if any of the fcc entries come from here.
-  uint hr_ind = hr()->hrs_index();
-  for (uint tid = 0; tid < HeapRegionRemSet::num_par_rem_sets(); tid++) {
-    int fcc_ent = FromCardCache::at(tid, hr_ind);
-    if (fcc_ent != FromCardCache::InvalidCard) {
-      HeapWord* card_addr = (HeapWord*)
-        (uintptr_t(fcc_ent) << CardTableModRefBS::card_shift);
-      if (hr()->is_in_reserved(card_addr)) {
-        // Clear the from card cache.
-        FromCardCache::set(tid, hr_ind, FromCardCache::InvalidCard);
-      }
-    }
-  }
-}
-
 bool OtherRegionsTable::del_single_region_table(size_t ind,
                                                 HeapRegion* hr) {
   assert(0 <= ind && ind < _max_fine_entries, "Preconditions.");
@@ -823,7 +802,6 @@ bool OtherRegionsTable::contains_reference(OopOrNarrowOopStar from) const {
 
 bool OtherRegionsTable::contains_reference_locked(OopOrNarrowOopStar from) const {
   HeapRegion* hr = _g1h->heap_region_containing_raw(from);
-  if (hr == NULL) return false;
   RegionIdx_t hr_ind = (RegionIdx_t) hr->hrs_index();
   // Is this region in the coarse map?
   if (_coarse_map.at(hr_ind)) return true;
@@ -861,8 +839,8 @@ uint HeapRegionRemSet::num_par_rem_sets() {
 HeapRegionRemSet::HeapRegionRemSet(G1BlockOffsetSharedArray* bosa,
                                    HeapRegion* hr)
   : _bosa(bosa),
-    _m(Mutex::leaf, FormatBuffer<128>("HeapRegionRemSet lock #"UINT32_FORMAT, hr->hrs_index()), true),
-    _code_roots(), _other_regions(hr, &_m) {
+    _m(Mutex::leaf, FormatBuffer<128>("HeapRegionRemSet lock #%u", hr->hrs_index()), true),
+    _code_roots(), _other_regions(hr, &_m), _iter_state(Unclaimed), _iter_claimed(0) {
   reset_for_par_iteration();
 }
 
@@ -953,7 +931,10 @@ void HeapRegionRemSet::add_strong_code_root(nmethod* nm) {
 
 void HeapRegionRemSet::remove_strong_code_root(nmethod* nm) {
   assert(nm != NULL, "sanity");
-  _code_roots.remove(nm);
+  assert_locked_or_safepoint(CodeCache_lock);
+
+  _code_roots.remove_lock_free(nm);
+
   // Check that there were no duplicates
   guarantee(!_code_roots.contains(nm), "duplicate entry found");
 }
@@ -1048,20 +1029,16 @@ size_t HeapRegionRemSet::strong_code_roots_mem_size() {
   return _code_roots.mem_size();
 }
 
-//-------------------- Iteration --------------------
-
 HeapRegionRemSetIterator:: HeapRegionRemSetIterator(HeapRegionRemSet* hrrs) :
   _hrrs(hrrs),
   _g1h(G1CollectedHeap::heap()),
   _coarse_map(&hrrs->_other_regions._coarse_map),
-  _fine_grain_regions(hrrs->_other_regions._fine_grain_regions),
   _bosa(hrrs->bosa()),
   _is(Sparse),
   // Set these values so that we increment to the first region.
   _coarse_cur_region_index(-1),
   _coarse_cur_region_cur_card(HeapRegion::CardsPerRegion-1),
-  _cur_region_cur_card(0),
-  _fine_array_index(-1),
+  _cur_card_in_prt(HeapRegion::CardsPerRegion),
   _fine_cur_prt(NULL),
   _n_yielded_coarse(0),
   _n_yielded_fine(0),
@@ -1093,58 +1070,59 @@ bool HeapRegionRemSetIterator::coarse_has_next(size_t& card_index) {
   return true;
 }
 
-void HeapRegionRemSetIterator::fine_find_next_non_null_prt() {
-  // Otherwise, find the next bucket list in the array.
-  _fine_array_index++;
-  while (_fine_array_index < (int) OtherRegionsTable::_max_fine_entries) {
-    _fine_cur_prt = _fine_grain_regions[_fine_array_index];
-    if (_fine_cur_prt != NULL) return;
-    else _fine_array_index++;
-  }
-  assert(_fine_cur_prt == NULL, "Loop post");
-}
-
 bool HeapRegionRemSetIterator::fine_has_next(size_t& card_index) {
   if (fine_has_next()) {
-    _cur_region_cur_card =
-      _fine_cur_prt->_bm.get_next_one_offset(_cur_region_cur_card + 1);
+    _cur_card_in_prt =
+      _fine_cur_prt->_bm.get_next_one_offset(_cur_card_in_prt + 1);
   }
-  while (!fine_has_next()) {
-    if (_cur_region_cur_card == (size_t) HeapRegion::CardsPerRegion) {
-      _cur_region_cur_card = 0;
-      _fine_cur_prt = _fine_cur_prt->collision_list_next();
+  if (_cur_card_in_prt == HeapRegion::CardsPerRegion) {
+    // _fine_cur_prt may still be NULL in case if there are not PRTs at all for
+    // the remembered set.
+    if (_fine_cur_prt == NULL || _fine_cur_prt->next() == NULL) {
+      return false;
     }
-    if (_fine_cur_prt == NULL) {
-      fine_find_next_non_null_prt();
-      if (_fine_cur_prt == NULL) return false;
-    }
-    assert(_fine_cur_prt != NULL && _cur_region_cur_card == 0,
-           "inv.");
-    HeapWord* r_bot =
-      _fine_cur_prt->hr()->bottom();
-    _cur_region_card_offset = _bosa->index_for(r_bot);
-    _cur_region_cur_card = _fine_cur_prt->_bm.get_next_one_offset(0);
+    PerRegionTable* next_prt = _fine_cur_prt->next();
+    switch_to_prt(next_prt);
+    _cur_card_in_prt = _fine_cur_prt->_bm.get_next_one_offset(_cur_card_in_prt + 1);
   }
-  assert(fine_has_next(), "Or else we exited the loop via the return.");
-  card_index = _cur_region_card_offset + _cur_region_cur_card;
+
+  card_index = _cur_region_card_offset + _cur_card_in_prt;
+  guarantee(_cur_card_in_prt < HeapRegion::CardsPerRegion,
+            err_msg("Card index "SIZE_FORMAT" must be within the region", _cur_card_in_prt));
   return true;
 }
 
 bool HeapRegionRemSetIterator::fine_has_next() {
-  return
-    _fine_cur_prt != NULL &&
-    _cur_region_cur_card < HeapRegion::CardsPerRegion;
+  return _cur_card_in_prt != HeapRegion::CardsPerRegion;
+}
+
+void HeapRegionRemSetIterator::switch_to_prt(PerRegionTable* prt) {
+  assert(prt != NULL, "Cannot switch to NULL prt");
+  _fine_cur_prt = prt;
+
+  HeapWord* r_bot = _fine_cur_prt->hr()->bottom();
+  _cur_region_card_offset = _bosa->index_for(r_bot);
+
+  // The bitmap scan for the PRT always scans from _cur_region_cur_card + 1.
+  // To avoid special-casing this start case, and not miss the first bitmap
+  // entry, initialize _cur_region_cur_card with -1 instead of 0.
+  _cur_card_in_prt = (size_t)-1;
 }
 
 bool HeapRegionRemSetIterator::has_next(size_t& card_index) {
   switch (_is) {
-  case Sparse:
+  case Sparse: {
     if (_sparse_iter.has_next(card_index)) {
       _n_yielded_sparse++;
       return true;
     }
     // Otherwise, deliberate fall-through
     _is = Fine;
+    PerRegionTable* initial_fine_prt = _hrrs->_other_regions._first_all_fine_prts;
+    if (initial_fine_prt != NULL) {
+      switch_to_prt(_hrrs->_other_regions._first_all_fine_prts);
+    }
+  }
   case Fine:
     if (fine_has_next(card_index)) {
       _n_yielded_fine++;
@@ -1276,6 +1254,11 @@ HeapRegionRemSet::finish_cleanup_task(HRRSCleanupTask* hrrs_cleanup_task) {
 #ifndef PRODUCT
 void PerRegionTable::test_fl_mem_size() {
   PerRegionTable* dummy = alloc(NULL);
+
+  size_t min_prt_size = sizeof(void*) + dummy->bm()->size_in_words() * HeapWordSize;
+  assert(dummy->mem_size() > min_prt_size,
+         err_msg("PerRegionTable memory usage is suspiciously small, only has "SIZE_FORMAT" bytes. "
+                 "Should be at least "SIZE_FORMAT" bytes.", dummy->mem_size(), min_prt_size));
   free(dummy);
   guarantee(dummy->mem_size() == fl_mem_size(), "fl_mem_size() does not return the correct element size");
   // try to reset the state
