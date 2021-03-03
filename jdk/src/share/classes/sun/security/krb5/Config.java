@@ -525,9 +525,9 @@ public class Config {
                 String previous = null;
                 while ((line = br.readLine()) != null) {
                     line = line.trim();
-                    if (line.startsWith("#") || line.isEmpty()) {
+                    if (line.isEmpty() || line.startsWith("#") || line.startsWith(";")) {
                         // ignore comments and blank line
-                        // Comments start with #.
+                        // Comments start with '#' or ';'
                         continue;
                     }
                     // In practice, a subsection might look like:

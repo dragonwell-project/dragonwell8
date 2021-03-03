@@ -403,23 +403,21 @@ final class GaloisCounterMode extends FeedbackCipher {
      * and ending at <code>(inOff + len - 1)</code>, is encrypted. The result
      * is stored in <code>out</code>, starting at <code>outOfs</code>.
      *
-     * <p>It is the application's responsibility to make sure that
-     * <code>len</code> is a multiple of the embedded cipher's block size,
-     * otherwise, a ProviderException will be thrown.
-     *
-     * <p>It is also the application's responsibility to make sure that
-     * <code>init</code> has been called before this method is called.
-     * (This check is omitted here, to avoid double checking.)
-     *
      * @param in the buffer with the input data to be encrypted
      * @param inOfs the offset in <code>in</code>
      * @param len the length of the input data
      * @param out the buffer for the result
      * @param outOfs the offset in <code>out</code>
+     * @exception ProviderException if <code>len</code> is not
+     * a multiple of the block size
+     * @return the number of bytes placed into the <code>out</code> buffer
      */
     int encrypt(byte[] in, int inOfs, int len, byte[] out, int outOfs) {
         checkDataLength(processed, len);
 
+        if ((len % blockSize) != 0) {
+             throw new ProviderException("Internal error in input buffering");
+        }
         processAAD();
         if (len > 0) {
             gctrPAndC.update(in, inOfs, len, out, outOfs);
@@ -431,9 +429,6 @@ final class GaloisCounterMode extends FeedbackCipher {
 
     /**
      * Performs encryption operation for the last time.
-     *
-     * <p>NOTE: <code>len</code> may not be multiple of the embedded
-     * cipher's block size for this call.
      *
      * @param in the input buffer with the data to be encrypted
      * @param inOfs the offset in <code>in</code>
@@ -479,23 +474,21 @@ final class GaloisCounterMode extends FeedbackCipher {
      * is decrypted. The result is stored in <code>out</code>, starting at
      * <code>outOfs</code>.
      *
-     * <p>It is the application's responsibility to make sure that
-     * <code>len</code> is a multiple of the embedded cipher's block
-     * size, as any excess bytes are ignored.
-     *
-     * <p>It is also the application's responsibility to make sure that
-     * <code>init</code> has been called before this method is called.
-     * (This check is omitted here, to avoid double checking.)
-     *
      * @param in the buffer with the input data to be decrypted
      * @param inOfs the offset in <code>in</code>
      * @param len the length of the input data
      * @param out the buffer for the result
      * @param outOfs the offset in <code>out</code>
+     * @exception ProviderException if <code>len</code> is not
+     * a multiple of the block size
+     * @return the number of bytes placed into the <code>out</code> buffer
      */
     int decrypt(byte[] in, int inOfs, int len, byte[] out, int outOfs) {
         checkDataLength(ibuffer.size(), len);
 
+        if ((len % blockSize) != 0) {
+             throw new ProviderException("Internal error in input buffering");
+        }
         processAAD();
 
         if (len > 0) {
