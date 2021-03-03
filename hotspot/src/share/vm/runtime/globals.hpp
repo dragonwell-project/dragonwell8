@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2014, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -241,7 +241,7 @@ struct Flag {
   // number of flags
   static size_t numFlags;
 
-  static Flag* find_flag(const char* name, size_t length, bool allow_locked = false);
+  static Flag* find_flag(const char* name, size_t length, bool allow_locked = false, bool return_flag = false);
   static Flag* fuzzy_match(const char* name, size_t length, bool allow_locked = false);
 
   void check_writable();
@@ -1257,6 +1257,9 @@ class CommandLineFlags {
                                                                             \
   develop(bool, TraceJNICalls, false,                                       \
           "Trace JNI calls")                                                \
+                                                                            \
+  develop(bool, StressRewriter, false,                                      \
+          "Stress linktime bytecode rewriting")                             \
                                                                             \
   notproduct(bool, TraceJVMCalls, false,                                    \
           "Trace JVM calls")                                                \
@@ -2531,6 +2534,9 @@ class CommandLineFlags {
   develop(bool, PrintMethodFlushing, false,                                 \
           "Print the nmethods being flushed")                               \
                                                                             \
+  diagnostic(bool, PrintMethodFlushingStatistics, false,                    \
+          "print statistics about method flushing")                         \
+                                                                            \
   develop(bool, UseRelocIndex, false,                                       \
           "Use an index to speed random access to relocations")             \
                                                                             \
@@ -3049,8 +3055,14 @@ class CommandLineFlags {
   product(intx, PerMethodTrapLimit,  100,                                   \
           "Limit on traps (of one kind) in a method (includes inlines)")    \
                                                                             \
+  experimental(intx, PerMethodSpecTrapLimit,  5000,                         \
+          "Limit on speculative traps (of one kind) in a method (includes inlines)") \
+                                                                            \
   product(intx, PerBytecodeTrapLimit,  4,                                   \
           "Limit on traps (of one kind) at a particular BCI")               \
+                                                                            \
+  experimental(intx, SpecTrapLimitExtraEntries,  3,                         \
+          "Extra method data trap entries for speculation")                 \
                                                                             \
   develop(intx, InlineFrequencyRatio,    20,                                \
           "Ratio of call site execution to caller method invocation")       \
@@ -3130,15 +3142,15 @@ class CommandLineFlags {
           "Maximum size of class area in Metaspace when compressed "        \
           "class pointers are used")                                        \
                                                                             \
-  product(uintx, MinHeapFreeRatio,    40,                                   \
+  manageable(uintx, MinHeapFreeRatio, 40,                                   \
           "The minimum percentage of heap free after GC to avoid expansion."\
-          " For most GCs this applies to the old generation. In G1 it"      \
-          " applies to the whole heap. Not supported by ParallelGC.")       \
+          " For most GCs this applies to the old generation. In G1 and"     \
+          " ParallelGC it applies to the whole heap.")                      \
                                                                             \
-  product(uintx, MaxHeapFreeRatio,    70,                                   \
+  manageable(uintx, MaxHeapFreeRatio, 70,                                   \
           "The maximum percentage of heap free after GC to avoid shrinking."\
-          " For most GCs this applies to the old generation. In G1 it"      \
-          " applies to the whole heap. Not supported by ParallelGC.")       \
+          " For most GCs this applies to the old generation. In G1 and"     \
+          " ParallelGC it applies to the whole heap.")                      \
                                                                             \
   product(intx, SoftRefLRUPolicyMSPerMB, 1000,                              \
           "Number of milliseconds per MB of free space in the heap")        \
@@ -3306,21 +3318,21 @@ class CommandLineFlags {
   develop(intx, CIStart, 0,                                                 \
           "The id of the first compilation to permit")                      \
                                                                             \
-  develop(intx, CIStop,    -1,                                              \
+  develop(intx, CIStop, max_jint,                                           \
           "The id of the last compilation to permit")                       \
                                                                             \
-  develop(intx, CIStartOSR,     0,                                          \
+  develop(intx, CIStartOSR, 0,                                              \
           "The id of the first osr compilation to permit "                  \
           "(CICountOSR must be on)")                                        \
                                                                             \
-  develop(intx, CIStopOSR,    -1,                                           \
+  develop(intx, CIStopOSR, max_jint,                                        \
           "The id of the last osr compilation to permit "                   \
           "(CICountOSR must be on)")                                        \
                                                                             \
-  develop(intx, CIBreakAtOSR,    -1,                                        \
+  develop(intx, CIBreakAtOSR, -1,                                           \
           "The id of osr compilation to break at")                          \
                                                                             \
-  develop(intx, CIBreakAt,    -1,                                           \
+  develop(intx, CIBreakAt, -1,                                              \
           "The id of compilation to break at")                              \
                                                                             \
   product(ccstrlist, CompileOnly, "",                                       \
@@ -3338,6 +3350,10 @@ class CommandLineFlags {
   product(ccstr, ReplayDataFile, NULL,                                      \
           "File containing compilation replay information"                  \
           "[default: ./replay_pid%p.log] (%p replaced with pid)")           \
+                                                                            \
+   product(ccstr, InlineDataFile, NULL,                                     \
+          "File containing inlining replay information"                     \
+          "[default: ./inline_pid%p.log] (%p replaced with pid)")           \
                                                                             \
   develop(intx, ReplaySuppressInitializers, 2,                              \
           "Control handling of class initialization during replay: "        \

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, 2014, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,19 +27,17 @@
  * @library /testlibrary /testlibrary/whitebox
  * @build DeoptimizeMethodTest
  * @run main ClassFileInstaller sun.hotspot.WhiteBox
- * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI -XX:CompileCommand=compileonly,TestCase$Helper::* DeoptimizeMethodTest
+ * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI -XX:CompileCommand=compileonly,SimpleTestCase$Helper::* DeoptimizeMethodTest
  * @summary testing of WB::deoptimizeMethod()
  * @author igor.ignatyev@oracle.com
  */
 public class DeoptimizeMethodTest extends CompilerWhiteBoxTest {
 
     public static void main(String[] args) throws Exception {
-        for (TestCase test : TestCase.values()) {
-            new DeoptimizeMethodTest(test).runTest();
-        }
+        CompilerWhiteBoxTest.main(DeoptimizeMethodTest::new, args);
     }
 
-    public DeoptimizeMethodTest(TestCase testCase) {
+    private DeoptimizeMethodTest(TestCase testCase) {
         super(testCase);
         // to prevent inlining of #method
         WHITE_BOX.testSetDontInlineMethod(method, true);
@@ -53,11 +51,8 @@ public class DeoptimizeMethodTest extends CompilerWhiteBoxTest {
      */
     @Override
     protected void test() throws Exception {
-        if (testCase.isOsr && CompilerWhiteBoxTest.MODE.startsWith(
-                "compiled ")) {
-          System.err.printf("Warning: %s is not applicable in %s%n",
-                testCase.name(), CompilerWhiteBoxTest.MODE);
-          return;
+        if (skipXcompOSR()) {
+            return;
         }
         compile();
         checkCompiled();
