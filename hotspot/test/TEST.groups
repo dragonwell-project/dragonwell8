@@ -134,6 +134,8 @@ needs_compact3 = \
   gc/arguments/TestDynMaxHeapFreeRatio.java \
   runtime/InternalApi/ThreadCpuTimesDeadlock.java \
   serviceability/threads/TestFalseDeadLock.java \
+  serviceability/jvmti/GetObjectSizeOverflow.java \
+  serviceability/jvmti/TestRedefineWithUnresolvedClass.java \
   compiler/tiered/NonTieredLevelsTest.java \
   compiler/tiered/TieredLevelsTest.java \
   compiler/intrinsics/bmi/verifycode
