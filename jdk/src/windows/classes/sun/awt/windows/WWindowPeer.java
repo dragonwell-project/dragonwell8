@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1996, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -474,13 +474,7 @@ public class WWindowPeer extends WPanelPeer implements WindowPeer,
      * Called from native code when we have been dragged onto another screen.
      */
     void draggedToNewScreen() {
-        SunToolkit.executeOnEventHandlerThread((Component)target,new Runnable()
-        {
-            @Override
-            public void run() {
-                displayChanged();
-            }
-        });
+        displayChanged();
     }
 
     public void updateGC() {
@@ -539,7 +533,7 @@ public class WWindowPeer extends WPanelPeer implements WindowPeer,
      */
     @Override
     public void displayChanged() {
-        updateGC();
+        SunToolkit.executeOnEventHandlerThread(target, this::updateGC);
     }
 
     /**
