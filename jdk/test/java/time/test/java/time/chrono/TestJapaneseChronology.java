@@ -165,7 +165,7 @@ public class TestJapaneseChronology {
             { "Taisho", JapaneseEra.TAISHO,     null },
             { "Showa",  JapaneseEra.SHOWA,      null },
             { "Heisei", JapaneseEra.HEISEI,     null },
-            { "Reiwa", JapaneseEra.of(3),       null },
+            { "Reiwa",  JapaneseEra.of(3),      null },
             { "NewEra", null,                   IllegalArgumentException.class},
         };
     }
