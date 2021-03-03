@@ -91,7 +91,7 @@ public class FormatData_ja extends ParallelListResourceBundle {
             "\u5927\u6b63", // Taisho
             "\u662d\u548c", // Showa
             "\u5e73\u6210", // Heisei
-            "\u5143\u53f7", // NewEra
+            "\u4ee4\u548c", // Reiwa
         };
         final String[] rocEras = {
             "\u6c11\u56fd\u524d",
