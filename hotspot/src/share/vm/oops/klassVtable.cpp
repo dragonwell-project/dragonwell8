@@ -27,6 +27,7 @@
 #include "classfile/vmSymbols.hpp"
 #include "gc_implementation/shared/markSweep.inline.hpp"
 #include "memory/gcLocker.hpp"
+#include "memory/metaspaceShared.hpp"
 #include "memory/resourceArea.hpp"
 #include "memory/universe.inline.hpp"
 #include "oops/instanceKlass.hpp"
@@ -45,6 +46,10 @@ inline InstanceKlass* klassVtable::ik() const {
   Klass* k = _klass();
   assert(k->oop_is_instance(), "not an InstanceKlass");
   return (InstanceKlass*)k;
+}
+
+bool klassVtable::is_preinitialized_vtable() {
+  return _klass->is_shared() && !MetaspaceShared::remapped_readwrite();
 }
 
 
@@ -128,6 +133,12 @@ int klassVtable::index_of(Method* m, int len) const {
 int klassVtable::initialize_from_super(KlassHandle super) {
   if (super.is_null()) {
     return 0;
+  } else if (is_preinitialized_vtable()) {
+    // A shared class' vtable is preinitialized at dump time. No need to copy
+    // methods from super class for shared class, as that was already done
+    // during archiving time. However, if Jvmti has redefined a class,
+    // copy super class's vtable in case the super class has changed.
+    return super->vtable()->length();
   } else {
     // copy methods from superKlass
     // can't inherit from array class, so must be InstanceKlass
@@ -157,6 +168,8 @@ void klassVtable::initialize_vtable(bool checkconstraints, TRAPS) {
   KlassHandle super (THREAD, klass()->java_super());
   int nofNewEntries = 0;
 
+  bool is_shared = _klass->is_shared();
+
   if (PrintVtables && !klass()->oop_is_array()) {
     ResourceMark rm(THREAD);
     tty->print_cr("Initializing: %s", _klass->name()->as_C_string());
@@ -169,6 +182,7 @@ void klassVtable::initialize_vtable(bool checkconstraints, TRAPS) {
 #endif
 
   if (Universe::is_bootstrapping()) {
+    assert(!is_shared, "sanity");
     // just clear everything
     for (int i = 0; i < _length; i++) table()[i].clear();
     return;
@@ -208,6 +222,7 @@ void klassVtable::initialize_vtable(bool checkconstraints, TRAPS) {
       if (len > 0) {
         Array<int>* def_vtable_indices = NULL;
         if ((def_vtable_indices = ik()->default_vtable_indices()) == NULL) {
+          assert(!is_shared, "shared class def_vtable_indices does not exist");
           def_vtable_indices = ik()->create_new_default_vtable_indices(len, CHECK);
         } else {
           assert(def_vtable_indices->length() == len, "reinit vtable len?");
@@ -222,7 +237,15 @@ void klassVtable::initialize_vtable(bool checkconstraints, TRAPS) {
           // needs new entry
           if (needs_new_entry) {
             put_method_at(mh(), initialized);
-            def_vtable_indices->at_put(i, initialized); //set vtable index
+            if (is_preinitialized_vtable()) {
+              // At runtime initialize_vtable is rerun for a shared class
+              // (loaded by the non-boot loader) as part of link_class_impl().
+              // The dumptime vtable index should be the same as the runtime index.
+              assert(def_vtable_indices->at(i) == initialized,
+                     "dump time vtable index is different from runtime index");
+            } else {
+              def_vtable_indices->at_put(i, initialized); //set vtable index
+            }
             initialized++;
           }
         }
@@ -365,7 +388,8 @@ bool klassVtable::update_inherited_vtable(InstanceKlass* klass, methodHandle tar
   }
 
   // we need a new entry if there is no superclass
-  if (klass->super() == NULL) {
+  Klass* super = klass->super();
+  if (super == NULL) {
     return allocate_new;
   }
 
@@ -394,7 +418,15 @@ bool klassVtable::update_inherited_vtable(InstanceKlass* klass, methodHandle tar
 
   Symbol* target_classname = target_klass->name();
   for(int i = 0; i < super_vtable_len; i++) {
-    Method* super_method = method_at(i);
+    Method* super_method;
+    if (is_preinitialized_vtable()) {
+      // If this is a shared class, the vtable is already in the final state (fully
+      // initialized). Need to look at the super's vtable.
+      klassVtable* superVtable = super->vtable();
+      super_method = superVtable->method_at(i);
+    } else {
+      super_method = method_at(i);
+    }
     // Check if method name matches
     if (super_method->name() == name && super_method->signature() == signature) {
 
@@ -458,7 +490,15 @@ bool klassVtable::update_inherited_vtable(InstanceKlass* klass, methodHandle tar
          target_method()->set_vtable_index(i);
        } else {
          if (def_vtable_indices != NULL) {
-           def_vtable_indices->at_put(default_index, i);
+           if (is_preinitialized_vtable()) {
+             // At runtime initialize_vtable is rerun as part of link_class_impl()
+             // for a shared class loaded by the non-boot loader.
+             // The dumptime vtable index should be the same as the runtime index.
+             assert(def_vtable_indices->at(default_index) == i,
+                    "dump time vtable index is different from runtime index");
+           } else {
+             def_vtable_indices->at_put(default_index, i);
+           }
          }
          assert(super_method->is_default_method() || super_method->is_overpass()
                 || super_method->is_abstract(), "default override error");
@@ -523,24 +563,33 @@ bool klassVtable::update_inherited_vtable(InstanceKlass* klass, methodHandle tar
 }
 
 void klassVtable::put_method_at(Method* m, int index) {
+  if (is_preinitialized_vtable()) {
+    // At runtime initialize_vtable is rerun as part of link_class_impl()
+    // for shared class loaded by the non-boot loader to obtain the loader
+    // constraints based on the runtime classloaders' context. The dumptime
+    // method at the vtable index should be the same as the runtime method.
+    assert(table()[index].method() == m,
+           "archived method is different from the runtime method");
+  } else {
 #ifndef PRODUCT
-  if (PrintVtables && Verbose) {
-    ResourceMark rm;
-    const char* sig = (m != NULL) ? m->name_and_sig_as_C_string() : "<NULL>";
-    tty->print("adding %s at index %d, flags: ", sig, index);
-    if (m != NULL) {
-      m->access_flags().print_on(tty);
-      if (m->is_default_method()) {
-        tty->print("default ");
+    if (PrintVtables && Verbose) {
+      ResourceMark rm;
+      const char* sig = (m != NULL) ? m->name_and_sig_as_C_string() : "<NULL>";
+      tty->print("adding %s at index %d, flags: ", sig, index);
+      if (m != NULL) {
+        m->access_flags().print_on(tty);
+        if (m->is_default_method()) {
+          tty->print("default ");
+        }
+        if (m->is_overpass()) {
+          tty->print("overpass");
+        }
       }
-      if (m->is_overpass()) {
-        tty->print("overpass");
-      }
+      tty->cr();
     }
-    tty->cr();
-  }
 #endif
-  table()[index].set(m);
+    table()[index].set(m);
+  }
 }
 
 // Find out if a method "m" with superclass "super", loader "classloader" and
@@ -971,7 +1020,15 @@ bool klassVtable::is_initialized() {
 void itableMethodEntry::initialize(Method* m) {
   if (m == NULL) return;
 
-  _method = m;
+  if (MetaspaceShared::is_in_shared_space((void*)&_method) &&
+     !MetaspaceShared::remapped_readwrite()) {
+    // At runtime initialize_itable is rerun as part of link_class_impl()
+    // for a shared class loaded by the non-boot loader.
+    // The dumptime itable method entry should be the same as the runtime entry.
+    assert(_method == m, "sanity");
+  } else {
+    _method = m;
+  }
 }
 
 klassItable::klassItable(instanceKlassHandle klass) {
@@ -1081,7 +1138,11 @@ int klassItable::assign_itable_indices_for_interface(Klass* klass) {
         tty->cr();
       }
       if (!m->has_vtable_index()) {
-        assert(m->vtable_index() == Method::pending_itable_index, "set by initialize_vtable");
+        // A shared method could have an initialized itable_index that
+        // is < 0.
+        assert(m->vtable_index() == Method::pending_itable_index ||
+               m->is_shared(),
+               "set by initialize_vtable");
         m->set_itable_index(ime_num);
         // Progress to next itable entry
         ime_num++;
@@ -1276,7 +1337,6 @@ void klassItable::dump_itable() {
   }
 }
 #endif // INCLUDE_JVMTI
-
 
 // Setup
 class InterfaceVisiterClosure : public StackObj {
