@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -435,7 +435,7 @@ uLong jar::get_dostime(int modtime) {
   struct tm* s = gmtime_r(&t, &sbuf);
   if (s == NULL) {
     fprintf(u->errstrm, "Error: gmtime failure, invalid input archive\n");
-    exit(2);
+    exit(-1);
   }
   modtime_cache = modtime;
   dostime_cache = dostime(s->tm_year + 1900, s->tm_mon + 1, s->tm_mday,
