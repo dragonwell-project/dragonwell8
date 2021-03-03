@@ -95,7 +95,7 @@ le_uint16 LigatureSubstitutionProcessor2::processStateEntry(LEGlyphStorage &glyp
 
     if (actionOffset != 0) {
         LEReferenceTo<LigatureActionEntry> ap(stHeader, success, ligActionOffset); // byte offset
-        ap.addObject(ligActionIndex - 1, success);  // index offset ( one before the actual start, because we will pre-increment)
+        ap.addObject(ligActionIndex, success);
         LEReferenceToArrayOf<TTGlyphID> ligatureTable(stHeader, success, ligatureOffset, LE_UNBOUNDED_ARRAY);
         LigatureActionEntry action;
         le_int32 offset, i = 0;
@@ -105,13 +105,12 @@ le_uint16 LigatureSubstitutionProcessor2::processStateEntry(LEGlyphStorage &glyp
         LEReferenceToArrayOf<le_uint16> componentTable(stHeader, success, componentOffset, LE_UNBOUNDED_ARRAY);
         if(LE_FAILURE(success)) {
           currGlyph+= dir;
-            return nextStateIndex; // get out! bad font
+          return nextStateIndex; // get out! bad font
         }
 
         do {
             le_uint32 componentGlyph = componentStack[m--]; // pop off
 
-            ap.addObject(success);
             action = SWAPL(*ap.getAlias());
 
             if (m < 0) {
@@ -145,7 +144,8 @@ le_uint16 LigatureSubstitutionProcessor2::processStateEntry(LEGlyphStorage &glyp
               LE_DEBUG_BAD_FONT("m<0")
             }
 #endif
-        } while (!(action & lafLast) && (m>=0) ); // stop if last bit is set, or if run out of items
+            ap.addObject(success);
+        } while (LE_SUCCESS(success) && !(action & lafLast) && (m>=0) ); // stop if last bit is set, or if run out of items
 
         while (mm >= 0) {
             if (++m >= nComponents) {
