@@ -134,7 +134,8 @@ endif
     define SetupAccessBridge
       # Parameter 1 Suffix
       # Parameter 2 Machine
-      # Parameter 3 ACCESSBRIDGE_ARCH_ suffix
+      # Parameter 3 ACCESSBRIDGE_ARCH_ suffix and name of directory where gensrc headers
+      #             are found.
 
       $(call SetupNativeCompilation,BUILD_JAWTACCESSBRIDGE$1, \
           LIBRARY = JAWTAccessBridge$1, \
@@ -144,7 +145,8 @@ endif
           LANG := C++, \
           OPTIMIZATION := LOW, \
           CFLAGS := $(CFLAGS_JDKLIB) \
-              -DACCESSBRIDGE_ARCH_$3, \
+              -DACCESSBRIDGE_ARCH_$3 \
+              -I$(JDK_OUTPUTDIR)/gensrc_headers_ab/$3, \
           LDFLAGS := $(LDFLAGS_JDKLIB) kernel32.lib user32.lib gdi32.lib \
               winspool.lib jawt.lib comdlg32.lib advapi32.lib shell32.lib \
               ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib \
@@ -170,7 +172,8 @@ endif
           LANG := C++, \
           OPTIMIZATION := LOW, \
           CFLAGS := $(CFLAGS_JDKLIB) \
-              -DACCESSBRIDGE_ARCH_$3, \
+              -DACCESSBRIDGE_ARCH_$3 \
+              -I$(JDK_OUTPUTDIR)/gensrc_headers_ab/$3, \
           LDFLAGS := $(LDFLAGS_JDKLIB) kernel32.lib user32.lib gdi32.lib \
               winspool.lib comdlg32.lib advapi32.lib shell32.lib \
               ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib \
@@ -194,7 +197,8 @@ endif
           LANG := C++, \
           OPTIMIZATION := LOW, \
           CFLAGS := $(filter-out -MD, $(CFLAGS_JDKLIB)) -MT \
-              -DACCESSBRIDGE_ARCH_$3, \
+              -DACCESSBRIDGE_ARCH_$3 \
+              -I$(JDK_OUTPUTDIR)/gensrc_headers_ab/$3, \
           LDFLAGS := $(LDFLAGS_JDKLIB) kernel32.lib user32.lib gdi32.lib \
               winspool.lib comdlg32.lib advapi32.lib shell32.lib \
               ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib \
@@ -215,7 +219,7 @@ endif
 
     ifeq ($(OPENJDK_TARGET_CPU_BITS), 32)
       $(eval $(call SetupAccessBridge,-32,I386,32))
-      $(eval $(call SetupAccessBridge,,I386,LEGACY))
+      $(eval $(call SetupAccessBridge,,I386,legacy))
     else
       $(eval $(call SetupAccessBridge,-64,X64,64))
     endif
