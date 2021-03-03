@@ -25,7 +25,7 @@
  * @test
  * @bug 6952519
  * @compile -XDignore.symbol.file TcpTimeout.java
- * @run main/othervm TcpTimeout
+ * @run main/othervm -Dsun.net.spi.nameservice.provider.1=ns,mock TcpTimeout
  * @summary kdc_timeout is not being honoured when using TCP
  */
 
