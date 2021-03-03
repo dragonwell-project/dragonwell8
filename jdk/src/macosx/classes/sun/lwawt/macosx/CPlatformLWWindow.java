@@ -108,11 +108,6 @@ public class CPlatformLWWindow extends CPlatformWindow {
     }
 
     @Override
-    public long getNSWindowPtr() {
-        return 0;
-    }
-
-    @Override
     public SurfaceData getSurfaceData() {
         return null;
     }
@@ -159,11 +154,6 @@ public class CPlatformLWWindow extends CPlatformWindow {
 
     @Override
     public void setAlwaysOnTop(boolean isAlwaysOnTop) {
-    }
-
-    @Override
-    public PlatformWindow getTopmostPlatformWindowUnderMouse(){
-        return null;
     }
 
     @Override
