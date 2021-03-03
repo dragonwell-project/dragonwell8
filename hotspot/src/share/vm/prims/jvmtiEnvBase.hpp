@@ -32,6 +32,7 @@
 #include "runtime/fieldDescriptor.hpp"
 #include "runtime/frame.hpp"
 #include "runtime/handles.inline.hpp"
+#include "runtime/orderAccess.hpp"
 #include "runtime/thread.hpp"
 #include "runtime/vm_operations.hpp"
 #include "utilities/growableArray.hpp"
@@ -97,7 +98,7 @@ class JvmtiEnvBase : public CHeapObj<mtInternal> {
   const void *_env_local_storage;     // per env agent allocated data.
   jvmtiEventCallbacks _event_callbacks;
   jvmtiExtEventCallbacks _ext_event_callbacks;
-  JvmtiTagMap* _tag_map;
+  JvmtiTagMap* volatile _tag_map;
   JvmtiEnvEventEnable _env_event_enable;
   jvmtiCapabilities _current_capabilities;
   jvmtiCapabilities _prohibited_capabilities;
@@ -251,6 +252,13 @@ class JvmtiEnvBase : public CHeapObj<mtInternal> {
     return _tag_map;
   }
 
+  JvmtiTagMap* tag_map_acquire() {
+    return (JvmtiTagMap*)OrderAccess::load_ptr_acquire(&_tag_map);
+  }
+
+  void release_set_tag_map(JvmtiTagMap* tag_map) {
+    OrderAccess::release_store_ptr(&_tag_map, tag_map);
+  }
 
   // return true if event is enabled globally or for any thread
   // True only if there is a callback for it.
