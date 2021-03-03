@@ -45,6 +45,7 @@ import java.nio.file.Paths;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.Arrays;
+import java.util.Base64;
 import java.util.Objects;
 import java.util.WeakHashMap;
 import jdk.nashorn.api.scripting.URLReader;
@@ -58,6 +59,9 @@ public final class Source {
     private static final DebugLogger DEBUG = new DebugLogger("source");
     private static final int BUF_SIZE = 8 * 1024;
     private static final Cache CACHE = new Cache();
+
+    // Message digest to file name encoder
+    private final static Base64.Encoder BASE64 = Base64.getUrlEncoder().withoutPadding();
 
     /**
      * Descriptive name of the source as supplied by the user. Used for error
@@ -79,8 +83,8 @@ public final class Source {
     /** Cached hash code */
     private int hash;
 
-    /** Message digest */
-    private byte[] digest;
+    /** Base64-encoded SHA1 digest of this source object */
+    private volatile byte[] digest;
 
     // Do *not* make this public, ever! Trusts the URL and content.
     private Source(final String name, final String base, final Data data) {
@@ -711,12 +715,17 @@ public final class Source {
     }
 
     /**
-     * Get a message digest for this source.
+     * Get a Base64-encoded SHA1 digest for this source.
      *
-     * @return a message digest for this source
+     * @return a Base64-encoded SHA1 digest for this source
      */
-    public synchronized byte[] getDigest() {
-        if (digest == null) {
+    public String getDigest() {
+        return new String(getDigestBytes(), StandardCharsets.US_ASCII);
+    }
+
+    private byte[] getDigestBytes() {
+        byte[] ldigest = digest;
+        if (ldigest == null) {
             final char[] content = data();
             final byte[] bytes = new byte[content.length * 2];
 
@@ -736,12 +745,12 @@ public final class Source {
                 if (getURL() != null) {
                     md.update(getURL().toString().getBytes(StandardCharsets.UTF_8));
                 }
-                digest = md.digest(bytes);
-            } catch (NoSuchAlgorithmException e) {
+                digest = ldigest = BASE64.encode(md.digest(bytes));
+            } catch (final NoSuchAlgorithmException e) {
                 throw new RuntimeException(e);
             }
         }
-        return digest;
+        return ldigest;
     }
 
     /**

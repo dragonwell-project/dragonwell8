@@ -461,6 +461,7 @@ class Arguments : AllStatic {
   static void check_deprecated_gc_flags();
   // Check consistecy or otherwise of VM argument settings
   static bool check_vm_args_consistency();
+  static bool check_vm_args_consistency_ext();
   // Check stack pages settings
   static bool check_stack_pages();
   // Used by os_solaris
