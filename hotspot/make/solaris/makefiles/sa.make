@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2003, 2012, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
 # DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 #
 # This code is free software; you can redistribute it and/or modify it
@@ -29,8 +29,12 @@
 # and generate JNI header file for native methods.
 
 include $(GAMMADIR)/make/solaris/makefiles/rules.make
+include $(GAMMADIR)/make/defs.make
 AGENT_DIR = $(GAMMADIR)/agent
 include $(GAMMADIR)/make/sa.files
+
+-include $(HS_ALT_MAKE)/solaris/makefiles/sa.make
+
 GENERATED = ../generated
 
 # tools.jar is needed by the JDI - SA binding

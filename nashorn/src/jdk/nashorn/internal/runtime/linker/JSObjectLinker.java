@@ -25,16 +25,14 @@
 
 package jdk.nashorn.internal.runtime.linker;
 
+import static jdk.nashorn.internal.runtime.JSType.isString;
+
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
-import java.lang.invoke.MethodType;
-import java.util.HashMap;
 import java.util.Map;
 import javax.script.Bindings;
 import jdk.internal.dynalink.CallSiteDescriptor;
 import jdk.internal.dynalink.linker.GuardedInvocation;
-import jdk.internal.dynalink.linker.GuardedTypeConversion;
-import jdk.internal.dynalink.linker.GuardingTypeConverterFactory;
 import jdk.internal.dynalink.linker.LinkRequest;
 import jdk.internal.dynalink.linker.LinkerServices;
 import jdk.internal.dynalink.linker.TypeBasedGuardingDynamicLinker;
@@ -48,7 +46,7 @@ import jdk.nashorn.internal.runtime.JSType;
  * A Dynalink linker to handle web browser built-in JS (DOM etc.) objects as well
  * as ScriptObjects from other Nashorn contexts.
  */
-final class JSObjectLinker implements TypeBasedGuardingDynamicLinker, GuardingTypeConverterFactory {
+final class JSObjectLinker implements TypeBasedGuardingDynamicLinker {
     private final NashornBeansLinker nashornBeansLinker;
 
     JSObjectLinker(final NashornBeansLinker nashornBeansLinker) {
@@ -93,22 +91,6 @@ final class JSObjectLinker implements TypeBasedGuardingDynamicLinker, GuardingTy
 
         return Bootstrap.asTypeSafeReturn(inv, linkerServices, desc);
     }
-
-    @Override
-    public GuardedTypeConversion convertToType(final Class<?> sourceType, final Class<?> targetType) throws Exception {
-        final boolean sourceIsAlwaysJSObject = JSObject.class.isAssignableFrom(sourceType);
-        if(!sourceIsAlwaysJSObject && !sourceType.isAssignableFrom(JSObject.class)) {
-            return null;
-        }
-
-        final MethodHandle converter = CONVERTERS.get(targetType);
-        if(converter == null) {
-            return null;
-        }
-
-        return new GuardedTypeConversion(new GuardedInvocation(converter, sourceIsAlwaysJSObject ? null : IS_JSOBJECT_GUARD).asType(MethodType.methodType(targetType, sourceType)), true);
-    }
-
 
     private GuardedInvocation lookup(final CallSiteDescriptor desc, final LinkRequest request, final LinkerServices linkerServices) throws Exception {
         final String operator = CallSiteDescriptorFactory.tokenizeOperators(desc).get(0);
@@ -185,11 +167,11 @@ final class JSObjectLinker implements TypeBasedGuardingDynamicLinker, GuardingTy
             if (index > -1) {
                 return ((JSObject)jsobj).getSlot(index);
             }
-        } else if (key instanceof String) {
-            final String name = (String)key;
+        } else if (isString(key)) {
+            final String name = key.toString();
             // get with method name and signature. delegate it to beans linker!
             if (name.indexOf('(') != -1) {
-                return fallback.invokeExact(jsobj, key);
+                return fallback.invokeExact(jsobj, (Object) name);
             }
             return ((JSObject)jsobj).getMember(name);
         }
@@ -202,28 +184,9 @@ final class JSObjectLinker implements TypeBasedGuardingDynamicLinker, GuardingTy
             ((JSObject)jsobj).setSlot((Integer)key, value);
         } else if (key instanceof Number) {
             ((JSObject)jsobj).setSlot(getIndex((Number)key), value);
-        } else if (key instanceof String) {
-            ((JSObject)jsobj).setMember((String)key, value);
+        } else if (isString(key)) {
+            ((JSObject)jsobj).setMember(key.toString(), value);
         }
-    }
-
-    @SuppressWarnings("unused")
-    private static int toInt32(final JSObject obj) {
-        return JSType.toInt32(toNumber(obj));
-    }
-
-    @SuppressWarnings("unused")
-    private static long toLong(final JSObject obj) {
-        return JSType.toLong(toNumber(obj));
-    }
-
-    private static double toNumber(final JSObject obj) {
-        return obj == null ? 0 : obj.toNumber();
-    }
-
-    @SuppressWarnings("unused")
-    private static boolean toBoolean(final JSObject obj) {
-        return obj != null;
     }
 
     private static int getIndex(final Number n) {
@@ -259,14 +222,6 @@ final class JSObjectLinker implements TypeBasedGuardingDynamicLinker, GuardingTy
     private static final MethodHandle JSOBJECT_CALL          = findJSObjectMH_V("call", Object.class, Object.class, Object[].class);
     private static final MethodHandle JSOBJECT_CALL_TO_APPLY = findOwnMH_S("callToApply", Object.class, MethodHandle.class, JSObject.class, Object.class, Object[].class);
     private static final MethodHandle JSOBJECT_NEW           = findJSObjectMH_V("newObject", Object.class, Object[].class);
-
-    private static final Map<Class<?>, MethodHandle> CONVERTERS = new HashMap<>();
-    static {
-        CONVERTERS.put(boolean.class, findOwnMH_S("toBoolean", boolean.class, JSObject.class));
-        CONVERTERS.put(int.class,     findOwnMH_S("toInt32", int.class, JSObject.class));
-        CONVERTERS.put(long.class,    findOwnMH_S("toLong", long.class, JSObject.class));
-        CONVERTERS.put(double.class,  findOwnMH_S("toNumber", double.class, JSObject.class));
-    }
 
     private static MethodHandle findJSObjectMH_V(final String name, final Class<?> rtype, final Class<?>... types) {
         return MH.findVirtual(MethodHandles.lookup(), JSObject.class, name, MH.type(rtype, types));
