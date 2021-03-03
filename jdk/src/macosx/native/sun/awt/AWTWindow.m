@@ -345,7 +345,6 @@ AWT_ASSERT_APPKIT_THREAD;
     return windowLayers;
 }
 
-
 // returns id for the topmost window under mouse
 + (NSInteger) getTopmostWindowUnderMouseID {
     NSInteger result = -1;
