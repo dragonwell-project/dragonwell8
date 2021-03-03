@@ -24,7 +24,7 @@
 /*
  * @test
  * @bug 6733095
- * @run main/othervm NonMutualSpnego
+ * @run main/othervm -Dsun.net.spi.nameservice.provider.1=ns,mock NonMutualSpnego
  * @summary Failure when SPNEGO request non-Mutual
  */
 

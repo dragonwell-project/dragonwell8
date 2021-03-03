@@ -24,8 +24,8 @@
 /*
  * @test
  * @bug 4966382 8039132
- * @run main/othervm UdpTcp UDP
- * @run main/othervm UdpTcp TCP
+ * @run main/othervm -Dsun.net.spi.nameservice.provider.1=ns,mock UdpTcp UDP
+ * @run main/othervm -Dsun.net.spi.nameservice.provider.1=ns,mock UdpTcp TCP
  * @summary udp or tcp
  */
 
