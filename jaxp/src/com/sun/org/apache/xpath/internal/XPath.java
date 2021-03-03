@@ -3,7 +3,7 @@
  * DO NOT REMOVE OR ALTER!
  */
 /*
- * Copyright 1999-2004 The Apache Software Foundation.
+ * Copyright 1999-2019 The Apache Software Foundation.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -181,10 +181,12 @@ public class XPath implements Serializable, ExpressionOwner
     else if (MATCH == type)
       parser.initMatchPattern(compiler, exprString, prefixResolver);
     else
-      throw new RuntimeException(XSLMessages.createXPATHMessage(XPATHErrorResources.ER_CANNOT_DEAL_XPATH_TYPE, new Object[]{Integer.toString(type)})); //"Can not deal with XPath type: " + type);
+      throw new RuntimeException(XSLMessages.createXPATHMessage(
+              XPATHErrorResources.ER_CANNOT_DEAL_XPATH_TYPE,
+              new Object[]{Integer.toString(type)}));
 
     // System.out.println("----------------");
-    Expression expr = compiler.compile(0);
+    Expression expr = compiler.compileExpression(0);
 
     // System.out.println("expr: "+expr);
     this.setExpression(expr);
@@ -236,7 +238,7 @@ public class XPath implements Serializable, ExpressionOwner
             //"Can not deal with XPath type: " + type);
 
     // System.out.println("----------------");
-    Expression expr = compiler.compile(0);
+    Expression expr = compiler.compileExpression(0);
 
     // System.out.println("expr: "+expr);
     this.setExpression(expr);

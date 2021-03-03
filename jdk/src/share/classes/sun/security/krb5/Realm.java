@@ -188,7 +188,6 @@ public class Realm implements Cloneable {
             return false;
         for (int i = 0; i < name.length(); i++) {
             if (name.charAt(i) == '/' ||
-                name.charAt(i) == ':' ||
                 name.charAt(i) == '\0') {
                 return false;
             }

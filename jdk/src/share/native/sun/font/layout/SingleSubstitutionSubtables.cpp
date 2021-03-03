@@ -41,6 +41,10 @@ U_NAMESPACE_BEGIN
 
 le_uint32 SingleSubstitutionSubtable::process(const LEReferenceTo<SingleSubstitutionSubtable> &base, GlyphIterator *glyphIterator, LEErrorCode &success, const LEGlyphFilter *filter) const
 {
+    if (LE_FAILURE(success)) {
+        return 0;
+    }
+
     switch(SWAPW(subtableFormat))
     {
     case 0:
@@ -67,6 +71,10 @@ le_uint32 SingleSubstitutionSubtable::process(const LEReferenceTo<SingleSubstitu
 
 le_uint32 SingleSubstitutionFormat1Subtable::process(const LEReferenceTo<SingleSubstitutionFormat1Subtable> &base, GlyphIterator *glyphIterator, LEErrorCode &success, const LEGlyphFilter *filter) const
 {
+    if (LE_FAILURE(success)) {
+        return 0;
+    }
+
     LEGlyphID glyph = glyphIterator->getCurrGlyphID();
     le_int32 coverageIndex = getGlyphCoverage(base, glyph, success);
     if (LE_FAILURE(success)) {
@@ -88,6 +96,10 @@ le_uint32 SingleSubstitutionFormat1Subtable::process(const LEReferenceTo<SingleS
 
 le_uint32 SingleSubstitutionFormat2Subtable::process(const LEReferenceTo<SingleSubstitutionFormat2Subtable> &base, GlyphIterator *glyphIterator, LEErrorCode &success, const LEGlyphFilter *filter) const
 {
+    if (LE_FAILURE(success)) {
+        return 0;
+    }
+
     LEGlyphID glyph = glyphIterator->getCurrGlyphID();
     le_int32 coverageIndex = getGlyphCoverage(base, glyph, success);
     if (LE_FAILURE(success)) {
