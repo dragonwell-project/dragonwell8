@@ -492,6 +492,7 @@ define SetupNativeCompilation
 
         ifeq ($(ZIP_DEBUGINFO_FILES), true)
 ifneq ($(OPENJDK_TARGET_OS), macosx) # no MacOS X support yet
+ifneq ($$($1_STRIP_POLICY), no_strip)
           $1 += $$($1_OUTPUT_DIR)/$$(LIBRARY_PREFIX)$$($1_LIBRARY).diz
 
           ifeq ($(OPENJDK_TARGET_OS), windows)
@@ -504,6 +505,7 @@ ifneq ($(OPENJDK_TARGET_OS), macosx) # no MacOS X support yet
 		$(CD) $$($1_OBJECT_DIR) \
 		&& $(ZIP) -q $$@ $$(LIBRARY_PREFIX)$$($1_LIBRARY).debuginfo
           endif
+endif # not possible when stripping is disabled
 endif # no MacOS X support yet
         else
           ifeq ($(OPENJDK_TARGET_OS), windows)
@@ -584,6 +586,7 @@ endif # no MacOS X support yet
 
         ifeq ($(ZIP_DEBUGINFO_FILES), true)
 ifneq ($(OPENJDK_TARGET_OS), macosx) # no MacOS X support yet
+ifneq ($$($1_STRIP_POLICY), no_strip)
           $1 += $$($1_OUTPUT_DIR)/$$($1_PROGRAM).diz
 
           ifeq ($(OPENJDK_TARGET_OS), windows)
@@ -596,6 +599,7 @@ ifneq ($(OPENJDK_TARGET_OS), macosx) # no MacOS X support yet
 		$(CD) $$($1_OBJECT_DIR) \
 		&& $(ZIP) -q $$@ $$($1_PROGRAM).debuginfo
           endif
+endif
 endif # no MacOS X support yet
         else
           ifeq ($(OPENJDK_TARGET_OS), windows)
