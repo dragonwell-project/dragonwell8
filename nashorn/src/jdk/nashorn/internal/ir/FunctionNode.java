@@ -57,6 +57,8 @@ import jdk.nashorn.internal.runtime.linker.LinkerCallSite;
  */
 @Immutable
 public final class FunctionNode extends LexicalContextExpression implements Flags<FunctionNode>, CompileUnitHolder {
+    private static final long serialVersionUID = 1L;
+
     /** Type used for all FunctionNodes */
     public static final Type FUNCTION_TYPE = Type.typeFor(ScriptFunction.class);
 
@@ -107,7 +109,7 @@ public final class FunctionNode extends LexicalContextExpression implements Flag
     }
 
     /** Source of entity. */
-    private final Source source;
+    private transient final Source source;
 
     /**
      * Opaque object representing parser state at the end of the function. Used when reparsing outer functions
@@ -141,7 +143,7 @@ public final class FunctionNode extends LexicalContextExpression implements Flag
     private final long lastToken;
 
     /** Method's namespace. */
-    private final Namespace namespace;
+    private transient final Namespace namespace;
 
     /** Current compilation state */
     @Ignore
@@ -207,31 +209,23 @@ public final class FunctionNode extends LexicalContextExpression implements Flag
     /** Are we vararg, but do we just pass the arguments along to apply or call */
     public static final int HAS_APPLY_TO_CALL_SPECIALIZATION = 1 << 12;
 
-    /** Does this function explicitly use the {@link CompilerConstants#RETURN} symbol? Some functions are known to
-     * always use the return symbol, namely a function that is a program (as it must track its last executed expression
-     * statement's value) as well as functions that are split (to communicate return values from inner to outer
-     * partitions). Other functions normally don't use the return symbol (so we optimize away its slot), except in some
-     * very special cases, e.g. when containing a return statement in a finally block. These special cases set this
-     * flag. */
-    public static final int USES_RETURN_SYMBOL = 1 << 13;
-
     /**
      * Is this function the top-level program?
      */
-    public static final int IS_PROGRAM = 1 << 14;
+    public static final int IS_PROGRAM = 1 << 13;
 
     /**
      * Flag indicating whether this function uses the local variable symbol for itself. Only named function expressions
      * can have this flag set if they reference themselves (e.g. "(function f() { return f })". Declared functions will
      * use the symbol in their parent scope instead when they reference themselves by name.
      */
-    public static final int USES_SELF_SYMBOL = 1 << 15;
+    public static final int USES_SELF_SYMBOL = 1 << 14;
 
     /** Does this function use the "this" keyword? */
-    public static final int USES_THIS = 1 << 16;
+    public static final int USES_THIS = 1 << 15;
 
     /** Is this declared in a dynamic context */
-    public static final int IN_DYNAMIC_CONTEXT = 1 << 17;
+    public static final int IN_DYNAMIC_CONTEXT = 1 << 16;
 
     /**
      * The following flags are derived from directive comments within this function.
@@ -239,28 +233,28 @@ public final class FunctionNode extends LexicalContextExpression implements Flag
      */
 
     /** parser, print parse tree */
-    public static final int IS_PRINT_PARSE       = 1 << 18;
+    public static final int IS_PRINT_PARSE       = 1 << 17;
     /** parser, print lower parse tree */
-    public static final int IS_PRINT_LOWER_PARSE = 1 << 19;
+    public static final int IS_PRINT_LOWER_PARSE = 1 << 18;
     /** parser, print AST */
-    public static final int IS_PRINT_AST         = 1 << 20;
+    public static final int IS_PRINT_AST         = 1 << 19;
     /** parser, print lower AST */
-    public static final int IS_PRINT_LOWER_AST   = 1 << 21;
+    public static final int IS_PRINT_LOWER_AST   = 1 << 20;
     /** parser, print symbols */
-    public static final int IS_PRINT_SYMBOLS     = 1 << 22;
+    public static final int IS_PRINT_SYMBOLS     = 1 << 21;
 
     // callsite tracing, profiling within this function
     /** profile callsites in this function? */
-    public static final int IS_PROFILE         = 1 << 23;
+    public static final int IS_PROFILE         = 1 << 22;
 
     /** trace callsite enterexit in this function? */
-    public static final int IS_TRACE_ENTEREXIT = 1 << 24;
+    public static final int IS_TRACE_ENTEREXIT = 1 << 23;
 
     /** trace callsite misses in this function? */
-    public static final int IS_TRACE_MISSES    = 1 << 25;
+    public static final int IS_TRACE_MISSES    = 1 << 24;
 
     /** trace callsite values in this function? */
-    public static final int IS_TRACE_VALUES    = 1 << 26;
+    public static final int IS_TRACE_VALUES    = 1 << 25;
 
     /**
      * Whether this function needs the callee {@link ScriptFunction} instance passed to its code as a
@@ -268,7 +262,7 @@ public final class FunctionNode extends LexicalContextExpression implements Flag
      * Rather, it is always calculated (see {@link #needsCallee()}). {@link RecompilableScriptFunctionData}
      * will, however, cache the value of this flag.
      */
-    public static final int NEEDS_CALLEE       = 1 << 27;
+    public static final int NEEDS_CALLEE       = 1 << 26;
 
     /** extension callsite flags mask */
     public static final int EXTENSION_CALLSITE_FLAGS = IS_PRINT_PARSE |
@@ -285,8 +279,8 @@ public final class FunctionNode extends LexicalContextExpression implements Flag
     /** Does this function potentially need "arguments"? Note that this is not a full test, as further negative check of REDEFINES_ARGS is needed. */
     private static final int MAYBE_NEEDS_ARGUMENTS = USES_ARGUMENTS | HAS_EVAL;
 
-    /** Does this function need the parent scope? It needs it if either it or its descendants use variables from it, or have a deep eval. */
-    private static final int NEEDS_PARENT_SCOPE = USES_ANCESTOR_SCOPE | HAS_DEEP_EVAL;
+    /** Does this function need the parent scope? It needs it if either it or its descendants use variables from it, or have a deep eval, or it's the program. */
+    public static final int NEEDS_PARENT_SCOPE = USES_ANCESTOR_SCOPE | HAS_DEEP_EVAL | IS_PROGRAM;
 
     /** What is the return type of this function? */
     private Type returnType = Type.UNKNOWN;
@@ -350,7 +344,8 @@ public final class FunctionNode extends LexicalContextExpression implements Flag
         final Block body,
         final List<IdentNode> parameters,
         final int thisProperties,
-        final Class<?> rootClass) {
+        final Class<?> rootClass,
+        final Source source, Namespace namespace) {
         super(functionNode);
 
         this.endParserState    = endParserState;
@@ -365,11 +360,11 @@ public final class FunctionNode extends LexicalContextExpression implements Flag
         this.parameters       = parameters;
         this.thisProperties   = thisProperties;
         this.rootClass        = rootClass;
+        this.source           = source;
+        this.namespace        = namespace;
 
         // the fields below never change - they are final and assigned in constructor
-        this.source          = functionNode.source;
         this.ident           = functionNode.ident;
-        this.namespace       = functionNode.namespace;
         this.kind            = functionNode.kind;
         this.firstToken      = functionNode.firstToken;
     }
@@ -432,6 +427,39 @@ public final class FunctionNode extends LexicalContextExpression implements Flag
      */
     public Source getSource() {
         return source;
+    }
+
+    /**
+     * Sets the source and namespace for this function. It can only set a non-null source and namespace for a function
+     * that currently has both a null source and a null namespace. This is used to re-set the source and namespace for
+     * a deserialized function node.
+     * @param source the source for the function.
+     * @param namespace the namespace for the function
+     * @return a new function node with the set source and namespace
+     * @throws IllegalArgumentException if the specified source or namespace is null
+     * @throws IllegalStateException if the function already has either a source or namespace set.
+     */
+    public FunctionNode initializeDeserialized(final Source source, final Namespace namespace) {
+        if (source == null || namespace == null) {
+            throw new IllegalArgumentException();
+        } else if (this.source == source && this.namespace == namespace) {
+            return this;
+        } else if (this.source != null || this.namespace != null) {
+            throw new IllegalStateException();
+        }
+        return new FunctionNode(
+            this,
+            lastToken,
+            endParserState,
+            flags,
+            name,
+            returnType,
+            compileUnit,
+            compilationState,
+            body,
+            parameters,
+            thisProperties,
+            rootClass, source, namespace);
     }
 
     /**
@@ -535,6 +563,28 @@ public final class FunctionNode extends LexicalContextExpression implements Flag
         }
         final EnumSet<CompilationState> newState = EnumSet.copyOf(this.compilationState);
         newState.add(state);
+        return setCompilationState(lc, newState);
+    }
+
+    /**
+     * Copy a compilation state from an original function to this function. Used when creating synthetic
+     * function nodes by the splitter.
+     *
+     * @param lc lexical context
+     * @param original the original function node to copy compilation state from
+     * @return function node or a new one if state was changed
+     */
+    public FunctionNode copyCompilationState(final LexicalContext lc, final FunctionNode original) {
+        final EnumSet<CompilationState> origState = original.compilationState;
+        if (!AssertsEnabled.assertsEnabled() || this.compilationState.containsAll(origState)) {
+            return this;
+        }
+        final EnumSet<CompilationState> newState = EnumSet.copyOf(this.compilationState);
+        newState.addAll(origState);
+        return setCompilationState(lc, newState);
+    }
+
+    private FunctionNode setCompilationState(final LexicalContext lc, final EnumSet<CompilationState> compilationState) {
         return Node.replaceInLexicalContext(
                 lc,
                 this,
@@ -546,12 +596,13 @@ public final class FunctionNode extends LexicalContextExpression implements Flag
                         name,
                         returnType,
                         compileUnit,
-                        newState,
+                        compilationState,
                         body,
                         parameters,
                         thisProperties,
-                        rootClass));
+                        rootClass, source, namespace));
     }
+
 
     /**
      * Create a unique name in the namespace of this FunctionNode
@@ -622,7 +673,7 @@ public final class FunctionNode extends LexicalContextExpression implements Flag
                         body,
                         parameters,
                         thisProperties,
-                        rootClass));
+                        rootClass, source, namespace));
     }
 
     @Override
@@ -697,15 +748,8 @@ public final class FunctionNode extends LexicalContextExpression implements Flag
      * @return true if the function's generated Java method needs a {@code callee} parameter.
      */
     public boolean needsCallee() {
+        // NOTE: we only need isSplit() here to ensure that :scope can never drop below slot 2 for splitting array units.
         return needsParentScope() || usesSelfSymbol() || isSplit() || (needsArguments() && !isStrict()) || hasOptimisticApplyToCall();
-    }
-
-    /**
-     * Check if this function uses the return symbol
-     * @return true if uses the return symbol
-     */
-    public boolean usesReturnSymbol() {
-        return isProgram() || isSplit() || getFlag(USES_RETURN_SYMBOL);
     }
 
     /**
@@ -770,7 +814,7 @@ public final class FunctionNode extends LexicalContextExpression implements Flag
                         body,
                         parameters,
                         thisProperties,
-                        rootClass));
+                        rootClass, source, namespace));
     }
 
     /**
@@ -838,7 +882,7 @@ public final class FunctionNode extends LexicalContextExpression implements Flag
      * @return true if the function needs parent scope.
      */
     public boolean needsParentScope() {
-        return getFlag(NEEDS_PARENT_SCOPE) || isProgram();
+        return getFlag(NEEDS_PARENT_SCOPE);
     }
 
     /**
@@ -866,7 +910,7 @@ public final class FunctionNode extends LexicalContextExpression implements Flag
                         body,
                         parameters,
                         thisProperties,
-                        rootClass));
+                        rootClass, source, namespace));
     }
 
     /**
@@ -927,7 +971,7 @@ public final class FunctionNode extends LexicalContextExpression implements Flag
                         body,
                         parameters,
                         thisProperties,
-                        rootClass));
+                        rootClass, source, namespace));
     }
 
     /**
@@ -962,7 +1006,10 @@ public final class FunctionNode extends LexicalContextExpression implements Flag
                         compilationState,
                         body,
                         parameters,
-                        thisProperties, rootClass));
+                        thisProperties,
+                        rootClass,
+                        source,
+                        namespace));
     }
 
     /**
@@ -998,7 +1045,9 @@ public final class FunctionNode extends LexicalContextExpression implements Flag
                         body,
                         parameters,
                         thisProperties,
-                        rootClass));
+                        rootClass,
+                        source,
+                        namespace));
     }
 
     /**
@@ -1012,9 +1061,9 @@ public final class FunctionNode extends LexicalContextExpression implements Flag
     }
 
     /**
-     * Checks if this function is a sub-function generated by splitting a larger one
+     * Checks if this function is split into several smaller fragments.
      *
-     * @return true if this function is split from a larger one
+     * @return true if this function is split into several smaller fragments.
      */
     public boolean isSplit() {
         return getFlag(IS_SPLIT);
@@ -1064,7 +1113,7 @@ public final class FunctionNode extends LexicalContextExpression implements Flag
                         body,
                         parameters,
                         thisProperties,
-                        rootClass));
+                        rootClass, source, namespace));
     }
 
     /**
@@ -1143,7 +1192,7 @@ public final class FunctionNode extends LexicalContextExpression implements Flag
                 body,
                 parameters,
                 thisProperties,
-                rootClass
+                rootClass, source, namespace
                 ));
    }
 
@@ -1191,7 +1240,7 @@ public final class FunctionNode extends LexicalContextExpression implements Flag
                         body,
                         parameters,
                         thisProperties,
-                        rootClass));
+                        rootClass, source, namespace));
     }
 
     /**
@@ -1247,6 +1296,6 @@ public final class FunctionNode extends LexicalContextExpression implements Flag
                         body,
                         parameters,
                         thisProperties,
-                        rootClass));
+                        rootClass, source, namespace));
     }
 }
