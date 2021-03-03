@@ -28,6 +28,7 @@ package sun.security.provider;
 import java.security.MessageDigestSpi;
 import java.security.DigestException;
 import java.security.ProviderException;
+import java.util.Arrays;
 
 /**
  * Common base message digest implementation for the Sun provider.
@@ -151,6 +152,7 @@ abstract class DigestBase extends MessageDigestSpi implements Cloneable {
         implReset();
         bufOfs = 0;
         bytesProcessed = 0;
+        Arrays.fill(buffer, (byte) 0x00);
     }
 
     // return the digest. See JCA doc.
