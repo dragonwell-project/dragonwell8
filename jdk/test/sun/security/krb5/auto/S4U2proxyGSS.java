@@ -26,8 +26,8 @@
  * @bug 6355584
  * @summary Introduce constrained Kerberos delegation
  * @compile -XDignore.symbol.file S4U2proxyGSS.java
- * @run main/othervm -Djavax.security.auth.useSubjectCredsOnly=false S4U2proxyGSS krb5
- * @run main/othervm -Djavax.security.auth.useSubjectCredsOnly=false S4U2proxyGSS spnego
+ * @run main/othervm -Dsun.net.spi.nameservice.provider.1=ns,mock -Djavax.security.auth.useSubjectCredsOnly=false S4U2proxyGSS krb5
+ * @run main/othervm -Dsun.net.spi.nameservice.provider.1=ns,mock -Djavax.security.auth.useSubjectCredsOnly=false S4U2proxyGSS spnego
  */
 
 import java.io.File;

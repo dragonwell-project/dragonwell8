@@ -26,7 +26,7 @@
  * @bug 8178794
  * @summary krb5 client should ignore sname in incoming tickets
  * @compile -XDignore.symbol.file TicketSName.java
- * @run main/othervm -Dtest.kdc.diff.sname TicketSName
+ * @run main/othervm -Dsun.net.spi.nameservice.provider.1=ns,mock -Dtest.kdc.diff.sname TicketSName
  */
 
 import sun.security.jgss.GSSUtil;

@@ -26,7 +26,7 @@
  * @bug 8022582
  * @summary Relax response flags checking in sun.security.krb5.KrbKdcRep.check.
  * @compile -XDignore.symbol.file ForwardableCheck.java
- * @run main/othervm ForwardableCheck
+ * @run main/othervm -Dsun.net.spi.nameservice.provider.1=ns,mock ForwardableCheck
  */
 
 import org.ietf.jgss.GSSException;
