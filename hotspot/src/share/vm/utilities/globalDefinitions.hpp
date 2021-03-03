@@ -38,6 +38,9 @@
 #ifdef TARGET_COMPILER_sparcWorks
 # include "utilities/globalDefinitions_sparcWorks.hpp"
 #endif
+#ifdef TARGET_COMPILER_xlc
+# include "utilities/globalDefinitions_xlc.hpp"
+#endif
 
 #include "utilities/macros.hpp"
 
@@ -370,6 +373,21 @@ const uint64_t KlassEncodingMetaspaceMax = (uint64_t(max_juint) + 1) << LogKlass
 
 // Machine dependent stuff
 
+#if defined(X86) && defined(COMPILER2) && !defined(JAVASE_EMBEDDED)
+// Include Restricted Transactional Memory lock eliding optimization
+#define INCLUDE_RTM_OPT 1
+#define RTM_OPT_ONLY(code) code
+#else
+#define INCLUDE_RTM_OPT 0
+#define RTM_OPT_ONLY(code)
+#endif
+// States of Restricted Transactional Memory usage.
+enum RTMState {
+  NoRTM      = 0x2, // Don't use RTM
+  UseRTM     = 0x1, // Use RTM
+  ProfileRTM = 0x0  // Use RTM with abort ratio calculation
+};
+
 #ifdef TARGET_ARCH_x86
 # include "globalDefinitions_x86.hpp"
 #endif
@@ -393,6 +411,17 @@ const uint64_t KlassEncodingMetaspaceMax = (uint64_t(max_juint) + 1) << LogKlass
  */
 #ifndef PLATFORM_NATIVE_STACK_WALKING_SUPPORTED
 #define PLATFORM_NATIVE_STACK_WALKING_SUPPORTED 1
+#endif
+
+// To assure the IRIW property on processors that are not multiple copy
+// atomic, sync instructions must be issued between volatile reads to
+// assure their ordering, instead of after volatile stores.
+// (See "A Tutorial Introduction to the ARM and POWER Relaxed Memory Models"
+// by Luc Maranget, Susmit Sarkar and Peter Sewell, INRIA/Cambridge)
+#ifdef CPU_NOT_MULTIPLE_COPY_ATOMIC
+const bool support_IRIW_for_not_multiple_copy_atomic_cpu = true;
+#else
+const bool support_IRIW_for_not_multiple_copy_atomic_cpu = false;
 #endif
 
 // The byte alignment to be used by Arena::Amalloc.  See bugid 4169348.

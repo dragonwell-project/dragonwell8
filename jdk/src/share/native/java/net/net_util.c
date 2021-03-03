@@ -67,7 +67,7 @@ JNI_OnLoad(JavaVM *vm, void *reserved)
        supporting socket APIs are available
     */
     IPv6_available = IPv6_supported() & (!preferIPv4Stack);
-    initLocalAddrTable ();
+    platformInit();
     parseExclusiveBindProperty(env);
 
     return JNI_VERSION_1_2;

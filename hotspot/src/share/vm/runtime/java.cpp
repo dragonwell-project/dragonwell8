@@ -268,7 +268,7 @@ void print_statistics() {
     os::print_statistics();
   }
 
-  if (PrintLockStatistics || PrintPreciseBiasedLockingStatistics) {
+  if (PrintLockStatistics || PrintPreciseBiasedLockingStatistics || PrintPreciseRTMLockingStatistics) {
     OptoRuntime::print_named_counters();
   }
 
@@ -390,7 +390,7 @@ void print_statistics() {
   }
 
 #ifdef COMPILER2
-  if (PrintPreciseBiasedLockingStatistics) {
+  if (PrintPreciseBiasedLockingStatistics || PrintPreciseRTMLockingStatistics) {
     OptoRuntime::print_named_counters();
   }
 #endif
