@@ -99,9 +99,7 @@ bool CodeHeap::reserve(size_t reserved_size, size_t committed_size,
   // Reserve and initialize space for _memory.
   size_t page_size = os::vm_page_size();
   if (os::can_execute_large_page_memory()) {
-    const size_t min_pages = 8;
-    page_size = MIN2(os::page_size_for_region_aligned(committed_size, min_pages),
-                     os::page_size_for_region_aligned(reserved_size, min_pages));
+    page_size = os::page_size_for_region_unaligned(reserved_size, 8);
   }
 
   const size_t granularity = os::vm_allocation_granularity();
