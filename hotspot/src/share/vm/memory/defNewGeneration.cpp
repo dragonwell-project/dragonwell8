@@ -42,6 +42,7 @@
 #include "oops/instanceRefKlass.hpp"
 #include "oops/oop.inline.hpp"
 #include "runtime/java.hpp"
+#include "runtime/prefetch.inline.hpp"
 #include "runtime/thread.inline.hpp"
 #include "utilities/copy.hpp"
 #include "utilities/stack.inline.hpp"
@@ -584,7 +585,7 @@ void DefNewGeneration::collect(bool   full,
 
   init_assuming_no_promotion_failure();
 
-  GCTraceTime t1(GCCauseString("GC", gch->gc_cause()), PrintGC && !PrintGCDetails, true, NULL);
+  GCTraceTime t1(GCCauseString("GC", gch->gc_cause()), PrintGC && !PrintGCDetails, true, NULL, gc_tracer.gc_id());
   // Capture heap used before collection (for printing).
   size_t gch_prev_used = gch->used();
 
@@ -612,6 +613,9 @@ void DefNewGeneration::collect(bool   full,
 
   KlassScanClosure klass_scan_closure(&fsc_with_no_gc_barrier,
                                       gch->rem_set()->klass_rem_set());
+  CLDToKlassAndOopClosure cld_scan_closure(&klass_scan_closure,
+                                           &fsc_with_no_gc_barrier,
+                                           false);
 
   set_promo_failure_scan_stack_closure(&fsc_with_no_gc_barrier);
   FastEvacuateFollowersClosure evacuate_followers(gch, _level, this,
@@ -621,18 +625,15 @@ void DefNewGeneration::collect(bool   full,
   assert(gch->no_allocs_since_save_marks(0),
          "save marks have not been newly set.");
 
-  int so = SharedHeap::SO_AllClasses | SharedHeap::SO_Strings | SharedHeap::SO_CodeCache;
-
-  gch->gen_process_strong_roots(_level,
-                                true,  // Process younger gens, if any,
-                                       // as strong roots.
-                                true,  // activate StrongRootsScope
-                                true,  // is scavenging
-                                SharedHeap::ScanningOption(so),
-                                &fsc_with_no_gc_barrier,
-                                true,   // walk *all* scavengable nmethods
-                                &fsc_with_gc_barrier,
-                                &klass_scan_closure);
+  gch->gen_process_roots(_level,
+                         true,  // Process younger gens, if any,
+                                // as strong roots.
+                         true,  // activate StrongRootsScope
+                         SharedHeap::SO_ScavengeCodeCache,
+                         GenCollectedHeap::StrongAndWeakRoots,
+                         &fsc_with_no_gc_barrier,
+                         &fsc_with_gc_barrier,
+                         &cld_scan_closure);
 
   // "evacuate followers".
   evacuate_followers.do_void();
@@ -642,7 +643,7 @@ void DefNewGeneration::collect(bool   full,
   rp->setup_policy(clear_all_soft_refs);
   const ReferenceProcessorStats& stats =
   rp->process_discovered_references(&is_alive, &keep_alive, &evacuate_followers,
-                                    NULL, _gc_timer);
+                                    NULL, _gc_timer, gc_tracer.gc_id());
   gc_tracer.report_gc_reference_stats(stats);
 
   if (!_promotion_failed) {
@@ -788,7 +789,7 @@ oop DefNewGeneration::copy_to_survivor_space(oop old) {
 
   // Try allocating obj in to-space (unless too old)
   if (old->age() < tenuring_threshold()) {
-    obj = (oop) to()->allocate(s);
+    obj = (oop) to()->allocate_aligned(s);
   }
 
   // Otherwise try allocating obj tenured

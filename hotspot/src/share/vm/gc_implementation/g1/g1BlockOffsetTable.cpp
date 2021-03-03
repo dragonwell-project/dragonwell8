@@ -24,6 +24,7 @@
 
 #include "precompiled.hpp"
 #include "gc_implementation/g1/g1BlockOffsetTable.inline.hpp"
+#include "gc_implementation/g1/heapRegion.hpp"
 #include "memory/space.hpp"
 #include "oops/oop.inline.hpp"
 #include "runtime/java.hpp"
@@ -31,64 +32,37 @@
 
 PRAGMA_FORMAT_MUTE_WARNINGS_FOR_GCC
 
+void G1BlockOffsetSharedArrayMappingChangedListener::on_commit(uint start_idx, size_t num_regions) {
+  // Nothing to do. The BOT is hard-wired to be part of the HeapRegion, and we cannot
+  // retrieve it here since this would cause firing of several asserts. The code
+  // executed after commit of a region already needs to do some re-initialization of
+  // the HeapRegion, so we combine that.
+}
+
 //////////////////////////////////////////////////////////////////////
 // G1BlockOffsetSharedArray
 //////////////////////////////////////////////////////////////////////
 
-G1BlockOffsetSharedArray::G1BlockOffsetSharedArray(MemRegion reserved,
-                                                   size_t init_word_size) :
-  _reserved(reserved), _end(NULL)
-{
-  size_t size = compute_size(reserved.word_size());
-  ReservedSpace rs(ReservedSpace::allocation_align_size_up(size));
-  if (!rs.is_reserved()) {
-    vm_exit_during_initialization("Could not reserve enough space for heap offset array");
-  }
-  if (!_vs.initialize(rs, 0)) {
-    vm_exit_during_initialization("Could not reserve enough space for heap offset array");
-  }
+G1BlockOffsetSharedArray::G1BlockOffsetSharedArray(MemRegion heap, G1RegionToSpaceMapper* storage) :
+  _reserved(), _end(NULL), _listener(), _offset_array(NULL) {
 
-  MemTracker::record_virtual_memory_type((address)rs.base(), mtGC);
+  _reserved = heap;
+  _end = NULL;
 
-  _offset_array = (u_char*)_vs.low_boundary();
-  resize(init_word_size);
+  MemRegion bot_reserved = storage->reserved();
+
+  _offset_array = (u_char*)bot_reserved.start();
+  _end = _reserved.end();
+
+  storage->set_mapping_changed_listener(&_listener);
+
   if (TraceBlockOffsetTable) {
     gclog_or_tty->print_cr("G1BlockOffsetSharedArray::G1BlockOffsetSharedArray: ");
     gclog_or_tty->print_cr("  "
                   "  rs.base(): " INTPTR_FORMAT
                   "  rs.size(): " INTPTR_FORMAT
                   "  rs end(): " INTPTR_FORMAT,
-                  rs.base(), rs.size(), rs.base() + rs.size());
-    gclog_or_tty->print_cr("  "
-                  "  _vs.low_boundary(): " INTPTR_FORMAT
-                  "  _vs.high_boundary(): " INTPTR_FORMAT,
-                  _vs.low_boundary(),
-                  _vs.high_boundary());
-  }
-}
-
-void G1BlockOffsetSharedArray::resize(size_t new_word_size) {
-  assert(new_word_size <= _reserved.word_size(), "Resize larger than reserved");
-  size_t new_size = compute_size(new_word_size);
-  size_t old_size = _vs.committed_size();
-  size_t delta;
-  char* high = _vs.high();
-  _end = _reserved.start() + new_word_size;
-  if (new_size > old_size) {
-    delta = ReservedSpace::page_align_size_up(new_size - old_size);
-    assert(delta > 0, "just checking");
-    if (!_vs.expand_by(delta)) {
-      // Do better than this for Merlin
-      vm_exit_out_of_memory(delta, OOM_MMAP_ERROR, "offset table expansion");
-    }
-    assert(_vs.high() == high + delta, "invalid expansion");
-    // Initialization of the contents is left to the
-    // G1BlockOffsetArray that uses it.
-  } else {
-    delta = ReservedSpace::page_align_size_down(old_size - new_size);
-    if (delta == 0) return;
-    _vs.shrink_by(delta);
-    assert(_vs.high() == high - delta, "invalid expansion");
+                  bot_reserved.start(), bot_reserved.byte_size(), bot_reserved.end());
   }
 }
 
@@ -98,6 +72,9 @@ bool G1BlockOffsetSharedArray::is_card_boundary(HeapWord* p) const {
   return (delta & right_n_bits(LogN_words)) == (size_t)NoBits;
 }
 
+void G1BlockOffsetSharedArray::set_offset_array(HeapWord* left, HeapWord* right, u_char offset) {
+  set_offset_array(index_for(left), index_for(right -1), offset);
+}
 
 //////////////////////////////////////////////////////////////////////
 // G1BlockOffsetArray
@@ -107,7 +84,7 @@ G1BlockOffsetArray::G1BlockOffsetArray(G1BlockOffsetSharedArray* array,
                                        MemRegion mr, bool init_to_zero) :
   G1BlockOffsetTable(mr.start(), mr.end()),
   _unallocated_block(_bottom),
-  _array(array), _csp(NULL),
+  _array(array), _gsp(NULL),
   _init_to_zero(init_to_zero) {
   assert(_bottom <= _end, "arguments out of order");
   if (!_init_to_zero) {
@@ -117,9 +94,8 @@ G1BlockOffsetArray::G1BlockOffsetArray(G1BlockOffsetSharedArray* array,
   }
 }
 
-void G1BlockOffsetArray::set_space(Space* sp) {
-  _sp = sp;
-  _csp = sp->toContiguousSpace();
+void G1BlockOffsetArray::set_space(G1OffsetTableContigSpace* sp) {
+  _gsp = sp;
 }
 
 // The arguments follow the normal convention of denoting
@@ -378,7 +354,7 @@ G1BlockOffsetArray::block_start_unsafe_const(const void* addr) const {
   }
   // Otherwise, find the block start using the table.
   HeapWord* q = block_at_or_preceding(addr, false, 0);
-  HeapWord* n = q + _sp->block_size(q);
+  HeapWord* n = q + block_size(q);
   return forward_to_block_containing_addr_const(q, n, addr);
 }
 
@@ -406,31 +382,17 @@ G1BlockOffsetArray::forward_to_block_containing_addr_slow(HeapWord* q,
          err_msg("next_boundary is beyond the end of the covered region "
                  " next_boundary " PTR_FORMAT " _array->_end " PTR_FORMAT,
                  next_boundary, _array->_end));
-  if (csp() != NULL) {
-    if (addr >= csp()->top()) return csp()->top();
-    while (next_boundary < addr) {
-      while (n <= next_boundary) {
-        q = n;
-        oop obj = oop(q);
-        if (obj->klass_or_null() == NULL) return q;
-        n += obj->size();
-      }
-      assert(q <= next_boundary && n > next_boundary, "Consequence of loop");
-      // [q, n) is the block that crosses the boundary.
-      alloc_block_work2(&next_boundary, &next_index, q, n);
+  if (addr >= gsp()->top()) return gsp()->top();
+  while (next_boundary < addr) {
+    while (n <= next_boundary) {
+      q = n;
+      oop obj = oop(q);
+      if (obj->klass_or_null() == NULL) return q;
+      n += block_size(q);
     }
-  } else {
-    while (next_boundary < addr) {
-      while (n <= next_boundary) {
-        q = n;
-        oop obj = oop(q);
-        if (obj->klass_or_null() == NULL) return q;
-        n += _sp->block_size(q);
-      }
-      assert(q <= next_boundary && n > next_boundary, "Consequence of loop");
-      // [q, n) is the block that crosses the boundary.
-      alloc_block_work2(&next_boundary, &next_index, q, n);
-    }
+    assert(q <= next_boundary && n > next_boundary, "Consequence of loop");
+    // [q, n) is the block that crosses the boundary.
+    alloc_block_work2(&next_boundary, &next_index, q, n);
   }
   return forward_to_block_containing_addr_const(q, n, addr);
 }
@@ -638,7 +600,7 @@ block_start_unsafe_const(const void* addr) const {
   assert(_bottom <= addr && addr < _end,
          "addr must be covered by this Array");
   HeapWord* q = block_at_or_preceding(addr, true, _next_offset_index-1);
-  HeapWord* n = q + _sp->block_size(q);
+  HeapWord* n = q + block_size(q);
   return forward_to_block_containing_addr_const(q, n, addr);
 }
 
@@ -649,6 +611,25 @@ G1BlockOffsetArrayContigSpace(G1BlockOffsetSharedArray* array,
 {
   _next_offset_threshold = NULL;
   _next_offset_index = 0;
+}
+
+HeapWord* G1BlockOffsetArrayContigSpace::initialize_threshold_raw() {
+  assert(!Universe::heap()->is_in_reserved(_array->_offset_array),
+         "just checking");
+  _next_offset_index = _array->index_for_raw(_bottom);
+  _next_offset_index++;
+  _next_offset_threshold =
+    _array->address_for_index_raw(_next_offset_index);
+  return _next_offset_threshold;
+}
+
+void G1BlockOffsetArrayContigSpace::zero_bottom_entry_raw() {
+  assert(!Universe::heap()->is_in_reserved(_array->_offset_array),
+         "just checking");
+  size_t bottom_index = _array->index_for_raw(_bottom);
+  assert(_array->address_for_index_raw(bottom_index) == _bottom,
+         "Precondition of call");
+  _array->set_offset_array_raw(bottom_index, 0);
 }
 
 HeapWord* G1BlockOffsetArrayContigSpace::initialize_threshold() {
@@ -675,8 +656,7 @@ G1BlockOffsetArrayContigSpace::set_for_starts_humongous(HeapWord* new_top) {
   assert(new_top <= _end, "_end should have already been updated");
 
   // The first BOT entry should have offset 0.
-  zero_bottom_entry();
-  initialize_threshold();
+  reset_bot();
   alloc_block(_bottom, new_top);
  }
 

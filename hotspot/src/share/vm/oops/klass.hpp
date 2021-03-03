@@ -32,7 +32,6 @@
 #include "oops/klassPS.hpp"
 #include "oops/metadata.hpp"
 #include "oops/oop.hpp"
-#include "runtime/orderAccess.hpp"
 #include "trace/traceMacros.hpp"
 #include "utilities/accessFlags.hpp"
 #include "utilities/macros.hpp"
@@ -500,6 +499,7 @@ class Klass : public Metadata {
   virtual bool oop_is_objArray_slow()       const { return false; }
   virtual bool oop_is_typeArray_slow()      const { return false; }
  public:
+  virtual bool oop_is_instanceClassLoader() const { return false; }
   virtual bool oop_is_instanceMirror()      const { return false; }
   virtual bool oop_is_instanceRef()         const { return false; }
 
@@ -583,36 +583,9 @@ class Klass : public Metadata {
   // The is_alive closure passed in depends on the Garbage Collector used.
   bool is_loader_alive(BoolObjectClosure* is_alive);
 
-  static void clean_weak_klass_links(BoolObjectClosure* is_alive);
-
-  // Prefetch within oop iterators.  This is a macro because we
-  // can't guarantee that the compiler will inline it.  In 64-bit
-  // it generally doesn't.  Signature is
-  //
-  // static void prefetch_beyond(oop* const start,
-  //                             oop* const end,
-  //                             const intx foffset,
-  //                             const Prefetch::style pstyle);
-#define prefetch_beyond(start, end, foffset, pstyle) {   \
-    const intx foffset_ = (foffset);                     \
-    const Prefetch::style pstyle_ = (pstyle);            \
-    assert(foffset_ > 0, "prefetch beyond, not behind"); \
-    if (pstyle_ != Prefetch::do_none) {                  \
-      oop* ref = (start);                                \
-      if (ref < (end)) {                                 \
-        switch (pstyle_) {                               \
-        case Prefetch::do_read:                          \
-          Prefetch::read(*ref, foffset_);                \
-          break;                                         \
-        case Prefetch::do_write:                         \
-          Prefetch::write(*ref, foffset_);               \
-          break;                                         \
-        default:                                         \
-          ShouldNotReachHere();                          \
-          break;                                         \
-        }                                                \
-      }                                                  \
-    }                                                    \
+  static void clean_weak_klass_links(BoolObjectClosure* is_alive, bool clean_alive_klasses = true);
+  static void clean_subklass_tree(BoolObjectClosure* is_alive) {
+    clean_weak_klass_links(is_alive, false /* clean_alive_klasses */);
   }
 
   // iterators
@@ -720,7 +693,7 @@ class Klass : public Metadata {
  private:
   // barriers used by klass_oop_store
   void klass_update_barrier_set(oop v);
-  void klass_update_barrier_set_pre(void* p, oop v);
+  void klass_update_barrier_set_pre(oop* p, oop v);
 };
 
 #endif // SHARE_VM_OOPS_KLASS_HPP
