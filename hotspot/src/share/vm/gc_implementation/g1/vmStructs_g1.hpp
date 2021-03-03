@@ -34,6 +34,8 @@
   static_field(HeapRegion, GrainBytes,        size_t)                         \
   static_field(HeapRegion, LogOfHRGrainBytes, int)                            \
                                                                               \
+  nonstatic_field(G1OffsetTableContigSpace, _top,       HeapWord*)            \
+                                                                              \
   nonstatic_field(G1HeapRegionTable, _base,             address)              \
   nonstatic_field(G1HeapRegionTable, _length,           size_t)               \
   nonstatic_field(G1HeapRegionTable, _biased_base,      address)              \
@@ -41,10 +43,9 @@
   nonstatic_field(G1HeapRegionTable, _shift_by,         uint)                 \
                                                                               \
   nonstatic_field(HeapRegionSeq,   _regions,            G1HeapRegionTable)    \
-  nonstatic_field(HeapRegionSeq,   _committed_length,   uint)                 \
+  nonstatic_field(HeapRegionSeq,   _num_committed,      uint)                 \
                                                                               \
   nonstatic_field(G1CollectedHeap, _hrs,                HeapRegionSeq)        \
-  nonstatic_field(G1CollectedHeap, _g1_committed,       MemRegion)            \
   nonstatic_field(G1CollectedHeap, _summary_bytes_used, size_t)               \
   nonstatic_field(G1CollectedHeap, _g1mm,               G1MonitoringSupport*) \
   nonstatic_field(G1CollectedHeap, _old_set,            HeapRegionSetBase)    \
@@ -69,7 +70,8 @@
                                                                               \
   declare_type(G1CollectedHeap, SharedHeap)                                   \
                                                                               \
-  declare_type(HeapRegion, ContiguousSpace)                                   \
+  declare_type(G1OffsetTableContigSpace, CompactibleSpace)                    \
+  declare_type(HeapRegion, G1OffsetTableContigSpace)                          \
   declare_toplevel_type(HeapRegionSeq)                                        \
   declare_toplevel_type(HeapRegionSetBase)                                    \
   declare_toplevel_type(HeapRegionSetCount)                                   \

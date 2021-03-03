@@ -117,6 +117,8 @@ PROFILE_3_RTJAR_INCLUDE_PACKAGES := \
     com/sun/security/ntlm \
     com/sun/security/sasl \
     com/sun/tracing \
+    jdk/management \
+    jdk/internal/cmm \
     java/lang/instrument \
     java/lang/management \
     java/security/acl \
