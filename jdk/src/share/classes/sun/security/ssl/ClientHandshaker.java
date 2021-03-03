@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1996, 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -289,7 +289,7 @@ final class ClientHandshaker extends Handshaker {
             case K_ECDH_RSA:
                 throw new SSLProtocolException(
                     "Protocol violation: server sent a server key exchange"
-                    + "message for key exchange " + keyExchange);
+                    + " message for key exchange " + keyExchange);
             case K_KRB5:
             case K_KRB5_EXPORT:
                 throw new SSLProtocolException(
@@ -485,7 +485,7 @@ final class ClientHandshaker extends Handshaker {
                         0, clientVerifyData.length);
                 System.arraycopy(serverVerifyData, 0, verifyData,
                         clientVerifyData.length, serverVerifyData.length);
-                if (!Arrays.equals(verifyData,
+                if (!MessageDigest.isEqual(verifyData,
                                 serverHelloRI.getRenegotiatedConnection())) {
                     fatalSE(Alerts.alert_handshake_failure,
                         "Incorrect verify data in ServerHello " +
@@ -675,6 +675,14 @@ final class ClientHandshaker extends Handshaker {
             // NOTREACHED
         }
         ephemeralServerKey = mesg.getPublicKey();
+
+        // check constraints of RSA PublicKey
+        if (!algorithmConstraints.permits(
+            EnumSet.of(CryptoPrimitive.KEY_AGREEMENT), ephemeralServerKey)) {
+
+            throw new SSLHandshakeException("RSA ServerKeyExchange " +
+                    "does not comply to algorithm constraints");
+        }
     }
 
 
@@ -692,6 +700,9 @@ final class ClientHandshaker extends Handshaker {
         dh = new DHCrypt(mesg.getModulus(), mesg.getBase(),
                                             sslContext.getSecureRandom());
         serverDH = mesg.getServerPublicKey();
+
+        // check algorithm constraints
+        dh.checkConstraints(algorithmConstraints, serverDH);
     }
 
     private void serverKeyExchange(ECDH_ServerKeyExchange mesg)
@@ -702,6 +713,14 @@ final class ClientHandshaker extends Handshaker {
         ECPublicKey key = mesg.getPublicKey();
         ecdh = new ECDHCrypt(key.getParams(), sslContext.getSecureRandom());
         ephemeralServerKey = key;
+
+        // check constraints of EC PublicKey
+        if (!algorithmConstraints.permits(
+            EnumSet.of(CryptoPrimitive.KEY_AGREEMENT), ephemeralServerKey)) {
+
+            throw new SSLHandshakeException("ECDH ServerKeyExchange " +
+                    "does not comply to algorithm constraints");
+        }
     }
 
     /*
