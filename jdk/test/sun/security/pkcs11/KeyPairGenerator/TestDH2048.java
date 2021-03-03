@@ -56,35 +56,21 @@ public class TestDH2048 extends PKCS11Test {
         kpg.initialize(512);
         KeyPair kp1 = kpg.generateKeyPair();
 
-        kpg.initialize(768);
-        kp1 = kpg.generateKeyPair();
-
-        kpg.initialize(1024);
-        kp1 = kpg.generateKeyPair();
-
-        kpg.initialize(1536);
-        kp1 = kpg.generateKeyPair();
-
-        kpg.initialize(2048);
-        kp1 = kpg.generateKeyPair();
-
+        int[] test_values = {768, 1024, 1536, 2048, 3072, 4096, 6144, 8192};
+        for (int i : test_values)
         try {
-            kpg.initialize(3072);
-            kp1 = kpg.generateKeyPair();
-
-            kpg.initialize(4096);
-            kp1 = kpg.generateKeyPair();
-
-            kpg.initialize(6144);
-            kp1 = kpg.generateKeyPair();
-
-            kpg.initialize(8192);
+            kpg.initialize(i);
             kp1 = kpg.generateKeyPair();
         } catch (InvalidParameterException ipe) {
             // NSS (as of version 3.13) has a hard coded maximum limit
             // of 2236 or 3072 bits for DHE keys.
-            System.out.println("4096-bit DH key pair generation: " + ipe);
-            if (!p.getName().equals("SunPKCS11-NSS")) {
+            // SunPKCS11-Solaris has limit of 4096 on older systems
+            String prov = p.getName();
+            System.out.println(i + "-bit DH key pair generation: " + ipe);
+            if ((prov.equals("SunPKCS11-NSS") && i > 2048) ||
+                (prov.equals("SunPKCS11-Solaris") && i > 4096)) {
+                // OK
+            } else {
                 throw ipe;
             }
         }
