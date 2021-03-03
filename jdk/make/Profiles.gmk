@@ -47,7 +47,6 @@ include profile-includes.txt
 # Note that some jars may be optional depending on the type of build (jdk vs.
 # openjdk) and the platform.
 #
-# WARNING: incoming lists are currently validated for linux only!
 ###############################################################################
 
 # These are jar files for which the contents vary depending on the profile
