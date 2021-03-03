@@ -37,6 +37,7 @@
 
 int VM_Version::_features = VM_Version::unknown_m;
 const char* VM_Version::_features_str = "";
+unsigned int VM_Version::_L2_cache_line_size = 0;
 
 void VM_Version::initialize() {
   _features = determine_features();
@@ -197,7 +198,7 @@ void VM_Version::initialize() {
   }
 
   assert(BlockZeroingLowLimit > 0, "invalid value");
-  if (has_block_zeroing()) {
+  if (has_block_zeroing() && cache_line_size > 0) {
     if (FLAG_IS_DEFAULT(UseBlockZeroing)) {
       FLAG_SET_DEFAULT(UseBlockZeroing, true);
     }
@@ -207,7 +208,7 @@ void VM_Version::initialize() {
   }
 
   assert(BlockCopyLowLimit > 0, "invalid value");
-  if (has_block_zeroing()) { // has_blk_init() && is_T4(): core's local L2 cache
+  if (has_block_zeroing() && cache_line_size > 0) { // has_blk_init() && is_T4(): core's local L2 cache
     if (FLAG_IS_DEFAULT(UseBlockCopy)) {
       FLAG_SET_DEFAULT(UseBlockCopy, true);
     }
@@ -362,6 +363,7 @@ void VM_Version::initialize() {
 
 #ifndef PRODUCT
   if (PrintMiscellaneous && Verbose) {
+    tty->print_cr("L2 cache line size: %u", L2_cache_line_size());
     tty->print("Allocation");
     if (AllocatePrefetchStyle <= 0) {
       tty->print_cr(": no prefetching");
