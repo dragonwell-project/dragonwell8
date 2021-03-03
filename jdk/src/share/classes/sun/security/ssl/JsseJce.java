@@ -55,11 +55,6 @@ final class JsseJce {
 
     private final static ProviderList fipsProviderList;
 
-    // Flag indicating whether EC crypto is available.
-    // If null, then we have not checked yet.
-    // If yes, then all the EC based crypto we need is available.
-    private static Boolean ecAvailable;
-
     // Flag indicating whether Kerberos crypto is available.
     // If true, then all the Kerberos-based crypto we need is available.
     private final static boolean kerberosAvailable;
@@ -195,24 +190,8 @@ final class JsseJce {
         // no instantiation of this class
     }
 
-    synchronized static boolean isEcAvailable() {
-        if (ecAvailable == null) {
-            try {
-                JsseJce.getSignature(SIGNATURE_ECDSA);
-                JsseJce.getSignature(SIGNATURE_RAWECDSA);
-                JsseJce.getKeyAgreement("ECDH");
-                JsseJce.getKeyFactory("EC");
-                JsseJce.getKeyPairGenerator("EC");
-                ecAvailable = true;
-            } catch (Exception e) {
-                ecAvailable = false;
-            }
-        }
-        return ecAvailable;
-    }
-
-    synchronized static void clearEcAvailable() {
-        ecAvailable = null;
+    static boolean isEcAvailable() {
+        return EcAvailability.isAvailable;
     }
 
     static boolean isKerberosAvailable() {
@@ -414,4 +393,27 @@ final class JsseJce {
         }
     }
 
+
+    // lazy initialization holder class idiom for static default parameters
+    //
+    // See Effective Java Second Edition: Item 71.
+    private static class EcAvailability {
+        // Is EC crypto available?
+        private final static boolean isAvailable;
+
+        static {
+            boolean mediator = true;
+            try {
+                JsseJce.getSignature(SIGNATURE_ECDSA);
+                JsseJce.getSignature(SIGNATURE_RAWECDSA);
+                JsseJce.getKeyAgreement("ECDH");
+                JsseJce.getKeyFactory("EC");
+                JsseJce.getKeyPairGenerator("EC");
+            } catch (Exception e) {
+                mediator = false;
+            }
+
+            isAvailable = mediator;
+        }
+    }
 }
