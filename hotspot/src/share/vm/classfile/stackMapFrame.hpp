@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -238,7 +238,7 @@ class StackMapFrame : public ResourceObj {
     if (_stack_size != 0) {
       VerificationType top = _stack[_stack_size - 1];
       bool subtype = type.is_assignable_from(
-        top, verifier(), CHECK_(VerificationType::bogus_type()));
+        top, verifier(), false, CHECK_(VerificationType::bogus_type()));
       if (subtype) {
         --_stack_size;
         return top;
@@ -253,9 +253,9 @@ class StackMapFrame : public ResourceObj {
     assert(type2.is_long() || type2.is_double(), "must be long/double_2");
     if (_stack_size >= 2) {
       VerificationType top1 = _stack[_stack_size - 1];
-      bool subtype1 = type1.is_assignable_from(top1, verifier(), CHECK);
+      bool subtype1 = type1.is_assignable_from(top1, verifier(), false, CHECK);
       VerificationType top2 = _stack[_stack_size - 2];
-      bool subtype2 = type2.is_assignable_from(top2, verifier(), CHECK);
+      bool subtype2 = type2.is_assignable_from(top2, verifier(), false, CHECK);
       if (subtype1 && subtype2) {
         _stack_size -= 2;
         return;
