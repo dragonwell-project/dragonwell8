@@ -23,8 +23,9 @@
 
 /*
  * @test
- * @bug 8032808
+ * @bug 8032808 8072384
  * @run main/othervm -Xcheck:jni Test
+ * @run main/othervm -Xcheck:jni -Djava.net.preferIPv4Stack=true Test
  * @run main/othervm/policy=policy.fail -Xcheck:jni Test fail
  * @run main/othervm/policy=policy.success -Xcheck:jni Test success
  */
@@ -99,6 +100,10 @@ public class Test {
         Sockets.setOption(ss, StandardSocketOptions.SO_RCVBUF, 5000);
         System.out.println ("Set SO_RCVBUF to 5000\ngetting returns: ");
         System.out.println (Sockets.getOption(s, StandardSocketOptions.SO_RCVBUF));
+
+        Sockets.setOption(ss, StandardSocketOptions.IP_TOS, 128);
+        System.out.println ("Setting TOS to 128\ngetting returns:  ");
+        System.out.println (Sockets.getOption(ss, StandardSocketOptions.IP_TOS));
 
         try {
             Sockets.setOption(ss, StandardSocketOptions.TCP_NODELAY, true);

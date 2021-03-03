@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,7 +27,6 @@ package sun.security.rsa;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
-import java.util.Arrays;
 
 import java.security.*;
 import java.security.interfaces.*;
@@ -173,7 +172,7 @@ public abstract class RSASignature extends SignatureSpi {
         try {
             byte[] encoded = encodeSignature(digestOID, digest);
             byte[] padded = padding.pad(encoded);
-            byte[] encrypted = RSACore.rsa(padded, privateKey);
+            byte[] encrypted = RSACore.rsa(padded, privateKey, true);
             return encrypted;
         } catch (GeneralSecurityException e) {
             throw new SignatureException("Could not sign data", e);
@@ -194,7 +193,7 @@ public abstract class RSASignature extends SignatureSpi {
             byte[] decrypted = RSACore.rsa(sigBytes, publicKey);
             byte[] unpadded = padding.unpad(decrypted);
             byte[] decodedDigest = decodeSignature(digestOID, unpadded);
-            return Arrays.equals(digest, decodedDigest);
+            return MessageDigest.isEqual(digest, decodedDigest);
         } catch (javax.crypto.BadPaddingException e) {
             // occurs if the app has used the wrong RSA public key
             // or if sigBytes is invalid
