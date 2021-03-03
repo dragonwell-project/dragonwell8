@@ -47,8 +47,6 @@ import javax.naming.ldap.Control;
 import javax.net.ssl.SSLParameters;
 import javax.net.ssl.SSLSocket;
 
-import sun.misc.IOUtils;
-
 /**
   * A thread that creates a connection to an LDAP server.
   * After the connection, the thread reads from the connection.
@@ -886,7 +884,7 @@ public final class Connection implements Runnable {
                     }
 
                     // read in seqlen bytes
-                    byte[] left = IOUtils.readFully(in, seqlen, false);
+                    byte[] left = readFully(in, seqlen);
                     inbuf = Arrays.copyOf(inbuf, offset + left.length);
                     System.arraycopy(left, 0, inbuf, offset, left.length);
                     offset += left.length;
@@ -981,6 +979,31 @@ System.err.println("bytesread: " + bytesread);
         }
     }
 
+    private static byte[] readFully(InputStream is, int length)
+        throws IOException
+    {
+        byte[] buf = new byte[Math.min(length, 8192)];
+        int nread = 0;
+        while (nread < length) {
+            int bytesToRead;
+            if (nread >= buf.length) {  // need to allocate a larger buffer
+                bytesToRead = Math.min(length - nread, buf.length + 8192);
+                if (buf.length < nread + bytesToRead) {
+                    buf = Arrays.copyOf(buf, nread + bytesToRead);
+                }
+            } else {
+                bytesToRead = buf.length - nread;
+            }
+            int count = is.read(buf, nread, bytesToRead);
+            if (count < 0) {
+                if (buf.length != nread)
+                    buf = Arrays.copyOf(buf, nread);
+                break;
+            }
+            nread += count;
+        }
+        return buf;
+    }
 
     // This code must be uncommented to run the LdapAbandonTest.
     /*public void sendSearchReqs(String dn, int numReqs) {
