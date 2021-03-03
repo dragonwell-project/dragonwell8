@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -1775,7 +1775,7 @@ Node* PhaseMacroExpand::prefetch_allocation(Node* i_o, Node*& needgc_false,
       i_o = pf_phi_abio;
    } else if( UseTLAB && AllocatePrefetchStyle == 3 ) {
       // Insert a prefetch for each allocation.
-      // This code is used for Sparc with BIS.
+      // This code is used to generate 1 prefetch instruction per cache line.
       Node *pf_region = new (C) RegionNode(3);
       Node *pf_phi_rawmem = new (C) PhiNode( pf_region, Type::MEMORY,
                                              TypeRawPtr::BOTTOM );
@@ -1791,6 +1791,8 @@ Node* PhaseMacroExpand::prefetch_allocation(Node* i_o, Node*& needgc_false,
       transform_later(cache_adr);
       cache_adr = new (C) CastP2XNode(needgc_false, cache_adr);
       transform_later(cache_adr);
+      // Address is aligned to execute prefetch to the beginning of cache line size
+      // (it is important when BIS instruction is used on SPARC as prefetch).
       Node* mask = _igvn.MakeConX(~(intptr_t)(step_size-1));
       cache_adr = new (C) AndXNode(cache_adr, mask);
       transform_later(cache_adr);

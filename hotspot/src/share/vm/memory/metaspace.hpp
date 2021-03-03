@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -258,6 +258,8 @@ class Metaspace : public CHeapObj<mtClass> {
   void print_on(outputStream* st) const;
   // Debugging support
   void verify();
+
+  static void print_compressed_class_space(outputStream* st, const char* requested_addr = 0);
 
   class AllocRecordClosure :  public StackObj {
   public:
