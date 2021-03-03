@@ -198,7 +198,7 @@ public:
                                bool support_usage_threshold);
 
   MemoryUsage get_memory_usage();
-  size_t used_in_bytes()            { return _space->used(); }
+  size_t used_in_bytes()            { return _space->used_stable(); }
 };
 #endif // INCLUDE_ALL_GCS
 
