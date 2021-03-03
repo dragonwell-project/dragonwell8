@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -162,8 +162,8 @@ address os::current_stack_pointer() {
 }
 
 static void current_stack_region(address* bottom, size_t* size) {
-  if (os::Linux::is_initial_thread()) {
-    // initial thread needs special handling because pthread_getattr_np()
+  if (os::is_primordial_thread()) {
+    // primordial thread needs special handling because pthread_getattr_np()
     // may return bogus value.
     *bottom = os::Linux::initial_thread_stack_bottom();
     *size = os::Linux::initial_thread_stack_size();
