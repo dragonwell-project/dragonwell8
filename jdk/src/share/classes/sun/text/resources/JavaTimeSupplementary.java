@@ -237,7 +237,7 @@ public class JavaTimeSupplementary extends OpenListResourceBundle {
                     "Taisho",
                     "Showa",
                     "Heisei",
-                    "NewEra", // New Era
+                    "Reiwa",
                 }
             },
             { "java.time.japanese.short.Eras",
@@ -247,7 +247,7 @@ public class JavaTimeSupplementary extends OpenListResourceBundle {
                     "Taisho",
                     "Showa",
                     "Heisei",
-                    "NewEra", // New Era
+                    "Reiwa",
                 }
             },
             { "java.time.roc.DatePatterns",
