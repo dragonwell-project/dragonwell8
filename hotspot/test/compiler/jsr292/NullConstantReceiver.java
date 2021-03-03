@@ -19,43 +19,44 @@
  * Please contact Oracle, 500 Oracle Parkway, Redwood Shores, CA 94065 USA
  * or visit www.oracle.com if you need additional information or have any
  * questions.
- *
  */
 
-/*
+/**
  * @test
- * @bug 8032024
- * @bug 8025937
- * @bug 8033528
- * @summary [JDK 8] Test invokespecial and invokeinterface with the same JVM_CONSTANT_InterfaceMethodref
- * @run main/othervm -XX:+StressRewriter InvokespecialInterface
+ * @bug 8059556
+ * @run main/othervm -Xbatch NullConstantReceiver
  */
-import java.util.function.*;
-import java.util.*;
 
-public class InvokespecialInterface {
-interface I {
-  default void imethod() { System.out.println("I::imethod"); }
+import java.lang.invoke.MethodHandle;
+import java.lang.invoke.MethodHandles;
+import java.lang.invoke.MethodType;
+
+public class NullConstantReceiver {
+    static final MethodHandle target;
+    static {
+        try {
+            target = MethodHandles.lookup().findVirtual(NullConstantReceiver.class, "test", MethodType.methodType(void.class));
+        } catch (ReflectiveOperationException e) {
+            throw new Error(e);
+        }
+    }
+
+    public void test() {}
+
+    static void run() throws Throwable {
+        target.invokeExact((NullConstantReceiver) null);
+    }
+
+    public static void main(String[] args) throws Throwable {
+        for (int i = 0; i<15000; i++) {
+            try {
+                run();
+            } catch (NullPointerException e) {
+                // expected
+                continue;
+            }
+            throw new AssertionError("NPE wasn't thrown");
+        }
+        System.out.println("TEST PASSED");
+    }
 }
-
-static class C implements I {
-  public void foo() { I.super.imethod(); }  // invokespecial InterfaceMethod
-  public void bar() { I i = this; i.imethod(); } // invokeinterface same
-  public void doSomeInvokedynamic() {
-      String str = "world";
-      Supplier<String> foo = ()->"hello, "+str;
-      String res = foo.get();
-      System.out.println(res);
-  }
-}
-
-  public static void main(java.lang.String[] unused) {
-     // need to create C and call I::foo()
-     C c = new C();
-     c.foo();
-     c.bar();
-     c.doSomeInvokedynamic();
-  }
-};
-
-
