@@ -1,3 +1,4 @@
+
 /*
  * Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
@@ -27,9 +28,10 @@ package sun.lwawt.macosx;
 
 import java.awt.*;
 import java.awt.image.*;
-import sun.awt.image.ImageRepresentation;
 
 import java.io.*;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.net.URL;
 import java.text.Normalizer;
 import java.text.Normalizer.Form;
@@ -52,7 +54,10 @@ public class CDataTransferer extends DataTransferer {
         "RICH_TEXT",
         "HTML",
         "PDF",
-        "URL"
+        "URL",
+        "PNG",
+        "JFIF",
+        "XPICT"
     };
 
     static {
@@ -74,8 +79,9 @@ public class CDataTransferer extends DataTransferer {
     public static final int CF_HTML        = 5;
     public static final int CF_PDF         = 6;
     public static final int CF_URL         = 7;
-    public static final int CF_PNG         = 10;
-    public static final int CF_JPEG        = 11;
+    public static final int CF_PNG         = 8;
+    public static final int CF_JPEG        = 9;
+    public static final int CF_XPICT       = 10;
 
     private CDataTransferer() {}
 
@@ -120,26 +126,43 @@ public class CDataTransferer extends DataTransferer {
 
     @Override
     public Object translateBytes(byte[] bytes, DataFlavor flavor,
-                                    long format, Transferable transferable) throws IOException {
+                                 long format, Transferable transferable) throws IOException {
 
-            if (format == CF_URL && URL.class.equals(flavor.getRepresentationClass()))
-            {
-                String charset = getDefaultTextCharset();
-                if (transferable != null && transferable.isDataFlavorSupported(javaTextEncodingFlavor)) {
-                    try {
-                        charset = new String((byte[])transferable.getTransferData(javaTextEncodingFlavor), "UTF-8");
-                    } catch (UnsupportedFlavorException cannotHappen) {
-                    }
+
+        if (format == CF_URL && URL.class.equals(flavor.getRepresentationClass())) {
+            String[] strings = dragQueryFile(bytes);
+            if(strings == null || strings.length == 0) {
+                return null;
+            }
+            return new URL(strings[0]);
+        } else if(isUriListFlavor(flavor)) {
+            // dragQueryFile works fine with files and url,
+            // it parses and extracts values from property list.
+            // maxosx always returns property list for
+            // CF_URL and CF_FILE
+            String[] strings = dragQueryFile(bytes);
+            if(strings == null) {
+                return null;
+            }
+            String separator = System.getProperty("line.separator");
+            StringBuilder sb = new StringBuilder();
+            if(strings.length > 0) {
+                sb.append(strings[0]);
+                for(int i = 1; i < strings.length; i++) {
+                    sb.append(strings[i]);
+                    sb.append(separator);
                 }
-
-                return new URL(new String(bytes, charset));
             }
+            bytes = sb.toString().getBytes();
+            // now we extracted uri from xml, now we should treat it as
+            // regular string that allows to translate data to target represantation
+            // class by base method
+            format = CF_STRING;
+        } else if (format == CF_STRING) {
+            bytes = Normalizer.normalize(new String(bytes, "UTF8"), Form.NFC).getBytes("UTF8");
+        }
 
-            if (format == CF_STRING) {
-                bytes = Normalizer.normalize(new String(bytes, "UTF8"), Form.NFC).getBytes("UTF8");
-            }
-
-            return super.translateBytes(bytes, flavor, format, transferable);
+        return super.translateBytes(bytes, flavor, format, transferable);
     }
 
     @Override
@@ -204,20 +227,9 @@ public class CDataTransferer extends DataTransferer {
         return handler;
     }
 
-    private native byte[] imageDataToPlatformImageBytes(int[] rData, int nW, int nH);
     @Override
     protected byte[] imageToPlatformBytes(Image image, long format) {
-        int w = image.getWidth(null);
-        int h = image.getHeight(null);
-        BufferedImage bimage = new BufferedImage(w, h, BufferedImage.TYPE_INT_ARGB_PRE);
-        Graphics g = bimage.getGraphics();
-        g.drawImage(image, 0, 0, w, h, null);
-        g.dispose();
-        Raster raster = bimage.getRaster();
-        DataBuffer buffer = raster.getDataBuffer();
-        return imageDataToPlatformImageBytes(((DataBufferInt)buffer).getData(),
-                                             raster.getWidth(),
-                                             raster.getHeight());
+        return CImage.getCreator().getPlatformImageBytes(image);
     }
 
     private static native String[] nativeDragQueryFile(final byte[] bytes);
@@ -228,14 +240,10 @@ public class CDataTransferer extends DataTransferer {
         return nativeDragQueryFile(bytes);
     }
 
-    private native Image getImageForByteStream(byte[] bytes);
-    /**
-     * Translates a byte array which contains
-     * platform-specific image data in the given format into an Image.
-     */
+
     @Override
     protected Image platformImageBytesToImage(byte[] bytes, long format) throws IOException {
-        return getImageForByteStream(bytes);
+        return CImage.getCreator().createImageFromPlatformImageBytes(bytes);
     }
 
     @Override
@@ -257,11 +265,18 @@ public class CDataTransferer extends DataTransferer {
         }
         try {
             DataFlavor df = new DataFlavor(nat);
-            if (df.getPrimaryType().equals("text") && df.getSubType().equals("uri-list")) {
+            if (isUriListFlavor(df)) {
                 return true;
             }
         } catch (Exception e) {
             // Not a MIME format.
+        }
+        return false;
+    }
+
+    private boolean isUriListFlavor(DataFlavor df) {
+        if (df.getPrimaryType().equals("text") && df.getSubType().equals("uri-list")) {
+            return true;
         }
         return false;
     }
