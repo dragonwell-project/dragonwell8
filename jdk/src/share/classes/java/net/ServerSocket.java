@@ -31,6 +31,8 @@ import java.nio.channels.ServerSocketChannel;
 import java.security.AccessController;
 import java.security.PrivilegedExceptionAction;
 
+import sun.security.util.SecurityConstants;
+
 /**
  * This class implements server sockets. A server socket waits for
  * requests to come in over the network. It performs some operation
@@ -71,10 +73,23 @@ class ServerSocket implements java.io.Closeable {
     /**
      * Package-private constructor to create a ServerSocket associated with
      * the given SocketImpl.
+     *
+     * @throws     SecurityException if a security manager is set and
+     *             its {@code checkPermission} method doesn't allow
+     *             {@code NetPermission("setSocketImpl")}.
      */
     ServerSocket(SocketImpl impl) {
+        checkPermission();
         this.impl = impl;
         impl.setServerSocket(this);
+    }
+
+    private static Void checkPermission() {
+        SecurityManager sm = System.getSecurityManager();
+        if (sm != null) {
+            sm.checkPermission(SecurityConstants.SET_SOCKETIMPL_PERMISSION);
+        }
+        return null;
     }
 
     /**
