@@ -76,7 +76,6 @@ import jdk.nashorn.internal.ir.LiteralNode.ArrayLiteralNode.ArrayUnit;
 import jdk.nashorn.internal.ir.Node;
 import jdk.nashorn.internal.ir.RuntimeNode;
 import jdk.nashorn.internal.ir.RuntimeNode.Request;
-import jdk.nashorn.internal.ir.SplitNode;
 import jdk.nashorn.internal.ir.Statement;
 import jdk.nashorn.internal.ir.SwitchNode;
 import jdk.nashorn.internal.ir.Symbol;
@@ -134,9 +133,6 @@ final class AssignSymbols extends NodeVisitor<LexicalContext> implements Loggabl
         }
         if (!(functionNode.hasScopeBlock() || functionNode.needsParentScope())) {
             functionNode.compilerConstant(SCOPE).setNeedsSlot(false);
-        }
-        if (!functionNode.usesReturnSymbol()) {
-            functionNode.compilerConstant(RETURN).setNeedsSlot(false);
         }
         // Named function expressions that end up not referencing themselves won't need a local slot for the self symbol.
         if(!functionNode.isDeclared() && !functionNode.usesSelfSymbol() && !functionNode.isAnonymous()) {
@@ -511,16 +507,6 @@ final class AssignSymbols extends NodeVisitor<LexicalContext> implements Loggabl
 
         thisProperties.push(new HashSet<String>());
 
-        if (functionNode.isDeclared()) {
-            // Can't use lc.getCurrentBlock() as we can have an outermost function in our lexical context that
-            // is not a program - it is a function being compiled on-demand.
-            final Iterator<Block> blocks = lc.getBlocks();
-            if (blocks.hasNext()) {
-                final IdentNode ident = functionNode.getIdent();
-                defineSymbol(blocks.next(), ident.getName(), ident, IS_VAR | (functionNode.isAnonymous()? IS_INTERNAL : 0));
-            }
-        }
-
         // Every function has a body, even the ones skipped on reparse (they have an empty one). We're
         // asserting this as even for those, enterBlock() must be invoked to correctly process symbols that
         // are used in them.
@@ -532,14 +518,34 @@ final class AssignSymbols extends NodeVisitor<LexicalContext> implements Loggabl
     @Override
     public boolean enterVarNode(final VarNode varNode) {
         start(varNode);
+        // Normally, a symbol assigned in a var statement is not live for its RHS. Since we also represent function
+        // declarations as VarNodes, they are exception to the rule, as they need to have the symbol visible to the
+        // body of the declared function for self-reference.
+        if (varNode.isFunctionDeclaration()) {
+            defineVarIdent(varNode);
+        }
         return true;
     }
 
     @Override
     public Node leaveVarNode(final VarNode varNode) {
-        final IdentNode ident = varNode.getName();
-        defineSymbol(lc.getCurrentBlock(), ident.getName(), ident, varNode.getSymbolFlags() | (lc.getCurrentFunction().isProgram() ? IS_SCOPE : 0));
+        if (!varNode.isFunctionDeclaration()) {
+            defineVarIdent(varNode);
+        }
         return super.leaveVarNode(varNode);
+    }
+
+    private void defineVarIdent(final VarNode varNode) {
+        final IdentNode ident = varNode.getName();
+        final int flags;
+        if (varNode.isAnonymousFunctionDeclaration()) {
+            flags = IS_INTERNAL;
+        } else if (lc.getCurrentFunction().isProgram()) {
+            flags = IS_SCOPE;
+        } else {
+            flags = 0;
+        }
+        defineSymbol(lc.getCurrentBlock(), ident.getName(), ident, varNode.getSymbolFlags() | flags);
     }
 
     private Symbol exceptionSymbol() {
@@ -1004,7 +1010,7 @@ final class AssignSymbols extends NodeVisitor<LexicalContext> implements Loggabl
         boolean previousWasBlock = false;
         for (final Iterator<LexicalContextNode> it = lc.getAllNodes(); it.hasNext();) {
             final LexicalContextNode node = it.next();
-            if (node instanceof FunctionNode || node instanceof SplitNode || isSplitArray(node)) {
+            if (node instanceof FunctionNode || isSplitArray(node)) {
                 // We reached the function boundary or a splitting boundary without seeing a definition for the symbol.
                 // It needs to be in scope.
                 return true;
