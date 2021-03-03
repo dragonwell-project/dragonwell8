@@ -155,7 +155,7 @@ public final class NashornScriptEngineFactory implements ScriptEngineFactory {
     }
 
     /**
-     * Create a new Script engine initialized by given class loader.
+     * Create a new Script engine initialized with the given class loader.
      *
      * @param appLoader class loader to be used as script "app" class loader.
      * @return newly created script engine.
@@ -168,7 +168,7 @@ public final class NashornScriptEngineFactory implements ScriptEngineFactory {
     }
 
     /**
-     * Create a new Script engine initialized by given class filter.
+     * Create a new Script engine initialized with the given class filter.
      *
      * @param classFilter class filter to use.
      * @return newly created script engine.
@@ -182,7 +182,7 @@ public final class NashornScriptEngineFactory implements ScriptEngineFactory {
     }
 
     /**
-     * Create a new Script engine initialized by given arguments.
+     * Create a new Script engine initialized with the given arguments.
      *
      * @param args arguments array passed to script engine.
      * @return newly created script engine.
@@ -196,7 +196,7 @@ public final class NashornScriptEngineFactory implements ScriptEngineFactory {
     }
 
     /**
-     * Create a new Script engine initialized by given arguments.
+     * Create a new Script engine initialized with the given arguments and the given class loader.
      *
      * @param args arguments array passed to script engine.
      * @param appLoader class loader to be used as script "app" class loader.
@@ -211,7 +211,7 @@ public final class NashornScriptEngineFactory implements ScriptEngineFactory {
     }
 
     /**
-     * Create a new Script engine initialized by given arguments.
+     * Create a new Script engine initialized with the given arguments, class loader and class filter.
      *
      * @param args arguments array passed to script engine.
      * @param appLoader class loader to be used as script "app" class loader.
