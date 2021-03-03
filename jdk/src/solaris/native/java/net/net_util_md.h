@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2012, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -133,22 +133,6 @@ typedef struct sock_flow_props_s {
 
 #endif /* SO_FLOW_SLA */
 #endif /* __solaris__ */
-
-/* needed from libsocket on Solaris 8 */
-
-typedef int (*getaddrinfo_f)(const char *nodename, const char *servname,
-    const struct addrinfo *hints, struct addrinfo **res);
-
-typedef void (*freeaddrinfo_f)(struct addrinfo *);
-
-typedef const char * (*gai_strerror_f)(int ecode);
-
-typedef int (*getnameinfo_f)(const struct sockaddr *, size_t,
-    char *, size_t, char *, size_t, int);
-
-extern getaddrinfo_f getaddrinfo_ptr;
-extern freeaddrinfo_f freeaddrinfo_ptr;
-extern getnameinfo_f getnameinfo_ptr;
 
 void ThrowUnknownHostExceptionWithGaiError(JNIEnv *env,
                                            const char* hostname,
