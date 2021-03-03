@@ -25,9 +25,9 @@
  * @test
  * @bug 6960894
  * @summary Better AS-REQ creation and processing
- * @run main/othervm NewSalt
- * @run main/othervm -Dnopreauth NewSalt
- * @run main/othervm -Donlyonepreauth NewSalt
+ * @run main/othervm -Dsun.net.spi.nameservice.provider.1=ns,mock NewSalt
+ * @run main/othervm -Dsun.net.spi.nameservice.provider.1=ns,mock -Dnopreauth NewSalt
+ * @run main/othervm -Dsun.net.spi.nameservice.provider.1=ns,mock -Donlyonepreauth NewSalt
  */
 
 import sun.security.jgss.GSSUtil;
