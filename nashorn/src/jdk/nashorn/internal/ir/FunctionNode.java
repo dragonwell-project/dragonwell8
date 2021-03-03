@@ -36,7 +36,6 @@ import java.util.Collections;
 import java.util.EnumSet;
 import java.util.Iterator;
 import java.util.List;
-import java.util.function.Function;
 import jdk.nashorn.internal.AssertsEnabled;
 import jdk.nashorn.internal.codegen.CompileUnit;
 import jdk.nashorn.internal.codegen.Compiler;
@@ -1143,7 +1142,7 @@ public final class FunctionNode extends LexicalContextExpression implements Flag
     }
 
     @Override
-    public Type getType(final Function<Symbol, Type> localVariableTypes) {
+    public Type getType() {
         return FUNCTION_TYPE;
     }
 

@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2012, 2013, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2012, 2014, Oracle and/or its affiliates. All rights reserved.
 # DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 #
 # This code is free software; you can redistribute it and/or modify it
@@ -22,38 +22,150 @@
 # or visit www.oracle.com if you need additional information or have any
 # questions.
 #
+
+# These lists define where a file belongs if it exists. It is perfectly fine
+# if a file does not exist on some platforms - we do not have to produce exact
+# per-platform lists. However, for clarity, platform-unique files are handled
+# in platform-specific conditionals.
+
+# On different platforms the libraries are placed into different locations in the
+# JRE:
+ifeq (, $(findstring $(OPENJDK_TARGET_OS), windows macosx))
+    # On non-windows/OSX libraries go into jre/lib/<arch>
+    LIBS_PREFIX := $(OPENJDK_TARGET_CPU_LEGACY_LIB)/
+else
+    # On OSX they go into jre/lib/ - on Windows they go into jre/bin/ and we won't use this
+    LIBS_PREFIX :=
+endif
+
+# Debug info files are tricky to deal with due to all the different platform variants
+# and because they can be zipped.
+ifeq ($(ZIP_DEBUGINFO_FILES), true)
+    # Common case and 'just works' on all platforms
+    DEBUG_SUFFIX := .diz
+else
+    # It gets complicated ...
+    ifeq ($(OPENJDK_TARGET_OS), macosx)
+        # This is a directory, not a simple file, so
+        # it needs expanding explicitly later on
+        DEBUG_SUFFIX := $(SHARED_LIBRARY_SUFFIX).dSYM
+    else
+        ifeq ($(OPENJDK_TARGET_OS), windows)
+            DEBUG_SUFFIX := .map .pdb
+        else
+            DEBUG_SUFFIX := .debuginfo
+        endif
+    endif
+endif
+
+# Expand the contents of the .dSYM directories on macosx.
+# Param 1 - debug files list eg libFoo.dylib.dSYM or libFoo.diz (if zipped)
+# Param 2 - libraries list eg Foo
+# On macosx if not zipping debuginfo files we expand the contents of the .dSYM directories,
+# else we return the original list of .diz files.
+# On other OS we return the original list of debuginfo files (whether zipped or not)
+#
+define expand-debuginfo
+  $(if $(and $(filter-out true, $(ZIP_DEBUGINFO_FILES)), $(filter macosx, $(OPENJDK_TARGET_OS))), \
+      $(foreach i, $1, $(addsuffix /Contents/Info.plist, $i)) \
+          $(foreach i, $2, $(addsuffix /Contents/Resources/DWARF/$i, $(filter $i.%, $1))), \
+      $1)
+endef
+
+# Common executable files
 PROFILE_1_JRE_BIN_FILES := \
     java$(EXE_SUFFIX) \
     keytool$(EXE_SUFFIX)
 
-PROFILE_1_JRE_LIB_FILES := \
-    $(OPENJDK_TARGET_CPU_LEGACY_LIB)/$(LIBRARY_PREFIX)j2pkcs11$(SHARED_LIBRARY_SUFFIX) \
-    $(OPENJDK_TARGET_CPU_LEGACY_LIB)/$(LIBRARY_PREFIX)java$(SHARED_LIBRARY_SUFFIX) \
-    $(OPENJDK_TARGET_CPU_LEGACY_LIB)/$(LIBRARY_PREFIX)jsig$(SHARED_LIBRARY_SUFFIX) \
-    $(OPENJDK_TARGET_CPU_LEGACY_LIB)/$(LIBRARY_PREFIX)jsig.diz \
-    $(OPENJDK_TARGET_CPU_LEGACY_LIB)/$(LIBRARY_PREFIX)net$(SHARED_LIBRARY_SUFFIX) \
-    $(OPENJDK_TARGET_CPU_LEGACY_LIB)/$(LIBRARY_PREFIX)nio$(SHARED_LIBRARY_SUFFIX) \
-    $(OPENJDK_TARGET_CPU_LEGACY_LIB)/$(LIBRARY_PREFIX)sunec$(SHARED_LIBRARY_SUFFIX) \
-    $(OPENJDK_TARGET_CPU_LEGACY_LIB)/$(LIBRARY_PREFIX)verify$(SHARED_LIBRARY_SUFFIX) \
-    $(OPENJDK_TARGET_CPU_LEGACY_LIB)/$(LIBRARY_PREFIX)verify.diz \
-    $(OPENJDK_TARGET_CPU_LEGACY_LIB)/$(LIBRARY_PREFIX)zip$(SHARED_LIBRARY_SUFFIX) \
-    $(OPENJDK_TARGET_CPU_LEGACY_LIB)/client/$(LIBRARY_PREFIX)jsig$(SHARED_LIBRARY_SUFFIX) \
-    $(OPENJDK_TARGET_CPU_LEGACY_LIB)/client/$(LIBRARY_PREFIX)jsig.diz \
-    $(OPENJDK_TARGET_CPU_LEGACY_LIB)/client/$(LIBRARY_PREFIX)jvm$(SHARED_LIBRARY_SUFFIX) \
-    $(OPENJDK_TARGET_CPU_LEGACY_LIB)/client/$(LIBRARY_PREFIX)jvm.diz \
-    $(OPENJDK_TARGET_CPU_LEGACY_LIB)/client/Xusage.txt \
-    $(OPENJDK_TARGET_CPU_LEGACY_LIB)/jli/$(LIBRARY_PREFIX)jli$(SHARED_LIBRARY_SUFFIX) \
-    $(OPENJDK_TARGET_CPU_LEGACY_LIB)/jvm.cfg \
-    $(OPENJDK_TARGET_CPU_LEGACY_LIB)/minimal/$(LIBRARY_PREFIX)jsig$(SHARED_LIBRARY_SUFFIX) \
-    $(OPENJDK_TARGET_CPU_LEGACY_LIB)/minimal/$(LIBRARY_PREFIX)jsig.diz \
-    $(OPENJDK_TARGET_CPU_LEGACY_LIB)/minimal/$(LIBRARY_PREFIX)jvm$(SHARED_LIBRARY_SUFFIX) \
-    $(OPENJDK_TARGET_CPU_LEGACY_LIB)/minimal/$(LIBRARY_PREFIX)jvm.diz \
-    $(OPENJDK_TARGET_CPU_LEGACY_LIB)/minimal/Xusage.txt \
-    $(OPENJDK_TARGET_CPU_LEGACY_LIB)/server/$(LIBRARY_PREFIX)jsig$(SHARED_LIBRARY_SUFFIX) \
-    $(OPENJDK_TARGET_CPU_LEGACY_LIB)/server/$(LIBRARY_PREFIX)jsig.diz \
-    $(OPENJDK_TARGET_CPU_LEGACY_LIB)/server/$(LIBRARY_PREFIX)jvm$(SHARED_LIBRARY_SUFFIX) \
-    $(OPENJDK_TARGET_CPU_LEGACY_LIB)/server/$(LIBRARY_PREFIX)jvm.diz \
-    $(OPENJDK_TARGET_CPU_LEGACY_LIB)/server/Xusage.txt \
+ifeq ($(OPENJDK_TARGET_OS), windows)
+    PROFILE_1_JRE_BIN_FILES += javaw$(EXE_SUFFIX)
+endif
+
+PROFILE_1_LIBRARIES := \
+    j2pkcs11 \
+    java  \
+    jsig \
+    net \
+    nio \
+    sunec \
+    verify \
+    zip
+
+ifeq ($(OPENJDK_TARGET_OS), windows)
+    PROFILE_1_LIBRARIES += msvcrt100
+endif
+
+PROFILE_1_LIBRARIES := $(addprefix $(LIBRARY_PREFIX), $(PROFILE_1_LIBRARIES))
+PROFILE_1_DEBUG_FILES := $(foreach i, $(DEBUG_SUFFIX), $(addsuffix $i, $(PROFILE_1_LIBRARIES)))
+PROFILE_1_LIBRARIES := $(addsuffix $(SHARED_LIBRARY_SUFFIX), $(PROFILE_1_LIBRARIES))
+PROFILE_1_DEBUG_FILES := $(call expand-debuginfo, $(PROFILE_1_DEBUG_FILES), $(PROFILE_1_LIBRARIES))
+PROFILE_1_LIBRARIES += $(PROFILE_1_DEBUG_FILES)
+
+# Note: libjsig exists as both the real file and a symlink in the VM directory
+#       so we have to treat it with care when looking for the debuginfo files
+VM_LIBRARIES := \
+    jvm 
+
+ifeq ($(OPENJDK_TARGET_OS), solaris)
+    VM_LIBRARIES += jvm_db jvm_dtrace
+endif
+
+VM_SYMLINKS := \
+    jsig
+
+VM_LIBRARIES := $(addprefix $(LIBRARY_PREFIX), $(VM_LIBRARIES))
+VM_DEBUG_FILES := $(foreach i, $(DEBUG_SUFFIX), $(addsuffix $i, $(VM_LIBRARIES)))
+VM_SYMLINKS := $(addprefix $(LIBRARY_PREFIX), $(VM_SYMLINKS))
+VM_LIBRARIES := $(addsuffix $(SHARED_LIBRARY_SUFFIX), $(VM_LIBRARIES))
+VM_DEBUG_FILES := $(call expand-debuginfo, $(VM_DEBUG_FILES), $(VM_LIBRARIES))
+VM_DEBUG_FILES +=  $(foreach i, $(DEBUG_SUFFIX), $(addsuffix $i, $(VM_SYMLINKS)))
+VM_SYMLINKS := $(addsuffix $(SHARED_LIBRARY_SUFFIX), $(VM_SYMLINKS))
+VM_LIBRARIES += $(VM_SYMLINKS)
+
+VM_FILES := \
+    Xusage.txt
+
+VM_DIRS := client server minimal
+
+VM_FILES := $(foreach i, $(VM_DIRS), $(addprefix $i/, $(VM_LIBRARIES) $(VM_FILES) $(VM_DEBUG_FILES)))
+
+JLI_LIBRARIES := \
+    jli
+
+ifneq ($(OPENJDK_TARGET_OS), windows)
+    JLI_SUBDIR := jli/
+else
+    JLI_SUBDIR :=
+endif
+
+JLI_LIBRARIES := $(addprefix $(JLI_SUBDIR)$(LIBRARY_PREFIX), $(JLI_LIBRARIES))
+JLI_DEBUG_FILES := $(foreach i, $(DEBUG_SUFFIX), $(addsuffix $i, $(JLI_LIBRARIES)))
+JLI_LIBRARIES := $(addsuffix $(SHARED_LIBRARY_SUFFIX), $(JLI_LIBRARIES))
+JLI_DEBUG_FILES := $(call expand-debuginfo, $(JLI_DEBUG_FILES), $(JLI_LIBRARIES))
+JLI_LIBRARIES += $(JLI_DEBUG_FILES)
+
+ifneq ($(OPENJDK_TARGET_OS), windows)
+    PROFILE_1_JRE_LIB_FILES := \
+        $(addprefix $(LIBS_PREFIX), $(PROFILE_1_LIBRARIES) $(VM_FILES) $(JLI_LIBRARIES))
+else
+    # On windows libraries go into jre/bin
+    PROFILE_1_JRE_BIN_FILES += $(PROFILE_1_LIBRARIES) $(VM_FILES) $(JLI_LIBRARIES)
+endif
+
+# Remaining jre/lib contents
+# OSX doesn't use <arch> directory
+#
+ifeq ($(OPENJDK_TARGET_OS), macosx)
+    PROFILE_1_JRE_LIB_FILES += \
+        jvm.cfg \
+        jspawnhelper
+else
+    PROFILE_1_JRE_LIB_FILES += \
+        $(OPENJDK_TARGET_CPU_LEGACY_LIB)/jvm.cfg \
+        $(OPENJDK_TARGET_CPU_LEGACY_LIB)/jspawnhelper
+endif
+
+PROFILE_1_JRE_LIB_FILES += \
     calendars.properties \
     classlist \
     content-types.properties \
@@ -81,6 +193,14 @@ PROFILE_1_JRE_LIB_FILES := \
     security/trusted.libraries \
     tzdb.dat
 
+ifeq ($(OPENJDK_TARGET_OS), windows)
+    PROFILE_1_JRE_LIB_FILES += tzmappings
+else
+    ifeq ($(OPENJDK_TARGET_OS), solaris)
+        PROFILE_1_JRE_LIB_FILES += sdp/sdp.conf
+    endif
+endif
+
 PROFILE_1_JRE_OTHER_FILES := \
     COPYRIGHT \
     LICENSE \
@@ -106,32 +226,63 @@ PROFILE_2_JRE_BIN_FILES := \
     rmid$(EXE_SUFFIX) \
     rmiregistry$(EXE_SUFFIX)
 
+ifeq ($(OPENJDK_TARGET_OS), windows)
+    PROFILE_2_JRE_BIN_FILES += java-rmi$(EXE_SUFFIX)
+endif
+
+# If you add libraries here, make sure you use the same techniques
+# as used for the other profile's libraries regarding debug files etc
 PROFILE_2_JRE_LIB_FILES :=
 
 PROFILE_2_JRE_OTHER_FILES :=
 
 PROFILE_2_JRE_JAR_FILES :=
 
+ifeq ($(OPENJDK_TARGET_OS), windows)
+    PROFILE_3_JRE_BIN_FILES := \
+        kinit$(EXE_SUFFIX) \
+        klist$(EXE_SUFFIX) \
+        ktab$(EXE_SUFFIX)
+else
+    PROFILE_3_JRE_BIN_FILES :=
+endif
 
-PROFILE_3_JRE_BIN_FILES :=
+PROFILE_3_LIBRARIES := \
+    hprof \
+    instrument \
+    j2gss \
+    j2pcsc \
+    jaas_unix \
+    jaas_nt \
+    java_crw_demo \
+    jsdt \
+    management \
+    npt \
+    sctp
 
-PROFILE_3_JRE_LIB_FILES := \
-    $(OPENJDK_TARGET_CPU_LEGACY_LIB)/$(LIBRARY_PREFIX)hprof$(SHARED_LIBRARY_SUFFIX) \
-    $(OPENJDK_TARGET_CPU_LEGACY_LIB)/$(LIBRARY_PREFIX)hprof.diz \
-    $(OPENJDK_TARGET_CPU_LEGACY_LIB)/$(LIBRARY_PREFIX)instrument$(SHARED_LIBRARY_SUFFIX) \
-    $(OPENJDK_TARGET_CPU_LEGACY_LIB)/$(LIBRARY_PREFIX)instrument.diz \
-    $(OPENJDK_TARGET_CPU_LEGACY_LIB)/$(LIBRARY_PREFIX)j2gss$(SHARED_LIBRARY_SUFFIX) \
-    $(OPENJDK_TARGET_CPU_LEGACY_LIB)/$(LIBRARY_PREFIX)j2pcsc$(SHARED_LIBRARY_SUFFIX) \
-    $(OPENJDK_TARGET_CPU_LEGACY_LIB)/$(LIBRARY_PREFIX)jaas_unix$(SHARED_LIBRARY_SUFFIX) \
-    $(OPENJDK_TARGET_CPU_LEGACY_LIB)/$(LIBRARY_PREFIX)java_crw_demo$(SHARED_LIBRARY_SUFFIX) \
-    $(OPENJDK_TARGET_CPU_LEGACY_LIB)/$(LIBRARY_PREFIX)java_crw_demo.diz \
-    $(OPENJDK_TARGET_CPU_LEGACY_LIB)/$(LIBRARY_PREFIX)jsdt$(SHARED_LIBRARY_SUFFIX) \
-    $(OPENJDK_TARGET_CPU_LEGACY_LIB)/$(LIBRARY_PREFIX)jsdt.diz \
-    $(OPENJDK_TARGET_CPU_LEGACY_LIB)/$(LIBRARY_PREFIX)management$(SHARED_LIBRARY_SUFFIX) \
-    $(OPENJDK_TARGET_CPU_LEGACY_LIB)/$(LIBRARY_PREFIX)management.diz \
-    $(OPENJDK_TARGET_CPU_LEGACY_LIB)/$(LIBRARY_PREFIX)npt$(SHARED_LIBRARY_SUFFIX) \
-    $(OPENJDK_TARGET_CPU_LEGACY_LIB)/$(LIBRARY_PREFIX)npt.diz \
-    $(OPENJDK_TARGET_CPU_LEGACY_LIB)/$(LIBRARY_PREFIX)sctp$(SHARED_LIBRARY_SUFFIX) \
+ifeq ($(OPENJDK_TARGET_OS), windows)
+    PROFILE_3_LIBRARIES += w2k_lsa_auth
+else
+    ifeq ($(OPENJDK_TARGET_OS), macosx)
+        PROFILE_3_LIBRARIES += osxkrb5
+    endif
+endif
+
+PROFILE_3_LIBRARIES := $(addprefix $(LIBRARY_PREFIX), $(PROFILE_3_LIBRARIES))
+PROFILE_3_DEBUG_FILES := $(foreach i, $(DEBUG_SUFFIX), $(addsuffix $i, $(PROFILE_3_LIBRARIES)))
+PROFILE_3_LIBRARIES := $(addsuffix $(SHARED_LIBRARY_SUFFIX), $(PROFILE_3_LIBRARIES))
+PROFILE_3_DEBUG_FILES := $(call expand-debuginfo, $(PROFILE_3_DEBUG_FILES), $(PROFILE_3_LIBRARIES))
+PROFILE_3_LIBRARIES += $(PROFILE_3_DEBUG_FILES)
+
+ifneq ($(OPENJDK_TARGET_OS), windows)
+    PROFILE_3_JRE_LIB_FILES := \
+        $(addprefix $(LIBS_PREFIX), $(PROFILE_3_LIBRARIES))
+else
+    # On windows libraries go into jre/bin
+    PROFILE_3_JRE_BIN_FILES += $(PROFILE_3_LIBRARIES)
+endif
+
+PROFILE_3_JRE_LIB_FILES += \
     jvm.hprof.txt \
     management-agent.jar \
     management/jmxremote.access \
@@ -153,25 +304,40 @@ FULL_JRE_BIN_FILES := \
     tnameserv$(EXE_SUFFIX) \
     unpack200$(EXE_SUFFIX)
 
-FULL_JRE_LIB_FILES := \
-    $(OPENJDK_TARGET_CPU_LEGACY_LIB)/$(LIBRARY_PREFIX)awt$(SHARED_LIBRARY_SUFFIX) \
-    $(OPENJDK_TARGET_CPU_LEGACY_LIB)/$(LIBRARY_PREFIX)awt_headless$(SHARED_LIBRARY_SUFFIX) \
-    $(OPENJDK_TARGET_CPU_LEGACY_LIB)/$(LIBRARY_PREFIX)awt_xawt$(SHARED_LIBRARY_SUFFIX) \
-    $(OPENJDK_TARGET_CPU_LEGACY_LIB)/$(LIBRARY_PREFIX)dcpr$(SHARED_LIBRARY_SUFFIX) \
-    $(OPENJDK_TARGET_CPU_LEGACY_LIB)/$(LIBRARY_PREFIX)dt_socket$(SHARED_LIBRARY_SUFFIX) \
-    $(OPENJDK_TARGET_CPU_LEGACY_LIB)/$(LIBRARY_PREFIX)dt_socket.diz \
-    $(OPENJDK_TARGET_CPU_LEGACY_LIB)/$(LIBRARY_PREFIX)fontmanager$(SHARED_LIBRARY_SUFFIX) \
-    $(OPENJDK_TARGET_CPU_LEGACY_LIB)/$(LIBRARY_PREFIX)jawt$(SHARED_LIBRARY_SUFFIX) \
-    $(OPENJDK_TARGET_CPU_LEGACY_LIB)/$(LIBRARY_PREFIX)jdwp$(SHARED_LIBRARY_SUFFIX) \
-    $(OPENJDK_TARGET_CPU_LEGACY_LIB)/$(LIBRARY_PREFIX)jfr$(SHARED_LIBRARY_SUFFIX) \
-    $(OPENJDK_TARGET_CPU_LEGACY_LIB)/$(LIBRARY_PREFIX)jpeg$(SHARED_LIBRARY_SUFFIX) \
-    $(OPENJDK_TARGET_CPU_LEGACY_LIB)/$(LIBRARY_PREFIX)jsound$(SHARED_LIBRARY_SUFFIX) \
-    $(OPENJDK_TARGET_CPU_LEGACY_LIB)/$(LIBRARY_PREFIX)jsoundalsa$(SHARED_LIBRARY_SUFFIX) \
-    $(OPENJDK_TARGET_CPU_LEGACY_LIB)/$(LIBRARY_PREFIX)kcms$(SHARED_LIBRARY_SUFFIX) \
-    $(OPENJDK_TARGET_CPU_LEGACY_LIB)/$(LIBRARY_PREFIX)mlib_image$(SHARED_LIBRARY_SUFFIX) \
-    $(OPENJDK_TARGET_CPU_LEGACY_LIB)/$(LIBRARY_PREFIX)splashscreen$(SHARED_LIBRARY_SUFFIX) \
-    $(OPENJDK_TARGET_CPU_LEGACY_LIB)/$(LIBRARY_PREFIX)t2k$(SHARED_LIBRARY_SUFFIX) \
-    $(OPENJDK_TARGET_CPU_LEGACY_LIB)/$(LIBRARY_PREFIX)unpack$(SHARED_LIBRARY_SUFFIX) \
+JRE_LIBRARIES := \
+    awt \
+    awt_headless \
+    awt_xawt \
+    dcpr \
+    dt_socket \
+    fontmanager \
+    jawt \
+    jdwp \
+    jfr \
+    jpeg \
+    jsound \
+    jsoundalsa \
+    kcms \
+    mlib_image \
+    splashscreen \
+    t2k \
+    unpack
+
+JRE_LIBRARIES := $(addprefix $(LIBRARY_PREFIX), $(JRE_LIBRARIES))
+JRE_DEBUG_FILES := $(foreach i, $(DEBUG_SUFFIX), $(addsuffix $i, $(JRE_LIBRARIES)))
+JRE_LIBRARIES := $(addsuffix $(SHARED_LIBRARY_SUFFIX), $(JRE_LIBRARIES))
+JRE_DEBUG_FILES := $(call expand-debuginfo, $(JRE_DEBUG_FILES), $(JRE_LIBRARIES))
+JRE_LIBRARIES += $(JRE_DEBUG_FILES)
+
+ifneq ($(OPENJDK_TARGET_OS), windows)
+    FULL_JRE_LIB_FILES := \
+        $(addprefix $(LIBS_PREFIX), $(JRE_LIBRARIES))
+else
+    # On windows libraries go into jre/bin
+    FULL_JRE_BIN_FILES += $(JRE_LIBRARIES)
+endif
+
+FULL_JRE_LIB_FILES += \
     charsets.jar \
     cmm/CIEXYZ.pf \
     cmm/GRAY.pf \
@@ -254,3 +420,4 @@ FULL_JRE_JAR_FILES := \
     ext/nashorn.jar \
     ext/zipfs.jar \
     jfr.jar
+

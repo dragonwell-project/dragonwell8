@@ -28,6 +28,7 @@ package jdk.nashorn.api.scripting;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Set;
+import jdk.nashorn.internal.runtime.JSType;
 
 /**
  * This is the base class for nashorn ScriptObjectMirror class.
@@ -36,7 +37,10 @@ import java.util.Set;
  * treat objects of such classes just like nashorn script objects. Usual nashorn
  * operations like obj[i], obj.foo, obj.func(), delete obj.foo will be glued
  * to appropriate method call of this class.
+ *
+ * @since 1.8u40
  */
+@jdk.Exported
 public abstract class AbstractJSObject implements JSObject {
     /**
      * Call this object as a JavaScript function. This is equivalent to
@@ -158,9 +162,8 @@ public abstract class AbstractJSObject implements JSObject {
      * @return set of property names
      */
     @Override
-    @SuppressWarnings("unchecked")
     public Set<String> keySet() {
-        return Collections.EMPTY_SET;
+        return Collections.emptySet();
     }
 
     /**
@@ -169,9 +172,8 @@ public abstract class AbstractJSObject implements JSObject {
      * @return set of property values.
      */
     @Override
-    @SuppressWarnings("unchecked")
     public Collection<Object> values() {
-        return Collections.EMPTY_SET;
+        return Collections.emptySet();
     }
 
     // JavaScript instanceof check
@@ -246,9 +248,41 @@ public abstract class AbstractJSObject implements JSObject {
      * Returns this object's numeric value.
      *
      * @return this object's numeric value.
+     * @deprecated use {@link #getDefaultValue(Class)} with {@link Number} hint instead.
      */
-    @Override
+    @Override @Deprecated
     public double toNumber() {
-        return Double.NaN;
+        return JSType.toNumber(JSType.toPrimitive(this, Number.class));
+    }
+
+    /**
+     * Implements this object's {@code [[DefaultValue]]} method. The default implementation follows ECMAScript 5.1
+     * section 8.6.2 but subclasses are free to provide their own implementations.
+     *
+     * @param hint the type hint. Should be either {@code null}, {@code Number.class} or {@code String.class}.
+     * @return this object's default value.
+     * @throws UnsupportedOperationException if the conversion can't be performed. The engine will convert this
+     * exception into a JavaScript {@code TypeError}.
+     */
+    public Object getDefaultValue(final Class<?> hint) {
+        return DefaultValueImpl.getDefaultValue(this, hint);
+    }
+
+    /**
+     * When passed an {@link AbstractJSObject}, invokes its {@link #getDefaultValue(Class)} method. When passed any
+     * other {@link JSObject}, it will obtain its {@code [[DefaultValue]]} method as per ECMAScript 5.1 section
+     * 8.6.2.
+     *
+     * @param jsobj the {@link JSObject} whose {@code [[DefaultValue]]} is obtained.
+     * @param hint the type hint. Should be either {@code null}, {@code Number.class} or {@code String.class}.
+     * @return this object's default value.
+     * @throws UnsupportedOperationException if the conversion can't be performed. The engine will convert this
+     * exception into a JavaScript {@code TypeError}.
+     */
+    public static Object getDefaultValue(final JSObject jsobj, final Class<?> hint) {
+        if (jsobj instanceof AbstractJSObject) {
+            return ((AbstractJSObject)jsobj).getDefaultValue(hint);
+        }
+        return DefaultValueImpl.getDefaultValue(jsobj, hint);
     }
 }

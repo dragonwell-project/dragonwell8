@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -44,14 +44,6 @@
 #endif // SOLARIS
 
 #include <math.h>
-#ifndef FP_PZERO
-// Linux doesn't have positive/negative zero
-#define FP_PZERO FP_ZERO
-#endif
-#if (!defined fpclass) && ((!defined SPARC) || (!defined SOLARIS))
-#define fpclass fpclassify
-#endif
-
 #include <time.h>
 #include <fcntl.h>
 #include <dlfcn.h>
@@ -220,7 +212,7 @@ extern "C" {
 
 #define DEBUG_EXCEPTION ::abort();
 
-#ifdef ARM
+#ifdef ARM32
 #ifdef SOLARIS
 #define BREAKPOINT __asm__ volatile (".long 0xe1200070")
 #else
