@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -1198,8 +1198,13 @@ instanceKlassHandle SystemDictionary::load_shared_class(instanceKlassHandle ik,
 
     if (ik->super() != NULL) {
       Symbol*  cn = ik->super()->name();
-      resolve_super_or_fail(class_name, cn,
-                            class_loader, protection_domain, true, CHECK_(nh));
+      Klass *s = resolve_super_or_fail(class_name, cn,
+                                       class_loader, protection_domain, true, CHECK_(nh));
+      if (s != ik->super()) {
+        // The dynamically resolved super class is not the same as the one we used during dump time,
+        // so we cannot use ik.
+        return nh;
+      }
     }
 
     Array<Klass*>* interfaces = ik->local_interfaces();
@@ -1212,7 +1217,12 @@ instanceKlassHandle SystemDictionary::load_shared_class(instanceKlassHandle ik,
       // reinitialized yet (they will be once the interface classes
       // are loaded)
       Symbol*  name  = k->name();
-      resolve_super_or_fail(class_name, name, class_loader, protection_domain, false, CHECK_(nh));
+      Klass* i = resolve_super_or_fail(class_name, name, class_loader, protection_domain, false, CHECK_(nh));
+      if (k != i) {
+        // The dynamically resolved interface class is not the same as the one we used during dump time,
+        // so we cannot use ik.
+        return nh;
+      }
     }
 
     // Adjust methods to recover missing data.  They need addresses for
