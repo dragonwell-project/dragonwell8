@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2011, 2012, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
 # DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 #
 # This code is free software; you can redistribute it and/or modify it
@@ -90,7 +90,7 @@ AC_DEFUN([PLATFORM_EXTRACT_VARS_FROM_CPU],
       VAR_CPU_BITS=32
       VAR_CPU_ENDIAN=big
       ;;
-    sparcv9)
+    sparcv9|sparc64)
       VAR_CPU=sparcv9
       VAR_CPU_ARCH=sparc
       VAR_CPU_BITS=64
