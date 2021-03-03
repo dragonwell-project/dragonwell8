@@ -55,6 +55,14 @@ final class SSLAlgorithmConstraints implements AlgorithmConstraints {
 
     private boolean enabledX509DisabledAlgConstraints = true;
 
+    // the default algorithm constraints
+    final static AlgorithmConstraints DEFAULT =
+                        new SSLAlgorithmConstraints(null);
+
+    // the default SSL only algorithm constraints
+    final static AlgorithmConstraints DEFAULT_SSL_ONLY =
+                        new SSLAlgorithmConstraints((SSLSocket)null, false);
+
     SSLAlgorithmConstraints(AlgorithmConstraints algorithmConstraints) {
         userAlgConstraints = algorithmConstraints;
     }
