@@ -21,9 +21,7 @@
  * questions.
  */
 
-import java.awt.Color;
-import java.awt.Point;
-import java.awt.Robot;
+import java.awt.*;
 import java.util.ArrayList;
 import java.util.concurrent.CountDownLatch;
 import javax.swing.JFrame;
@@ -119,6 +117,20 @@ public class Test8007563 implements Runnable {
             }
 
         }
-        invokeLater(this);
+        SecondaryLoop secondaryLoop =
+                Toolkit.getDefaultToolkit().getSystemEventQueue()
+                        .createSecondaryLoop();
+        new Thread() {
+            @Override
+            public void run() {
+                try {
+                    Thread.sleep(200);
+                } catch (InterruptedException e) {
+                }
+                secondaryLoop.exit();
+                invokeLater(Test8007563.this);
+            }
+        }.start();
+        secondaryLoop.enter();
     }
 }
