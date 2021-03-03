@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
 # DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 #
 # This code is free software; you can redistribute it and/or modify it
@@ -342,6 +342,12 @@ CPP:=@FIXPATH@ @CPP@
 # The linker can be gcc or ld on posix systems, or link.exe on windows systems.
 LD:=@FIXPATH@ @LD@
 
+ifeq ($(OPENJDK_TARGET_OS), macosx)
+  # Xcode SDK and tools path
+  SDKPATH:=@SDKPATH@
+  @SET_DEVELOPER_DIR@
+endif
+
 # The linker on older SuSE distros (e.g. on SLES 10) complains with:
 # "Invalid version tag `SUNWprivate_1.1'. Only anonymous version tag is allowed in executable."
 # if feeded with a version script which contains named tags.
@@ -385,8 +391,6 @@ NM:=@NM@
 GNM:=@GNM@
 STRIP:=@STRIP@
 MCS:=@MCS@
-
-LIPO:=@LIPO@
 
 # Command to create a shared library
 SHARED_LIBRARY_FLAGS:=@SHARED_LIBRARY_FLAGS@
@@ -539,6 +543,7 @@ XATTR:=@XATTR@
 JT_HOME:=@JT_HOME@
 JTREGEXE:=@JTREGEXE@
 
+XCODEBUILD=@XCODEBUILD@
 FIXPATH:=@FIXPATH@
 
 # Where the build output is stored for your convenience.
