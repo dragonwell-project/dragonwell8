@@ -51,43 +51,31 @@ public class TestUseRTMLockingOptionOnSupportedConfig
     @Override
     public void runTestCases() throws Throwable {
         String unrecongnizedOption
-                = CommandLineOptionTest.getUnrecognizedOptionErrorMessage(
+                =  CommandLineOptionTest.getUnrecognizedOptionErrorMessage(
                 "UseRTMLocking");
-        String experimentalOptionError
-                = CommandLineOptionTest.getExperimentalOptionErrorMessage(
-                "UseRTMLocking");
-        // verify that options is experimental
-        CommandLineOptionTest.verifySameJVMStartup(
-                new String[] { experimentalOptionError }, null, ExitCode.FAIL,
-                "-XX:+UseRTMLocking");
         // verify that there are no warning or error in VM output
         CommandLineOptionTest.verifySameJVMStartup(null,
                 new String[]{
                         RTMGenericCommandLineOptionTest.RTM_INSTR_ERROR,
                         unrecongnizedOption
-                }, ExitCode.OK,
-                CommandLineOptionTest.UNLOCK_EXPERIMENTAL_VM_OPTIONS,
-                "-XX:+UseRTMLocking");
+                }, ExitCode.OK, "-XX:+UseRTMLocking"
+        );
 
         CommandLineOptionTest.verifySameJVMStartup(null,
                 new String[]{
                         RTMGenericCommandLineOptionTest.RTM_INSTR_ERROR,
                         unrecongnizedOption
-                }, ExitCode.OK,
-                CommandLineOptionTest.UNLOCK_EXPERIMENTAL_VM_OPTIONS,
-                "-XX:-UseRTMLocking");
+                }, ExitCode.OK, "-XX:-UseRTMLocking"
+        );
         // verify that UseRTMLocking is of by default
         CommandLineOptionTest.verifyOptionValueForSameVM("UseRTMLocking",
-                TestUseRTMLockingOptionOnSupportedConfig.DEFAULT_VALUE,
-                CommandLineOptionTest.UNLOCK_EXPERIMENTAL_VM_OPTIONS);
+                TestUseRTMLockingOptionOnSupportedConfig.DEFAULT_VALUE);
         // verify that we can change UseRTMLocking value
         CommandLineOptionTest.verifyOptionValueForSameVM("UseRTMLocking",
                 TestUseRTMLockingOptionOnSupportedConfig.DEFAULT_VALUE,
-                CommandLineOptionTest.UNLOCK_EXPERIMENTAL_VM_OPTIONS,
                 "-XX:-UseRTMLocking");
         CommandLineOptionTest.verifyOptionValueForSameVM("UseRTMLocking",
-                "true", CommandLineOptionTest.UNLOCK_EXPERIMENTAL_VM_OPTIONS,
-                "-XX:+UseRTMLocking");
+                "true", "-XX:+UseRTMLocking");
     }
 
     public static void main(String args[]) throws Throwable {
