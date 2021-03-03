@@ -79,7 +79,7 @@ import sun.util.CoreResourceBundleControl;
  *
  * <li>Moving the focus from one component to another.
  * <br>For more information, see
- * <a href="http://docs.oracle.com/javase/tutorial/uiswing/misc/focus.html#transferTiming">Timing
+ * <a href="https://docs.oracle.com/javase/tutorial/uiswing/misc/focus.html#transferTiming">Timing
  * Focus Transfers</a>, a section in
  * <a href="http://java.sun.com/docs/books/tutorial/uiswing/">The Swing
  * Tutorial</a>.
