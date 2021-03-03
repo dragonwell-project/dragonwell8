@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -976,11 +976,13 @@ LEAF(StoreIndexed, AccessIndexed)
 
   ciMethod* _profiled_method;
   int       _profiled_bci;
+  bool      _check_boolean;
+
  public:
   // creation
-  StoreIndexed(Value array, Value index, Value length, BasicType elt_type, Value value, ValueStack* state_before)
+  StoreIndexed(Value array, Value index, Value length, BasicType elt_type, Value value, ValueStack* state_before, bool check_boolean)
   : AccessIndexed(array, index, length, elt_type, state_before)
-  , _value(value), _profiled_method(NULL), _profiled_bci(0)
+  , _value(value), _profiled_method(NULL), _profiled_bci(0), _check_boolean(check_boolean)
   {
     set_flag(NeedsWriteBarrierFlag, (as_ValueType(elt_type)->is_object()));
     set_flag(NeedsStoreCheckFlag, (as_ValueType(elt_type)->is_object()));
@@ -992,6 +994,7 @@ LEAF(StoreIndexed, AccessIndexed)
   Value value() const                            { return _value; }
   bool needs_write_barrier() const               { return check_flag(NeedsWriteBarrierFlag); }
   bool needs_store_check() const                 { return check_flag(NeedsStoreCheckFlag); }
+  bool check_boolean() const                     { return _check_boolean; }
   // Helpers for MethodData* profiling
   void set_should_profile(bool value)                { set_flag(ProfileMDOFlag, value); }
   void set_profiled_method(ciMethod* method)         { _profiled_method = method;   }
