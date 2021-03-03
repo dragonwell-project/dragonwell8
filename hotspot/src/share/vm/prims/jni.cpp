@@ -5129,6 +5129,7 @@ void execute_internal_vm_tests() {
     run_unit_test(TestKlass_test());
     run_unit_test(Test_linked_list());
     run_unit_test(TestChunkedList_test());
+    run_unit_test(ObjectMonitor::sanity_checks());
 #if INCLUDE_VM_STRUCTS
     run_unit_test(VMStructs::test());
 #endif

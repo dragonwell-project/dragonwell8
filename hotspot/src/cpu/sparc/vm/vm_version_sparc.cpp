@@ -236,7 +236,7 @@ void VM_Version::initialize() {
   assert((OptoLoopAlignment % relocInfo::addr_unit()) == 0, "alignment is not a multiple of NOP size");
 
   char buf[512];
-  jio_snprintf(buf, sizeof(buf), "%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s",
+  jio_snprintf(buf, sizeof(buf), "%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s",
                (has_v9() ? ", v9" : (has_v8() ? ", v8" : "")),
                (has_hardware_popc() ? ", popc" : ""),
                (has_vis1() ? ", vis1" : ""),
@@ -249,6 +249,7 @@ void VM_Version::initialize() {
                (has_sha256() ? ", sha256" : ""),
                (has_sha512() ? ", sha512" : ""),
                (is_ultra3() ? ", ultra3" : ""),
+               (has_sparc5_instr() ? ", sparc5" : ""),
                (is_sun4v() ? ", sun4v" : ""),
                (is_niagara_plus() ? ", niagara_plus" : (is_niagara() ? ", niagara" : "")),
                (is_sparc64() ? ", sparc64" : ""),
@@ -364,6 +365,7 @@ void VM_Version::initialize() {
 
 #ifndef PRODUCT
   if (PrintMiscellaneous && Verbose) {
+    tty->print_cr("L1 data cache line size: %u", L1_data_cache_line_size());
     tty->print_cr("L2 data cache line size: %u", L2_data_cache_line_size());
     tty->print("Allocation");
     if (AllocatePrefetchStyle <= 0) {
@@ -447,9 +449,10 @@ void VM_Version::revert() {
 
 unsigned int VM_Version::calc_parallel_worker_threads() {
   unsigned int result;
-  if (is_M_series()) {
-    // for now, use same gc thread calculation for M-series as for niagara-plus
-    // in future, we may want to tweak parameters for nof_parallel_worker_thread
+  if (is_M_series() || is_S_series()) {
+    // for now, use same gc thread calculation for M-series and S-series as for
+    // niagara-plus. In future, we may want to tweak parameters for
+    // nof_parallel_worker_thread
     result = nof_parallel_worker_threads(5, 16, 8);
   } else if (is_niagara_plus()) {
     result = nof_parallel_worker_threads(5, 16, 8);
@@ -457,4 +460,38 @@ unsigned int VM_Version::calc_parallel_worker_threads() {
     result = nof_parallel_worker_threads(5, 8, 8);
   }
   return result;
+}
+
+
+int VM_Version::parse_features(const char* implementation) {
+  int features = unknown_m;
+  // Convert to UPPER case before compare.
+  char* impl = os::strdup(implementation);
+
+  for (int i = 0; impl[i] != 0; i++)
+    impl[i] = (char)toupper((uint)impl[i]);
+
+  if (strstr(impl, "SPARC64") != NULL) {
+    features |= sparc64_family_m;
+  } else if (strstr(impl, "SPARC-M") != NULL) {
+    // M-series SPARC is based on T-series.
+    features |= (M_family_m | T_family_m);
+  } else if (strstr(impl, "SPARC-S") != NULL) {
+    // S-series SPARC is based on T-series.
+    features |= (S_family_m | T_family_m);
+  } else if (strstr(impl, "SPARC-T") != NULL) {
+    features |= T_family_m;
+    if (strstr(impl, "SPARC-T1") != NULL) {
+      features |= T1_model_m;
+    }
+  } else if (strstr(impl, "SUN4V-CPU") != NULL) {
+    // Generic or migration class LDOM
+    features |= T_family_m;
+  } else {
+#ifndef PRODUCT
+    warning("Failed to parse CPU implementation = '%s'", impl);
+#endif
+  }
+  os::free((void*)impl);
+  return features;
 }
