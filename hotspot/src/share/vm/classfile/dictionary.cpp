@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,6 +25,7 @@
 #include "precompiled.hpp"
 #include "classfile/dictionary.hpp"
 #include "classfile/systemDictionary.hpp"
+#include "classfile/systemDictionaryShared.hpp"
 #include "memory/iterator.hpp"
 #include "oops/oop.inline.hpp"
 #include "prims/jvmtiRedefineClassesTrace.hpp"
@@ -36,9 +37,16 @@ PRAGMA_FORMAT_MUTE_WARNINGS_FOR_GCC
 DictionaryEntry*  Dictionary::_current_class_entry = NULL;
 int               Dictionary::_current_class_index =    0;
 
+size_t Dictionary::entry_size() {
+  if (DumpSharedSpaces) {
+    return SystemDictionaryShared::dictionary_entry_size();
+  } else {
+    return sizeof(DictionaryEntry);
+  }
+}
 
 Dictionary::Dictionary(int table_size)
-  : TwoOopHashtable<Klass*, mtClass>(table_size, sizeof(DictionaryEntry)) {
+  : TwoOopHashtable<Klass*, mtClass>(table_size, (int)entry_size()) {
   _current_class_index = 0;
   _current_class_entry = NULL;
   _pd_cache_table = new ProtectionDomainCacheTable(defaultProtectionDomainCacheSize);
@@ -47,7 +55,7 @@ Dictionary::Dictionary(int table_size)
 
 Dictionary::Dictionary(int table_size, HashtableBucket<mtClass>* t,
                        int number_of_entries)
-  : TwoOopHashtable<Klass*, mtClass>(table_size, sizeof(DictionaryEntry), t, number_of_entries) {
+  : TwoOopHashtable<Klass*, mtClass>(table_size, (int)entry_size(), t, number_of_entries) {
   _current_class_index = 0;
   _current_class_entry = NULL;
   _pd_cache_table = new ProtectionDomainCacheTable(defaultProtectionDomainCacheSize);
@@ -63,6 +71,9 @@ DictionaryEntry* Dictionary::new_entry(unsigned int hash, Klass* klass,
   entry->set_loader_data(loader_data);
   entry->set_pd_set(NULL);
   assert(klass->oop_is_instance(), "Must be");
+  if (DumpSharedSpaces) {
+    SystemDictionaryShared::init_shared_dictionary_entry(klass, entry);
+  }
   return entry;
 }
 
