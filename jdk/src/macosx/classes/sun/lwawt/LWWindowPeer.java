@@ -750,11 +750,10 @@ public class LWWindowPeer
                 lastMouseEventPeer = targetPeer;
             }
         } else {
-            PlatformWindow topmostPlatforWindow =
-                    platformWindow.getTopmostPlatformWindowUnderMouse();
+            PlatformWindow topmostPlatformWindow = LWToolkit.getLWToolkit().getPlatformWindowUnderMouse();
 
             LWWindowPeer topmostWindowPeer =
-                    topmostPlatforWindow != null ? topmostPlatforWindow.getPeer() : null;
+                    topmostPlatformWindow != null ? topmostPlatformWindow.getPeer() : null;
 
             // topmostWindowPeer == null condition is added for the backward
             // compatibility with applets. It can be removed when the
@@ -765,8 +764,7 @@ public class LWWindowPeer
                         screenX, screenY, modifiers, clickCount, popupTrigger,
                         targetPeer);
             } else {
-                LWComponentPeer<?, ?> topmostTargetPeer =
-                        topmostWindowPeer != null ? topmostWindowPeer.findPeerAt(r.x + x, r.y + y) : null;
+                LWComponentPeer<?, ?> topmostTargetPeer = topmostWindowPeer.findPeerAt(r.x + x, r.y + y);
                 topmostWindowPeer.generateMouseEnterExitEventsForComponents(when, button, x, y,
                         screenX, screenY, modifiers, clickCount, popupTrigger,
                         topmostTargetPeer);
