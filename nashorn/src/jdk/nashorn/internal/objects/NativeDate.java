@@ -30,6 +30,7 @@ import static java.lang.Double.isInfinite;
 import static java.lang.Double.isNaN;
 import static jdk.nashorn.internal.runtime.ECMAErrors.rangeError;
 import static jdk.nashorn.internal.runtime.ECMAErrors.typeError;
+
 import java.util.Locale;
 import java.util.TimeZone;
 import java.util.concurrent.Callable;
@@ -40,7 +41,6 @@ import jdk.nashorn.internal.objects.annotations.ScriptClass;
 import jdk.nashorn.internal.objects.annotations.SpecializedFunction;
 import jdk.nashorn.internal.objects.annotations.Where;
 import jdk.nashorn.internal.parser.DateParser;
-import jdk.nashorn.internal.runtime.ConsString;
 import jdk.nashorn.internal.runtime.JSType;
 import jdk.nashorn.internal.runtime.PropertyMap;
 import jdk.nashorn.internal.runtime.ScriptEnvironment;
@@ -121,6 +121,10 @@ public final class NativeDate extends ScriptObject {
         this.timezone = env._timezone;
     }
 
+    NativeDate(final double time, final ScriptObject proto) {
+        this(time, proto, $nasgenmap$);
+    }
+
     NativeDate(final double time, final Global global) {
         this(time, global.getDatePrototype(), $nasgenmap$);
     }
@@ -183,7 +187,7 @@ public final class NativeDate extends ScriptObject {
         case 1:
             double num;
             final Object arg = JSType.toPrimitive(args[0]);
-            if (arg instanceof String || arg instanceof ConsString) {
+            if (JSType.isString(arg)) {
                 num = parseDateString(arg.toString());
             } else {
                 num = timeClip(JSType.toNumber(args[0]));
@@ -1276,7 +1280,7 @@ public final class NativeDate extends ScriptObject {
         if (self instanceof NativeDate) {
             return (NativeDate)self;
         } else if (self != null && self == Global.instance().getDatePrototype()) {
-            return Global.instance().DEFAULT_DATE;
+            return Global.instance().getDefaultDate();
         } else {
             throw typeError("not.a.date", ScriptRuntime.safeToString(self));
         }
