@@ -246,6 +246,12 @@ void LinkResolver::lookup_method_in_klasses(methodHandle& result, KlassHandle kl
   // Ignore overpasses so statics can be found during resolution
   Method* result_oop = klass->uncached_lookup_method(name, signature, Klass::skip_overpass);
 
+  if (klass->oop_is_array()) {
+    // Only consider klass and super klass for arrays
+    result = methodHandle(THREAD, result_oop);
+    return;
+  }
+
   // JDK 8, JVMS 5.4.3.4: Interface method resolution should
   // ignore static and non-public methods of java.lang.Object,
   // like clone, finalize, registerNatives.
@@ -290,6 +296,11 @@ void LinkResolver::lookup_instance_method_in_klasses(methodHandle& result, Klass
     result = methodHandle(THREAD, super_klass->uncached_lookup_method(name, signature, Klass::normal));
   }
 
+  if (klass->oop_is_array()) {
+    // Only consider klass and super klass for arrays
+    return;
+  }
+
   if (result.is_null()) {
     Array<Method*>* default_methods = InstanceKlass::cast(klass())->default_methods();
     if (default_methods != NULL) {
@@ -309,7 +320,7 @@ int LinkResolver::vtable_index_of_interface_method(KlassHandle klass,
   // First check in default method array
   if (!resolved_method->is_abstract() &&
     (InstanceKlass::cast(klass())->default_methods() != NULL)) {
-    int index = InstanceKlass::find_method_index(InstanceKlass::cast(klass())->default_methods(), name, signature, false);
+    int index = InstanceKlass::find_method_index(InstanceKlass::cast(klass())->default_methods(), name, signature, false, false);
     if (index >= 0 ) {
       vtable_index = InstanceKlass::cast(klass())->default_vtable_indices()->at(index);
     }
@@ -546,7 +557,7 @@ void LinkResolver::resolve_method(methodHandle& resolved_method, KlassHandle res
   // 2. lookup method in resolved klass and its super klasses
   lookup_method_in_klasses(resolved_method, resolved_klass, method_name, method_signature, true, false, CHECK);
 
-  if (resolved_method.is_null()) { // not found in the class hierarchy
+  if (resolved_method.is_null() && !resolved_klass->oop_is_array()) { // not found in the class hierarchy
     // 3. lookup method in all the interfaces implemented by the resolved klass
     lookup_method_in_interfaces(resolved_method, resolved_klass, method_name, method_signature, CHECK);
 
@@ -559,16 +570,16 @@ void LinkResolver::resolve_method(methodHandle& resolved_method, KlassHandle res
         CLEAR_PENDING_EXCEPTION;
       }
     }
+  }
 
-    if (resolved_method.is_null()) {
-      // 4. method lookup failed
-      ResourceMark rm(THREAD);
-      THROW_MSG_CAUSE(vmSymbols::java_lang_NoSuchMethodError(),
-                      Method::name_and_sig_as_C_string(resolved_klass(),
-                                                              method_name,
-                                                              method_signature),
-                      nested_exception);
-    }
+  if (resolved_method.is_null()) {
+    // 4. method lookup failed
+    ResourceMark rm(THREAD);
+    THROW_MSG_CAUSE(vmSymbols::java_lang_NoSuchMethodError(),
+                    Method::name_and_sig_as_C_string(resolved_klass(),
+                                                            method_name,
+                                                            method_signature),
+                    nested_exception);
   }
 
   // 5. access checks, access checking may be turned off when calling from within the VM.
@@ -634,17 +645,18 @@ void LinkResolver::resolve_interface_method(methodHandle& resolved_method,
   // JDK8: also look for static methods
   lookup_method_in_klasses(resolved_method, resolved_klass, method_name, method_signature, false, true, CHECK);
 
-  if (resolved_method.is_null()) {
+  if (resolved_method.is_null() && !resolved_klass->oop_is_array()) {
     // lookup method in all the super-interfaces
     lookup_method_in_interfaces(resolved_method, resolved_klass, method_name, method_signature, CHECK);
-    if (resolved_method.is_null()) {
-      // no method found
-      ResourceMark rm(THREAD);
-      THROW_MSG(vmSymbols::java_lang_NoSuchMethodError(),
-                Method::name_and_sig_as_C_string(resolved_klass(),
-                                                        method_name,
-                                                        method_signature));
-    }
+  }
+
+  if (resolved_method.is_null()) {
+    // no method found
+    ResourceMark rm(THREAD);
+    THROW_MSG(vmSymbols::java_lang_NoSuchMethodError(),
+              Method::name_and_sig_as_C_string(resolved_klass(),
+                                                      method_name,
+                                                      method_signature));
   }
 
   if (check_access) {
@@ -776,7 +788,7 @@ void LinkResolver::resolve_field(fieldDescriptor& fd, KlassHandle resolved_klass
   }
 
   // Resolve instance field
-  KlassHandle sel_klass(THREAD, InstanceKlass::cast(resolved_klass())->find_field(field, sig, &fd));
+  KlassHandle sel_klass(THREAD, resolved_klass->find_field(field, sig, &fd));
   // check if field exists; i.e., if a klass containing the field def has been selected
   if (sel_klass.is_null()) {
     ResourceMark rm(THREAD);
