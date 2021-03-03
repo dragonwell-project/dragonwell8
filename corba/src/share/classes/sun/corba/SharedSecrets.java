@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,9 +26,10 @@
 package sun.corba;
 
 import com.sun.corba.se.impl.io.ValueUtility;
+import sun.misc.JavaOISAccess;
 import sun.misc.Unsafe;
 
-import java.security.AccessController;
+import java.lang.reflect.Method;
 
 /** A repository of "shared secrets", which are a mechanism for
     calling implementation-private methods in another package without
@@ -43,6 +44,31 @@ import java.security.AccessController;
 public class SharedSecrets {
     private static final Unsafe unsafe = Unsafe.getUnsafe();
     private static JavaCorbaAccess javaCorbaAccess;
+    private static final Method getJavaOISAccessMethod;
+    private static JavaOISAccess javaOISAccess;
+
+    // Initialize getJavaOISAccessMethod using reflection.
+    static {
+        try {
+            Class sharedSecret = Class.forName("sun.misc.SharedSecrets");
+            getJavaOISAccessMethod =
+                    sharedSecret.getMethod("getJavaOISAccess");
+        } catch (Exception e) {
+            throw new ExceptionInInitializerError(e);
+        }
+    }
+
+    public static JavaOISAccess getJavaOISAccess() {
+        if (javaOISAccess == null) {
+            try {
+                javaOISAccess =
+                        (JavaOISAccess) getJavaOISAccessMethod.invoke(null);
+            } catch (Exception e) {
+                throw new ExceptionInInitializerError(e);
+            }
+        }
+        return javaOISAccess;
+    }
 
     public static JavaCorbaAccess getJavaCorbaAccess() {
         if (javaCorbaAccess == null) {
@@ -56,5 +82,4 @@ public class SharedSecrets {
     public static void setJavaCorbaAccess(JavaCorbaAccess access) {
         javaCorbaAccess = access;
     }
-
 }
