@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -58,6 +58,7 @@ ciInstanceKlass::ciInstanceKlass(KlassHandle h_k) :
   _nonstatic_field_size = ik->nonstatic_field_size();
   _has_nonstatic_fields = ik->has_nonstatic_fields();
   _has_default_methods = ik->has_default_methods();
+  _is_anonymous = ik->is_anonymous();
   _nonstatic_fields = NULL; // initialized lazily by compute_nonstatic_fields:
 
   _implementor = NULL; // we will fill these lazily
@@ -100,6 +101,7 @@ ciInstanceKlass::ciInstanceKlass(ciSymbol* name,
   _nonstatic_field_size = -1;
   _has_nonstatic_fields = false;
   _nonstatic_fields = NULL;
+  _is_anonymous = false;
   _loader = loader;
   _protection_domain = protection_domain;
   _is_shared = false;
@@ -589,6 +591,16 @@ ciInstanceKlass* ciInstanceKlass::implementor() {
     }
   }
   return impl;
+}
+
+ciInstanceKlass* ciInstanceKlass::host_klass() {
+  assert(is_loaded(), "must be loaded");
+  if (is_anonymous()) {
+    VM_ENTRY_MARK
+    Klass* host_klass = get_instanceKlass()->host_klass();
+    return CURRENT_ENV->get_instance_klass(host_klass);
+  }
+  return NULL;
 }
 
 // Utility class for printing of the contents of the static fields for
