@@ -49,10 +49,7 @@ public class SecurityTools {
                 launcher.addToolArg(arg);
             }
         }
-        String[] cmds = launcher.getCommand();
-        String cmdLine = Arrays.stream(cmds).collect(Collectors.joining(" "));
-        System.out.println("Command line: [" + cmdLine + "]");
-        return new ProcessBuilder(cmds);
+        return new ProcessBuilder(launcher.getCommand());
     }
 
     // keytool
@@ -69,7 +66,7 @@ public class SecurityTools {
         pb.redirectInput(ProcessBuilder.Redirect.from(new File(RESPONSE_FILE)));
 
         try {
-            return ProcessTools.executeProcess(pb);
+            return execute(pb);
         } catch (Throwable t) {
             throw new RuntimeException("keytool failure: " + t);
         } finally {
@@ -101,11 +98,20 @@ public class SecurityTools {
 
     public static OutputAnalyzer jarsigner(List<String> args)
             throws Exception {
+        return execute(getProcessBuilder("jarsigner", args));
+    }
+
+    private static OutputAnalyzer execute(ProcessBuilder pb) throws Exception {
         try {
-            return ProcessTools.executeProcess(
-                getProcessBuilder("jarsigner", args));
+            OutputAnalyzer oa = ProcessTools.executeCommand(pb);
+            System.out.println("Exit value: " + oa.getExitValue());
+            return oa;
         } catch (Throwable t) {
-            throw new RuntimeException("jarsigner error: " + t);
+            if (t instanceof Exception) {
+                throw (Exception) t;
+            } else {
+                throw new Exception(t);
+            }
         }
     }
 
