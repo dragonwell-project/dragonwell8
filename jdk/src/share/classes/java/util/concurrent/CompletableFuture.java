@@ -421,6 +421,20 @@ public class CompletableFuture<T> implements Future<T>, CompletionStage<T> {
     static final int ASYNC  =  1;
     static final int NESTED = -1;
 
+    /**
+     * Spins before blocking in waitingGet.
+     * There is no need to spin on uniprocessors.
+     *
+     * Call to Runtime.availableProcessors is expensive, cache the value here.
+     * This unfortunately relies on the number of available CPUs during first
+     * initialization. This affects the case when MP system would report only
+     * one CPU available at startup, initialize SPINS to 0, and then make more
+     * CPUs online. This would incur some performance penalty due to less spins
+     * than would otherwise happen.
+     */
+    private static final int SPINS = (Runtime.getRuntime().availableProcessors() > 1 ?
+                                      1 << 8 : 0);
+
     /* ------------- Base Completion classes and operations -------------- */
 
     @SuppressWarnings("serial")
@@ -1709,8 +1723,7 @@ public class CompletableFuture<T> implements Future<T>, CompletionStage<T> {
         Object r;
         while ((r = result) == null) {
             if (spins < 0)
-                spins = (Runtime.getRuntime().availableProcessors() > 1) ?
-                    1 << 8 : 0; // Use brief spin-wait on multiprocessors
+                spins = SPINS;
             else if (spins > 0) {
                 if (ThreadLocalRandom.nextSecondarySeed() >= 0)
                     --spins;

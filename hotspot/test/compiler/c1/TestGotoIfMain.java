@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,29 +21,26 @@
  * questions.
  */
 
-/* @test
- * @bug 6964714 8226928
- * @run main/othervm -Djava.net.preferIPv4Stack=true IPv4Only
- * @summary Test the networkinterface listing with java.net.preferIPv4Stack=true.
+/*
+ * @test
+ * @bug 8218721
+ * @compile TestGotoIf.jasm
+ * @run main/othervm -XX:TieredStopAtLevel=1 -Xcomp
+ *                   -XX:CompileCommand=compileonly,compiler.c1.TestGotoIf::test*
+ *                   compiler.c1.TestGotoIfMain
  */
 
+package compiler.c1;
 
-import java.net.*;
-import java.util.*;
-
-
-public class IPv4Only {
-    public static void main(String[] args) throws Exception {
-        Enumeration<NetworkInterface> nifs = NetworkInterface.getNetworkInterfaces();
-        while (nifs.hasMoreElements()) {
-            NetworkInterface nif = nifs.nextElement();
-            Enumeration<InetAddress> addrs = nif.getInetAddresses();
-            while (addrs.hasMoreElements()) {
-               InetAddress hostAddr = addrs.nextElement();
-               if ( hostAddr instanceof Inet6Address ){
-                    throw new RuntimeException( "NetworkInterfaceV6List failed - found v6 address " + hostAddr.getHostAddress() );
-               }
-            }
-        }
+public class TestGotoIfMain {
+    public static void main(String[] args) {
+        TestGotoIf test = new TestGotoIf();
+        test.i = 5;
+        test.test1();
+        test.test2();
+        test.test3();
+        test.test4();
+        test.test5();
+        test.test6();
     }
 }
