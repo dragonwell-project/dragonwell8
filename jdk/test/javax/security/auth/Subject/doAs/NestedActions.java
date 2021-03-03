@@ -23,6 +23,7 @@
  */
 
 import jdk.testlibrary.ProcessTools;
+import jdk.testlibrary.JarUtils;
 
 import javax.security.auth.Subject;
 import javax.security.auth.x500.X500Principal;
@@ -35,6 +36,7 @@ import java.util.List;
 import java.util.jar.JarEntry;
 import java.util.jar.JarOutputStream;
 import java.util.jar.Manifest;
+import java.nio.file.Paths;
 
 /**
  * @test
@@ -99,7 +101,7 @@ public class NestedActions {
     public static void main(String[] args) throws IOException {
         if (args.length > 0) {
             if ("jar".equals(args[0]) && args.length > 2) {
-                createJar(args[1],
+                JarUtils.createJar(args[1], Paths.get(TEST_CLASSES + FS),
                     Arrays.copyOfRange(args, 2, args.length));
             } else {
                 runJava(args);
@@ -109,24 +111,7 @@ public class NestedActions {
         }
     }
 
-    static void createJar(String dest, String... files) throws IOException {
-        System.out.println("Create " + dest + " with the following content:");
-        try (JarOutputStream jos = new JarOutputStream(
-                new FileOutputStream(dest), new Manifest())) {
-            for (String file : files) {
-                System.out.println("  " + file);
-                jos.putNextEntry(new JarEntry(file));
-                try (FileInputStream fis = new FileInputStream(
-                        TEST_CLASSES + FS + file)) {
-                    byte[] buffer = new byte[1024];
-                    int read;
-                    while ((read = fis.read(buffer, 0, buffer.length)) > 0) {
-                        jos.write(buffer, 0, read);
-                    }
-                }
-            }
-        }
-    }
+
 
     static void runJava(String[] args) {
         if (args == null || args.length < 3) {
