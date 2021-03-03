@@ -457,6 +457,13 @@ definitions %{
 // This is a block of C++ code which provides values, functions, and
 // definitions necessary in the rest of the architecture description
 source_hpp %{
+// Header information of the source block.
+// Method declarations/definitions which are used outside
+// the ad-scope can conveniently be defined here.
+//
+// To keep related declarations/definitions/uses close together,
+// we switch between source %{ }% and source_hpp %{ }% freely as needed.
+
 // Must be visible to the DFA in dfa_sparc.cpp
 extern bool can_branch_register( Node *bol, Node *cmp );
 
@@ -467,6 +474,46 @@ extern bool use_block_zeroing(Node* count);
 // Prevents accidentally using G1 instead of G0.
 #define LONG_HI_REG(x) (x)
 #define LONG_LO_REG(x) (x)
+
+class CallStubImpl {
+
+  //--------------------------------------------------------------
+  //---<  Used for optimization in Compile::Shorten_branches  >---
+  //--------------------------------------------------------------
+
+ public:
+  // Size of call trampoline stub.
+  static uint size_call_trampoline() {
+    return 0; // no call trampolines on this platform
+  }
+
+  // number of relocations needed by a call trampoline stub
+  static uint reloc_call_trampoline() {
+    return 0; // no call trampolines on this platform
+  }
+};
+
+class HandlerImpl {
+
+ public:
+
+  static int emit_exception_handler(CodeBuffer &cbuf);
+  static int emit_deopt_handler(CodeBuffer& cbuf);
+
+  static uint size_exception_handler() {
+    if (TraceJumps) {
+      return (400); // just a guess
+    }
+    return ( NativeJump::instruction_size ); // sethi;jmp;nop
+  }
+
+  static uint size_deopt_handler() {
+    if (TraceJumps) {
+      return (400); // just a guess
+    }
+    return ( 4+  NativeJump::instruction_size ); // save;sethi;jmp;restore
+  }
+};
 
 %}
 
@@ -1038,6 +1085,11 @@ int Compile::ConstantTable::calculate_table_base_offset() const {
     }
     return offset;
   }
+}
+
+bool MachConstantBaseNode::requires_postalloc_expand() const { return false; }
+void MachConstantBaseNode::postalloc_expand(GrowableArray <Node *> *nodes, PhaseRegAlloc *ra_) {
+  ShouldNotReachHere();
 }
 
 void MachConstantBaseNode::emit(CodeBuffer& cbuf, PhaseRegAlloc* ra_) const {
@@ -1705,22 +1757,9 @@ uint MachUEPNode::size(PhaseRegAlloc *ra_) const {
 
 //=============================================================================
 
-uint size_exception_handler() {
-  if (TraceJumps) {
-    return (400); // just a guess
-  }
-  return ( NativeJump::instruction_size ); // sethi;jmp;nop
-}
-
-uint size_deopt_handler() {
-  if (TraceJumps) {
-    return (400); // just a guess
-  }
-  return ( 4+  NativeJump::instruction_size ); // save;sethi;jmp;restore
-}
 
 // Emit exception handler code.
-int emit_exception_handler(CodeBuffer& cbuf) {
+int HandlerImpl::emit_exception_handler(CodeBuffer& cbuf) {
   Register temp_reg = G3;
   AddressLiteral exception_blob(OptoRuntime::exception_blob()->entry_point());
   MacroAssembler _masm(&cbuf);
@@ -1741,7 +1780,7 @@ int emit_exception_handler(CodeBuffer& cbuf) {
   return offset;
 }
 
-int emit_deopt_handler(CodeBuffer& cbuf) {
+int HandlerImpl::emit_deopt_handler(CodeBuffer& cbuf) {
   // Can't use any of the current frame's registers as we may have deopted
   // at a poll and everything (including G3) can be live.
   Register temp_reg = L0;
@@ -1890,6 +1929,9 @@ const int Matcher::long_cmove_cost() { return 0; }
 const int Matcher::float_cmove_cost() {
   return (VM_Version::is_T4() || VM_Version::is_sparc64()) ? ConditionalMoveLimit : 0;
 }
+
+// Does the CPU require late expand (see block.cpp for description of late expand)?
+const bool Matcher::require_postalloc_expand = false;
 
 // Should the Matcher clone shifts on addressing modes, expecting them to
 // be subsumed into complex addressing expressions or compute them into
@@ -3235,7 +3277,7 @@ frame %{
   // C.
   c_calling_convention %{
     // This is obviously always outgoing
-    (void) SharedRuntime::c_calling_convention(sig_bt, regs, length);
+    (void) SharedRuntime::c_calling_convention(sig_bt, regs, /*regs2=*/NULL, length);
   %}
 
   // Location of native (C/C++) and interpreter return values.  This is specified to
@@ -6646,6 +6688,7 @@ instruct decodeKlass_not_null(iRegP dst, iRegN src) %{
 
 instruct membar_acquire() %{
   match(MemBarAcquire);
+  match(LoadFence);
   ins_cost(4*MEMORY_REF_COST);
 
   size(0);
@@ -6666,6 +6709,7 @@ instruct membar_acquire_lock() %{
 
 instruct membar_release() %{
   match(MemBarRelease);
+  match(StoreFence);
   ins_cost(4*MEMORY_REF_COST);
 
   size(0);
@@ -9167,7 +9211,7 @@ instruct branch_short(label labl) %{
   size(4);
   ins_cost(BRANCH_COST);
   format %{ "BA     $labl\t! short branch" %}
-  ins_encode %{ 
+  ins_encode %{
     Label* L = $labl$$label;
     assert(__ use_cbcond(*L), "back to back cbcond");
     __ ba_short(*L);
