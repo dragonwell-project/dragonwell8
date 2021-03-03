@@ -49,3 +49,14 @@ else
   # Use Power8, this is the first CPU to support PPC64 LE with ELFv2 ABI.
   CFLAGS += -mcpu=power7 -mtune=power8 -minsert-sched-nops=regroup_exact -mno-multiple -mno-string
 endif
+
+# If FDLIBM_CFLAGS is non-empty it holds CFLAGS needed to be passed to
+# the compiler so as to be able to produce optimized objects
+# without losing precision.
+ifneq ($(FDLIBM_CFLAGS),)
+  OPT_CFLAGS/sharedRuntimeTrig.o = $(OPT_CFLAGS/SPEED) $(FDLIBM_CFLAGS)
+  OPT_CFLAGS/sharedRuntimeTrans.o = $(OPT_CFLAGS/SPEED) $(FDLIBM_CFLAGS)
+else
+  OPT_CFLAGS/sharedRuntimeTrig.o = $(OPT_CFLAGS/NOOPT)
+  OPT_CFLAGS/sharedRuntimeTrans.o = $(OPT_CFLAGS/NOOPT)
+endif

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -131,6 +131,9 @@ class Solaris {
   static int _SIGasync;                      // user-overridable ASYNC_SIGNAL
   static void set_SIGinterrupt(int newsig) { _SIGinterrupt = newsig; }
   static void set_SIGasync(int newsig) { _SIGasync = newsig; }
+
+  typedef int (*pthread_setname_np_func_t)(pthread_t, const char*);
+  static pthread_setname_np_func_t _pthread_setname_np;
 
  public:
   // Large Page Support--ISM.
