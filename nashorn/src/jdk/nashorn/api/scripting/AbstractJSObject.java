@@ -28,6 +28,7 @@ package jdk.nashorn.api.scripting;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Set;
+import jdk.nashorn.internal.runtime.JSONListAdapter;
 import jdk.nashorn.internal.runtime.JSType;
 
 /**
@@ -282,6 +283,8 @@ public abstract class AbstractJSObject implements JSObject {
     public static Object getDefaultValue(final JSObject jsobj, final Class<?> hint) {
         if (jsobj instanceof AbstractJSObject) {
             return ((AbstractJSObject)jsobj).getDefaultValue(hint);
+        } else if (jsobj instanceof JSONListAdapter) {
+            return ((JSONListAdapter)jsobj).getDefaultValue(hint);
         }
         return DefaultValueImpl.getDefaultValue(jsobj, hint);
     }
