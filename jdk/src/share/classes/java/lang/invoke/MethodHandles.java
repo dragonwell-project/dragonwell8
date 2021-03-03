@@ -39,7 +39,9 @@ import sun.reflect.misc.ReflectUtil;
 import sun.security.util.SecurityConstants;
 import static java.lang.invoke.MethodHandleStatics.*;
 import static java.lang.invoke.MethodHandleNatives.Constants.*;
+
 import java.util.concurrent.ConcurrentHashMap;
+
 import sun.security.util.SecurityConstants;
 
 /**
@@ -1504,6 +1506,10 @@ return mh1;
                 // that is *not* the bytecode behavior.
                 mods ^= Modifier.PROTECTED | Modifier.PUBLIC;
             }
+            if (Modifier.isProtected(mods) && refKind == REF_newInvokeSpecial) {
+                // cannot "new" a protected ctor in a different package
+                mods ^= Modifier.PROTECTED;
+            }
             if (Modifier.isFinal(mods) &&
                     MethodHandleNatives.refKindIsSetter(refKind))
                 throw m.makeAccessException("unexpected set of a final field", this);
@@ -2070,6 +2076,7 @@ assert((int)twice.invokeExact(21) == 42);
      */
     public static
     MethodHandle permuteArguments(MethodHandle target, MethodType newType, int... reorder) {
+        reorder = reorder.clone();
         checkReorder(reorder, newType, target.type());
         return target.permuteArguments(newType, reorder);
     }
@@ -2264,6 +2271,7 @@ assertEquals("yz", (String) d0.invokeExact(123, "x", "y", "z"));
             throw newIllegalArgumentException("no argument type to remove");
         ArrayList<Class<?>> ptypes = new ArrayList<>(oldType.parameterList());
         ptypes.addAll(pos, valueTypes);
+        if (ptypes.size() != inargs)  throw newIllegalArgumentException("valueTypes");
         MethodType newType = MethodType.methodType(oldType.returnType(), ptypes);
         return target.dropArguments(newType, pos, dropped);
     }
