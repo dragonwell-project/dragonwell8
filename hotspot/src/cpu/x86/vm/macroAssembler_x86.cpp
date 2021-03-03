@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -748,8 +748,7 @@ void MacroAssembler::pushptr(AddressLiteral src) {
   }
 }
 
-void MacroAssembler::reset_last_Java_frame(bool clear_fp,
-                                           bool clear_pc) {
+void MacroAssembler::reset_last_Java_frame(bool clear_fp) {
   // we must set sp to zero to clear frame
   movptr(Address(r15_thread, JavaThread::last_Java_sp_offset()), NULL_WORD);
   // must clear fp, so that compiled frames are not confused; it is
@@ -758,9 +757,8 @@ void MacroAssembler::reset_last_Java_frame(bool clear_fp,
     movptr(Address(r15_thread, JavaThread::last_Java_fp_offset()), NULL_WORD);
   }
 
-  if (clear_pc) {
-    movptr(Address(r15_thread, JavaThread::last_Java_pc_offset()), NULL_WORD);
-  }
+  // Always clear the pc because it could have been set by make_walkable()
+  movptr(Address(r15_thread, JavaThread::last_Java_pc_offset()), NULL_WORD);
 }
 
 void MacroAssembler::set_last_Java_frame(Register last_java_sp,
@@ -2561,7 +2559,7 @@ void MacroAssembler::call_VM_base(Register oop_result,
   }
   // reset last Java frame
   // Only interpreter should have to clear fp
-  reset_last_Java_frame(java_thread, true, false);
+  reset_last_Java_frame(java_thread, true);
 
 #ifndef CC_INTERP
    // C++ interp handles this in the interpreter
@@ -3808,7 +3806,7 @@ void MacroAssembler::push_IU_state() {
   pusha();
 }
 
-void MacroAssembler::reset_last_Java_frame(Register java_thread, bool clear_fp, bool clear_pc) {
+void MacroAssembler::reset_last_Java_frame(Register java_thread, bool clear_fp) {
   // determine java_thread register
   if (!java_thread->is_valid()) {
     java_thread = rdi;
@@ -3820,8 +3818,8 @@ void MacroAssembler::reset_last_Java_frame(Register java_thread, bool clear_fp, 
     movptr(Address(java_thread, JavaThread::last_Java_fp_offset()), NULL_WORD);
   }
 
-  if (clear_pc)
-    movptr(Address(java_thread, JavaThread::last_Java_pc_offset()), NULL_WORD);
+  // Always clear the pc because it could have been set by make_walkable()
+  movptr(Address(java_thread, JavaThread::last_Java_pc_offset()), NULL_WORD);
 
 }
 
@@ -4855,8 +4853,13 @@ void MacroAssembler::lookup_interface_method(Register recv_klass,
                                              RegisterOrConstant itable_index,
                                              Register method_result,
                                              Register scan_temp,
-                                             Label& L_no_such_interface) {
-  assert_different_registers(recv_klass, intf_klass, method_result, scan_temp);
+                                             Label& L_no_such_interface,
+                                             bool return_method) {
+  assert_different_registers(recv_klass, intf_klass, scan_temp);
+  assert_different_registers(method_result, intf_klass, scan_temp);
+  assert(recv_klass != method_result || !return_method,
+         "recv_klass can be destroyed when method isn't needed");
+
   assert(itable_index.is_constant() || itable_index.as_register() == method_result,
          "caller must use same register for non-constant itable index as for method");
 
@@ -4878,9 +4881,11 @@ void MacroAssembler::lookup_interface_method(Register recv_klass,
     round_to(scan_temp, BytesPerLong);
   }
 
-  // Adjust recv_klass by scaled itable_index, so we can free itable_index.
-  assert(itableMethodEntry::size() * wordSize == wordSize, "adjust the scaling in the code below");
-  lea(recv_klass, Address(recv_klass, itable_index, Address::times_ptr, itentry_off));
+  if (return_method) {
+    // Adjust recv_klass by scaled itable_index, so we can free itable_index.
+    assert(itableMethodEntry::size() * wordSize == wordSize, "adjust the scaling in the code below");
+    lea(recv_klass, Address(recv_klass, itable_index, Address::times_ptr, itentry_off));
+  }
 
   // for (scan = klass->itable(); scan->interface() != NULL; scan += scan_step) {
   //   if (scan->interface() == intf) {
@@ -4914,9 +4919,11 @@ void MacroAssembler::lookup_interface_method(Register recv_klass,
 
   bind(found_method);
 
-  // Got a hit.
-  movl(scan_temp, Address(scan_temp, itableOffsetEntry::offset_offset_in_bytes()));
-  movptr(method_result, Address(recv_klass, scan_temp, Address::times_1));
+  if (return_method) {
+    // Got a hit.
+    movl(scan_temp, Address(scan_temp, itableOffsetEntry::offset_offset_in_bytes()));
+    movptr(method_result, Address(recv_klass, scan_temp, Address::times_1));
+  }
 }
 
 

@@ -41,7 +41,7 @@ import javax.net.ssl.SSLProtocolException;
 
 import sun.security.action.GetPropertyAction;
 
-final class SupportedEllipticCurvesExtension extends HelloExtension {
+final class EllipticCurvesExtension extends HelloExtension {
 
     /* Class and subclass dynamic debugging support */
     private static final Debug debug = Debug.getInstance("ssl");
@@ -226,12 +226,12 @@ final class SupportedEllipticCurvesExtension extends HelloExtension {
         return false;
     }
 
-    private SupportedEllipticCurvesExtension(int[] curveIds) {
+    private EllipticCurvesExtension(int[] curveIds) {
         super(ExtensionType.EXT_ELLIPTIC_CURVES);
         this.curveIds = curveIds;
     }
 
-    SupportedEllipticCurvesExtension(HandshakeInStream s, int len)
+    EllipticCurvesExtension(HandshakeInStream s, int len)
             throws IOException {
         super(ExtensionType.EXT_ELLIPTIC_CURVES);
         int k = s.getInt16();
@@ -255,7 +255,7 @@ final class SupportedEllipticCurvesExtension extends HelloExtension {
         return getActiveCurves(constraints) >= 0;
     }
 
-    static SupportedEllipticCurvesExtension createExtension(
+    static EllipticCurvesExtension createExtension(
                 AlgorithmConstraints constraints) {
 
         ArrayList<Integer> idList = new ArrayList<>(supportedCurveIds.length);
@@ -274,7 +274,7 @@ final class SupportedEllipticCurvesExtension extends HelloExtension {
                 ids[i++] = id;
             }
 
-            return new SupportedEllipticCurvesExtension(ids);
+            return new EllipticCurvesExtension(ids);
         }
 
         return null;
