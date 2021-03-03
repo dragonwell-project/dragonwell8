@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -88,6 +88,8 @@ public class Resources_zh_CN extends java.util.ListResourceBundle {
                 "[-tsacert <\u522B\u540D>]           \u65F6\u95F4\u6233\u9881\u53D1\u673A\u6784\u7684\u516C\u5171\u5BC6\u94A5\u8BC1\u4E66"},
         {".tsapolicyid.tsapolicyid.for.Timestamping.Authority",
                 "[-tsapolicyid <oid>]        \u65F6\u95F4\u6233\u9881\u53D1\u673A\u6784\u7684 TSAPolicyID"},
+        {".tsadigestalg.algorithm.of.digest.data.in.timestamping.request",
+                "[-tsadigestalg <\u7B97\u6CD5>]      \u65F6\u95F4\u6233\u8BF7\u6C42\u4E2D\u7684\u6458\u8981\u6570\u636E\u7684\u7B97\u6CD5"},
         {".altsigner.class.class.name.of.an.alternative.signing.mechanism",
                 "[-altsigner <\u7C7B>]           \u66FF\u4EE3\u7684\u7B7E\u540D\u673A\u5236\u7684\u7C7B\u540D"},
         {".altsignerpath.pathlist.location.of.an.alternative.signing.mechanism",
