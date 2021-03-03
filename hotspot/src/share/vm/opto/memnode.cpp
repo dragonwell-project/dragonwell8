@@ -1255,6 +1255,16 @@ Node* LoadNode::eliminate_autobox(PhaseGVN* phase) {
               result = new (phase->C) ConvI2LNode(phase->transform(result));
             }
 #endif
+            // Boxing/unboxing can be done from signed & unsigned loads (e.g. LoadUB -> ... -> LoadB pair).
+            // Need to preserve unboxing load type if it is unsigned.
+            switch(this->Opcode()) {
+              case Op_LoadUB:
+                result = new (phase->C) AndINode(phase->transform(result), phase->intcon(0xFF));
+                break;
+              case Op_LoadUS:
+                result = new (phase->C) AndINode(phase->transform(result), phase->intcon(0xFFFF));
+                break;
+            }
             return result;
           }
         }
