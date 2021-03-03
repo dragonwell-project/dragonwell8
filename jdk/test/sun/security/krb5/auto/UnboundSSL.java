@@ -26,12 +26,13 @@ import java.security.NoSuchAlgorithmException;
 import java.security.PrivilegedActionException;
 import java.util.HashMap;
 import java.util.Map;
+import java.security.Security;
 
 import javax.security.auth.login.LoginException;
 
 /*
  * @test
- * @bug 8025123
+ * @bug 8025123 8208350
  * @summary Checks if an unbound server can handle connections
  *          only for allowed service principals
  * @run main/othervm/java.security.policy=unbound.ssl.policy -Dsun.net.spi.nameservice.provider.1=ns,mock UnboundSSL
@@ -44,6 +45,7 @@ public class UnboundSSL {
     public static void main(String[] args) throws IOException,
             NoSuchAlgorithmException,LoginException, PrivilegedActionException,
             InterruptedException {
+        Security.setProperty("jdk.tls.disabledAlgorithms", "");
         UnboundSSL test = new UnboundSSL();
         test.start(args[0], args[1]);
     }
