@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -1445,5 +1445,7 @@ void InterpreterMacroAssembler::increment_mask_and_jump(Address counter_addr,
   incrementl(scratch, increment);
   movl(counter_addr, scratch);
   andl(scratch, mask);
-  jcc(cond, *where);
+  if (where != NULL) {
+    jcc(cond, *where);
+  }
 }

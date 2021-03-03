@@ -336,6 +336,16 @@ $(eval $(call SetupLauncher,jsadebugd, \
     -DAPP_CLASSPATH='{ "/lib/tools.jar"$(COMMA) "/lib/sa-jdi.jar"$(COMMA) "/classes" }' \
     ,,,,,,,,,Info-privileged.plist))
 
+$(eval $(call SetupLauncher,hsdb, \
+    -DJAVA_ARGS='{ "-J-ms8m"$(COMMA) "sun.jvm.hotspot.HSDB"$(COMMA) }' \
+    -DAPP_CLASSPATH='{ "/lib/tools.jar"$(COMMA) "/lib/sa-jdi.jar"$(COMMA) "/classes" }' \
+    ,,,,,,,,,Info-privileged.plist))
+
+$(eval $(call SetupLauncher,clhsdb, \
+    -DJAVA_ARGS='{ "-J-ms8m"$(COMMA) "sun.jvm.hotspot.CLHSDB"$(COMMA) }' \
+    -DAPP_CLASSPATH='{ "/lib/tools.jar"$(COMMA) "/lib/sa-jdi.jar"$(COMMA) "/classes" }' \
+    ,,,,,,,,,Info-privileged.plist))
+
 $(eval $(call SetupLauncher,jstack, \
     -DJAVA_ARGS='{ "-J-ms8m"$(COMMA) \
         "-J-Dsun.jvm.hotspot.debugger.useProcDebugger"$(COMMA) \
