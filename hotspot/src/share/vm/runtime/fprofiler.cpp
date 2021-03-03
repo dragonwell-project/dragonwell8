@@ -775,7 +775,7 @@ void ThreadProfiler::unknown_compiled_update(const CodeBlob* cb, TickPosition wh
 }
 
 void ThreadProfiler::vm_update(TickPosition where) {
-  vm_update(NULL, where);
+  vm_update("", where);
 }
 
 void ThreadProfiler::vm_update(const char* name, TickPosition where) {
