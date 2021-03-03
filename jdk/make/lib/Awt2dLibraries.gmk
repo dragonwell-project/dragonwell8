@@ -1089,59 +1089,6 @@ BUILD_LIBRARIES += $(BUILD_LIBJAWT)
 ##########################################################################################
 
 ifndef OPENJDK
-
-  BUILD_LIBKCMS_EXCLUDE_FILES :=
-  ifeq ($(OPENJDK_TARGET_OS), windows)
-    BUILD_LIBKCMS_EXCLUDE_FILES += ukcpmgr.c unixmem.c
-  else
-    BUILD_LIBKCMS_EXCLUDE_FILES += cmmdll.c registry.c spxffile.c sysinfo.c winmem.c wkcpmgr.c
-  endif
-
-  BUILD_LIBKCMS_FLAGS := $(CFLAGS_JDKLIB)
-
-  ifeq ($(OPENJDK_TARGET_OS), solaris)
-    # This particular library uses a feature called PIC_CODE_SMALL (on solaris)
-    # implement it like this...since it's only used here
-    BUILD_LIBKCMS_FLAGS := $(patsubst -KPIC, -Kpic, $(BUILD_LIBKCMS_FLAGS))
-  else ifeq ($(OPENJDK_TARGET_CPU_ARCH), ppc)
-    BUILD_LIBKCMS_FLAGS := $(patsubst -fPIC, -fpic, $(BUILD_LIBKCMS_FLAGS))
-  endif
-
-  $(eval $(call SetupNativeCompilation,BUILD_LIBKCMS, \
-      LIBRARY := kcms, \
-      OUTPUT_DIR := $(INSTALL_LIBRARIES_HERE), \
-      SRC := $(JDK_TOPDIR)/src/closed/share/native/sun/java2d/cmm/kcms, \
-      LANG := C, \
-      EXCLUDE_FILES := $(BUILD_LIBKCMS_EXCLUDE_FILES), \
-      OPTIMIZATION := LOW, \
-      CFLAGS := $(BUILD_LIBKCMS_FLAGS) \
-          -DJAVACMM -DFUT_CALC_EX -DNO_FUT_GCONST, \
-      CFLAGS_linux := -Wno-missing-field-initializers, \
-      MAPFILE := $(JDK_TOPDIR)/make/mapfiles/libkcms/mapfile-vers, \
-      LDFLAGS := $(LDFLAGS_JDKLIB) \
-          $(call SET_SHARED_LIBRARY_ORIGIN), \
-      LDFLAGS_SUFFIX_linux := -lc -lpthread, \
-      LDFLAGS_SUFFIX_solaris := -lc, \
-      LDFLAGS_SUFFIX_windows := $(WIN_JAVA_LIB) advapi32.lib user32.lib version.lib, \
-      LDFLAGS_SUFFIX_posix := -lm -ljava -ljvm, \
-      VERSIONINFO_RESOURCE := $(JDK_TOPDIR)/src/closed/share/native/sun/java2d/cmm/kcms/cmm.rc, \
-      VERSIONINFO_RESOURCE := $(JDK_TOPDIR)/src/closed/share/native/sun/java2d/cmm/kcms/cmm.rc, \
-      RC_FLAGS := $(RC_FLAGS) \
-          -D "JDK_FNAME=kcms.dll" \
-          -D "JDK_INTERNAL_NAME=kcms" \
-          -D "JDK_FTYPE=0x2L", \
-      OBJECT_DIR := $(JDK_OUTPUTDIR)/objs/libkcms, \
-      DEBUG_SYMBOLS := $(DEBUG_ALL_BINARIES)))
-
-  $(BUILD_LIBKCMS): $(BUILD_LIBJAVA)
-
-  BUILD_LIBRARIES += $(BUILD_LIBKCMS)
-
-endif
-
-##########################################################################################
-
-ifndef OPENJDK
   ifeq ($(OPENJDK_TARGET_OS), solaris)
     ifneq ($(OPENJDK_TARGET_CPU), x86_64)
 

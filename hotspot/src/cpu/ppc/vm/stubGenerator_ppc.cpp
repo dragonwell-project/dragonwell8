@@ -2473,6 +2473,86 @@ class StubGenerator: public StubCodeGenerator {
     __ blr();
   }
 
+  /**
+   * Arguments:
+   *
+   * Inputs:
+   *   R3_ARG1    - int   crc
+   *   R4_ARG2    - byte* buf
+   *   R5_ARG3    - int   length (of buffer)
+   *
+   * scratch:
+   *   R2, R6-R12
+   *
+   * Ouput:
+   *   R3_RET     - int   crc result
+   */
+  // Compute CRC32 function.
+  address generate_CRC32_updateBytes(const char* name) {
+    __ align(CodeEntryAlignment);
+    StubCodeMark mark(this, "StubRoutines", name);
+    address start = __ function_entry();  // Remember stub start address (is rtn value).
+
+    // arguments to kernel_crc32:
+    const Register crc     = R3_ARG1;  // Current checksum, preset by caller or result from previous call.
+    const Register data    = R4_ARG2;  // source byte array
+    const Register dataLen = R5_ARG3;  // #bytes to process
+
+    const Register table   = R6;       // crc table address
+
+#ifdef VM_LITTLE_ENDIAN
+    if (VM_Version::has_vpmsumb()) {
+      const Register constants    = R2;  // constants address
+      const Register bconstants   = R8;  // barret table address
+
+      const Register t0      = R9;
+      const Register t1      = R10;
+      const Register t2      = R11;
+      const Register t3      = R12;
+      const Register t4      = R7;
+
+      BLOCK_COMMENT("Stub body {");
+      assert_different_registers(crc, data, dataLen, table);
+
+      StubRoutines::ppc64::generate_load_crc_table_addr(_masm, table);
+      StubRoutines::ppc64::generate_load_crc_constants_addr(_masm, constants);
+      StubRoutines::ppc64::generate_load_crc_barret_constants_addr(_masm, bconstants);
+
+      __ kernel_crc32_1word_vpmsumd(crc, data, dataLen, table, constants, bconstants, t0, t1, t2, t3, t4);
+
+      BLOCK_COMMENT("return");
+      __ mr_if_needed(R3_RET, crc);      // Updated crc is function result. No copying required (R3_ARG1 == R3_RET).
+      __ blr();
+
+      BLOCK_COMMENT("} Stub body");
+    } else
+#endif
+    {
+      const Register t0      = R2;
+      const Register t1      = R7;
+      const Register t2      = R8;
+      const Register t3      = R9;
+      const Register tc0     = R10;
+      const Register tc1     = R11;
+      const Register tc2     = R12;
+
+      BLOCK_COMMENT("Stub body {");
+      assert_different_registers(crc, data, dataLen, table);
+
+      StubRoutines::ppc64::generate_load_crc_table_addr(_masm, table);
+
+      __ kernel_crc32_1word(crc, data, dataLen, table, t0, t1, t2, t3, tc0, tc1, tc2, table);
+
+      BLOCK_COMMENT("return");
+      __ mr_if_needed(R3_RET, crc);      // Updated crc is function result. No copying required (R3_ARG1 == R3_RET).
+      __ blr();
+
+      BLOCK_COMMENT("} Stub body");
+    }
+
+    return start;
+  }
+
   // Initialization
   void generate_initial() {
     // Generates all stubs and initializes the entry points
@@ -2491,6 +2571,12 @@ class StubGenerator: public StubCodeGenerator {
     StubRoutines::_throw_StackOverflowError_entry   =
       generate_throw_exception("StackOverflowError throw_exception",
                                CAST_FROM_FN_PTR(address, SharedRuntime::throw_StackOverflowError), false);
+
+    // CRC32 Intrinsics.
+    if (UseCRC32Intrinsics) {
+      StubRoutines::_crc_table_adr    = (address)StubRoutines::ppc64::_crc_table;
+      StubRoutines::_updateBytesCRC32 = generate_CRC32_updateBytes("CRC32_updateBytes");
+    }
   }
 
   void generate_all() {
