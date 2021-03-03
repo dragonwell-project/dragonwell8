@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2002, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -262,18 +262,17 @@ public class HostnameChecker {
      * The matching is performed as per RFC 2818 rules for TLS and
      * RFC 2830 rules for LDAP.<p>
      *
-     * The <code>name</code> parameter should represent a DNS name.
-     * The <code>template</code> parameter
-     * may contain the wildcard character *
+     * The <code>name</code> parameter should represent a DNS name.  The
+     * <code>template</code> parameter may contain the wildcard character '*'.
      */
     private boolean isMatched(String name, String template) {
         // check the validity of the domain name template.
         try {
-            // Replacing wildcard character '*' with 'x' so as to check
+            // Replacing wildcard character '*' with 'z' so as to check
             // the domain name template validity.
             //
             // Using the checking implemented in SNIHostName
-            SNIHostName sni = new SNIHostName(template.replace('*', 'x'));
+            SNIHostName sni = new SNIHostName(template.replace('*', 'z'));
         } catch (IllegalArgumentException iae) {
             // It would be nice to add debug log if not matching.
             return false;
