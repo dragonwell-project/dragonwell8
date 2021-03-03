@@ -48,7 +48,7 @@ public class TestUseRTMDeoptOptionOnUnsupportedConfig
     private TestUseRTMDeoptOptionOnUnsupportedConfig() {
         super(new NotPredicate(new AndPredicate(new SupportedCPU(),
                         new SupportedVM())),
-                "UseRTMDeopt", true, true,
+                "UseRTMDeopt", true, false,
                 TestUseRTMDeoptOptionOnUnsupportedConfig.DEFAULT_VALUE, "true");
     }
 
@@ -57,14 +57,11 @@ public class TestUseRTMDeoptOptionOnUnsupportedConfig
         super.verifyJVMStartup();
         // verify default value
         CommandLineOptionTest.verifyOptionValueForSameVM(optionName,
-                defaultValue,
-                CommandLineOptionTest.UNLOCK_EXPERIMENTAL_VM_OPTIONS);
+                defaultValue);
         // verify that until RTMLocking is not used, value
         // will be set to default false.
         CommandLineOptionTest.verifyOptionValueForSameVM(optionName,
-                defaultValue,
-                CommandLineOptionTest.UNLOCK_EXPERIMENTAL_VM_OPTIONS,
-                "-XX:+UseRTMDeopt");
+                defaultValue, "-XX:+UseRTMDeopt");
     }
 
     public static void main(String args[]) throws Throwable {
