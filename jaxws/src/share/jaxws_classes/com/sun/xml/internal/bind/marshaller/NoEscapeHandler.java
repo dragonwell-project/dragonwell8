@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,38 +23,23 @@
  * questions.
  */
 
-package com.sun.xml.internal.bind.v2.runtime.output;
+package com.sun.xml.internal.bind.marshaller;
 
-import javax.xml.stream.XMLStreamException;
-
-import com.sun.xml.internal.bind.marshaller.NoEscapeHandler;
-import com.sun.xml.internal.bind.v2.runtime.unmarshaller.Base64Data;
-
-import com.sun.xml.internal.org.jvnet.staxex.XMLStreamWriterEx;
+import java.io.IOException;
+import java.io.Writer;
 
 /**
- * {@link XmlOutput} for {@link XMLStreamWriterEx}.
+ * Performs no character escaping.
  *
- * @author Paul Sandoz.
+ * @author
+ *     Roman Grigoriadi (roman.grigoriadi@oracle.com)
  */
-public final class StAXExStreamWriterOutput extends XMLStreamWriterOutput {
-    private final XMLStreamWriterEx out;
+public class NoEscapeHandler implements CharacterEscapeHandler {
 
-    public StAXExStreamWriterOutput(XMLStreamWriterEx out) {
-        super(out, NoEscapeHandler.theInstance);
-        this.out = out;
-    }
+    public static final NoEscapeHandler theInstance = new NoEscapeHandler();
 
-    public void text(Pcdata value, boolean needsSeparatingWhitespace) throws XMLStreamException {
-        if(needsSeparatingWhitespace) {
-            out.writeCharacters(" ");
-        }
-
-        if (!(value instanceof Base64Data)) {
-            out.writeCharacters(value.toString());
-        } else {
-            Base64Data v = (Base64Data)value;
-            out.writeBinary(v.getDataHandler());
-        }
+    @Override
+    public void escape(char[] ch, int start, int length, boolean isAttVal, Writer out) throws IOException {
+        out.write(ch, start, length);
     }
 }
