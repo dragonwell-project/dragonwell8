@@ -24,7 +24,7 @@
 /*
  * @test
  * @bug 4990825
- * @run main/othervm -XX:+UsePerfData  PrologSizeSanityCheck
+ * @run main/othervm -XX:+UsePerfData -XX:PerfDataMemorySize=64k PrologSizeSanityCheck
  * @summary prolog size and overflow sanity checks
  */
 
