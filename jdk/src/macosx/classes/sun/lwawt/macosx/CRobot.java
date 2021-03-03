@@ -78,7 +78,7 @@ class CRobot implements RobotPeer {
     @Override
     public void mousePress(int buttons) {
         mouseButtonsState |= buttons;
-
+        checkMousePos();
         mouseEvent(fDevice.getCGDisplayID(), mouseLastX, mouseLastY,
                    buttons, true, false);
     }
@@ -92,9 +92,38 @@ class CRobot implements RobotPeer {
     @Override
     public void mouseRelease(int buttons) {
         mouseButtonsState &= ~buttons;
-
+        checkMousePos();
         mouseEvent(fDevice.getCGDisplayID(), mouseLastX, mouseLastY,
                    buttons, false, false);
+    }
+
+    /**
+     * Set unknown mouse location, if needed.
+     */
+    private void checkMousePos() {
+        if (mouseLastX == MOUSE_LOCATION_UNKNOWN ||
+                mouseLastY == MOUSE_LOCATION_UNKNOWN) {
+
+            Rectangle deviceBounds = fDevice.getDefaultConfiguration().getBounds();
+            Point mousePos = CCursorManager.getInstance().getCursorPosition();
+
+            if (mousePos.x < deviceBounds.x) {
+                mousePos.x = deviceBounds.x;
+            }
+            else if (mousePos.x > deviceBounds.x + deviceBounds.width) {
+                mousePos.x = deviceBounds.x + deviceBounds.width;
+            }
+
+            if (mousePos.y < deviceBounds.y) {
+                mousePos.y = deviceBounds.y;
+            }
+            else if (mousePos.y > deviceBounds.y + deviceBounds.height) {
+                mousePos.y = deviceBounds.y + deviceBounds.height;
+            }
+
+            mouseLastX = mousePos.x;
+            mouseLastY = mousePos.y;
+        }
     }
 
     @Override
