@@ -622,10 +622,10 @@ public static final String ER_IGNORABLE_WHITESPACE_NOT_HANDLED =
        "NodeSet kann nicht zu einem vorherigen Knoten iterieren."},
 
   { ER_NODESETDTM_CANNOT_INDEX,
-       "NodeSetDTM kann keine Indizierungs- oder Z\u00E4hlfunktionen ausf\u00FChren."},
+       "NodeSetDTM kann keine Indexierungs- oder Z\u00E4hlfunktionen ausf\u00FChren."},
 
   { ER_NODESET_CANNOT_INDEX,
-       "NodeSet kann keine Indizierungs- oder Z\u00E4hlfunktionen ausf\u00FChren."},
+       "NodeSet kann keine Indexierungs- oder Z\u00E4hlfunktionen ausf\u00FChren."},
 
   { ER_CANNOT_CALL_SETSHOULDCACHENODE,
        "setShouldCacheNodes kann nicht aufgerufen werden, nachdem nextNode aufgerufen wurde."},
