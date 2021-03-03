@@ -344,10 +344,7 @@ import java.util.Set;
  * <b>Fraction</b>: Outputs the nano-of-second field as a fraction-of-second.
  * The nano-of-second value has nine digits, thus the count of pattern letters
  * is from 1 to 9. If it is less than 9, then the nano-of-second value is
- * truncated, with only the most significant digits being output. When parsing
- * in strict mode, the number of parsed digits must match the count of pattern
- * letters. When parsing in lenient mode, the number of parsed digits must be at
- * least the count of pattern letters, up to 9 digits.
+ * truncated, with only the most significant digits being output.
  * <p>
  * <b>Year</b>: The count of letters determines the minimum field width below
  * which padding is used. If the count of letters is two, then a
@@ -1647,12 +1644,13 @@ public final class DateTimeFormatter {
      * @return a formatter based on this formatter with the requested resolver style, not null
      */
     public DateTimeFormatter withResolverFields(TemporalField... resolverFields) {
-        Objects.requireNonNull(resolverFields, "resolverFields");
-        Set<TemporalField> fields = new HashSet<>(Arrays.asList(resolverFields));
+        Set<TemporalField> fields = null;
+        if (resolverFields != null) {
+            fields = Collections.unmodifiableSet(new HashSet<>(Arrays.asList(resolverFields)));
+        }
         if (Objects.equals(this.resolverFields, fields)) {
             return this;
         }
-        fields = Collections.unmodifiableSet(fields);
         return new DateTimeFormatter(printerParser, locale, decimalStyle, resolverStyle, fields, chrono, zone);
     }
 
@@ -1696,11 +1694,12 @@ public final class DateTimeFormatter {
      * @return a formatter based on this formatter with the requested resolver style, not null
      */
     public DateTimeFormatter withResolverFields(Set<TemporalField> resolverFields) {
-        Objects.requireNonNull(resolverFields, "resolverFields");
         if (Objects.equals(this.resolverFields, resolverFields)) {
             return this;
         }
-        resolverFields = Collections.unmodifiableSet(new HashSet<>(resolverFields));
+        if (resolverFields != null) {
+            resolverFields = Collections.unmodifiableSet(new HashSet<>(resolverFields));
+        }
         return new DateTimeFormatter(printerParser, locale, decimalStyle, resolverStyle, resolverFields, chrono, zone);
     }
 
