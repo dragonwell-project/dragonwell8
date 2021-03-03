@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,29 +21,25 @@
  * questions.
  */
 
-/* @test
- * @bug 6964714 8226928
- * @run main/othervm -Djava.net.preferIPv4Stack=true IPv4Only
- * @summary Test the networkinterface listing with java.net.preferIPv4Stack=true.
+import java.net.URLClassLoader;
+
+/*
+ * This class is loaded by the custom URLClassLoader, and then calls
+ * Class.forName();
  */
+public class ClassForName implements Runnable {
+    static {
+        if (!(ClassForName.class.getClassLoader() instanceof URLClassLoader)) {
+            throw new RuntimeException("Supposed to be loaded by URLClassLoader");
+        }
+    }
 
-
-import java.net.*;
-import java.util.*;
-
-
-public class IPv4Only {
-    public static void main(String[] args) throws Exception {
-        Enumeration<NetworkInterface> nifs = NetworkInterface.getNetworkInterfaces();
-        while (nifs.hasMoreElements()) {
-            NetworkInterface nif = nifs.nextElement();
-            Enumeration<InetAddress> addrs = nif.getInetAddresses();
-            while (addrs.hasMoreElements()) {
-               InetAddress hostAddr = addrs.nextElement();
-               if ( hostAddr instanceof Inet6Address ){
-                    throw new RuntimeException( "NetworkInterfaceV6List failed - found v6 address " + hostAddr.getHostAddress() );
-               }
-            }
+    public void run() {
+        try {
+            Class.forName(java.util.List.class.getName(), false,
+                          ClassLoader.getSystemClassLoader());
+        } catch (Throwable e) {
+            e.printStackTrace();
         }
     }
 }
