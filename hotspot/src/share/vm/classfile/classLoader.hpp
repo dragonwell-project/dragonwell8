@@ -129,8 +129,8 @@ class LazyClassPathEntry: public ClassPathEntry {
   bool _has_error;
   bool _throw_exception;
   volatile ClassPathEntry* _resolved_entry;
-  ClassPathEntry* resolve_entry(TRAPS);
  public:
+  ClassPathEntry* resolve_entry(TRAPS);
   bool is_jar_file();
   const char* name()  { return _path; }
   LazyClassPathEntry(const char* path, const struct stat* st, bool throw_exception);
@@ -218,7 +218,7 @@ class ClassLoader: AllStatic {
   static void setup_meta_index(const char* meta_index_path, const char* meta_index_dir,
                                int start_index);
   static void setup_bootstrap_search_path();
-  static void setup_search_path(const char *class_path);
+  static void setup_search_path(const char *class_path, bool canonicalize=false);
 
   static void load_zip_library();
   static ClassPathEntry* create_class_path_entry(const char *path, const struct stat* st,
@@ -327,6 +327,10 @@ class ClassLoader: AllStatic {
       e = e->next();
     }
     return e;
+  }
+
+  static int num_classpath_entries() {
+    return _num_entries;
   }
 
 #if INCLUDE_CDS

@@ -24,6 +24,7 @@
 
 #include "precompiled.hpp"
 #include "classfile/classLoader.hpp"
+#include "classfile/classLoaderExt.hpp"
 #include "classfile/javaAssertions.hpp"
 #include "classfile/javaClasses.hpp"
 #include "classfile/symbolTable.hpp"
@@ -392,6 +393,14 @@ JVM_ENTRY(jobject, JVM_InitProperties(JNIEnv *env, jobject properties))
       PUTPROP(props, "sun.management.compiler", compiler_name);
     }
   }
+
+  const char* enableSharedLookupCache = "false";
+#if INCLUDE_CDS
+  if (ClassLoaderExt::is_lookup_cache_enabled()) {
+    enableSharedLookupCache = "true";
+  }
+#endif
+  PUTPROP(props, "sun.cds.enableSharedLookupCache", enableSharedLookupCache);
 
   return properties;
 JVM_END
@@ -763,6 +772,36 @@ JVM_END
 JVM_ENTRY(void, JVM_ResolveClass(JNIEnv* env, jclass cls))
   JVMWrapper("JVM_ResolveClass");
   if (PrintJVMWarnings) warning("JVM_ResolveClass not implemented");
+JVM_END
+
+
+JVM_ENTRY(jboolean, JVM_KnownToNotExist(JNIEnv *env, jobject loader, const char *classname))
+  JVMWrapper("JVM_KnownToNotExist");
+#if INCLUDE_CDS
+  return ClassLoaderExt::known_to_not_exist(env, loader, classname, CHECK_(false));
+#else
+  return false;
+#endif
+JVM_END
+
+
+JVM_ENTRY(jobjectArray, JVM_GetResourceLookupCacheURLs(JNIEnv *env, jobject loader))
+  JVMWrapper("JVM_GetResourceLookupCacheURLs");
+#if INCLUDE_CDS
+  return ClassLoaderExt::get_lookup_cache_urls(env, loader, CHECK_NULL);
+#else
+  return NULL;
+#endif
+JVM_END
+
+
+JVM_ENTRY(jintArray, JVM_GetResourceLookupCache(JNIEnv *env, jobject loader, const char *resource_name))
+  JVMWrapper("JVM_GetResourceLookupCache");
+#if INCLUDE_CDS
+  return ClassLoaderExt::get_lookup_cache(env, loader, resource_name, CHECK_NULL);
+#else
+  return NULL;
+#endif
 JVM_END
 
 

@@ -64,6 +64,15 @@ public:
     ClassLoader::add_to_list(new_entry);
   }
   static void setup_search_paths() {}
+
+  static void init_lookup_cache(TRAPS) {}
+  static void copy_lookup_cache_to_archive(char** top, char* end) {}
+  static char* restore_lookup_cache_from_archive(char* buffer) {return buffer;}
+  static inline bool is_lookup_cache_enabled() {return false;}
+
+  static bool known_to_not_exist(JNIEnv *env, jobject loader, const char *classname, TRAPS) {return false;}
+  static jobjectArray get_lookup_cache_urls(JNIEnv *env, jobject loader, TRAPS) {return NULL;}
+  static jintArray get_lookup_cache(JNIEnv *env, jobject loader, const char *pkgname, TRAPS) {return NULL;}
 };
 
 #endif // SHARE_VM_CLASSFILE_CLASSLOADEREXT_HPP
