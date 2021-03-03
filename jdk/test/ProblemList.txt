@@ -112,6 +112,9 @@
 
 # jdk_awt
 
+# 8221305
+java/awt/FontMetrics/MaxAdvanceIsMax.java             solaris-all,macosx-all
+
 ############################################################################
 
 # jdk_beans
