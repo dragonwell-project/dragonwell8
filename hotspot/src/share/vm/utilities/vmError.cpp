@@ -30,7 +30,7 @@
 #include "runtime/frame.inline.hpp"
 #include "runtime/init.hpp"
 #include "runtime/os.hpp"
-#include "runtime/thread.hpp"
+#include "runtime/thread.inline.hpp"
 #include "runtime/vmThread.hpp"
 #include "runtime/vm_operations.hpp"
 #include "services/memTracker.hpp"
@@ -772,6 +772,11 @@ void VMError::report(outputStream* st) {
        st->cr();
      }
 
+  STEP(228, "(Native Memory Tracking)" )
+     if (_verbose) {
+       MemTracker::final_report(st);
+     }
+
   STEP(230, "" )
 
      if (_verbose) {
@@ -894,9 +899,6 @@ void VMError::report_and_die() {
   static bool out_done = false;         // done printing to standard out
   static bool log_done = false;         // done saving error log
   static bool transmit_report_done = false; // done error reporting
-
-  // disble NMT to avoid further exception
-  MemTracker::shutdown(MemTracker::NMT_error_reporting);
 
   if (SuppressFatalErrorMessage) {
       os::abort();
