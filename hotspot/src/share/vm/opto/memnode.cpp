@@ -1156,6 +1156,9 @@ Node *LoadNode::Identity( PhaseTransform *phase ) {
       // Use _idx of address base (could be Phi node) for boxed values.
       intptr_t   ignore = 0;
       Node*      base = AddPNode::Ideal_base_and_offset(in(Address), phase, ignore);
+      if (base == NULL) {
+        return this;
+      }
       this_iid = base->_idx;
     }
     const Type* this_type = bottom_type();
@@ -4035,9 +4038,10 @@ Node* InitializeNode::complete_stores(Node* rawctl, Node* rawmem, Node* rawptr,
     // if it is the last unused 4 bytes of an instance, forget about it
     intptr_t size_limit = phase->find_intptr_t_con(size_in_bytes, max_jint);
     if (zeroes_done + BytesPerLong >= size_limit) {
-      assert(allocation() != NULL, "");
-      if (allocation()->Opcode() == Op_Allocate) {
-        Node* klass_node = allocation()->in(AllocateNode::KlassNode);
+      AllocateNode* alloc = allocation();
+      assert(alloc != NULL, "must be present");
+      if (alloc != NULL && alloc->Opcode() == Op_Allocate) {
+        Node* klass_node = alloc->in(AllocateNode::KlassNode);
         ciKlass* k = phase->type(klass_node)->is_klassptr()->klass();
         if (zeroes_done == k->layout_helper())
           zeroes_done = size_limit;

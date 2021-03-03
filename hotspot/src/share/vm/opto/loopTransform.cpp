@@ -2714,6 +2714,11 @@ bool PhaseIdealLoop::intrinsify_fill(IdealLoopTree* lpt) {
     return false;
   }
 
+  Node* exit = head->loopexit()->proj_out(0);
+  if (exit == NULL) {
+    return false;
+  }
+
 #ifndef PRODUCT
   if (TraceLoopOpts) {
     tty->print("ArrayFill    ");
@@ -2831,7 +2836,6 @@ bool PhaseIdealLoop::intrinsify_fill(IdealLoopTree* lpt) {
 */
 
   // Redirect the old control and memory edges that are outside the loop.
-  Node* exit = head->loopexit()->proj_out(0);
   // Sometimes the memory phi of the head is used as the outgoing
   // state of the loop.  It's safe in this case to replace it with the
   // result_mem.
