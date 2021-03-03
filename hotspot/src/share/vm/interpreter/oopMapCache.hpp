@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2012, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -176,7 +176,7 @@ class OopMapCache : public CHeapObj<mtClass> {
   static void compute_one_oop_map(methodHandle method, int bci, InterpreterOopMap* entry);
 
   // Returns total no. of bytes allocated as part of OopMapCache's
-  static long memory_usage()                     PRODUCT_RETURN0;
+  static size_t memory_usage()                     PRODUCT_RETURN0;
 };
 
 #endif // SHARE_VM_INTERPRETER_OOPMAPCACHE_HPP
