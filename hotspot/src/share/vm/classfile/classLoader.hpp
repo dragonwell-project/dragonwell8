@@ -215,6 +215,7 @@ class ClassLoader: AllStatic {
   // to avoid confusing the zip library
   static bool get_canonical_path(char* orig, char* out, int len);
  public:
+  static int crc32(int crc, const char* buf, int len);
   // Used by the kernel jvm.
   static void update_class_path_entry_list(char *path,
                                            bool check_for_duplicates);
