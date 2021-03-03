@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -35,6 +35,7 @@ import java.util.*;
 import sun.misc.IOUtils;
 import sun.security.pkcs.EncryptedPrivateKeyInfo;
 import sun.security.pkcs12.PKCS12KeyStore;
+import sun.security.util.Debug;
 
 /**
  * This class provides the keystore implementation referred to as "JKS".
@@ -73,6 +74,7 @@ abstract class JavaKeyStore extends KeyStoreSpi {
         }
     }
 
+    private static final Debug debug = Debug.getInstance("keystore");
     private static final int MAGIC = 0xfeedfeed;
     private static final int VERSION_1 = 0x01;
     private static final int VERSION_2 = 0x02;
@@ -642,6 +644,7 @@ abstract class JavaKeyStore extends KeyStoreSpi {
             Hashtable<String, CertificateFactory> cfs = null;
             ByteArrayInputStream bais = null;
             byte[] encoded = null;
+            int trustedKeyCount = 0, privateKeyCount = 0;
 
             if (stream == null)
                 return;
@@ -680,7 +683,7 @@ abstract class JavaKeyStore extends KeyStoreSpi {
                 tag = dis.readInt();
 
                 if (tag == 1) { // private key entry
-
+                    privateKeyCount++;
                     KeyEntry entry = new KeyEntry();
 
                     // Read the alias
@@ -729,7 +732,7 @@ abstract class JavaKeyStore extends KeyStoreSpi {
                     entries.put(alias, entry);
 
                 } else if (tag == 2) { // trusted certificate entry
-
+                    trustedKeyCount++;
                     TrustedCertEntry entry = new TrustedCertEntry();
 
                     // Read the alias
@@ -764,8 +767,14 @@ abstract class JavaKeyStore extends KeyStoreSpi {
                     entries.put(alias, entry);
 
                 } else {
-                    throw new IOException("Unrecognized keystore entry");
+                    throw new IOException("Unrecognized keystore entry: " +
+                            tag);
                 }
+            }
+
+            if (debug != null) {
+                debug.println("JavaKeyStore load: private key count: " +
+                    privateKeyCount + ". trusted key count: " + trustedKeyCount);
             }
 
             /*
