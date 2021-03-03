@@ -25,20 +25,6 @@
 
 package jdk.nashorn.tools;
 
-import static jdk.nashorn.internal.runtime.Source.sourceFor;
-
-import java.io.BufferedReader;
-import java.io.File;
-import java.io.FileReader;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.io.OutputStream;
-import java.io.PrintStream;
-import java.io.PrintWriter;
-import java.util.List;
-import java.util.Locale;
-import java.util.ResourceBundle;
 import jdk.nashorn.api.scripting.NashornException;
 import jdk.nashorn.internal.codegen.Compiler;
 import jdk.nashorn.internal.codegen.Compiler.CompilationPhases;
@@ -54,7 +40,29 @@ import jdk.nashorn.internal.runtime.Property;
 import jdk.nashorn.internal.runtime.ScriptEnvironment;
 import jdk.nashorn.internal.runtime.ScriptFunction;
 import jdk.nashorn.internal.runtime.ScriptRuntime;
+import jdk.nashorn.internal.runtime.ScriptingFunctions;
 import jdk.nashorn.internal.runtime.options.Options;
+
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileReader;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.OutputStream;
+import java.io.PrintStream;
+import java.io.PrintWriter;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
+import java.util.Locale;
+import java.util.ResourceBundle;
+
+import static jdk.nashorn.internal.runtime.Source.sourceFor;
 
 /**
  * Command line Shell for processing JavaScript files.
@@ -195,7 +203,8 @@ public class Shell {
         // parse options
         if (args != null) {
             try {
-                options.process(args);
+                final String[] prepArgs = preprocessArgs(args);
+                options.process(prepArgs);
             } catch (final IllegalArgumentException e) {
                 werr.println(bundle.getString("shell.usage"));
                 options.displayHelp(e);
@@ -223,6 +232,75 @@ public class Shell {
         }
 
         return new Context(options, errors, wout, werr, Thread.currentThread().getContextClassLoader());
+    }
+
+    /**
+     * Preprocess the command line arguments passed in by the shell. This method checks, for the first non-option
+     * argument, whether the file denoted by it begins with a shebang line. If so, it is assumed that execution in
+     * shebang mode is intended. The consequence of this is that the identified script file will be treated as the
+     * <em>only</em> script file, and all subsequent arguments will be regarded as arguments to the script.
+     * <p>
+     * This method canonicalizes the command line arguments to the form {@code <options> <script> -- <arguments>} if a
+     * shebang script is identified. On platforms that pass shebang arguments as single strings, the shebang arguments
+     * will be broken down into single arguments; whitespace is used as separator.
+     * <p>
+     * Shebang mode is entered regardless of whether the script is actually run directly from the shell, or indirectly
+     * via the {@code jjs} executable. It is the user's / script author's responsibility to ensure that the arguments
+     * given on the shebang line do not lead to a malformed argument sequence. In particular, the shebang arguments
+     * should not contain any whitespace for purposes other than separating arguments, as the different platforms deal
+     * with whitespace in different and incompatible ways.
+     * <p>
+     * @implNote Example:<ul>
+     * <li>Shebang line in {@code script.js}: {@code #!/path/to/jjs --language=es6}</li>
+     * <li>Command line: {@code ./script.js arg2}</li>
+     * <li>{@code args} array passed to Nashorn: {@code --language=es6,./script.js,arg}</li>
+     * <li>Required canonicalized arguments array: {@code --language=es6,./script.js,--,arg2}</li>
+     * </ul>
+     *
+     * @param args the command line arguments as passed into Nashorn.
+     * @return the passed and possibly canonicalized argument list
+     */
+    private static String[] preprocessArgs(final String[] args) {
+        if (args.length == 0) {
+            return args;
+        }
+
+        final List<String> processedArgs = new ArrayList<>();
+        processedArgs.addAll(Arrays.asList(args));
+
+        // Nashorn supports passing multiple shebang arguments. On platforms that pass anything following the
+        // shebang interpreter notice as one argument, the first element of the argument array needs to be special-cased
+        // as it might actually contain several arguments. Mac OS X splits shebang arguments, other platforms don't.
+        // This special handling is also only necessary if the first argument actually starts with an option.
+        if (args[0].startsWith("-") && !System.getProperty("os.name", "generic").startsWith("Mac OS X")) {
+            processedArgs.addAll(0, ScriptingFunctions.tokenizeString(processedArgs.remove(0)));
+        }
+
+        int shebangFilePos = -1; // -1 signifies "none found"
+        // identify a shebang file and its position in the arguments array (if any)
+        for (int i = 0; i < processedArgs.size(); ++i) {
+            final String a = processedArgs.get(i);
+            if (!a.startsWith("-")) {
+                final Path p = Paths.get(a);
+                String l = "";
+                try (final BufferedReader r = Files.newBufferedReader(p)) {
+                    l = r.readLine();
+                } catch (IOException ioe) {
+                    // ignore
+                }
+                if (l.startsWith("#!")) {
+                    shebangFilePos = i;
+                }
+                // We're only checking the first non-option argument. If it's not a shebang file, we're in normal
+                // execution mode.
+                break;
+            }
+        }
+        if (shebangFilePos != -1) {
+            // Insert the argument separator after the shebang script file.
+            processedArgs.add(shebangFilePos + 1, "--");
+        }
+        return processedArgs.toArray(new String[0]);
     }
 
     /**

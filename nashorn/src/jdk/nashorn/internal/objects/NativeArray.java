@@ -247,7 +247,7 @@ public final class NativeArray extends ScriptObject implements OptimisticBuiltin
                     @Override
                     public MethodHandle call() {
                         return Bootstrap.createDynamicInvoker("dyn:call", double.class,
-                            ScriptFunction.class, Object.class, Object.class, Object.class);
+                            Object.class, Object.class, Object.class, Object.class);
                     }
                 });
     }
@@ -1219,23 +1219,23 @@ public final class NativeArray extends ScriptObject implements OptimisticBuiltin
         return copy;
     }
 
-    private static ScriptFunction compareFunction(final Object comparefn) {
+    private static Object compareFunction(final Object comparefn) {
         if (comparefn == ScriptRuntime.UNDEFINED) {
             return null;
         }
 
-        if (! (comparefn instanceof ScriptFunction)) {
+        if (!Bootstrap.isCallable(comparefn)) {
             throw typeError("not.a.function", ScriptRuntime.safeToString(comparefn));
         }
 
-        return (ScriptFunction)comparefn;
+        return comparefn;
     }
 
     private static Object[] sort(final Object[] array, final Object comparefn) {
-        final ScriptFunction cmp = compareFunction(comparefn);
+        final Object cmp = compareFunction(comparefn);
 
         final List<Object> list = Arrays.asList(array);
-        final Object cmpThis = cmp == null || cmp.isStrict() ? ScriptRuntime.UNDEFINED : Global.instance();
+        final Object cmpThis = cmp == null || Bootstrap.isStrictCallable(cmp) ? ScriptRuntime.UNDEFINED : Global.instance();
 
         try {
             Collections.sort(list, new Comparator<Object>() {
