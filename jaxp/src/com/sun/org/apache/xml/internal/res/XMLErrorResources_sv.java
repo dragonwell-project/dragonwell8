@@ -375,8 +375,8 @@ public class XMLErrorResources_sv extends ListResourceBundle
 
     { "BAD_CODE", "Parameter f\u00F6r createMessage ligger utanf\u00F6r gr\u00E4nsv\u00E4rdet"},
     { "FORMAT_FAILED", "Undantag utl\u00F6st vid messageFormat-anrop"},
-    { "line", "Rad #"},
-    { "column","Kolumn #"},
+    { "line", "Rad nr"},
+    { "column","Kolumn nr"},
 
     {ER_SERIALIZER_NOT_CONTENTHANDLER,
       "Serializerklassen ''{0}'' implementerar inte org.xml.sax.ContentHandler."},
