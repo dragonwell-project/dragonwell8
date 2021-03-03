@@ -118,7 +118,7 @@ VtableStub* VtableStubs::create_vtable_stub(int vtable_index) {
   masm->flush();
 
   if (PrintMiscellaneous && (WizardMode || Verbose)) {
-    tty->print_cr("vtable #%d at "PTR_FORMAT"[%d] left over: %d",
+    tty->print_cr("vtable #%d at " PTR_FORMAT "[%d] left over: %d",
                   vtable_index, p2i(s->entry_point()),
                   (int)(s->code_end() - s->entry_point()),
                   (int)(s->code_end() - __ pc()));
@@ -217,7 +217,7 @@ VtableStub* VtableStubs::create_itable_stub(int itable_index) {
   __ flush();
 
   if (PrintMiscellaneous && (WizardMode || Verbose)) {
-    tty->print_cr("itable #%d at "PTR_FORMAT"[%d] left over: %d",
+    tty->print_cr("itable #%d at " PTR_FORMAT "[%d] left over: %d",
                   itable_index, p2i(s->entry_point()),
                   (int)(s->code_end() - s->entry_point()),
                   (int)(s->code_end() - __ pc()));
