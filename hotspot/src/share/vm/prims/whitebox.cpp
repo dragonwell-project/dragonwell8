@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,6 +25,7 @@
 #include "precompiled.hpp"
 
 #include "memory/metadataFactory.hpp"
+#include "memory/metaspaceShared.hpp"
 #include "memory/universe.hpp"
 #include "oops/oop.inline.hpp"
 
@@ -914,6 +915,10 @@ WB_ENTRY(jlong, WB_MetaspaceCapacityUntilGC(JNIEnv* env, jobject wb))
   return (jlong) MetaspaceGC::capacity_until_GC();
 WB_END
 
+WB_ENTRY(jboolean, WB_IsSharedClass(JNIEnv* env, jobject wb, jclass clazz))
+  return (jboolean)MetaspaceShared::is_in_shared_space(java_lang_Class::as_Klass(JNIHandles::resolve_non_null(clazz)));
+WB_END
+
 WB_ENTRY(jboolean, WB_IsMonitorInflated(JNIEnv* env, jobject wb, jobject obj))
   oop obj_oop = JNIHandles::resolve(obj);
   return (jboolean) obj_oop->mark()->has_monitor();
@@ -1034,6 +1039,7 @@ static JNINativeMethod methods[] = {
   {CC"runMemoryUnitTests", CC"()V",                   (void*)&WB_RunMemoryUnitTests},
   {CC"readFromNoaccessArea",CC"()V",                  (void*)&WB_ReadFromNoaccessArea},
   {CC"stressVirtualSpaceResize",CC"(JJJ)I",           (void*)&WB_StressVirtualSpaceResize},
+  {CC"isSharedClass", CC"(Ljava/lang/Class;)Z",       (void*)&WB_IsSharedClass },
 #if INCLUDE_ALL_GCS
   {CC"g1InConcurrentMark", CC"()Z",                   (void*)&WB_G1InConcurrentMark},
   {CC"g1IsHumongous",      CC"(Ljava/lang/Object;)Z", (void*)&WB_G1IsHumongous     },
