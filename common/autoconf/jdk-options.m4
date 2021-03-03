@@ -556,6 +556,9 @@ AC_DEFUN_ONCE([JDKOPT_SETUP_BUILD_TWEAKS],
 
 AC_DEFUN_ONCE([JDKOPT_SETUP_DEBUG_SYMBOLS],
 [
+  # Backwards compatibility. --with-native-debug-symbols is preferred post JDK-8207234,
+  # but if somebody does not specify it via configure, we still want to preserve old
+  # behaviour of --disable-debug-symbols
   #
   # ENABLE_DEBUG_SYMBOLS
   # This must be done after the toolchain is setup, since we're looking at objcopy.
@@ -589,6 +592,9 @@ AC_DEFUN_ONCE([JDKOPT_SETUP_DEBUG_SYMBOLS],
 
   AC_MSG_RESULT([$ENABLE_DEBUG_SYMBOLS])
 
+  # Backwards compatibility. --with-native-debug-symbols is preferred post JDK-8207234,
+  # but if somebody does not specify it via configure, we still want to preserve old
+  # behaviour of --disable-zip-debug-info.
   #
   # ZIP_DEBUGINFO_FILES
   #
@@ -600,11 +606,88 @@ AC_DEFUN_ONCE([JDKOPT_SETUP_DEBUG_SYMBOLS],
 
   if test "x${enable_zip_debug_info}" = "xno"; then
     ZIP_DEBUGINFO_FILES=false
-  else
+  elif test "x${enable_zip_debug_info}" = "xyes"; then
     ZIP_DEBUGINFO_FILES=true
   fi
 
+  #
+  # NATIVE_DEBUG_SYMBOLS
+  # This must be done after the toolchain is setup, since we're looking at objcopy.
+  # In addition, this must be done after ENABLE_DEBUG_SYMBOLS and ZIP_DEBUGINFO_FILES
+  # checking in order to preserve backwards compatibility post JDK-8207234.
+  #
+  AC_MSG_CHECKING([what type of native debug symbols to use (this will override previous settings)])
+  AC_ARG_WITH([native-debug-symbols],
+      [AS_HELP_STRING([--with-native-debug-symbols],
+      [set the native debug symbol configuration (none, internal, external, zipped) @<:@varying@:>@])],
+      [
+        if test "x$OPENJDK_TARGET_OS" = xaix; then
+          if test "x$with_native_debug_symbols" = xexternal || test "x$with_native_debug_symbols" = xzipped; then
+            AC_MSG_ERROR([AIX only supports the parameters 'none' and 'internal' for --with-native-debug-symbols])
+          fi
+        fi
+      ],
+      [
+        # Default to unset for backwards compatibility
+        with_native_debug_symbols=""
+      ])
+  NATIVE_DEBUG_SYMBOLS=$with_native_debug_symbols
+  if test "x$NATIVE_DEBUG_SYMBOLS" = x; then
+    AC_MSG_RESULT([not specified])
+  else
+    AC_MSG_RESULT([$NATIVE_DEBUG_SYMBOLS])
+  fi
+  # Default is empty
+  DEBUG_BINARIES=
+  # Default is min_strip. Possible values are min_strip, all_strip, no_strip
+  STRIP_POLICY=min_strip
+
+  if test "x$NATIVE_DEBUG_SYMBOLS" = xzipped; then
+
+    if test "x$OPENJDK_TARGET_OS" = xsolaris || test "x$OPENJDK_TARGET_OS" = xlinux; then
+      if test "x$OBJCOPY" = x; then
+        # enabling of enable-debug-symbols and can't find objcopy
+        # this is an error
+        AC_MSG_ERROR([Unable to find objcopy, cannot enable native debug symbols])
+      fi
+    fi
+
+    ENABLE_DEBUG_SYMBOLS=true
+    STRIP_POLICY=min_strip
+    ZIP_DEBUGINFO_FILES=true
+  elif test "x$NATIVE_DEBUG_SYMBOLS" = xnone; then
+    ENABLE_DEBUG_SYMBOLS=false
+    STRIP_POLICY=min_strip
+    ZIP_DEBUGINFO_FILES=false
+  elif test "x$NATIVE_DEBUG_SYMBOLS" = xinternal; then
+    ENABLE_DEBUG_SYMBOLS=true
+    STRIP_POLICY=no_strip
+    ZIP_DEBUGINFO_FILES=false
+    POST_STRIP_CMD=
+    DEBUG_BINARIES=true
+  elif test "x$NATIVE_DEBUG_SYMBOLS" = xexternal; then
+
+    if test "x$OPENJDK_TARGET_OS" = xsolaris || test "x$OPENJDK_TARGET_OS" = xlinux; then
+      if test "x$OBJCOPY" = x; then
+        # enabling of enable-debug-symbols and can't find objcopy
+        # this is an error
+        AC_MSG_ERROR([Unable to find objcopy, cannot enable native debug symbols])
+      fi
+    fi
+
+    ENABLE_DEBUG_SYMBOLS=true
+    STRIP_POLICY=min_strip
+    ZIP_DEBUGINFO_FILES=false
+  elif test "x$NATIVE_DEBUG_SYMBOLS" != x; then
+    AC_MSG_ERROR([Allowed native debug symbols are: none, internal, external, zipped])
+  else
+    AC_MSG_NOTICE([--with-native-debug-symbols not specified. Using values from --disable-debug-symbols and --disable-zip-debug-info])
+  fi
+
   AC_SUBST(ENABLE_DEBUG_SYMBOLS)
+  AC_SUBST(STRIP_POLICY)
+  AC_SUBST(POST_STRIP_CMD)
+  AC_SUBST(DEBUG_BINARIES)
   AC_SUBST(ZIP_DEBUGINFO_FILES)
 ])
 

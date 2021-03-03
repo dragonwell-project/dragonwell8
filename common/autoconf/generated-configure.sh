@@ -669,6 +669,8 @@ X_CFLAGS
 XMKMF
 FIXPATH
 ZIP_DEBUGINFO_FILES
+DEBUG_BINARIES
+STRIP_POLICY
 ENABLE_DEBUG_SYMBOLS
 COMPILER_SUPPORTS_TARGET_BITS_FLAG
 ZERO_ARCHFLAG
@@ -1074,6 +1076,7 @@ with_extra_cxxflags
 with_extra_ldflags
 enable_debug_symbols
 enable_zip_debug_info
+with_native_debug_symbols
 enable_macosx_runtime_support
 with_x
 with_cups
@@ -1920,6 +1923,9 @@ Optional Packages:
   --with-extra-cflags     extra flags to be used when compiling jdk c-files
   --with-extra-cxxflags   extra flags to be used when compiling jdk c++-files
   --with-extra-ldflags    extra flags to be used when linking jdk
+  --with-native-debug-symbols
+                          set the native debug symbol configuration (none,
+                          internal, external, zipped) [varying]
   --with-x                use the X Window System
   --with-cups             specify prefix directory for the cups package
                           (expecting the headers under PATH/include)
@@ -4330,7 +4336,7 @@ VS_SDK_PLATFORM_NAME_2017=
 #CUSTOM_AUTOCONF_INCLUDE
 
 # Do not change or remove the following line, it is needed for consistency checks:
-DATE_WHEN_GENERATED=1529506170
+DATE_WHEN_GENERATED=1532008852
 
 ###############################################################################
 #
@@ -42086,6 +42092,9 @@ $as_echo "$supports" >&6; }
 
 # Setup debug symbols (need objcopy from the toolchain for that)
 
+  # Backwards compatibility. --with-native-debug-symbols is preferred post JDK-8207234,
+  # but if somebody does not specify it via configure, we still want to preserve old
+  # behaviour of --disable-debug-symbols
   #
   # ENABLE_DEBUG_SYMBOLS
   # This must be done after the toolchain is setup, since we're looking at objcopy.
@@ -42124,6 +42133,9 @@ $as_echo_n "checking if we should generate debug symbols... " >&6; }
   { $as_echo "$as_me:${as_lineno-$LINENO}: result: $ENABLE_DEBUG_SYMBOLS" >&5
 $as_echo "$ENABLE_DEBUG_SYMBOLS" >&6; }
 
+  # Backwards compatibility. --with-native-debug-symbols is preferred post JDK-8207234,
+  # but if somebody does not specify it via configure, we still want to preserve old
+  # behaviour of --disable-zip-debug-info.
   #
   # ZIP_DEBUGINFO_FILES
   #
@@ -42141,9 +42153,93 @@ $as_echo "${enable_zip_debug_info}" >&6; }
 
   if test "x${enable_zip_debug_info}" = "xno"; then
     ZIP_DEBUGINFO_FILES=false
-  else
+  elif test "x${enable_zip_debug_info}" = "xyes"; then
     ZIP_DEBUGINFO_FILES=true
   fi
+
+  #
+  # NATIVE_DEBUG_SYMBOLS
+  # This must be done after the toolchain is setup, since we're looking at objcopy.
+  # In addition, this must be done after ENABLE_DEBUG_SYMBOLS and ZIP_DEBUGINFO_FILES
+  # checking in order to preserve backwards compatibility post JDK-8207234.
+  #
+  { $as_echo "$as_me:${as_lineno-$LINENO}: checking what type of native debug symbols to use (this will override previous settings)" >&5
+$as_echo_n "checking what type of native debug symbols to use (this will override previous settings)... " >&6; }
+
+# Check whether --with-native-debug-symbols was given.
+if test "${with_native_debug_symbols+set}" = set; then :
+  withval=$with_native_debug_symbols;
+        if test "x$OPENJDK_TARGET_OS" = xaix; then
+          if test "x$with_native_debug_symbols" = xexternal || test "x$with_native_debug_symbols" = xzipped; then
+            as_fn_error $? "AIX only supports the parameters 'none' and 'internal' for --with-native-debug-symbols" "$LINENO" 5
+          fi
+        fi
+
+else
+
+        # Default to unset for backwards compatibility
+        with_native_debug_symbols=""
+
+fi
+
+  NATIVE_DEBUG_SYMBOLS=$with_native_debug_symbols
+  if test "x$NATIVE_DEBUG_SYMBOLS" = x; then
+    { $as_echo "$as_me:${as_lineno-$LINENO}: result: not specified" >&5
+$as_echo "not specified" >&6; }
+  else
+    { $as_echo "$as_me:${as_lineno-$LINENO}: result: $NATIVE_DEBUG_SYMBOLS" >&5
+$as_echo "$NATIVE_DEBUG_SYMBOLS" >&6; }
+  fi
+  # Default is empty
+  DEBUG_BINARIES=
+  # Default is min_strip. Possible values are min_strip, all_strip, no_strip
+  STRIP_POLICY=min_strip
+
+  if test "x$NATIVE_DEBUG_SYMBOLS" = xzipped; then
+
+    if test "x$OPENJDK_TARGET_OS" = xsolaris || test "x$OPENJDK_TARGET_OS" = xlinux; then
+      if test "x$OBJCOPY" = x; then
+        # enabling of enable-debug-symbols and can't find objcopy
+        # this is an error
+        as_fn_error $? "Unable to find objcopy, cannot enable native debug symbols" "$LINENO" 5
+      fi
+    fi
+
+    ENABLE_DEBUG_SYMBOLS=true
+    STRIP_POLICY=min_strip
+    ZIP_DEBUGINFO_FILES=true
+  elif test "x$NATIVE_DEBUG_SYMBOLS" = xnone; then
+    ENABLE_DEBUG_SYMBOLS=false
+    STRIP_POLICY=min_strip
+    ZIP_DEBUGINFO_FILES=false
+  elif test "x$NATIVE_DEBUG_SYMBOLS" = xinternal; then
+    ENABLE_DEBUG_SYMBOLS=true
+    STRIP_POLICY=no_strip
+    ZIP_DEBUGINFO_FILES=false
+    POST_STRIP_CMD=
+    DEBUG_BINARIES=true
+  elif test "x$NATIVE_DEBUG_SYMBOLS" = xexternal; then
+
+    if test "x$OPENJDK_TARGET_OS" = xsolaris || test "x$OPENJDK_TARGET_OS" = xlinux; then
+      if test "x$OBJCOPY" = x; then
+        # enabling of enable-debug-symbols and can't find objcopy
+        # this is an error
+        as_fn_error $? "Unable to find objcopy, cannot enable native debug symbols" "$LINENO" 5
+      fi
+    fi
+
+    ENABLE_DEBUG_SYMBOLS=true
+    STRIP_POLICY=min_strip
+    ZIP_DEBUGINFO_FILES=false
+  elif test "x$NATIVE_DEBUG_SYMBOLS" != x; then
+    as_fn_error $? "Allowed native debug symbols are: none, internal, external, zipped" "$LINENO" 5
+  else
+    { $as_echo "$as_me:${as_lineno-$LINENO}: --with-native-debug-symbols not specified. Using values from --disable-debug-symbols and --disable-zip-debug-info" >&5
+$as_echo "$as_me: --with-native-debug-symbols not specified. Using values from --disable-debug-symbols and --disable-zip-debug-info" >&6;}
+  fi
+
+
+
 
 
 
