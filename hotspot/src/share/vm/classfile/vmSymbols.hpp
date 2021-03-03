@@ -1301,6 +1301,8 @@ public:
 
   // Raw conversion:
   static ID for_raw_conversion(BasicType src, BasicType dest);
+
+  static bool should_be_pinned(vmIntrinsics::ID id);
 };
 
 #endif // SHARE_VM_CLASSFILE_VMSYMBOLS_HPP
