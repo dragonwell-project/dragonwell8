@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2002, 2017, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -34,6 +34,7 @@ import java.security.cert.*;
 import javax.security.auth.x500.X500Principal;
 
 import sun.security.x509.X509CertImpl;
+import sun.security.x509.KeyIdentifier;
 import sun.security.x509.NetscapeCertTypeExtension;
 import sun.security.util.DerValue;
 import sun.security.util.DerInputStream;
@@ -153,12 +154,14 @@ public final class SimpleValidator extends Validator {
 
         // create default algorithm constraints checker
         TrustAnchor anchor = new TrustAnchor(anchorCert, null);
-        AlgorithmChecker defaultAlgChecker = new AlgorithmChecker(anchor);
+        AlgorithmChecker defaultAlgChecker =
+                new AlgorithmChecker(anchor, variant);
 
         // create application level algorithm constraints checker
         AlgorithmChecker appAlgChecker = null;
         if (constraints != null) {
-            appAlgChecker = new AlgorithmChecker(anchor, constraints);
+            appAlgChecker = new AlgorithmChecker(anchor, constraints, null,
+                    null, variant);
         }
 
         // verify top down, starting at the certificate issued by
