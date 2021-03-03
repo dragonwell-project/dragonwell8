@@ -33,6 +33,7 @@
 #include <netdb.h>
 #include <stdlib.h>
 #include <dlfcn.h>
+#include <sys/time.h>
 
 #ifndef _ALLBSD_SOURCE
 #include <values.h>
@@ -333,6 +334,7 @@ jint  IPv6_supported()
     if (getsockname(0, (struct sockaddr *)&sa, &sa_len) == 0) {
         struct sockaddr *saP = (struct sockaddr *)&sa;
         if (saP->sa_family != AF_INET6) {
+            close(fd);
             return JNI_FALSE;
         }
     }
@@ -1207,16 +1209,10 @@ NET_GetSockOpt(int fd, int level, int opt, void *result,
                int *len)
 {
     int rv;
+    socklen_t socklen = *len;
 
-#ifdef __solaris__
-    rv = getsockopt(fd, level, opt, result, len);
-#else
-    {
-        socklen_t socklen = *len;
-        rv = getsockopt(fd, level, opt, result, &socklen);
-        *len = socklen;
-    }
-#endif
+    rv = getsockopt(fd, level, opt, result, &socklen);
+    *len = socklen;
 
     if (rv < 0) {
         return rv;
@@ -1661,3 +1657,20 @@ NET_Wait(JNIEnv *env, jint fd, jint flags, jint timeout)
 
     return timeout;
 }
+
+#if !defined(__solaris__)
+long NET_GetCurrentTime() {
+    struct timeval time;
+    gettimeofday(&time, NULL);
+    return (time.tv_sec * 1000 + time.tv_usec / 1000);
+}
+
+int NET_TimeoutWithCurrentTime(int s, long timeout, long currentTime) {
+    return NET_Timeout0(s, timeout, currentTime);
+}
+
+int NET_Timeout(int s, long timeout) {
+    long currentTime = (timeout > 0) ? NET_GetCurrentTime() : 0;
+    return NET_Timeout0(s, timeout, currentTime);
+}
+#endif
