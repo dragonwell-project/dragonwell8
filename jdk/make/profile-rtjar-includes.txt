@@ -90,6 +90,7 @@ PROFILE_2_RTJAR_INCLUDE_PACKAGES := \
     javax/sql \
     javax/transaction \
     javax/xml \
+    jdk/xml/internal \
     org/w3c \
     org/xml/sax \
     sun/net/httpserver \
