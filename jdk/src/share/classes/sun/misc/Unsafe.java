@@ -846,12 +846,14 @@ public final class Unsafe {
         throws InstantiationException;
 
     /** Lock the object.  It must get unlocked via {@link #monitorExit}. */
+    @Deprecated
     public native void monitorEnter(Object o);
 
     /**
      * Unlock the object.  It must have been locked via {@link
      * #monitorEnter}.
      */
+    @Deprecated
     public native void monitorExit(Object o);
 
     /**
@@ -859,6 +861,7 @@ public final class Unsafe {
      * whether the lock succeeded.  If it did, the object must be
      * unlocked via {@link #monitorExit}.
      */
+    @Deprecated
     public native boolean tryMonitorEnter(Object o);
 
     /** Throw the exception without telling the verifier. */
