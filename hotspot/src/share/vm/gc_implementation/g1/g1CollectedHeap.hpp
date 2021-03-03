@@ -34,7 +34,7 @@
 #include "gc_implementation/g1/g1SATBCardTableModRefBS.hpp"
 #include "gc_implementation/g1/g1YCTypes.hpp"
 #include "gc_implementation/g1/heapRegionSeq.hpp"
-#include "gc_implementation/g1/heapRegionSets.hpp"
+#include "gc_implementation/g1/heapRegionSet.hpp"
 #include "gc_implementation/shared/hSpaceCounters.hpp"
 #include "gc_implementation/shared/parGCAllocBuffer.hpp"
 #include "memory/barrierSet.hpp"
@@ -209,7 +209,7 @@ class G1CollectedHeap : public SharedHeap {
   friend class OldGCAllocRegion;
 
   // Closures used in implementation.
-  template <bool do_gen_barrier, G1Barrier barrier, bool do_mark_object>
+  template <G1Barrier barrier, bool do_mark_object>
   friend class G1ParCopyClosure;
   friend class G1IsAliveClosure;
   friend class G1EvacuateFollowersClosure;
@@ -243,18 +243,18 @@ private:
   MemRegion _g1_committed;
 
   // The master free list. It will satisfy all new region allocations.
-  MasterFreeRegionList      _free_list;
+  FreeRegionList _free_list;
 
   // The secondary free list which contains regions that have been
   // freed up during the cleanup process. This will be appended to the
   // master free list when appropriate.
-  SecondaryFreeRegionList   _secondary_free_list;
+  FreeRegionList _secondary_free_list;
 
   // It keeps track of the old regions.
-  MasterOldRegionSet        _old_set;
+  HeapRegionSet _old_set;
 
   // It keeps track of the humongous regions.
-  MasterHumongousRegionSet  _humongous_set;
+  HeapRegionSet _humongous_set;
 
   // The number of regions we could create by expansion.
   uint _expansion_regions;
@@ -606,6 +606,11 @@ protected:
   // may not be a humongous - it must fit into a single heap region.
   HeapWord* par_allocate_during_gc(GCAllocPurpose purpose, size_t word_size);
 
+  HeapWord* allocate_during_gc_slow(GCAllocPurpose purpose,
+                                    HeapRegion*    alloc_region,
+                                    bool           par,
+                                    size_t         word_size);
+
   // Ensure that no further allocations can happen in "r", bearing in mind
   // that parallel threads might be attempting allocations.
   void par_allocate_remaining_space(HeapRegion* r);
@@ -698,23 +703,20 @@ public:
   }
 
   // This is a fast test on whether a reference points into the
-  // collection set or not. It does not assume that the reference
-  // points into the heap; if it doesn't, it will return false.
+  // collection set or not. Assume that the reference
+  // points into the heap.
   bool in_cset_fast_test(oop obj) {
     assert(_in_cset_fast_test != NULL, "sanity");
-    if (_g1_committed.contains((HeapWord*) obj)) {
-      // no need to subtract the bottom of the heap from obj,
-      // _in_cset_fast_test is biased
-      uintx index = cast_from_oop<uintx>(obj) >> HeapRegion::LogOfHRGrainBytes;
-      bool ret = _in_cset_fast_test[index];
-      // let's make sure the result is consistent with what the slower
-      // test returns
-      assert( ret || !obj_in_cs(obj), "sanity");
-      assert(!ret ||  obj_in_cs(obj), "sanity");
-      return ret;
-    } else {
-      return false;
-    }
+    assert(_g1_committed.contains((HeapWord*) obj), err_msg("Given reference outside of heap, is "PTR_FORMAT, (HeapWord*)obj));
+    // no need to subtract the bottom of the heap from obj,
+    // _in_cset_fast_test is biased
+    uintx index = cast_from_oop<uintx>(obj) >> HeapRegion::LogOfHRGrainBytes;
+    bool ret = _in_cset_fast_test[index];
+    // let's make sure the result is consistent with what the slower
+    // test returns
+    assert( ret || !obj_in_cs(obj), "sanity");
+    assert(!ret ||  obj_in_cs(obj), "sanity");
+    return ret;
   }
 
   void clear_cset_fast_test() {
@@ -755,6 +757,26 @@ public:
 
   G1HRPrinter* hr_printer() { return &_hr_printer; }
 
+  // Frees a non-humongous region by initializing its contents and
+  // adding it to the free list that's passed as a parameter (this is
+  // usually a local list which will be appended to the master free
+  // list later). The used bytes of freed regions are accumulated in
+  // pre_used. If par is true, the region's RSet will not be freed
+  // up. The assumption is that this will be done later.
+  void free_region(HeapRegion* hr,
+                   FreeRegionList* free_list,
+                   bool par);
+
+  // Frees a humongous region by collapsing it into individual regions
+  // and calling free_region() for each of them. The freed regions
+  // will be added to the free list that's passed as a parameter (this
+  // is usually a local list which will be appended to the master free
+  // list later). The used bytes of freed regions are accumulated in
+  // pre_used. If par is true, the region's RSet will not be freed
+  // up. The assumption is that this will be done later.
+  void free_humongous_region(HeapRegion* hr,
+                             FreeRegionList* free_list,
+                             bool par);
 protected:
 
   // Shrink the garbage-first heap by at most the given size (in bytes!).
@@ -837,30 +859,6 @@ protected:
   // JNI weak roots, the code cache, system dictionary, symbol table,
   // string table, and referents of reachable weak refs.
   void g1_process_weak_roots(OopClosure* root_closure);
-
-  // Frees a non-humongous region by initializing its contents and
-  // adding it to the free list that's passed as a parameter (this is
-  // usually a local list which will be appended to the master free
-  // list later). The used bytes of freed regions are accumulated in
-  // pre_used. If par is true, the region's RSet will not be freed
-  // up. The assumption is that this will be done later.
-  void free_region(HeapRegion* hr,
-                   size_t* pre_used,
-                   FreeRegionList* free_list,
-                   bool par);
-
-  // Frees a humongous region by collapsing it into individual regions
-  // and calling free_region() for each of them. The freed regions
-  // will be added to the free list that's passed as a parameter (this
-  // is usually a local list which will be appended to the master free
-  // list later). The used bytes of freed regions are accumulated in
-  // pre_used. If par is true, the region's RSet will not be freed
-  // up. The assumption is that this will be done later.
-  void free_humongous_region(HeapRegion* hr,
-                             size_t* pre_used,
-                             FreeRegionList* free_list,
-                             HumongousRegionSet* humongous_proxy_set,
-                             bool par);
 
   // Notifies all the necessary spaces that the committed space has
   // been updated (either expanded or shrunk). It should be called
@@ -1240,10 +1238,6 @@ public:
   bool is_on_master_free_list(HeapRegion* hr) {
     return hr->containing_set() == &_free_list;
   }
-
-  bool is_in_humongous_set(HeapRegion* hr) {
-    return hr->containing_set() == &_humongous_set;
-  }
 #endif // ASSERT
 
   // Wrapper for the region list operations that can be called from
@@ -1296,27 +1290,9 @@ public:
   // True iff an evacuation has failed in the most-recent collection.
   bool evacuation_failed() { return _evacuation_failed; }
 
-  // It will free a region if it has allocated objects in it that are
-  // all dead. It calls either free_region() or
-  // free_humongous_region() depending on the type of the region that
-  // is passed to it.
-  void free_region_if_empty(HeapRegion* hr,
-                            size_t* pre_used,
-                            FreeRegionList* free_list,
-                            OldRegionSet* old_proxy_set,
-                            HumongousRegionSet* humongous_proxy_set,
-                            HRRSCleanupTask* hrrs_cleanup_task,
-                            bool par);
-
-  // It appends the free list to the master free list and updates the
-  // master humongous list according to the contents of the proxy
-  // list. It also adjusts the total used bytes according to pre_used
-  // (if par is true, it will do so by taking the ParGCRareEvent_lock).
-  void update_sets_after_freeing_regions(size_t pre_used,
-                                       FreeRegionList* free_list,
-                                       OldRegionSet* old_proxy_set,
-                                       HumongousRegionSet* humongous_proxy_set,
-                                       bool par);
+  void remove_from_old_sets(const HeapRegionSetCount& old_regions_removed, const HeapRegionSetCount& humongous_regions_removed);
+  void prepend_to_freelist(FreeRegionList* list);
+  void decrement_summary_bytes(size_t bytes);
 
   // Returns "TRUE" iff "p" points into the committed areas of the heap.
   virtual bool is_in(const void* p) const;
@@ -1479,9 +1455,11 @@ public:
   // Section on thread-local allocation buffers (TLABs)
   // See CollectedHeap for semantics.
 
-  virtual bool supports_tlab_allocation() const;
-  virtual size_t tlab_capacity(Thread* thr) const;
-  virtual size_t unsafe_max_tlab_alloc(Thread* thr) const;
+  bool supports_tlab_allocation() const;
+  size_t tlab_capacity(Thread* ignored) const;
+  size_t tlab_used(Thread* ignored) const;
+  size_t max_tlab_size() const;
+  size_t unsafe_max_tlab_alloc(Thread* ignored) const;
 
   // Can a compiler initialize a new object without store barriers?
   // This permission only extends from the creation of a new object
@@ -1566,7 +1544,7 @@ public:
   void set_region_short_lived_locked(HeapRegion* hr);
   // add appropriate methods for any other surv rate groups
 
-  YoungList* young_list() { return _young_list; }
+  YoungList* young_list() const { return _young_list; }
 
   // debugging
   bool check_young_list_well_formed() {
@@ -1677,6 +1655,10 @@ public:
   // after a full GC
   void rebuild_strong_code_roots();
 
+  // Delete entries for dead interned string and clean up unreferenced symbols
+  // in symbol table, possibly in parallel.
+  void unlink_string_and_symbol_table(BoolObjectClosure* is_alive, bool unlink_strings = true, bool unlink_symbols = true);
+
   // Verification
 
   // The following is just to alert the verification code
@@ -1782,95 +1764,6 @@ public:
     ParGCAllocBuffer::retire(end_of_gc, retain);
     _retired = true;
   }
-
-  bool is_retired() {
-    return _retired;
-  }
-};
-
-class G1ParGCAllocBufferContainer {
-protected:
-  static int const _priority_max = 2;
-  G1ParGCAllocBuffer* _priority_buffer[_priority_max];
-
-public:
-  G1ParGCAllocBufferContainer(size_t gclab_word_size) {
-    for (int pr = 0; pr < _priority_max; ++pr) {
-      _priority_buffer[pr] = new G1ParGCAllocBuffer(gclab_word_size);
-    }
-  }
-
-  ~G1ParGCAllocBufferContainer() {
-    for (int pr = 0; pr < _priority_max; ++pr) {
-      assert(_priority_buffer[pr]->is_retired(), "alloc buffers should all retire at this point.");
-      delete _priority_buffer[pr];
-    }
-  }
-
-  HeapWord* allocate(size_t word_sz) {
-    HeapWord* obj;
-    for (int pr = 0; pr < _priority_max; ++pr) {
-      obj = _priority_buffer[pr]->allocate(word_sz);
-      if (obj != NULL) return obj;
-    }
-    return obj;
-  }
-
-  bool contains(void* addr) {
-    for (int pr = 0; pr < _priority_max; ++pr) {
-      if (_priority_buffer[pr]->contains(addr)) return true;
-    }
-    return false;
-  }
-
-  void undo_allocation(HeapWord* obj, size_t word_sz) {
-    bool finish_undo;
-    for (int pr = 0; pr < _priority_max; ++pr) {
-      if (_priority_buffer[pr]->contains(obj)) {
-        _priority_buffer[pr]->undo_allocation(obj, word_sz);
-        finish_undo = true;
-      }
-    }
-    if (!finish_undo) ShouldNotReachHere();
-  }
-
-  size_t words_remaining() {
-    size_t result = 0;
-    for (int pr = 0; pr < _priority_max; ++pr) {
-      result += _priority_buffer[pr]->words_remaining();
-    }
-    return result;
-  }
-
-  size_t words_remaining_in_retired_buffer() {
-    G1ParGCAllocBuffer* retired = _priority_buffer[0];
-    return retired->words_remaining();
-  }
-
-  void flush_stats_and_retire(PLABStats* stats, bool end_of_gc, bool retain) {
-    for (int pr = 0; pr < _priority_max; ++pr) {
-      _priority_buffer[pr]->flush_stats_and_retire(stats, end_of_gc, retain);
-    }
-  }
-
-  void update(bool end_of_gc, bool retain, HeapWord* buf, size_t word_sz) {
-    G1ParGCAllocBuffer* retired_and_set = _priority_buffer[0];
-    retired_and_set->retire(end_of_gc, retain);
-    retired_and_set->set_buf(buf);
-    retired_and_set->set_word_size(word_sz);
-    adjust_priority_order();
-  }
-
-private:
-  void adjust_priority_order() {
-    G1ParGCAllocBuffer* retired_and_set = _priority_buffer[0];
-
-    int last = _priority_max - 1;
-    for (int pr = 0; pr < last; ++pr) {
-      _priority_buffer[pr] = _priority_buffer[pr + 1];
-    }
-    _priority_buffer[last] = retired_and_set;
-  }
 };
 
 class G1ParScanThreadState : public StackObj {
@@ -1881,10 +1774,12 @@ protected:
   G1SATBCardTableModRefBS* _ct_bs;
   G1RemSet* _g1_rem;
 
-  G1ParGCAllocBufferContainer  _surviving_alloc_buffer;
-  G1ParGCAllocBufferContainer  _tenured_alloc_buffer;
-  G1ParGCAllocBufferContainer* _alloc_buffers[GCAllocPurposeCount];
+  G1ParGCAllocBuffer  _surviving_alloc_buffer;
+  G1ParGCAllocBuffer  _tenured_alloc_buffer;
+  G1ParGCAllocBuffer* _alloc_buffers[GCAllocPurposeCount];
   ageTable            _age_table;
+
+  G1ParScanClosure    _scanner;
 
   size_t           _alloc_buffer_waste;
   size_t           _undo_waste;
@@ -1938,7 +1833,7 @@ protected:
   }
 
 public:
-  G1ParScanThreadState(G1CollectedHeap* g1h, uint queue_num);
+  G1ParScanThreadState(G1CollectedHeap* g1h, uint queue_num, ReferenceProcessor* rp);
 
   ~G1ParScanThreadState() {
     FREE_C_HEAP_ARRAY(size_t, _surviving_young_words_base, mtGC);
@@ -1947,7 +1842,7 @@ public:
   RefToScanQueue*   refs()            { return _refs;             }
   ageTable*         age_table()       { return &_age_table;       }
 
-  G1ParGCAllocBufferContainer* alloc_buffer(GCAllocPurpose purpose) {
+  G1ParGCAllocBuffer* alloc_buffer(GCAllocPurpose purpose) {
     return _alloc_buffers[purpose];
   }
 
@@ -1977,13 +1872,15 @@ public:
     HeapWord* obj = NULL;
     size_t gclab_word_size = _g1h->desired_plab_sz(purpose);
     if (word_sz * 100 < gclab_word_size * ParallelGCBufferWastePct) {
-      G1ParGCAllocBufferContainer* alloc_buf = alloc_buffer(purpose);
+      G1ParGCAllocBuffer* alloc_buf = alloc_buffer(purpose);
+      add_to_alloc_buffer_waste(alloc_buf->words_remaining());
+      alloc_buf->retire(false /* end_of_gc */, false /* retain */);
 
       HeapWord* buf = _g1h->par_allocate_during_gc(purpose, gclab_word_size);
       if (buf == NULL) return NULL; // Let caller handle allocation failure.
-
-      add_to_alloc_buffer_waste(alloc_buf->words_remaining_in_retired_buffer());
-      alloc_buf->update(false /* end_of_gc */, false /* retain */, buf, gclab_word_size);
+      // Otherwise.
+      alloc_buf->set_word_size(gclab_word_size);
+      alloc_buf->set_buf(buf);
 
       obj = alloc_buf->allocate(word_sz);
       assert(obj != NULL, "buffer was definitely big enough...");
@@ -2073,6 +1970,8 @@ public:
     }
   }
 
+  oop copy_to_survivor_space(oop const obj);
+
   template <class T> void deal_with_reference(T* ref_to_scan) {
     if (has_partial_array_mask(ref_to_scan)) {
       _partial_scan_cl->do_oop_nv(ref_to_scan);
@@ -2095,6 +1994,7 @@ public:
     }
   }
 
+public:
   void trim_queue();
 };
 

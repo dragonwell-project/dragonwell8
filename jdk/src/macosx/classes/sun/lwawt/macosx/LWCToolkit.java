@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -35,14 +35,18 @@ import java.awt.event.KeyEvent;
 import java.awt.im.InputMethodHighlight;
 import java.awt.peer.*;
 import java.lang.reflect.*;
+import java.net.URL;
 import java.security.*;
 import java.util.*;
 import java.util.concurrent.Callable;
+import java.net.MalformedURLException;
 
 import sun.awt.*;
+import sun.awt.datatransfer.DataTransferer;
 import sun.lwawt.*;
 import sun.lwawt.LWWindowPeer.PeerType;
 import sun.security.action.GetBooleanAction;
+import sun.awt.image.MultiResolutionImage;
 
 import sun.util.CoreResourceBundleControl;
 
@@ -109,8 +113,6 @@ public final class LWCToolkit extends LWToolkit {
     private static final boolean inAWT;
 
     public LWCToolkit() {
-        SunToolkit.setDataTransfererClassName("sun.lwawt.macosx.CDataTransferer");
-
         areExtraMouseButtonsEnabled = Boolean.parseBoolean(System.getProperty("sun.awt.enableExtraMouseButtons", "true"));
         //set system property if not yet assigned
         System.setProperty("sun.awt.enableExtraMouseButtons", ""+areExtraMouseButtonsEnabled);
@@ -156,25 +158,14 @@ public final class LWCToolkit extends LWToolkit {
         return new AppleSpecificColor(color);
     }
 
+    // This is only called from native code.
     static void systemColorsChanged() {
-        // This is only called from native code.
-        EventQueue.invokeLater(new Runnable() {
-            public void run() {
-                AccessController.doPrivileged (new PrivilegedAction<Object>() {
-                    public Object run() {
-                        try {
-                            final Method updateColorsMethod = SystemColor.class.getDeclaredMethod("updateSystemColors", new Class[0]);
-                            updateColorsMethod.setAccessible(true);
-                            updateColorsMethod.invoke(null, new Object[0]);
-                        } catch (final Throwable e) {
-                            e.printStackTrace();
-                            // swallow this if something goes horribly wrong
-                        }
-                        return null;
-                    }
-                });
-            }
-           });
+        EventQueue.invokeLater(() -> {
+            AccessController.doPrivileged ((PrivilegedAction<Object>) () -> {
+                AWTAccessor.getSystemColorAccessor().updateSystemColors();
+                return null;
+            });
+        });
     }
 
     public static LWCToolkit getLWCToolkit() {
@@ -439,6 +430,11 @@ public final class LWCToolkit extends LWToolkit {
     }
 
     @Override
+    public DataTransferer getDataTransferer() {
+        return CDataTransferer.getInstanceImpl();
+    }
+
+    @Override
     public boolean isAlwaysOnTopSupported() {
         return true;
     }
@@ -489,9 +485,30 @@ public final class LWCToolkit extends LWToolkit {
     @Override
     public Image getImage(final String filename) {
         final Image nsImage = checkForNSImage(filename);
-        if (nsImage != null) return nsImage;
+        if (nsImage != null) {
+            return nsImage;
+        }
 
-        return super.getImage(filename);
+        if (imageCached(filename)) {
+            return super.getImage(filename);
+        }
+
+        String fileneame2x = getScaledImageName(filename);
+        return (imageExists(fileneame2x))
+                ? getImageWithResolutionVariant(filename, fileneame2x)
+                : super.getImage(filename);
+    }
+
+    @Override
+    public Image getImage(URL url) {
+
+        if (imageCached(url)) {
+            return super.getImage(url);
+        }
+
+        URL url2x = getScaledImageURL(url);
+        return (imageExists(url2x))
+                ? getImageWithResolutionVariant(url, url2x) : super.getImage(url);
     }
 
     static final String nsImagePrefix = "NSImage://";
@@ -708,7 +725,7 @@ public final class LWCToolkit extends LWToolkit {
     /*
      * Returns true if the application (one of its windows) owns keyboard focus.
      */
-    public native boolean isApplicationActive();
+    native boolean isApplicationActive();
 
     /************************
      * Native methods section
@@ -780,5 +797,37 @@ public final class LWCToolkit extends LWToolkit {
     @Override
     public boolean enableInputMethodsForTextComponent() {
         return true;
+    }
+
+    private static URL getScaledImageURL(URL url) {
+        try {
+            String scaledImagePath = getScaledImageName(url.getPath());
+            return scaledImagePath == null ? null : new URL(url.getProtocol(),
+                    url.getHost(), url.getPort(), scaledImagePath);
+        } catch (MalformedURLException e) {
+            return null;
+        }
+    }
+
+    private static String getScaledImageName(String path) {
+        if (!isValidPath(path)) {
+            return null;
+        }
+
+        int slash = path.lastIndexOf('/');
+        String name = (slash < 0) ? path : path.substring(slash + 1);
+
+        if (name.contains("@2x")) {
+            return null;
+        }
+
+        int dot = name.lastIndexOf('.');
+        String name2x = (dot < 0) ? name + "@2x"
+                : name.substring(0, dot) + "@2x" + name.substring(dot);
+        return (slash < 0) ? name2x : path.substring(0, slash + 1) + name2x;
+    }
+
+    private static boolean isValidPath(String path) {
+        return !path.isEmpty() && !path.endsWith("/") && !path.endsWith(".");
     }
 }
