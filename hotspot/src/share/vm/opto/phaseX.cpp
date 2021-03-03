@@ -1263,6 +1263,10 @@ void PhaseIterGVN::remove_globally_dead_node( Node *dead ) {
       if (dead->is_expensive()) {
         C->remove_expensive_node(dead);
       }
+      CastIINode* cast = dead->isa_CastII();
+      if (cast != NULL && cast->has_range_check()) {
+        C->remove_range_check_cast(cast);
+      }
     }
   } // while (_stack.is_nonempty())
 }
