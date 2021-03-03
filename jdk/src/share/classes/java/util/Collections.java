@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,6 +25,7 @@
 
 package java.util;
 import java.io.Serializable;
+import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.IOException;
 import java.lang.reflect.Array;
@@ -37,6 +38,7 @@ import java.util.function.UnaryOperator;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
+import sun.misc.SharedSecrets;
 
 /**
  * This class consists exclusively of static methods that operate on or return
@@ -5074,6 +5076,11 @@ public class Collections {
         @Override
         public Spliterator<E> spliterator() {
             return stream().spliterator();
+        }
+
+        private void readObject(ObjectInputStream ois) throws IOException, ClassNotFoundException {
+            ois.defaultReadObject();
+            SharedSecrets.getJavaOISAccess().checkArray(ois, Object[].class, n);
         }
     }
 
