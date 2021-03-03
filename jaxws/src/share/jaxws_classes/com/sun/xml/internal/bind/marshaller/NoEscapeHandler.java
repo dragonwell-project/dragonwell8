@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,19 +23,23 @@
  * questions.
  */
 
-package sun.misc;
+package com.sun.xml.internal.bind.marshaller;
 
-import java.io.ObjectInputStream;
+import java.io.IOException;
+import java.io.Writer;
 
 /**
- * The interface to specify methods for accessing {@code ObjectInputStream}
- * @author sjiang
+ * Performs no character escaping.
+ *
+ * @author
+ *     Roman Grigoriadi (roman.grigoriadi@oracle.com)
  */
-public interface JavaObjectInputStreamAccess {
-    /**
-     * Sets a descriptor validating.
-     * @param ois stream to have the descriptors validated
-     * @param validator validator used to validate a descriptor.
-     */
-    public void setValidator(ObjectInputStream ois, ObjectStreamClassValidator validator);
+public class NoEscapeHandler implements CharacterEscapeHandler {
+
+    public static final NoEscapeHandler theInstance = new NoEscapeHandler();
+
+    @Override
+    public void escape(char[] ch, int start, int length, boolean isAttVal, Writer out) throws IOException {
+        out.write(ch, start, length);
+    }
 }
