@@ -23,7 +23,7 @@
 
 /*
   @test
-  @bug 8081787 8136763
+  @bug 8081787 8136763 8160941
   @author Mikhail Cherkasov
   @run main/manual MacOsXFileAndMultipleFileCopingTest
 */
