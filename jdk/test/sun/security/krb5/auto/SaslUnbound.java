@@ -26,11 +26,11 @@
  * @bug 8001104
  * @summary Unbound SASL service: the GSSAPI/krb5 mech
  * @compile -XDignore.symbol.file SaslUnbound.java
- * @run main/othervm SaslUnbound 0
- * @run main/othervm/fail SaslUnbound 1
- * @run main/othervm/fail SaslUnbound 2
- * @run main/othervm/fail SaslUnbound 3
- * @run main/othervm/fail SaslUnbound 4
+ * @run main/othervm -Dsun.net.spi.nameservice.provider.1=ns,mock SaslUnbound 0
+ * @run main/othervm/fail -Dsun.net.spi.nameservice.provider.1=ns,mock SaslUnbound 1
+ * @run main/othervm/fail -Dsun.net.spi.nameservice.provider.1=ns,mock SaslUnbound 2
+ * @run main/othervm/fail -Dsun.net.spi.nameservice.provider.1=ns,mock SaslUnbound 3
+ * @run main/othervm/fail -Dsun.net.spi.nameservice.provider.1=ns,mock SaslUnbound 4
  */
 import java.io.IOException;
 import java.util.Arrays;
