@@ -35,7 +35,7 @@ public class TestRTMRetryCountOption extends RTMGenericCommandLineOptionTest {
     private static final String DEFAULT_VALUE = "5";
 
     private TestRTMRetryCountOption() {
-        super(Boolean.TRUE::booleanValue, "RTMRetryCount", false, true,
+        super(Boolean.TRUE::booleanValue, "RTMRetryCount", false, false,
                 TestRTMRetryCountOption.DEFAULT_VALUE,
                 "0", "10", "100", "1000");
     }
