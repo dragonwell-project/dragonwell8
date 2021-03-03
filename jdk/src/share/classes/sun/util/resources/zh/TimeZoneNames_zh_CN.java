@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2014, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -570,6 +570,9 @@ public final class TimeZoneNames_zh_CN extends TimeZoneNamesBundle {
             {"Antarctica/Syowa", new String[] {"Syowa \u65f6\u95f4", "SYOT",
                                                "Syowa \u590f\u4ee4\u65f6", "SYOST",
                                                "Syowa \u65F6\u95F4", "SYOT"}},
+            {"Antarctica/Troll", new String[] {"\u534f\u8c03\u4e16\u754c\u65f6\u95f4", "UTC",
+                                               "\u4e2d\u6b27\u590f\u4ee4\u65f6", "CEST",
+                                               "Troll Time", "ATT"}},
             {"Antarctica/Vostok", new String[] {"\u83ab\u65af\u6258\u514b\u65f6\u95f4", "VOST",
                                                 "\u83ab\u65af\u6258\u514b\u590f\u4ee4\u65f6", "VOSST",
                                                 "\u83AB\u65AF\u6258\u514B\u65F6\u95F4", "VOST"}},
@@ -578,7 +581,7 @@ public final class TimeZoneNames_zh_CN extends TimeZoneNamesBundle {
             {"Asia/Almaty", new String[] {"Alma-Ata \u65f6\u95f4", "ALMT",
                                           "Alma-Ata \u590f\u4ee4\u65f6", "ALMST",
                                           "Alma-Ata \u65F6\u95F4", "ALMT"}},
-            {"Asia/Amman", ARAST},
+            {"Asia/Amman", EET},
             {"Asia/Anadyr", new String[] {"\u963f\u90a3\u5e95\u6cb3\u65f6\u95f4", "ANAT",
                                           "\u963f\u90a3\u5e95\u6cb3\u590f\u4ee4\u65f6", "ANAST",
                                           "\u963F\u90A3\u5E95\u6CB3\u65F6\u95F4", "ANAT"}},
@@ -838,7 +841,7 @@ public final class TimeZoneNames_zh_CN extends TimeZoneNamesBundle {
                                             "\u6C99\u9A6C\u62C9\u65F6\u95F4", "SAMT"}},
             {"Europe/San_Marino", CET},
             {"Europe/Sarajevo", CET},
-            {"Europe/Simferopol", EET},
+            {"Europe/Simferopol", MSK},
             {"Europe/Skopje", CET},
             {"Europe/Sofia", EET},
             {"Europe/Stockholm", CET},
