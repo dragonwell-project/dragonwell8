@@ -336,6 +336,7 @@ public class HttpURLConnection extends java.net.HttpURLConnection {
     /* try auth without calling Authenticator. Used for transparent NTLM authentication */
     private boolean tryTransparentNTLMServer = true;
     private boolean tryTransparentNTLMProxy = true;
+    private boolean useProxyResponseCode = false;
 
     /* Used by Windows specific code */
     private Object authObj;
@@ -1045,7 +1046,7 @@ public class HttpURLConnection extends java.net.HttpURLConnection {
             try {
                 URI uri = ParseUtil.toURI(url);
                 if (uri != null) {
-                    cachedResponse = cacheHandler.get(uri, getRequestMethod(), requests.getHeaders(EXCLUDE_HEADERS));
+                    cachedResponse = cacheHandler.get(uri, getRequestMethod(), getUserSetHeaders().getHeaders());
                     if ("https".equalsIgnoreCase(uri.getScheme())
                         && !(cachedResponse instanceof SecureCacheResponse)) {
                         cachedResponse = null;
@@ -2243,6 +2244,14 @@ public class HttpURLConnection extends java.net.HttpURLConnection {
                         if (tryTransparentNTLMProxy) {
                             tryTransparentNTLMProxy =
                                     NTLMAuthenticationProxy.supportsTransparentAuth;
+                            /* If the platform supports transparent authentication
+                             * then normally it's ok to do transparent auth to a proxy
+                             * because we generally trust proxies (chosen by the user)
+                             * But not in the case of 305 response where the server
+                             * chose it. */
+                            if (tryTransparentNTLMProxy && useProxyResponseCode) {
+                                tryTransparentNTLMProxy = false;
+                            }
                         }
                         a = null;
                         if (tryTransparentNTLMProxy) {
@@ -2614,6 +2623,10 @@ public class HttpURLConnection extends java.net.HttpURLConnection {
             requests.set(0, method + " " + getRequestURI()+" "  +
                              httpVersion, null);
             connected = true;
+            // need to remember this in case NTLM proxy authentication gets
+            // used. We can't use transparent authentication when user
+            // doesn't know about proxy.
+            useProxyResponseCode = true;
         } else {
             // maintain previous headers, just change the name
             // of the file we're getting
