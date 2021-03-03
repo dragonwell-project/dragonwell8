@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009, 2012, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, Red Hat, Inc. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,35 +21,25 @@
  * questions.
  */
 
-/*
+/**
  * @test
- * @bug 6843127
- * @run main/othervm/timeout=300 -Dsun.net.spi.nameservice.provider.1=ns,mock BadKdc2
- * @summary krb5 should not try to access unavailable kdc too often
+ * @bug 8214189
+ * @summary test/hotspot/jtreg/compiler/intrinsics/mathexact/MulExactLConstantTest.java fails on Windows x64 when run with -XX:-TieredCompilation
+ *
+ * @run main/othervm -XX:-TieredCompilation -XX:-BackgroundCompilation -XX:-UseOnStackReplacement MultiplyByConstantLongMax
+ *
  */
 
-import java.io.*;
-import java.security.Security;
+public class MultiplyByConstantLongMax {
+    public static void main(String[] args) {
+        for (int i = 0; i < 20_000; i++) {
+            if (test(1) != Long.MAX_VALUE) {
+                throw new RuntimeException("incorrect result");
+            }
+        }
+    }
 
-public class BadKdc2 {
-
-    public static void main(String[] args)
-            throws Exception {
-
-        // 1 sec is too short.
-        BadKdc.setRatio(3.0f);
-
-        Security.setProperty(
-                "krb5.kdc.bad.policy", "tryLess:2," + BadKdc.toReal(1000));
-        BadKdc.go(
-                "121212222222(32){1,2}11112121(32){1,2}", // 1 2
-                "11112121(32){1,2}11112121(32){1,2}", // 1 2
-                // refresh
-                "121212222222(32){1,2}11112121(32){1,2}", // 1 2
-                // k3 off k2 on
-                "1111(21){1,2}1111(22){1,2}", // 1
-                // k1 on
-                "(11){1,2}(12){1,2}"  // empty
-        );
+    private static long test(long v) {
+        return v * Long.MAX_VALUE;
     }
 }
