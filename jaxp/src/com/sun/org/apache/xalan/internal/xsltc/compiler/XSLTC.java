@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
  */
 /*
  * Licensed to the Apache Software Foundation (ASF) under one or more
@@ -22,8 +22,6 @@ package com.sun.org.apache.xalan.internal.xsltc.compiler;
 
 import com.sun.org.apache.bcel.internal.classfile.JavaClass;
 import com.sun.org.apache.xalan.internal.XalanConstants;
-import com.sun.org.apache.xalan.internal.utils.FeatureManager;
-import com.sun.org.apache.xalan.internal.utils.FeatureManager.Feature;
 import com.sun.org.apache.xalan.internal.utils.SecuritySupport;
 import com.sun.org.apache.xalan.internal.utils.XMLSecurityManager;
 import com.sun.org.apache.xalan.internal.xsltc.compiler.util.ErrorMsg;
@@ -48,6 +46,7 @@ import java.util.jar.JarEntry;
 import java.util.jar.JarOutputStream;
 import java.util.jar.Manifest;
 import javax.xml.XMLConstants;
+import jdk.xml.internal.JdkXmlFeatures;
 import org.xml.sax.InputSource;
 import org.xml.sax.XMLReader;
 
@@ -134,7 +133,7 @@ public final class XSLTC {
      */
     private boolean _isSecureProcessing = false;
 
-    private boolean _useServicesMechanism = true;
+    private boolean _overrideDefaultParser;
 
     /**
      * protocols allowed for external references set by the stylesheet processing instruction, Import and Include element.
@@ -147,7 +146,7 @@ public final class XSLTC {
 
     private XMLSecurityManager _xmlSecurityManager;
 
-    private final FeatureManager _featureManager;
+    private final JdkXmlFeatures _xmlFeatures;
 
     /**
     *  Extension function class loader variables
@@ -164,9 +163,11 @@ public final class XSLTC {
     /**
      * XSLTC compiler constructor
      */
-    public XSLTC(boolean useServicesMechanism, FeatureManager featureManager) {
-        _parser = new Parser(this, useServicesMechanism);
-        _featureManager = featureManager;
+    public XSLTC(JdkXmlFeatures featureManager) {
+        _overrideDefaultParser = featureManager.getFeature(
+                JdkXmlFeatures.XmlFeature.JDK_OVERRIDE_PARSER);
+        _parser = new Parser(this, _overrideDefaultParser);
+        _xmlFeatures = featureManager;
         _extensionClassLoader = null;
         _externalExtensionFunctions = new HashMap<>();
     }
@@ -184,27 +185,14 @@ public final class XSLTC {
     public boolean isSecureProcessing() {
         return _isSecureProcessing;
     }
-    /**
-     * Return the state of the services mechanism feature.
-     */
-    public boolean useServicesMechnism() {
-        return _useServicesMechanism;
-    }
-
-    /**
-     * Set the state of the services mechanism feature.
-     */
-    public void setServicesMechnism(boolean flag) {
-        _useServicesMechanism = flag;
-    }
 
      /**
      * Return the value of the specified feature
      * @param name name of the feature
      * @return true if the feature is enabled, false otherwise
      */
-    public boolean getFeature(Feature name) {
-        return _featureManager.isFeatureEnabled(name);
+    public boolean getFeature(JdkXmlFeatures.XmlFeature name) {
+        return _xmlFeatures.getFeature(name);
     }
 
     /**
