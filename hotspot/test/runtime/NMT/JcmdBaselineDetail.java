@@ -19,12 +19,31 @@
  * Please contact Oracle, 500 Oracle Parkway, Redwood Shores, CA 94065 USA
  * or visit www.oracle.com if you need additional information or have any
  * questions.
- *
  */
 
-#include "precompiled.hpp"
-#include "runtime/arguments.hpp"
+/*
+ * @test
+ * @key nmt jcmd
+ * @summary Verify that jcmd correctly reports that baseline succeeds with NMT enabled with detailed tracking.
+ * @library /testlibrary
+ * @run main/othervm -XX:NativeMemoryTracking=detail JcmdBaselineDetail
+ */
 
-bool Arguments::check_vm_args_consistency_ext() {
-  return true;
+import com.oracle.java.testlibrary.*;
+
+public class JcmdBaselineDetail {
+
+    public static void main(String args[]) throws Exception {
+        // Grab my own PID
+        String pid = Integer.toString(ProcessTools.getProcessId());
+        OutputAnalyzer output;
+
+        ProcessBuilder pb = new ProcessBuilder();
+
+        // Run 'jcmd <pid> VM.native_memory baseline=true'
+        pb.command(new String[] { JDKToolFinder.getJDKTool("jcmd"), pid, "VM.native_memory", "baseline=true"});
+
+        output = new OutputAnalyzer(pb.start());
+        output.shouldContain("Baseline succeeded");
+    }
 }
