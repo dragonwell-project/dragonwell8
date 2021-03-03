@@ -389,10 +389,6 @@ Shows additional diagnostic messages\&.
 .br
 Enables strict class-file format checks that enforce close conformance to the class-file format specification\&. Developers are encouraged to use this flag when developing new code because the stricter checks will become the default in future releases\&.
 .TP
--Xincgc
-.br
-Enables incremental GC\&.
-.TP
 -Xint
 .br
 Runs the application in interpreted-only mode\&. Compilation to native code is disabled, and all bytecode is executed by the interpreter\&. The performance benefits offered by the just in time (JIT) compiler are not present in this mode\&.
@@ -1401,68 +1397,6 @@ Sets the percentage of time (0 to 100) used to weight the current sample when co
 .sp     
 
 .TP
--XX:CMSIncrementalDutyCycle=\fIpercent\fR
-.br
-Sets the percentage of time (0 to 100) between minor collections that the concurrent collector is allowed to run\&. When \f3-XX:+CMSIncrementalPacing\fR is enabled, the duty cycle is set automatically, and this option sets only the initial value\&.
-
-By default, the duty cycle is set to 10%\&. The following example shows how to set the duty cycle to 20%:
-.sp     
-.nf     
-\f3\-XX:CMSIncrementalDutyCycle=20\fP
-.fi     
-.nf     
-\f3\fP
-.fi     
-.sp     
-
-.TP
--XX:CMSIncrementalDutyCycleMin=\fIpercent\fR
-.br
-Sets the percentage of time (0 to 100) between minor collections that is the lower bound for the duty cycle when \f3-XX:+CMSIncrementalPacing\fR is enabled\&. By default, the lower bound for the duty cycle is set to 0%\&. The following example shows how to set the lower bound to 10%:
-.sp     
-.nf     
-\f3\-XX:CMSIncrementalDutyCycleMin=10\fP
-.fi     
-.nf     
-\f3\fP
-.fi     
-.sp     
-
-.TP
--XX:+CMSIncrementalMode
-.br
-Enables the incremental mode for the CMS collector\&. This option is disabled by default and should only be enabled for configurations with no more than two GC threads\&. All options that start with \f3CMSIncremental\fR apply only when this option is enabled\&.
-.TP
--XX:CMSIncrementalOffset=\fIpercent\fR
-.br
-Sets the percentage of time (0 to 100) by which the incremental mode duty cycle is shifted to the right within the period between minor collections\&. By default, the offset is set to 0%\&. The following example shows how to set the duty cycle offset to 25%:
-.sp     
-.nf     
-\f3\-XX:CMSIncrementalOffset=25\fP
-.fi     
-.nf     
-\f3\fP
-.fi     
-.sp     
-
-.TP
--XX:+CMSIncrementalPacing
-.br
-Enables automatic adjustment of the incremental mode duty cycle based on statistics collected while the JVM is running\&. This option is enabled by default\&. To disable automatic adjustment of the incremental mode duty cycle, specify \f3-XX:-CMSIncrementalPacing\fR\&.
-.TP
--XX:CMSIncrementalSafetyFactor=\fIpercent\fR
-.br
-Sets the percentage of time (0 to 100) used to add conservatism when computing the duty cycle\&. By default, the safety factor is set to 10%\&. The example below shows how to set the safety factor to 5%:
-.sp     
-.nf     
-\f3\-XX:CMSIncrementalSafetyFactor=5\fP
-.fi     
-.nf     
-\f3\fP
-.fi     
-.sp     
-
-.TP
 -XX:CMSInitiatingOccupancyFraction=\fIpercent\fR
 .br
 Sets the percentage of the old generation occupancy (0 to 100) at which to start a CMS collection cycle\&. The default value is set to -1\&. Any negative value (including the default) implies that \f3-XX:CMSTriggerRatio\fR is used to define the value of the initiating occupancy fraction\&.
@@ -1928,7 +1862,7 @@ Enables the use of the occupancy value as the only criterion for initiating the 
 .br
 Enables the use of the CMS garbage collector for the old generation\&. Oracle recommends that you use the CMS garbage collector when application latency requirements cannot be met by the throughput (\f3-XX:+UseParallelGC\fR) garbage collector\&. The G1 garbage collector (\f3-XX:+UseG1GC\fR) is another alternative\&.
 
-By default, this option is disabled and the collector is chosen automatically based on the configuration of the machine and type of the JVM\&. When this option is enabled, the \f3-XX:+UseParNewGC\fR option is automatically set\&.
+By default, this option is disabled and the collector is chosen automatically based on the configuration of the machine and type of the JVM\&. When this option is enabled, the \f3-XX:+UseParNewGC\fR option is automatically set and you should not disable it, because the following combination of options has been deprecated in JDK 8: \f3-XX:+UseConcMarkSweepGC -XX:-UseParNewGC\fR\&.
 .TP
 -XX:+UseG1GC
 .br
@@ -1956,7 +1890,7 @@ Enables the use of the parallel garbage collector for full GCs\&. By default, th
 .TP
 -XX:+UseParNewGC
 .br
-Enables the use of parallel threads for collection in the young generation\&. By default, this option is disabled\&. It is automatically enabled when you set the \f3-XX:+UseConcMarkSweepGC\fR option\&.
+Enables the use of parallel threads for collection in the young generation\&. By default, this option is disabled\&. It is automatically enabled when you set the \f3-XX:+UseConcMarkSweepGC\fR option\&. Using the \f3-XX:+UseParNewGC\fR option without the \f3-XX:+UseConcMarkSweepGC\fR option was deprecated in JDK 8\&.
 .TP
 -XX:+UseSerialGC
 .br
@@ -1968,9 +1902,37 @@ Enables the use of thread-local allocation blocks (TLABs) in the young generatio
 .SS DEPRECATED\ AND\ REMOVED\ OPTIONS    
 These options were included in the previous release, but have since been considered unnecessary\&.
 .TP
+-Xincgc
+.br
+Enables incremental garbage collection\&. This option was deprecated in JDK 8 with no replacement\&.
+.TP
 -Xrun\fIlibname\fR
 .br
 Loads the specified debugging/profiling library\&. This option was superseded by the \f3-agentlib\fR option\&.
+.TP
+-XX:CMSIncrementalDutyCycle=\fIpercent\fR
+.br
+Sets the percentage of time (0 to 100) between minor collections that the concurrent collector is allowed to run\&. This option was deprecated in JDK 8 with no replacement, following the deprecation of the \f3-XX:+CMSIncrementalMode\fR option\&.
+.TP
+-XX:CMSIncrementalDutyCycleMin=\fIpercent\fR
+.br
+Sets the percentage of time (0 to 100) between minor collections that is the lower bound for the duty cycle when \f3-XX:+CMSIncrementalPacing\fR is enabled\&. This option was deprecated in JDK 8 with no replacement, following the deprecation of the \f3-XX:+CMSIncrementalMode\fR option\&.
+.TP
+-XX:+CMSIncrementalMode
+.br
+Enables the incremental mode for the CMS collector\&. This option was deprecated in JDK 8 with no replacement, along with other options that start with \f3CMSIncremental\fR\&.
+.TP
+-XX:CMSIncrementalOffset=\fIpercent\fR
+.br
+Sets the percentage of time (0 to 100) by which the incremental mode duty cycle is shifted to the right within the period between minor collections\&. This option was deprecated in JDK 8 with no replacement, following the deprecation of the \f3-XX:+CMSIncrementalMode\fR option\&.
+.TP
+-XX:+CMSIncrementalPacing
+.br
+Enables automatic adjustment of the incremental mode duty cycle based on statistics collected while the JVM is running\&. This option was deprecated in JDK 8 with no replacement, following the deprecation of the \f3-XX:+CMSIncrementalMode\fR option\&.
+.TP
+-XX:CMSIncrementalSafetyFactor=\fIpercent\fR
+.br
+Sets the percentage of time (0 to 100) used to add conservatism when computing the duty cycle\&. This option was deprecated in JDK 8 with no replacement, following the deprecation of the \f3-XX:+CMSIncrementalMode\fR option\&.
 .TP
 -XX:CMSInitiatingPermOccupancyFraction=\fIpercent\fR
 .br
