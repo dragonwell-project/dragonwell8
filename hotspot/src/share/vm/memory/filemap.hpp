@@ -54,7 +54,7 @@ private:
 
   bool  _file_open;
   int   _fd;
-  long  _file_offset;
+  size_t  _file_offset;
 
   // FileMapHeader describes the shared space data in the file to be
   // mapped.  This structure gets written to a file.  It is not a class, so
@@ -62,12 +62,14 @@ private:
 
   struct FileMapHeader {
     int    _magic;                    // identify file type.
+    int    _crc;                      // header crc checksum.
     int    _version;                  // (from enum, above.)
     size_t _alignment;                // how shared archive should be aligned
     int    _obj_alignment;            // value of ObjectAlignmentInBytes
 
     struct space_info {
-      int    _file_offset;   // sizeof(this) rounded to vm page size
+      int    _crc;           // crc checksum of the current space
+      size_t _file_offset;   // sizeof(this) rounded to vm page size
       char*  _base;          // copy-on-write base address
       size_t _capacity;      // for validity checking
       size_t _used;          // for setting space top on read
@@ -104,6 +106,8 @@ public:
   }
 
   static int current_version()        { return _current_version; }
+  int    compute_header_crc();
+  void   set_header_crc(int crc)      { _header._crc = crc; }
   void   populate_header(size_t alignment);
   bool   validate();
   void   invalidate();
@@ -136,6 +140,7 @@ public:
   void  write_bytes_aligned(const void* buffer, int count);
   char* map_region(int i);
   void  unmap_region(int i);
+  bool  verify_region_checksum(int i);
   void  close();
   bool  is_open() { return _file_open; }
   ReservedSpace reserve_shared_memory();
