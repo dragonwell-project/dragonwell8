@@ -588,7 +588,7 @@ jdk.certpath.disabledAlgorithms=MD2, MD5, SHA1 jdkCA & usage TLSServer, \
 #
 # See "jdk.certpath.disabledAlgorithms" for syntax descriptions.
 #
-jdk.jar.disabledAlgorithms=MD2, MD5, RSA keySize < 1024
+jdk.jar.disabledAlgorithms=MD2, MD5, RSA keySize < 1024, DSA keySize < 1024
 
 #
 # Algorithm restrictions for Secure Socket Layer/Transport Layer Security
@@ -620,7 +620,7 @@ jdk.jar.disabledAlgorithms=MD2, MD5, RSA keySize < 1024
 #
 # Example:
 #   jdk.tls.disabledAlgorithms=MD5, SSLv3, DSA, RSA keySize < 2048
-jdk.tls.disabledAlgorithms=SSLv3, RC4, MD5withRSA, DH keySize < 768, \
+jdk.tls.disabledAlgorithms=SSLv3, RC4, MD5withRSA, DH keySize < 1024, \
     EC keySize < 224
 
 # Legacy algorithms for Secure Socket Layer/Transport Layer Security (SSL/TLS)
@@ -740,67 +740,70 @@ jdk.tls.legacyAlgorithms= \
 
 # Cryptographic Jurisdiction Policy defaults
 #
-# Due to the import control restrictions of some countries, the default
-# JCE policy files allow for strong but "limited" cryptographic key
-# lengths to be used.  If your country's cryptographic regulations allow,
-# the "unlimited" strength policy files can be used instead, which contain
-# no restrictions on cryptographic strengths.
+# Import and export control rules on cryptographic software vary from
+# country to country.  By default, the JDK provides two different sets of
+# cryptographic policy files:
 #
-# YOU ARE ADVISED TO CONSULT YOUR EXPORT/IMPORT CONTROL COUNSEL OR ATTORNEY
-# TO DETERMINE THE EXACT REQUIREMENTS.
+#     unlimited:  These policy files contain no restrictions on cryptographic
+#                 strengths or algorithms.
 #
-# <java-home> (below) refers to the directory where the JRE was
-# installed. It is determined based on whether you are running JCE
-# on a JRE or a JRE contained within the Java Development Kit, or
-# JDK(TM). The JDK contains the JRE, but at a different level in the
-# file hierarchy. For example, if the JDK is installed in
-# /home/user1/jdk1.8.0 on Unix or in C:\jdk1.8.0 on Windows, then
-# <java-home> is:
+#     limited:    These policy files contain more restricted cryptographic
+#                 strengths, and are still available if your country or
+#                 usage requires the traditional restrictive policy.
 #
-#  /home/user1/jdk1.8.0/jre           [Unix]
-#  C:\jdk1.8.0\jre                    [Windows]
+# The JDK JCE framework uses the unlimited policy files by default.
+# However the user may explicitly choose a set either by defining the
+# "crypto.policy" Security property or by installing valid JCE policy
+# jar files into the traditional JDK installation location.  To better
+# support older JDK Update releases, the "crypto.policy" property is not
+# defined by default.  See below for more information.
 #
-# If on the other hand the JRE is installed in /home/user1/jre1.8.0
-# on Unix or in C:\jre1.8.0 on Windows, and the JDK is not
-# installed, then <java-home> is:
+# The following logic determines which policy files are used:
 #
-#  /home/user1/jre1.8.0               [Unix]
-#  C:\jre1.8.0                        [Windows]
+#         <java-home> refers to the directory where the JRE was
+#         installed and may be determined using the "java.home"
+#         System property.
 #
-# On Windows, for each JDK installation, there may be additional
-# JREs installed under the "Program Files" directory. Please make
-# sure that you install the unlimited strength policy JAR files
-# for all JREs that you plan to use.
+# 1.  If the Security property "crypto.policy" has been defined,
+#     then the following mechanism is used:
 #
-# The policy files are jar files organized into subdirectories of
+#     The policy files are stored as jar files in subdirectories of
 # <java-home>/lib/security/policy.  Each directory contains a complete
 # set of policy files.
 #
-# The "crypto.policy" Security property controls the directory selection,
-# and thus the effective cryptographic policy.
+#     The "crypto.policy" Security property controls the directory
+#     selection, and thus the effective cryptographic policy.
 #
 # The default set of directories is:
 #
 #     limited | unlimited
 #
-# however other directories can be created and configured.
-#
-# To support older JDK Update releases, the crypto.policy property
-# is not defined by default. When the property is not defined, an
-# update release binary aware of the new property will use the following
-# logic to decide what crypto policy files get used :
-#
-# * If the US_export_policy.jar and local_policy.jar files are located
-# in the (legacy) <java-home>/lib/security directory, then the rules
-# embedded in those jar files will be used. This helps preserve compatibility
+# 2.  If the "crypto.policy" property is not set and the traditional
+#     US_export_policy.jar and local_policy.jar files
+#     (e.g. limited/unlimited) are found in the legacy
+#     <java-home>/lib/security directory, then the rules embedded within
+#     those jar files will be used. This helps preserve compatibility
 # for users upgrading from an older installation.
 #
-# * If crypto.policy is not defined and no such jar files are present in
-# the legacy locations, then the JDK will use the limited settings
-# (equivalent to crypto.policy=limited)
+# 3.  If the jar files are not present in the legacy location
+#     and the "crypto.policy" Security property is not defined,
+#     then the JDK will use the unlimited settings (equivalent to
+#     crypto.policy=unlimited)
 #
 # Please see the JCA documentation for additional information on these
 # files and formats.
+#
+# YOU ARE ADVISED TO CONSULT YOUR EXPORT/IMPORT CONTROL COUNSEL OR ATTORNEY
+# TO DETERMINE THE EXACT REQUIREMENTS.
+#
+# Please note that the JCE for Java SE, including the JCE framework,
+# cryptographic policy files, and standard JCE providers provided with
+# the Java SE, have been reviewed and approved for export as mass market
+# encryption item by the US Bureau of Industry and Security.
+#
+# Note: This property is currently used by the JDK Reference implementation.
+# It is not guaranteed to be examined and used by other implementations.
+#
 #crypto.policy=unlimited
 
 #
@@ -911,3 +914,24 @@ jdk.xml.dsig.secureValidationPolicy=\
 #    java.rmi.dgc.VMID;\
 #    java.rmi.dgc.Lease;\
 #    maxdepth=5;maxarray=10000
+
+# CORBA ORBIorTypeCheckRegistryFilter
+# Type check enhancement for ORB::string_to_object processing
+#
+# An IOR type check filter, if configured, is used by an ORB during
+# an ORB::string_to_object invocation to check the veracity of the type encoded
+# in the ior string.
+#
+# The filter pattern consists of a semi-colon separated list of class names.
+# The configured list contains the binary class names of the IDL interface types
+# corresponding to the IDL stub class to be instantiated.
+# As such, a filter specifies a list of IDL stub classes that will be
+# allowed by an ORB when an ORB::string_to_object is invoked.
+# It is used to specify a white list configuration of acceptable
+# IDL stub types which may be contained in a stringified IOR
+# parameter passed as input to an ORB::string_to_object method.
+#
+# Note: This property is currently used by the JDK Reference implementation.
+# It is not guaranteed to be examined and used by other implementations.
+#
+#com.sun.CORBA.ORBIorTypeCheckRegistryFilter=binary_class_name;binary_class_name

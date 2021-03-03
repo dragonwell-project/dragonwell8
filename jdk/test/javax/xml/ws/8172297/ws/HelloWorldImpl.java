@@ -1,12 +1,10 @@
 /*
- * Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 only, as
- * published by the Free Software Foundation.  Oracle designates this
- * particular file as subject to the "Classpath" exception as provided
- * by Oracle in the LICENSE file that accompanied this code.
+ * published by the Free Software Foundation.
  *
  * This code is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
@@ -23,21 +21,19 @@
  * questions.
  */
 
-package sun.misc;
+package ws;
 
-import java.io.ObjectStreamClass;
+import javax.jws.WebService;
 
-/**
- * A callback used by {@code ObjectInputStream} to do descriptor validation.
- *
- * @author sjiang
- */
-public interface ObjectStreamClassValidator {
-    /**
-     * This method will be called by ObjectInputStream to
-     * check a descriptor just before creating an object described by this descriptor.
-     * The object will not be created if this method throws a {@code RuntimeException}.
-     * @param descriptor descriptor to be checked.
-     */
-    public void validateDescriptor(ObjectStreamClass descriptor);
+// Simple web service implementation that echoes its parameter
+@WebService(endpointInterface = "ws.HelloWorld")
+public class HelloWorldImpl implements HelloWorld {
+
+    @Override
+    public String getHelloWorldAsString(String name) {
+        System.out.println("Server-side parameter value: '"
+                + name.replaceAll("\r", "#CR")
+                      .replaceAll("\n", "#NL") + "'");
+        return name;
+    }
 }
