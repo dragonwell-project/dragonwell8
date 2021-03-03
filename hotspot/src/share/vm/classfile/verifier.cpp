@@ -43,7 +43,7 @@
 #include "runtime/handles.inline.hpp"
 #include "runtime/interfaceSupport.hpp"
 #include "runtime/javaCalls.hpp"
-#include "runtime/orderAccess.hpp"
+#include "runtime/orderAccess.inline.hpp"
 #include "runtime/os.hpp"
 #ifdef TARGET_ARCH_x86
 # include "bytes_x86.hpp"
@@ -633,8 +633,6 @@ void ClassVerifier::verify_method(methodHandle m, TRAPS) {
   bool no_control_flow = false; // Set to true when there is no direct control
                                 // flow from current instruction to the next
                                 // instruction in sequence
-
-  set_furthest_jump(0);
 
   Bytecodes::Code opcode;
   while (!bcs.is_last_bytecode()) {
@@ -1794,7 +1792,7 @@ u2 ClassVerifier::verify_stackmap_table(u2 stackmap_index, u2 bci,
       // If matched, current_frame will be updated by this method.
       bool matches = stackmap_table->match_stackmap(
         current_frame, this_offset, stackmap_index,
-        !no_control_flow, true, &ctx, CHECK_VERIFY_(this, 0));
+        !no_control_flow, true, false, &ctx, CHECK_VERIFY_(this, 0));
       if (!matches) {
         // report type error
         verify_error(ctx, "Instruction type does not match stack map");
@@ -1841,7 +1839,7 @@ void ClassVerifier::verify_exception_handler_targets(u2 bci, bool this_uninit, S
       }
       ErrorContext ctx;
       bool matches = stackmap_table->match_stackmap(
-        new_frame, handler_pc, true, false, &ctx, CHECK_VERIFY(this));
+        new_frame, handler_pc, true, false, true, &ctx, CHECK_VERIFY(this));
       if (!matches) {
         verify_error(ctx, "Stack map does not match the one at "
             "exception handler %d", handler_pc);
@@ -2249,13 +2247,6 @@ void ClassVerifier::verify_invoke_init(
           TypeOrigin::implicit(ref_class_type),
           TypeOrigin::implicit(current_type())),
           "Bad <init> method call");
-      return;
-    }
-
-    // Make sure that this call is not jumped over.
-    if (bci < furthest_jump()) {
-      verify_error(ErrorContext::bad_code(bci),
-                   "Bad <init> method call from inside of a branch");
       return;
     }
 
