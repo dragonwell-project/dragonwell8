@@ -1392,7 +1392,6 @@ void nmethod::make_unloaded(BoolObjectClosure* is_alive, oop cause) {
   assert(_method == NULL, "Tautology");
 
   set_osr_link(NULL);
-  //set_scavenge_root_link(NULL); // done by prune_scavenge_root_nmethods
   NMethodSweeper::report_state_change(this);
 }
 
@@ -2176,6 +2175,7 @@ void nmethod::metadata_do(void f(Metadata*)) {
         }
       } else if (iter.type() == relocInfo::virtual_call_type) {
         // Check compiledIC holders associated with this nmethod
+        ResourceMark rm;
         CompiledIC *ic = CompiledIC_at(&iter);
         if (ic->is_icholder_call()) {
           CompiledICHolder* cichk = ic->cached_icholder();
