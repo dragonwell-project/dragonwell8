@@ -381,6 +381,7 @@ class Instruction: public CompilationResourceObj {
     UnorderedIsTrueFlag,
     NeedsPatchingFlag,
     ThrowIncompatibleClassChangeErrorFlag,
+    InvokeSpecialReceiverCheckFlag,
     ProfileMDOFlag,
     IsLinkedInBlockFlag,
     NeedsRangeCheckFlag,
@@ -1455,6 +1456,16 @@ LEAF(CheckCast, TypeCheck)
   }
   bool is_incompatible_class_change_check() const {
     return check_flag(ThrowIncompatibleClassChangeErrorFlag);
+  }
+  void set_invokespecial_receiver_check() {
+    set_flag(InvokeSpecialReceiverCheckFlag, true);
+  }
+  bool is_invokespecial_receiver_check() const {
+    return check_flag(InvokeSpecialReceiverCheckFlag);
+  }
+
+  virtual bool needs_exception_state() const {
+    return !is_invokespecial_receiver_check();
   }
 
   ciType* declared_type() const;
