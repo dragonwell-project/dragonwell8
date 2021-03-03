@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1996, 2014, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -570,6 +570,9 @@ public final class TimeZoneNames extends TimeZoneNamesBundle {
             {"Antarctica/Syowa", new String[] {"Syowa Time", "SYOT",
                                                "Syowa Summer Time", "SYOST",
                                                "Syowa Time", "SYOT"}},
+            {"Antarctica/Troll", new String[] {"Coordinated Universal Time", "UTC",
+                                               "Central European Summer Time", "CEST",
+                                               "Troll Time", "ATT"}},
             {"Antarctica/Vostok", new String[] {"Vostok Time", "VOST",
                                                 "Vostok Summer Time", "VOSST",
                                                 "Vostok Time", "VOST"}},
@@ -578,7 +581,7 @@ public final class TimeZoneNames extends TimeZoneNamesBundle {
             {"Asia/Almaty", new String[] {"Alma-Ata Time", "ALMT",
                                           "Alma-Ata Summer Time", "ALMST",
                                           "Alma-Ata Time", "ALMT"}},
-            {"Asia/Amman", ARAST},
+            {"Asia/Amman", EET},
             {"Asia/Anadyr", new String[] {"Anadyr Time", "ANAT",
                                           "Anadyr Summer Time", "ANAST",
                                           "Anadyr Time", "ANAT"}},
@@ -839,7 +842,7 @@ public final class TimeZoneNames extends TimeZoneNamesBundle {
                                             "Samara Time", "SAMT"}},
             {"Europe/San_Marino", CET},
             {"Europe/Sarajevo", CET},
-            {"Europe/Simferopol", EET},
+            {"Europe/Simferopol", MSK},
             {"Europe/Skopje", CET},
             {"Europe/Sofia", EET},
             {"Europe/Stockholm", CET},
