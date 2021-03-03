@@ -800,6 +800,18 @@ AWT_ASSERT_APPKIT_THREAD;
 
 - (void)sendEvent:(NSEvent *)event {
         if ([event type] == NSLeftMouseDown || [event type] == NSRightMouseDown || [event type] == NSOtherMouseDown) {
+            // Move parent windows to front and make sure that a child window is displayed
+            // in front of its nearest parent.
+            if (self.ownerWindow != nil) {
+                JNIEnv *env = [ThreadUtilities getJNIEnvUncached];
+                jobject platformWindow = [self.javaPlatformWindow jObjectWithEnv:env];
+                if (platformWindow != NULL) {
+                    static JNF_MEMBER_CACHE(jm_orderAboveSiblings, jc_CPlatformWindow, "orderAboveSiblings", "()V");
+                    JNFCallVoidMethod(env,platformWindow, jm_orderAboveSiblings);
+                    (*env)->DeleteLocalRef(env, platformWindow);
+                }
+            }
+            [self orderChildWindows:YES];
 
             NSPoint p = [NSEvent mouseLocation];
             NSRect frame = [self.nsWindow frame];
@@ -1100,6 +1112,16 @@ JNF_COCOA_ENTER(env);
     NSWindow *nsWindow = OBJC(windowPtr);
     [ThreadUtilities performOnMainThreadWaiting:NO block:^(){
         [nsWindow orderBack:nil];
+        // Order parent windows
+        AWTWindow *awtWindow = (AWTWindow*)[nsWindow delegate];
+        while (awtWindow.ownerWindow != nil) {
+            awtWindow = awtWindow.ownerWindow;
+            if ([AWTWindow isJavaPlatformWindowVisible:awtWindow.nsWindow]) {
+                [awtWindow.nsWindow orderBack:nil];
+            }
+        }
+        // Order child windows
+        [(AWTWindow*)[nsWindow delegate] orderChildWindows:NO];
     }];
 
 JNF_COCOA_EXIT(env);
@@ -1251,9 +1273,9 @@ JNICALL Java_sun_lwawt_macosx_CPlatformWindow_nativeGetTopmostPlatformWindowUnde
 /*
  * Class:     sun_lwawt_macosx_CPlatformWindow
  * Method:    nativeSynthesizeMouseEnteredExitedEvents
- * Signature: (J)V
+ * Signature: ()V
  */
-JNIEXPORT void JNICALL Java_sun_lwawt_macosx_CPlatformWindow_nativeSynthesizeMouseEnteredExitedEvents
+JNIEXPORT void JNICALL Java_sun_lwawt_macosx_CPlatformWindow_nativeSynthesizeMouseEnteredExitedEvents__
 (JNIEnv *env, jclass clazz)
 {
     JNF_COCOA_ENTER(env);
@@ -1263,6 +1285,29 @@ JNIEXPORT void JNICALL Java_sun_lwawt_macosx_CPlatformWindow_nativeSynthesizeMou
     }];
 
     JNF_COCOA_EXIT(env);
+}
+
+/*
+ * Class:     sun_lwawt_macosx_CPlatformWindow
+ * Method:    nativeSynthesizeMouseEnteredExitedEvents
+ * Signature: (JI)V
+ */
+JNIEXPORT void JNICALL Java_sun_lwawt_macosx_CPlatformWindow_nativeSynthesizeMouseEnteredExitedEvents__JI
+(JNIEnv *env, jclass clazz, jlong windowPtr, jint eventType)
+{
+JNF_COCOA_ENTER(env);
+
+    if (eventType == NSMouseEntered || eventType == NSMouseExited) {
+        NSWindow *nsWindow = OBJC(windowPtr);
+
+        [ThreadUtilities performOnMainThreadWaiting:NO block:^(){
+            [AWTWindow synthesizeMouseEnteredExitedEvents:nsWindow withType:eventType];
+        }];
+    } else {
+        [JNFException raise:env as:kIllegalArgumentException reason:"unknown event type"];
+    }
+    
+JNF_COCOA_EXIT(env);
 }
 
 /*
