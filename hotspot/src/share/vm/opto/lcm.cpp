@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -30,25 +30,17 @@
 #include "opto/cfgnode.hpp"
 #include "opto/machnode.hpp"
 #include "opto/runtime.hpp"
-#ifdef TARGET_ARCH_MODEL_x86_32
+#if defined AD_MD_HPP
+# include AD_MD_HPP
+#elif defined TARGET_ARCH_MODEL_x86_32
 # include "adfiles/ad_x86_32.hpp"
-#endif
-#ifdef TARGET_ARCH_MODEL_x86_64
+#elif defined TARGET_ARCH_MODEL_x86_64
 # include "adfiles/ad_x86_64.hpp"
-#endif
-#ifdef TARGET_ARCH_MODEL_sparc
+#elif defined TARGET_ARCH_MODEL_sparc
 # include "adfiles/ad_sparc.hpp"
-#endif
-#ifdef TARGET_ARCH_MODEL_zero
+#elif defined TARGET_ARCH_MODEL_zero
 # include "adfiles/ad_zero.hpp"
-#endif
-#ifdef TARGET_ARCH_MODEL_arm
-# include "adfiles/ad_arm.hpp"
-#endif
-#ifdef TARGET_ARCH_MODEL_ppc_32
-# include "adfiles/ad_ppc_32.hpp"
-#endif
-#ifdef TARGET_ARCH_MODEL_ppc_64
+#elif defined TARGET_ARCH_MODEL_ppc_64
 # include "adfiles/ad_ppc_64.hpp"
 #endif
 
@@ -437,8 +429,15 @@ void PhaseCFG::implicit_null_check(Block* block, Node *proj, Node *val, int allo
   for (DUIterator_Last i2min, i2 = old_tst->last_outs(i2min); i2 >= i2min; --i2)
     old_tst->last_out(i2)->set_req(0, nul_chk);
   // Clean-up any dead code
-  for (uint i3 = 0; i3 < old_tst->req(); i3++)
+  for (uint i3 = 0; i3 < old_tst->req(); i3++) {
+    Node* in = old_tst->in(i3);
     old_tst->set_req(i3, NULL);
+    if (in->outcnt() == 0) {
+      // Remove dead input node
+      in->disconnect_inputs(NULL, C);
+      block->find_remove(in);
+    }
+  }
 
   latency_from_uses(nul_chk);
   latency_from_uses(best);
