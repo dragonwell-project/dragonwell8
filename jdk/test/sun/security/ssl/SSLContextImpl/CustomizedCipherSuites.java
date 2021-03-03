@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,60 +26,61 @@
 
 /*
  * @test
- * @bug 8162362
+ * @bug 8162362 8208350
  * @summary Cannot enable previously default enabled cipher suites
  * @run main/othervm
  *      CustomizedCipherSuites Default true
  *      TLS_RSA_WITH_AES_128_CBC_SHA
- *      SSL_RSA_WITH_DES_CBC_SHA
+ *      TLS_ECDH_anon_WITH_AES_128_CBC_SHA
  * @run main/othervm
  *      -Djdk.tls.client.cipherSuites="unknown"
  *      CustomizedCipherSuites Default true
  *      TLS_RSA_WITH_AES_128_CBC_SHA
- *      SSL_RSA_WITH_DES_CBC_SHA
+ *      TLS_ECDH_anon_WITH_AES_128_CBC_SHA
  * @run main/othervm
  *      -Djdk.tls.client.cipherSuites=""
  *      CustomizedCipherSuites Default true
  *      TLS_RSA_WITH_AES_128_CBC_SHA
- *      SSL_RSA_WITH_DES_CBC_SHA
+ *      TLS_ECDH_anon_WITH_AES_128_CBC_SHA
  * @run main/othervm
- *      -Djdk.tls.client.cipherSuites="SSL_RSA_WITH_DES_CBC_SHA"
+ *      -Djdk.tls.client.cipherSuites="TLS_ECDH_anon_WITH_AES_128_CBC_SHA"
  *      CustomizedCipherSuites Default true
- *      SSL_RSA_WITH_DES_CBC_SHA
+ *      TLS_ECDH_anon_WITH_AES_128_CBC_SHA
  *      TLS_RSA_WITH_AES_128_CBC_SHA
  * @run main/othervm
- *      -Djdk.tls.server.cipherSuites="SSL_RSA_WITH_DES_CBC_SHA"
+ *      -Djdk.tls.server.cipherSuites="TLS_ECDH_anon_WITH_AES_128_CBC_SHA"
  *      CustomizedCipherSuites Default false
- *      SSL_RSA_WITH_DES_CBC_SHA
+ *      TLS_ECDH_anon_WITH_AES_128_CBC_SHA
  *      TLS_RSA_WITH_AES_128_CBC_SHA
  * @run main/othervm
- *      -Djdk.tls.client.cipherSuites="TLS_RSA_WITH_AES_128_CBC_SHA,unknown,SSL_RSA_WITH_DES_CBC_SHA"
+ *      -Djdk.tls.client.cipherSuites="TLS_RSA_WITH_AES_128_CBC_SHA,unknown,TLS_ECDH_anon_WITH_AES_128_CBC_SHA"
  *      CustomizedCipherSuites Default true
- *      SSL_RSA_WITH_DES_CBC_SHA
+ *      TLS_ECDH_anon_WITH_AES_128_CBC_SHA
  *      ""
  * @run main/othervm
- *      -Djdk.tls.server.cipherSuites="TLS_RSA_WITH_AES_128_CBC_SHA,unknown,SSL_RSA_WITH_DES_CBC_SHA"
+ *      -Djdk.tls.server.cipherSuites="TLS_RSA_WITH_AES_128_CBC_SHA,unknown,TLS_ECDH_anon_WITH_AES_128_CBC_SHA"
  *      CustomizedCipherSuites Default false
  *      TLS_RSA_WITH_AES_128_CBC_SHA
  *      ""
  * @run main/othervm
- *      -Djdk.tls.server.cipherSuites="SSL_RSA_WITH_DES_CBC_SHA"
+ *      -Djdk.tls.server.cipherSuites="TLS_ECDH_anon_WITH_AES_128_CBC_SHA"
  *      CustomizedCipherSuites Default true
  *      TLS_RSA_WITH_AES_128_CBC_SHA
- *      SSL_RSA_WITH_DES_CBC_SHA
+ *      TLS_ECDH_anon_WITH_AES_128_CBC_SHA
  * @run main/othervm
- *      -Djdk.tls.client.cipherSuites="SSL_RSA_WITH_DES_CBC_SHA"
+ *      -Djdk.tls.client.cipherSuites="TLS_ECDH_anon_WITH_AES_128_CBC_SHA"
  *      CustomizedCipherSuites Default false
  *      TLS_RSA_WITH_AES_128_CBC_SHA
- *      SSL_RSA_WITH_DES_CBC_SHA
+ *      TLS_ECDH_anon_WITH_AES_128_CBC_SHA
  */
 
+import java.security.Security;
 import javax.net.ssl.*;
 
 /**
  * Test the customized default cipher suites.
  *
- * This test is based on the behavior that SSL_RSA_WITH_DES_CBC_SHA is
+ * This test is based on the behavior that TLS_ECDH_anon_WITH_AES_128_CBC_SHA is
  * disabled by default, and TLS_RSA_WITH_AES_128_CBC_SHA is enabled by
  * default in JDK.  If the behavior is changed in the future, please
  * update the test cases above accordingly.
@@ -90,14 +91,18 @@ public class CustomizedCipherSuites {
     private static boolean isClientMode;
 
     private static String enabledCipherSuite;
-    private static String disabledCipherSuite;
+    private static String notEnabledCipherSuite;
 
     public static void main(String[] args) throws Exception {
+
+        // reset the security property to make sure the cipher suites
+        // used in this test are not disabled
+        Security.setProperty("jdk.tls.disabledAlgorithms", "");
 
         contextProtocol = trimQuotes(args[0]);
         isClientMode = Boolean.parseBoolean(args[1]);
         enabledCipherSuite = trimQuotes(args[2]);
-        disabledCipherSuite = trimQuotes(args[3]);
+        notEnabledCipherSuite = trimQuotes(args[3]);
 
         //
         // Create instance of SSLContext with the specified protocol.
@@ -206,8 +211,8 @@ public class CustomizedCipherSuites {
                 isMatch = true;
             }
 
-            if (!disabledCipherSuite.isEmpty() &&
-                        cipher.equals(disabledCipherSuite)) {
+            if (!notEnabledCipherSuite.isEmpty() &&
+                        cipher.equals(notEnabledCipherSuite)) {
                 isBroken = true;
             }
         }
@@ -219,7 +224,7 @@ public class CustomizedCipherSuites {
 
         if (isBroken) {
             throw new Exception(
-                "Cipher suite " + disabledCipherSuite + " should be disabled");
+                "Cipher suite " + notEnabledCipherSuite + " should not be enabled");
         }
     }
 
@@ -231,7 +236,7 @@ public class CustomizedCipherSuites {
         }
 
         boolean hasEnabledCipherSuite = enabledCipherSuite.isEmpty();
-        boolean hasDisabledCipherSuite = disabledCipherSuite.isEmpty();
+        boolean hasNotEnabledCipherSuite = notEnabledCipherSuite.isEmpty();
         for (String cipher : ciphers) {
             System.out.println("\tsupported cipher suite " + cipher);
             if (!enabledCipherSuite.isEmpty() &&
@@ -239,9 +244,9 @@ public class CustomizedCipherSuites {
                 hasEnabledCipherSuite = true;
             }
 
-            if (!disabledCipherSuite.isEmpty() &&
-                        cipher.equals(disabledCipherSuite)) {
-                hasDisabledCipherSuite = true;
+            if (!notEnabledCipherSuite.isEmpty() &&
+                        cipher.equals(notEnabledCipherSuite)) {
+                hasNotEnabledCipherSuite = true;
             }
         }
 
@@ -250,9 +255,9 @@ public class CustomizedCipherSuites {
                 "Cipher suite " + enabledCipherSuite + " should be supported");
         }
 
-        if (!hasDisabledCipherSuite) {
+        if (!hasNotEnabledCipherSuite) {
             throw new Exception(
-                "Cipher suite " + disabledCipherSuite + " should be supported");
+                "Cipher suite " + notEnabledCipherSuite + " should not be enabled");
         }
     }
 
