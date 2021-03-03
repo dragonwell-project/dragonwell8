@@ -3647,7 +3647,7 @@ ac_configure="$SHELL $ac_aux_dir/configure"  # Please don't use this var.
 
 
 #
-# Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
 # DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 #
 # This code is free software; you can redistribute it and/or modify it
@@ -4376,7 +4376,7 @@ VS_SDK_PLATFORM_NAME_2017=
 #CUSTOM_AUTOCONF_INCLUDE
 
 # Do not change or remove the following line, it is needed for consistency checks:
-DATE_WHEN_GENERATED=1560366811
+DATE_WHEN_GENERATED=1565358475
 
 ###############################################################################
 #
@@ -51978,8 +51978,11 @@ $as_echo_n "checking for number of cores... " >&6; }
     NUM_CORES=`/usr/sbin/system_profiler -detailLevel full SPHardwareDataType | grep 'Cores' | awk  '{print $5}'`
     FOUND_CORES=yes
   elif test "x$OPENJDK_BUILD_OS" = xaix ; then
-    NUM_CORES=`/usr/sbin/prtconf | grep "^Number Of Processors" | awk '{ print $4 }'`
-    FOUND_CORES=yes
+    NUM_LCPU=`lparstat -m 2> /dev/null | $GREP -o "lcpu=[0-9]*" | $CUT -d "=" -f 2`
+    if test -n "$NUM_LCPU"; then
+      NUM_CORES=$NUM_LCPU
+      FOUND_CORES=yes
+    fi
   elif test -n "$NUMBER_OF_PROCESSORS"; then
     # On windows, look in the env
     NUM_CORES=$NUMBER_OF_PROCESSORS

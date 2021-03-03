@@ -1537,12 +1537,19 @@ bool IdealLoopTree::dominates_backedge(Node* ctrl) {
 
 //------------------------------adjust_limit-----------------------------------
 // Helper function for add_constraint().
-Node* PhaseIdealLoop::adjust_limit(int stride_con, Node * scale, Node *offset, Node *rc_limit, Node *loop_limit, Node *pre_ctrl) {
+Node* PhaseIdealLoop::adjust_limit(int stride_con, Node * scale, Node *offset, Node *rc_limit, Node *loop_limit, Node *pre_ctrl, bool round_up) {
   // Compute "I :: (limit-offset)/scale"
   Node *con = new (C) SubINode(rc_limit, offset);
   register_new_node(con, pre_ctrl);
   Node *X = new (C) DivINode(0, con, scale);
   register_new_node(X, pre_ctrl);
+
+  // When the absolute value of scale is greater than one, the integer
+  // division may round limit down so add one to the limit.
+  if (round_up) {
+    X = new (C) AddINode(X, _igvn.intcon(1));
+    register_new_node(X, pre_ctrl);
+  }
 
   // Adjust loop limit
   loop_limit = (stride_con > 0)
@@ -1584,7 +1591,7 @@ void PhaseIdealLoop::add_constraint( int stride_con, int scale_con, Node *offset
     // (upper_limit-offset) may overflow or underflow.
     // But it is fine since main loop will either have
     // less iterations or will be skipped in such case.
-    *main_limit = adjust_limit(stride_con, scale, offset, upper_limit, *main_limit, pre_ctrl);
+    *main_limit = adjust_limit(stride_con, scale, offset, upper_limit, *main_limit, pre_ctrl, false);
 
     // The underflow limit: low_limit <= scale*I+offset.
     // For pre-loop compute
@@ -1620,7 +1627,8 @@ void PhaseIdealLoop::add_constraint( int stride_con, int scale_con, Node *offset
       // max(pre_limit, original_limit) is used in do_range_check().
     }
     // Pass (-stride) to indicate pre_loop_cond = NOT(main_loop_cond);
-    *pre_limit = adjust_limit((-stride_con), scale, offset, low_limit, *pre_limit, pre_ctrl);
+    *pre_limit = adjust_limit((-stride_con), scale, offset, low_limit, *pre_limit, pre_ctrl,
+                              scale_con > 1 && stride_con > 0);
 
   } else { // stride_con*scale_con < 0
     // For negative stride*scale pre-loop checks for overflow and
@@ -1646,7 +1654,8 @@ void PhaseIdealLoop::add_constraint( int stride_con, int scale_con, Node *offset
     Node *plus_one = new (C) AddINode(offset, one);
     register_new_node( plus_one, pre_ctrl );
     // Pass (-stride) to indicate pre_loop_cond = NOT(main_loop_cond);
-    *pre_limit = adjust_limit((-stride_con), scale, plus_one, upper_limit, *pre_limit, pre_ctrl);
+    *pre_limit = adjust_limit((-stride_con), scale, plus_one, upper_limit, *pre_limit, pre_ctrl,
+                              scale_con < -1 && stride_con > 0);
 
     if (low_limit->get_int() == -max_jint) {
       if (!RangeLimitCheck) return;
@@ -1681,7 +1690,8 @@ void PhaseIdealLoop::add_constraint( int stride_con, int scale_con, Node *offset
     //       I > (low_limit-(offset+1))/scale
     //   )
 
-    *main_limit = adjust_limit(stride_con, scale, plus_one, low_limit, *main_limit, pre_ctrl);
+    *main_limit = adjust_limit(stride_con, scale, plus_one, low_limit, *main_limit, pre_ctrl,
+                               false);
   }
 }
 
