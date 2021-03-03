@@ -1308,9 +1308,6 @@ static GtkWidget *gtk2_get_widget(WidgetType widget_type)
             {
                 result = gtk2_widgets[_GTK_COMBO_BOX_TEXT_FIELD_TYPE] =
                      (*fp_gtk_entry_new)();
-
-                GtkSettings* settings = fp_gtk_widget_get_settings(result);
-                fp_g_object_set(settings, "gtk-cursor-blink", FALSE, NULL);
             }
             result = gtk2_widgets[_GTK_COMBO_BOX_TEXT_FIELD_TYPE];
             break;
@@ -1355,10 +1352,6 @@ static GtkWidget *gtk2_get_widget(WidgetType widget_type)
             {
                 gtk2_widgets[_GTK_ENTRY_TYPE] =
                     (*fp_gtk_entry_new)();
-
-                GtkSettings* settings =
-                    fp_gtk_widget_get_settings(gtk2_widgets[_GTK_ENTRY_TYPE]);
-                fp_g_object_set(settings, "gtk-cursor-blink", FALSE, NULL);
             }
             result = gtk2_widgets[_GTK_ENTRY_TYPE];
             break;
@@ -1550,9 +1543,6 @@ static GtkWidget *gtk2_get_widget(WidgetType widget_type)
             {
                 result = gtk2_widgets[_GTK_SPIN_BUTTON_TYPE] =
                     (*fp_gtk_spin_button_new)(NULL, 0, 0);
-
-                GtkSettings* settings = fp_gtk_widget_get_settings(result);
-                fp_g_object_set(settings, "gtk-cursor-blink", FALSE, NULL);
             }
             result = gtk2_widgets[_GTK_SPIN_BUTTON_TYPE];
             break;
@@ -2502,14 +2492,20 @@ jobject get_string_property(JNIEnv *env, GtkSettings* settings, const gchar* key
 
     return result;
 }
-/*
+
 jobject get_integer_property(JNIEnv *env, GtkSettings* settings, const gchar* key)
 {
-    gint    intval = NULL;
-
+    gint intval = NULL;
     (*fp_g_object_get)(settings, key, &intval, NULL);
     return create_Integer(env, intval);
-}*/
+}
+
+jobject get_boolean_property(JNIEnv *env, GtkSettings* settings, const gchar* key)
+{
+    gint intval = NULL;
+    (*fp_g_object_get)(settings, key, &intval, NULL);
+    return create_Boolean(env, intval);
+}
 
 jobject gtk2_get_setting(JNIEnv *env, Setting property)
 {
@@ -2521,6 +2517,10 @@ jobject gtk2_get_setting(JNIEnv *env, Setting property)
             return get_string_property(env, settings, "gtk-font-name");
         case GTK_ICON_SIZES:
             return get_string_property(env, settings, "gtk-icon-sizes");
+        case GTK_CURSOR_BLINK:
+            return get_boolean_property(env, settings, "gtk-cursor-blink");
+        case GTK_CURSOR_BLINK_TIME:
+            return get_integer_property(env, settings, "gtk-cursor-blink-time");
     }
 
     return NULL;

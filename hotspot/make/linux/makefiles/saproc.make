@@ -100,14 +100,15 @@ $(LIBSAPROC): $(SASRCFILES) $(SAMAPFILE)
 	           -lthread_db
 ifeq ($(ENABLE_FULL_DEBUG_SYMBOLS),1)
 	$(QUIETLY) $(OBJCOPY) --only-keep-debug $@ $(LIBSAPROC_DEBUGINFO)
-	$(QUIETLY) $(OBJCOPY) --add-gnu-debuglink=$(LIBSAPROC_DEBUGINFO) $@
   ifeq ($(STRIP_POLICY),all_strip)
+	$(QUIETLY) $(OBJCOPY) --add-gnu-debuglink=$(LIBSAPROC_DEBUGINFO) $@
 	$(QUIETLY) $(STRIP) $@
   else
     ifeq ($(STRIP_POLICY),min_strip)
+	$(QUIETLY) $(OBJCOPY) --add-gnu-debuglink=$(LIBSAPROC_DEBUGINFO) $@
 	$(QUIETLY) $(STRIP) -g $@
-    # implied else here is no stripping at all
     endif
+    # implied else here is no stripping at all
   endif
   ifeq ($(ZIP_DEBUGINFO_FILES),1)
 	$(ZIPEXE) -q -y $(LIBSAPROC_DIZ) $(LIBSAPROC_DEBUGINFO)

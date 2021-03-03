@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -426,9 +426,9 @@ void OopMapCacheEntry::flush() {
 
 #ifndef PRODUCT
 
-static long _total_memory_usage = 0;
+static size_t _total_memory_usage = 0;
 
-long OopMapCache::memory_usage() {
+size_t OopMapCache::memory_usage() {
   return _total_memory_usage;
 }
 
