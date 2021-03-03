@@ -551,11 +551,10 @@ public class FileChannelImpl
     {
         // Untrusted target: Use a newly-erased buffer
         int c = Math.min(icount, TRANSFER_SIZE);
-        ByteBuffer bb = Util.getTemporaryDirectBuffer(c);
+        ByteBuffer bb = ByteBuffer.allocate(c);
         long tw = 0;                    // Total bytes written
         long pos = position;
         try {
-            Util.erase(bb);
             while (tw < icount) {
                 bb.limit(Math.min((int)(icount - tw), TRANSFER_SIZE));
                 int nr = read(bb, pos);
@@ -576,8 +575,6 @@ public class FileChannelImpl
             if (tw > 0)
                 return tw;
             throw x;
-        } finally {
-            Util.releaseTemporaryDirectBuffer(bb);
         }
     }
 
@@ -661,11 +658,10 @@ public class FileChannelImpl
     {
         // Untrusted target: Use a newly-erased buffer
         int c = (int)Math.min(count, TRANSFER_SIZE);
-        ByteBuffer bb = Util.getTemporaryDirectBuffer(c);
+        ByteBuffer bb = ByteBuffer.allocate(c);
         long tw = 0;                    // Total bytes written
         long pos = position;
         try {
-            Util.erase(bb);
             while (tw < count) {
                 bb.limit((int)Math.min((count - tw), (long)TRANSFER_SIZE));
                 // ## Bug: Will block reading src if this channel
@@ -686,8 +682,6 @@ public class FileChannelImpl
             if (tw > 0)
                 return tw;
             throw x;
-        } finally {
-            Util.releaseTemporaryDirectBuffer(bb);
         }
     }
 
