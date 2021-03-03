@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 2012, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1996, 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,6 +26,7 @@ package sun.rmi.transport;
 
 import java.lang.ref.PhantomReference;
 import java.lang.ref.ReferenceQueue;
+import java.net.SocketPermission;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
 import java.util.HashMap;
@@ -45,6 +46,10 @@ import sun.rmi.runtime.NewThreadAction;
 import sun.rmi.server.UnicastRef;
 import sun.rmi.server.Util;
 import sun.security.action.GetLongAction;
+
+import java.security.AccessControlContext;
+import java.security.Permissions;
+import java.security.ProtectionDomain;
 
 /**
  * DGCClient implements the client-side of the RMI distributed garbage
@@ -112,6 +117,18 @@ final class DGCClient {
 
     /** ObjID for server-side DGC object */
     private static final ObjID dgcID = new ObjID(ObjID.DGC_ID);
+
+    /**
+     * An AccessControlContext with only socket permissions,
+     * suitable for an RMIClientSocketFactory.
+     */
+    private static final AccessControlContext SOCKET_ACC;
+    static {
+        Permissions perms = new Permissions();
+        perms.add(new SocketPermission("*", "connect,resolve"));
+        ProtectionDomain[] pd = { new ProtectionDomain(null, perms) };
+        SOCKET_ACC = new AccessControlContext(pd);
+    }
 
     /*
      * Disallow anyone from creating one of these.
@@ -570,13 +587,20 @@ final class DGCClient {
                         }
                     }
 
-                    if (needRenewal) {
-                        makeDirtyCall(refsToDirty, sequenceNum);
-                    }
+                    boolean needRenewal_ = needRenewal;
+                    Set<RefEntry> refsToDirty_ = refsToDirty;
+                    long sequenceNum_ = sequenceNum;
+                    AccessController.doPrivileged(new PrivilegedAction<Void>() {
+                        public Void run() {
+                            if (needRenewal_) {
+                                makeDirtyCall(refsToDirty_, sequenceNum_);
+                            }
 
-                    if (!pendingCleans.isEmpty()) {
-                        makeCleanCalls();
-                    }
+                            if (!pendingCleans.isEmpty()) {
+                                makeCleanCalls();
+                            }
+                            return null;
+                        }}, SOCKET_ACC);
                 } while (!removed || !pendingCleans.isEmpty());
             }
         }
