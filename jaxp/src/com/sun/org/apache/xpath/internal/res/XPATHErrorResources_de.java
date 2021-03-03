@@ -429,7 +429,7 @@ public static final String ER_IGNORABLE_WHITESPACE_NOT_HANDLED =
      "ERROR. Unbekannter Vorgangscode: {0}"},
 
   { ER_EXTRA_ILLEGAL_TOKENS,
-     "Zus\u00E4tzliche ung\u00FCltige Tokens: {0}"},
+     "Zus\u00E4tzliche unzul\u00E4ssige Tokens: {0}"},
 
   { ER_EXPECTED_DOUBLE_QUOTE,
       "Literal in falschen Anf\u00FChrungszeichen... Doppelte Anf\u00FChrungszeichen erwartet."},
@@ -456,10 +456,10 @@ public static final String ER_IGNORABLE_WHITESPACE_NOT_HANDLED =
       "\",\" gefunden, aber kein folgendes Argument vorhanden."},
 
   { ER_PREDICATE_ILLEGAL_SYNTAX,
-      "\"..[predicate]\" oder \".[predicate]\" ist ung\u00FCltige Syntax. Verwenden Sie stattdessen \"self::node()[predicate]\"."},
+      "\"..[predicate]\" oder \".[predicate]\" ist unzul\u00E4ssige Syntax. Verwenden Sie stattdessen \"self::node()[predicate]\"."},
 
   { ER_ILLEGAL_AXIS_NAME,
-     "Ung\u00FCltiger Achsenname: {0}"},
+     "Unzul\u00E4ssiger Achsenname: {0}"},
 
   { ER_UNKNOWN_NODETYPE,
      "Unbekannter Knotentyp: {0}"},
