@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -50,6 +50,7 @@ public class ZipFSTester {
             test1(fs);
             test2(fs);   // more tests
             testTime(Paths.get(args[0]));
+            test8069211();
         }
     }
 
@@ -376,6 +377,29 @@ public class ZipFSTester {
             throw new RuntimeException("Timestamp Copy Failed!");
         }
         Files.delete(fsPath);
+    }
+
+    static void test8069211() throws Exception {
+        // create a new filesystem, copy this file into it
+        Map<String, Object> env = new HashMap<String, Object>();
+        env.put("create", "true");
+        Path fsPath = getTempPath();
+        try (FileSystem fs = newZipFileSystem(fsPath, env);) {
+            OutputStream out = Files.newOutputStream(fs.getPath("/foo"));
+            out.write("hello".getBytes());
+            out.close();
+            out.close();
+        }
+        try (FileSystem fs = newZipFileSystem(fsPath, new HashMap<String, Object>())) {
+            if (!Arrays.equals(Files.readAllBytes(fs.getPath("/foo")),
+                               "hello".getBytes())) {
+                throw new RuntimeException("entry close() failed");
+            }
+        } catch (Exception x) {
+            throw new RuntimeException("entry close() failed", x);
+        } finally {
+            Files.delete(fsPath);
+        }
     }
 
     private static FileSystem newZipFileSystem(Path path, Map<String, ?> env)
