@@ -401,12 +401,11 @@ final class UNIXProcess extends Process {
     public synchronized boolean waitFor(long timeout, TimeUnit unit)
         throws InterruptedException
     {
+        long remainingNanos = unit.toNanos(timeout);    // throw NPE before other conditions
         if (hasExited) return true;
         if (timeout <= 0) return false;
 
-        long remainingNanos = unit.toNanos(timeout);
         long deadline = System.nanoTime() + remainingNanos;
-
         do {
             TimeUnit.NANOSECONDS.timedWait(this, remainingNanos);
             if (hasExited) {
