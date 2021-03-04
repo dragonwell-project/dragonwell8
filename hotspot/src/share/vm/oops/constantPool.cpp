@@ -235,14 +235,14 @@ Klass* ConstantPool::klass_at_impl(constantPoolHandle this_oop, int which, TRAPS
 
 
   // The original attempt to resolve this constant pool entry failed so find the
-  // original error and throw it again (JVMS 5.4.3).
+  // class of the original error and throw another error of the same class (JVMS 5.4.3).
+  // If there is a detail message, pass that detail message to the error constructor.
+  // The JVMS does not strictly require us to duplicate the same detail message,
+  // or any internal exception fields such as cause or stacktrace.  But since the
+  // detail message is often a class name or other literal string, we will repeat it if
+  // we can find it in the symbol table.
   if (in_error) {
-    Symbol* error = SystemDictionary::find_resolution_error(this_oop, which);
-    guarantee(error != (Symbol*)NULL, "tag mismatch with resolution error table");
-    ResourceMark rm;
-    // exception text will be the class name
-    const char* className = this_oop->unresolved_klass_at(which)->as_C_string();
-    THROW_MSG_0(error, className);
+    throw_resolution_error(this_oop, which, CHECK_0);
   }
 
   if (do_resolve) {
@@ -262,11 +262,6 @@ Klass* ConstantPool::klass_at_impl(constantPoolHandle this_oop, int which, TRAPS
     // Failed to resolve class. We must record the errors so that subsequent attempts
     // to resolve this constant pool entry fail with the same error (JVMS 5.4.3).
     if (HAS_PENDING_EXCEPTION) {
-      ResourceMark rm;
-      Symbol* error = PENDING_EXCEPTION->klass()->name();
-
-      bool throw_orig_error = false;
-      {
         MonitorLockerEx ml(this_oop->lock());
 
         // some other thread has beaten us and has resolved the class.
@@ -276,32 +271,9 @@ Klass* ConstantPool::klass_at_impl(constantPoolHandle this_oop, int which, TRAPS
           return entry.get_klass();
         }
 
-        if (!PENDING_EXCEPTION->
-              is_a(SystemDictionary::LinkageError_klass())) {
-          // Just throw the exception and don't prevent these classes from
-          // being loaded due to virtual machine errors like StackOverflow
-          // and OutOfMemoryError, etc, or if the thread was hit by stop()
-          // Needs clarification to section 5.4.3 of the VM spec (see 6308271)
-        }
-        else if (!this_oop->tag_at(which).is_unresolved_klass_in_error()) {
-          SystemDictionary::add_resolution_error(this_oop, which, error);
-          this_oop->tag_at_put(which, JVM_CONSTANT_UnresolvedClassInError);
-        } else {
-          // some other thread has put the class in error state.
-          error = SystemDictionary::find_resolution_error(this_oop, which);
-          assert(error != NULL, "checking");
-          throw_orig_error = true;
-        }
-      } // unlocked
-
-      if (throw_orig_error) {
-        CLEAR_PENDING_EXCEPTION;
-        ResourceMark rm;
-        const char* className = this_oop->unresolved_klass_at(which)->as_C_string();
-        THROW_MSG_0(error, className);
-      }
-
-      return 0;
+        // The tag could have changed to in-error before the lock but we have to
+        // handle that here for the class case.
+        save_and_throw_exception(this_oop, which, constantTag(JVM_CONSTANT_UnresolvedClass), CHECK_0);
     }
 
     if (TraceClassResolution && !k()->oop_is_array()) {
@@ -597,16 +569,51 @@ bool ConstantPool::resolve_class_constants(TRAPS) {
   return true;
 }
 
-// If resolution for MethodHandle or MethodType fails, save the exception
+Symbol* ConstantPool::exception_message(constantPoolHandle this_oop, int which, constantTag tag, oop pending_exception) {
+  // Dig out the detailed message to reuse if possible
+  Symbol* message = java_lang_Throwable::detail_message(pending_exception);
+  if (message != NULL) {
+    return message;
+  }
+
+  // Return specific message for the tag
+  switch (tag.value()) {
+  case JVM_CONSTANT_UnresolvedClass:
+    // return the class name in the error message
+    message = this_oop->unresolved_klass_at(which);
+    break;
+  case JVM_CONSTANT_MethodHandle:
+    // return the method handle name in the error message
+    message = this_oop->method_handle_name_ref_at(which);
+    break;
+  case JVM_CONSTANT_MethodType:
+    // return the method type signature in the error message
+    message = this_oop->method_type_signature_at(which);
+    break;
+  default:
+    ShouldNotReachHere();
+  }
+
+  return message;
+}
+
+void ConstantPool::throw_resolution_error(constantPoolHandle this_oop, int which, TRAPS) {
+  Symbol* message = NULL;
+  Symbol* error = SystemDictionary::find_resolution_error(this_oop, which, &message);
+  assert(error != NULL && message != NULL, "checking");
+  CLEAR_PENDING_EXCEPTION;
+  ResourceMark rm;
+  THROW_MSG(error, message->as_C_string());
+}
+
+// If resolution for Class, MethodHandle or MethodType fails, save the exception
 // in the resolution error table, so that the same exception is thrown again.
 void ConstantPool::save_and_throw_exception(constantPoolHandle this_oop, int which,
-                                     int tag, TRAPS) {
-  ResourceMark rm;
+                                            constantTag tag, TRAPS) {
+  assert(this_oop->lock()->is_locked(), "constant pool lock should be held");
   Symbol* error = PENDING_EXCEPTION->klass()->name();
-  MonitorLockerEx ml(this_oop->lock());  // lock cpool to change tag.
 
-  int error_tag = (tag == JVM_CONSTANT_MethodHandle) ?
-           JVM_CONSTANT_MethodHandleInError : JVM_CONSTANT_MethodTypeInError;
+  int error_tag = tag.error_value();
 
   if (!PENDING_EXCEPTION->
     is_a(SystemDictionary::LinkageError_klass())) {
@@ -614,18 +621,19 @@ void ConstantPool::save_and_throw_exception(constantPoolHandle this_oop, int whi
     // being loaded due to virtual machine errors like StackOverflow
     // and OutOfMemoryError, etc, or if the thread was hit by stop()
     // Needs clarification to section 5.4.3 of the VM spec (see 6308271)
-
   } else if (this_oop->tag_at(which).value() != error_tag) {
-    SystemDictionary::add_resolution_error(this_oop, which, error);
+    Symbol* message = exception_message(this_oop, which, tag, PENDING_EXCEPTION);
+    SystemDictionary::add_resolution_error(this_oop, which, error, message);
     this_oop->tag_at_put(which, error_tag);
   } else {
-    // some other thread has put the class in error state.
-    error = SystemDictionary::find_resolution_error(this_oop, which);
-    assert(error != NULL, "checking");
-    CLEAR_PENDING_EXCEPTION;
-    THROW_MSG(error, "");
+    // some other thread put this in error state
+    throw_resolution_error(this_oop, which, CHECK);
   }
+
+  // This exits with some pending exception
+  assert(HAS_PENDING_EXCEPTION, "should not be cleared");
 }
+
 
 
 // Called to resolve constants in the constant pool and return an oop.
@@ -655,9 +663,9 @@ oop ConstantPool::resolve_constant_at_impl(constantPoolHandle this_oop, int inde
 
   jvalue prim_value;  // temp used only in a few cases below
 
-  int tag_value = this_oop->tag_at(index).value();
+  constantTag tag = this_oop->tag_at(index);
 
-  switch (tag_value) {
+  switch (tag.value()) {
 
   case JVM_CONSTANT_UnresolvedClass:
   case JVM_CONSTANT_UnresolvedClassInError:
@@ -682,10 +690,7 @@ oop ConstantPool::resolve_constant_at_impl(constantPoolHandle this_oop, int inde
   case JVM_CONSTANT_MethodHandleInError:
   case JVM_CONSTANT_MethodTypeInError:
     {
-      Symbol* error = SystemDictionary::find_resolution_error(this_oop, index);
-      guarantee(error != (Symbol*)NULL, "tag mismatch with resolution error table");
-      ResourceMark rm;
-      THROW_MSG_0(error, "");
+      throw_resolution_error(this_oop, index, CHECK_NULL);
       break;
     }
 
@@ -709,7 +714,8 @@ oop ConstantPool::resolve_constant_at_impl(constantPoolHandle this_oop, int inde
                                                                    THREAD);
       result_oop = value();
       if (HAS_PENDING_EXCEPTION) {
-        save_and_throw_exception(this_oop, index, tag_value, CHECK_NULL);
+        MonitorLockerEx ml(this_oop->lock());  // lock cpool to change tag.
+        save_and_throw_exception(this_oop, index, tag, CHECK_NULL);
       }
       break;
     }
@@ -725,7 +731,8 @@ oop ConstantPool::resolve_constant_at_impl(constantPoolHandle this_oop, int inde
       Handle value = SystemDictionary::find_method_handle_type(signature, klass, THREAD);
       result_oop = value();
       if (HAS_PENDING_EXCEPTION) {
-        save_and_throw_exception(this_oop, index, tag_value, CHECK_NULL);
+        MonitorLockerEx ml(this_oop->lock());  // lock cpool to change tag.
+        save_and_throw_exception(this_oop, index, tag, CHECK_NULL);
       }
       break;
     }
@@ -756,7 +763,7 @@ oop ConstantPool::resolve_constant_at_impl(constantPoolHandle this_oop, int inde
 
   default:
     DEBUG_ONLY( tty->print_cr("*** %p: tag at CP[%d/%d] = %d",
-                              this_oop(), index, cache_index, tag_value) );
+                              this_oop(), index, cache_index, tag.value()));
     assert(false, "unexpected constant tag");
     break;
   }
