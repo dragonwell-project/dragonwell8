@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1996, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -54,7 +54,6 @@ public:
     /* sun.awt.windows.WEmbeddedFrame fields and method IDs */
     static jfieldID handleID;
 
-    static jmethodID setExtendedStateMID;
     static jmethodID getExtendedStateMID;
 
     /* method id for WEmbeddedFrame.requestActivate() method */
@@ -87,8 +86,6 @@ public:
     /* Returns whether this window is in zoomed state. */
     INLINE BOOL isZoomed() { return m_zoomed; }
     INLINE void setZoomed(BOOL b) { m_zoomed = b; }
-
-    void SendWindowStateEvent(int oldState, int newState);
 
     void Show();
 

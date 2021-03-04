@@ -41,8 +41,6 @@ public class SharedBaseAddress {
     };
 
     public static void main(String[] args) throws Exception {
-        // Known issue on Solaris-Sparc
-        // @ignore JDK-8044600
         if (Platform.isSolaris() && Platform.isSparc())
             return;
 
