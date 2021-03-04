@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -2088,8 +2088,8 @@ class MutableBigInteger {
     }
 
     /**
-     * Calculate the multiplicative inverse of this mod mod, where mod is odd.
-     * This and mod are not changed by the calculation.
+     * Calculate the multiplicative inverse of this modulo mod, where the mod
+     * argument is odd.  This and mod are not changed by the calculation.
      *
      * This method implements an algorithm due to Richard Schroeppel, that uses
      * the same intermediate representation as Montgomery Reduction
@@ -2143,8 +2143,18 @@ class MutableBigInteger {
             k += trailingZeros;
         }
 
-        while (c.sign < 0)
-           c.signedAdd(p);
+        if (c.compare(p) >= 0) { // c has a larger magnitude than p
+            MutableBigInteger remainder = c.divide(p,
+                new MutableBigInteger());
+            // The previous line ignores the sign so we copy the data back
+            // into c which will restore the sign as needed (and converts
+            // it back to a SignedMutableBigInteger)
+            c.copyValue(remainder);
+        }
+
+        if (c.sign < 0) {
+            c.signedAdd(p);
+        }
 
         return fixup(c, p, k);
     }
@@ -2182,8 +2192,8 @@ class MutableBigInteger {
         }
 
         // In theory, c may be greater than p at this point (Very rare!)
-        while (c.compare(p) >= 0)
-            c.subtract(p);
+        if (c.compare(p) >= 0)
+            c = c.divide(p, new MutableBigInteger());
 
         return c;
     }
