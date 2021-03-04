@@ -27,7 +27,7 @@
  * 4154525 4154537 4154542 4154650 4159922 4162593 4173604 4176686 4184229 4208960
  * 4966229 6433179 6851214 8007520 8008577
  * @library /java/text/testlib
- * @run main/othervm -Djava.locale.providers=COMPAT,SPI TimeZoneRegression
+ * @run main/othervm -Djava.locale.providers=JRE,SPI TimeZoneRegression
  */
 
 import java.util.*;

@@ -22,12 +22,12 @@
  */
 
 /**
- * @test
+ * This isn't the test case: WorkerDeadlockTest.sh is.
+ * Refer to WorkerDeaklockTest.sh when running this test.
+ *
  * @bug 8236872
  * @summary The test tries to catch a deadlock by creating a new worker,
  * starting it, adding an empty job and immediately stopping it.
- * @modules jdk.jconsole/sun.tools.jconsole
- * @run main WorkerDeadlockTest
  */
 
 import sun.tools.jconsole.Worker;
