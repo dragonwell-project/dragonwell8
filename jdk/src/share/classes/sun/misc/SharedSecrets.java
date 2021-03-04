@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2002, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -31,6 +31,7 @@ import java.io.Console;
 import java.io.FileDescriptor;
 import java.io.ObjectInputStream;
 import java.security.ProtectionDomain;
+import java.security.Signature;
 
 import java.security.AccessController;
 
@@ -61,6 +62,7 @@ public class SharedSecrets {
     private static JavaxCryptoSealedObjectAccess javaxCryptoSealedObjectAccess;
     private static JavaObjectInputStreamReadString javaObjectInputStreamReadString;
     private static JavaObjectInputStreamAccess javaObjectInputStreamAccess;
+    private static JavaSecuritySignatureAccess javaSecuritySignatureAccess;
 
     public static JavaUtilJarAccess javaUtilJarAccess() {
         if (javaUtilJarAccess == null) {
@@ -223,6 +225,17 @@ public class SharedSecrets {
 
     public static void setJavaObjectInputStreamAccess(JavaObjectInputStreamAccess access) {
         javaObjectInputStreamAccess = access;
+    }
+
+    public static void setJavaSecuritySignatureAccess(JavaSecuritySignatureAccess jssa) {
+        javaSecuritySignatureAccess = jssa;
+    }
+
+    public static JavaSecuritySignatureAccess getJavaSecuritySignatureAccess() {
+        if (javaSecuritySignatureAccess == null) {
+            unsafe.ensureClassInitialized(Signature.class);
+        }
+        return javaSecuritySignatureAccess;
     }
 
     public static void setJavaxCryptoSealedObjectAccess(JavaxCryptoSealedObjectAccess jcsoa) {

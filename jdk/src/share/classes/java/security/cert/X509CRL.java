@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,13 +25,9 @@
 
 package java.security.cert;
 
-import java.security.NoSuchAlgorithmException;
-import java.security.NoSuchProviderException;
-import java.security.InvalidKeyException;
-import java.security.SignatureException;
-import java.security.Principal;
-import java.security.Provider;
-import java.security.PublicKey;
+import java.security.*;
+import java.security.spec.*;
+
 import javax.security.auth.x500.X500Principal;
 
 import java.math.BigInteger;
@@ -40,6 +36,7 @@ import java.util.Set;
 import java.util.Arrays;
 
 import sun.security.x509.X509CRLImpl;
+import sun.security.util.SignatureUtil;
 
 /**
  * <p>
@@ -241,7 +238,27 @@ public abstract class X509CRL extends CRL implements X509Extension {
     public void verify(PublicKey key, Provider sigProvider)
         throws CRLException, NoSuchAlgorithmException,
         InvalidKeyException, SignatureException {
-        X509CRLImpl.verify(this, key, sigProvider);
+        String sigAlgName = getSigAlgName();
+        Signature sig = (sigProvider == null)
+            ? Signature.getInstance(sigAlgName)
+            : Signature.getInstance(sigAlgName, sigProvider);
+
+        try {
+            byte[] paramBytes = getSigAlgParams();
+            SignatureUtil.initVerifyWithParam(sig, key,
+                SignatureUtil.getParamSpec(sigAlgName, paramBytes));
+        } catch (ProviderException e) {
+            throw new CRLException(e.getMessage(), e.getCause());
+        } catch (InvalidAlgorithmParameterException e) {
+            throw new CRLException(e);
+        }
+
+        byte[] tbsCRL = getTBSCertList();
+        sig.update(tbsCRL, 0, tbsCRL.length);
+
+        if (sig.verify(getSignature()) == false) {
+            throw new SignatureException("Signature does not match.");
+        }
     }
 
     /**
