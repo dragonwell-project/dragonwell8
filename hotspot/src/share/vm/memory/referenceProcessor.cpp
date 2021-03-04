@@ -34,6 +34,9 @@
 #include "oops/oop.inline.hpp"
 #include "runtime/java.hpp"
 #include "runtime/jniHandles.hpp"
+#if INCLUDE_JFR
+#include "jfr/jfr.hpp"
+#endif // INCLUDE_JFR
 
 PRAGMA_FORMAT_MUTE_WARNINGS_FOR_GCC
 
@@ -300,6 +303,7 @@ void ReferenceProcessor::process_phaseJNI(BoolObjectClosure* is_alive,
   }
 #endif
   JNIHandles::weak_oops_do(is_alive, keep_alive);
+  JFR_ONLY(Jfr::weak_oops_do(is_alive, keep_alive));
   complete_gc->do_void();
 }
 
