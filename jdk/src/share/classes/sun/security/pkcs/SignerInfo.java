@@ -144,6 +144,9 @@ public class SignerInfo implements DerEncoder {
 
         // issuerAndSerialNumber
         DerValue[] issuerAndSerialNumber = derin.getSequence(2);
+        if (issuerAndSerialNumber.length != 2) {
+            throw new ParsingException("Invalid length for IssuerAndSerialNumber");
+        }
         byte[] issuerBytes = issuerAndSerialNumber[0].toByteArray();
         issuerName = new X500Name(new DerValue(DerValue.tag_Sequence,
                                                issuerBytes));
