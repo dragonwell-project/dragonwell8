@@ -65,6 +65,7 @@ public class Settings extends TestHelper {
     private static final String VM_SETTINGS = "VM settings:";
     private static final String PROP_SETTINGS = "Property settings:";
     private static final String LOCALE_SETTINGS = "Locale settings:";
+    private static final String STACKSIZE_SETTINGS = "Stack Size:";
     private static final String SYSTEM_SETTINGS = "Operating System Metrics:";
 
     static void containsAllOptions(TestResult tr) {
@@ -80,10 +81,22 @@ public class Settings extends TestHelper {
         String stackSize = "256"; // in kb
         if (getArch().equals("ppc64") || getArch().equals("ppc64le")) {
             stackSize = "800";
+        } else if (getArch().equals("aarch64")) {
+            /*
+             * The max value of minimum stack size allowed for aarch64 can be estimated as
+             * such: suppose the vm page size is 64KB and the test runs with a debug build,
+             * the initial _java_thread_min_stack_allowed defined in os_linux_aarch64.cpp is
+             * 72K, stack guard zones could take 192KB, and the shadow zone needs 128KB,
+             * after aligning up all parts to the page size, the final size would be 448KB.
+             * See details in JDK-8163363
+             */
+            stackSize = "448";
         }
         TestResult tr = null;
         tr = doExec(javaCmd, "-Xms64m", "-Xmx512m",
                 "-Xss" + stackSize + "k", "-XshowSettings", "-jar", testJar.getAbsolutePath());
+        // Check the stack size logs printed by -XshowSettings to verify -Xss meaningfully.
+        checkContains(tr, STACKSIZE_SETTINGS);
         containsAllOptions(tr);
         if (!tr.isOK()) {
             System.out.println(tr.status);
@@ -91,6 +104,7 @@ public class Settings extends TestHelper {
         }
         tr = doExec(javaCmd, "-Xms65536k", "-Xmx712m",
                 "-Xss" + stackSize + "000", "-XshowSettings", "-jar", testJar.getAbsolutePath());
+        checkContains(tr, STACKSIZE_SETTINGS);
         containsAllOptions(tr);
         if (!tr.isOK()) {
             System.out.println(tr.status);

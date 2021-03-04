@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1996, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -3133,10 +3133,20 @@ BOOL AwtToolkit::TICloseTouchInputHandle(HTOUCHINPUT hTouchInput) {
  * instead of SendMessage().
  */
 LRESULT AwtToolkit::InvokeInputMethodFunction(UINT msg, WPARAM wParam, LPARAM lParam) {
-    CriticalSection::Lock lock(m_inputMethodLock);
-    if (PostMessage(msg, wParam, lParam)) {
-        ::WaitForSingleObject(m_inputMethodWaitEvent, INFINITE);
-        return m_inputMethodData;
+    /*
+     * DND runs on the main thread. So it is  necessary to use SendMessage() to call an IME
+     * function once the DND is active; otherwise a hang is possible since DND may wait for
+     * the IME completion.
+     */
+    if (isInDoDragDropLoop) {
+        return SendMessage(msg, wParam, lParam);
+    } else {
+        CriticalSection::Lock lock(m_inputMethodLock);
+        if (PostMessage(msg, wParam, lParam)) {
+            ::WaitForSingleObject(m_inputMethodWaitEvent, INFINITE);
+            return m_inputMethodData;
+        }
+        return 0;
     }
-    return 0;
 }
+
