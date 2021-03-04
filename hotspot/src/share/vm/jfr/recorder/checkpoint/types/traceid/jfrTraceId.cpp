@@ -61,12 +61,6 @@ static traceid next_thread_id() {
 #endif
 }
 
-// XXX
-// static traceid next_package_id() {
-//   static volatile traceid package_id_counter = 1;
-//   return atomic_inc(&package_id_counter) << TRACE_ID_SHIFT;
-// }
-
 static traceid next_class_loader_data_id() {
   static volatile traceid cld_id_counter = 1;
   return atomic_inc(&cld_id_counter) << TRACE_ID_SHIFT;
@@ -103,12 +97,6 @@ void JfrTraceId::assign(const Klass* klass) {
     tag_as_jdk_jfr_event_sub(klass);
   }
 }
-
-// XXX
-// void JfrTraceId::assign(const PackageEntry* package) {
-//   assert(package != NULL, "invariant");
-//   package->set_trace_id(next_package_id());
-// }
 
 void JfrTraceId::assign(const ClassLoaderData* cld) {
   assert(cld != NULL, "invariant");
