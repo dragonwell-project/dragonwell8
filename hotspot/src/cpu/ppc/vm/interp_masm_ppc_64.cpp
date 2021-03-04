@@ -908,9 +908,7 @@ void InterpreterMacroAssembler::lock_object(Register monitor, Register object) {
     sub(current_header, current_header, R1_SP);
 
     assert(os::vm_page_size() > 0xfff, "page size too small - change the constant");
-    load_const_optimized(tmp,
-                         (address) (~(os::vm_page_size()-1) |
-                                    markOopDesc::lock_mask_in_place));
+    load_const_optimized(tmp, ~(os::vm_page_size()-1) | markOopDesc::lock_mask_in_place);
 
     and_(R0/*==0?*/, current_header, tmp);
     // If condition is true we are done and hence we can store 0 in the displaced

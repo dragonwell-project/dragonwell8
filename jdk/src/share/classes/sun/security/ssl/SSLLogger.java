@@ -387,7 +387,7 @@ public final class SSLLogger {
             for (int i=1; i<stElements.length; i++) {
                 StackTraceElement ste = stElements[i];
                 if (!ste.getClassName().startsWith(SSLLogger.class.getName()) &&
-                    !ste.getClassName().startsWith("java.lang.System")) {
+                    !ste.getClassName().startsWith(Logger.class.getName())) {
                    return ste.getFileName() + ":" + ste.getLineNumber();
                 }
             }

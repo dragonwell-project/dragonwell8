@@ -22,7 +22,6 @@
  */
 
 /*
- * @ignore 8026154
  * @test
  * @bug 8005933
  * @summary Test that -Xshare:auto uses CDS when explicitly specified with -server.
