@@ -3848,7 +3848,11 @@ void GraphKit::write_barrier_post(Node* oop_store,
 
   // Smash zero into card
   if( !UseConcMarkSweepGC ) {
+#if defined(AARCH64)
+    __ store(__ ctrl(), card_adr, zero, bt, adr_type, MemNode::unordered);
+#else
     __ store(__ ctrl(), card_adr, zero, bt, adr_type, MemNode::release);
+#endif
   } else {
     // Specialized path for CM store barrier
     __ storeCM(__ ctrl(), card_adr, zero, oop_store, adr_idx, bt, adr_type);
