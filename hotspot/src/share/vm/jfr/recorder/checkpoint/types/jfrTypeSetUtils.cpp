@@ -75,10 +75,7 @@ traceid JfrSymbolId::mark_anonymous_klass_name(const Klass* k) {
   const char* const anonymous_symbol =
     create_anonymous_klass_symbol((const InstanceKlass*)k, anonymous_symbol_hash_code);
 
-  if (anonymous_symbol == NULL) {
-    return 0;
-  }
-
+  assert(anonymous_symbol != NULL, "create_anonymous_klass_symbol fail");
   assert(anonymous_symbol_hash_code != 0, "invariant");
   traceid symbol_id = mark(anonymous_symbol, anonymous_symbol_hash_code);
   assert(mark(anonymous_symbol, anonymous_symbol_hash_code) == symbol_id, "invariant");
@@ -89,12 +86,8 @@ const JfrSymbolId::SymbolEntry* JfrSymbolId::map_symbol(const Symbol* symbol) co
   return _sym_table->lookup_only(symbol, (uintptr_t)const_cast<Symbol*>(symbol)->identity_hash());
 }
 
-const JfrSymbolId::SymbolEntry* JfrSymbolId::map_symbol(uintptr_t hash) const {
-  return _sym_table->lookup_only(NULL, hash);
-}
-
-const JfrSymbolId::CStringEntry* JfrSymbolId::map_cstring(uintptr_t hash) const {
-  return _cstring_table->lookup_only(NULL, hash);
+const JfrSymbolId::CStringEntry* JfrSymbolId::map_cstring(const char* const str, uintptr_t hash) const {
+  return _cstring_table->lookup_only(str, hash);
 }
 
 void JfrSymbolId::assign_id(SymbolEntry* entry) {
@@ -104,10 +97,10 @@ void JfrSymbolId::assign_id(SymbolEntry* entry) {
 }
 
 bool JfrSymbolId::equals(const Symbol* query, uintptr_t hash, const SymbolEntry* entry) {
-  // query might be NULL
   assert(entry != NULL, "invariant");
   assert(entry->hash() == hash, "invariant");
-  return true;
+  assert(query != NULL, "invariant");
+  return query == entry->literal();
 }
 
 void JfrSymbolId::assign_id(CStringEntry* entry) {
@@ -116,11 +109,18 @@ void JfrSymbolId::assign_id(CStringEntry* entry) {
   entry->set_id(++_symbol_id_counter);
 }
 
+static bool string_compare(const char* query, const char* candidate) {
+  assert(query != NULL, "invariant");
+  assert(candidate != NULL, "invariant");
+  const size_t length = strlen(query);
+  return strncmp(query, candidate, length) == 0;
+}
+
 bool JfrSymbolId::equals(const char* query, uintptr_t hash, const CStringEntry* entry) {
-  // query might be NULL
   assert(entry != NULL, "invariant");
   assert(entry->hash() == hash, "invariant");
-  return true;
+  assert(query != NULL, "invariant");
+  return string_compare(query, entry->literal());
 }
 
 traceid JfrSymbolId::mark(const Klass* k) {
@@ -182,6 +182,22 @@ uintptr_t JfrSymbolId::anonymous_klass_name_hash_code(const InstanceKlass* ik) {
   return (uintptr_t)mirror->identity_hash();
 }
 
+const char* JfrSymbolId::get_anonymous_klass_chars(const InstanceKlass* ik, uintptr_t hashcode) {
+  assert(ik != NULL, "invariant");
+  assert(ik->is_anonymous(), "invariant");
+  assert(0 != hashcode, "invariant");
+  char hash_buf[40];
+  sprintf(hash_buf, "/" UINTX_FORMAT, hashcode);
+  const size_t hash_len = strlen(hash_buf);
+  const size_t result_len = ik->name()->utf8_length();
+  char* anonymous_symbol = NEW_RESOURCE_ARRAY(char, result_len + hash_len + 1);
+  ik->name()->as_klass_external_name(anonymous_symbol, (int)result_len + 1);
+  assert(strlen(anonymous_symbol) == result_len, "invariant");
+  strcpy(anonymous_symbol + result_len, hash_buf);
+  assert(strlen(anonymous_symbol) == result_len + hash_len, "invariant");
+  return anonymous_symbol;
+}
+
 const char* JfrSymbolId::create_anonymous_klass_symbol(const InstanceKlass* ik, uintptr_t& hashcode) {
   assert(ik != NULL, "invariant");
   assert(ik->is_anonymous(), "invariant");
@@ -189,17 +205,8 @@ const char* JfrSymbolId::create_anonymous_klass_symbol(const InstanceKlass* ik, 
   char* anonymous_symbol = NULL;
   const oop mirror = ik->java_mirror();
   assert(mirror != NULL, "invariant");
-  char hash_buf[40];
   hashcode = anonymous_klass_name_hash_code(ik);
-  sprintf(hash_buf, "/" UINTX_FORMAT, hashcode);
-  const size_t hash_len = strlen(hash_buf);
-  const size_t result_len = ik->name()->utf8_length();
-  anonymous_symbol = NEW_RESOURCE_ARRAY(char, result_len + hash_len + 1);
-  ik->name()->as_klass_external_name(anonymous_symbol, (int)result_len + 1);
-  assert(strlen(anonymous_symbol) == result_len, "invariant");
-  strcpy(anonymous_symbol + result_len, hash_buf);
-  assert(strlen(anonymous_symbol) == result_len + hash_len, "invariant");
-  return anonymous_symbol;
+  return get_anonymous_klass_chars(ik, hashcode);
 }
 
 uintptr_t JfrSymbolId::regular_klass_name_hash_code(const Klass* k) {
@@ -264,12 +271,8 @@ const JfrSymbolId::SymbolEntry* JfrArtifactSet::map_symbol(const Symbol* symbol)
   return _symbol_id->map_symbol(symbol);
 }
 
-const JfrSymbolId::SymbolEntry* JfrArtifactSet::map_symbol(uintptr_t hash) const {
-  return _symbol_id->map_symbol(hash);
-}
-
-const JfrSymbolId::CStringEntry* JfrArtifactSet::map_cstring(uintptr_t hash) const {
-  return _symbol_id->map_cstring(hash);
+const JfrSymbolId::CStringEntry* JfrArtifactSet::map_cstring(const char* const str, uintptr_t hash) const {
+  return _symbol_id->map_cstring(str, hash);
 }
 
 bool JfrArtifactSet::has_klass_entries() const {
