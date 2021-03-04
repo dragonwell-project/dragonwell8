@@ -77,6 +77,16 @@ define AddFileToCopy
   $4 += $2/$$($2_$3_FILE)
 endef
 
+ifeq ($(ZIP_DEBUGINFO_FILES), true)
+  DEBUGINFO_EXT := .diz
+else ifeq ($(OPENJDK_TARGET_OS), macosx)
+  DEBUGINFO_EXT := .dSYM
+else ifeq ($(OPENJDK_TARGET_OS), windows)
+  DEBUGINFO_EXT := .pdb
+else
+  DEBUGINFO_EXT := .debuginfo
+endif
+
 ################################################################################
 #
 # JRE and JDK build rules
@@ -129,6 +139,7 @@ ifeq ($(PROFILE), )
       clhsdb$(EXE_SUFFIX) \
       hsdb$(EXE_SUFFIX) \
       jfr$(EXE_SUFFIX)
+  NOT_JRE_DEBUGINFO_FILES := $(patsubst %$(EXE_SUFFIX),%$(DEBUGINFO_EXT),$(NOT_JRE_BIN_FILES))
 endif
 
 WINDOWS_JDK_BIN_FILES = \
@@ -146,11 +157,7 @@ ALL_BIN_LIST := $(call CacheFind, $(JDK_OUTPUTDIR)/bin)
 # Prevent sjavac from entering the images.
 ALL_BIN_LIST := $(filter-out %/sjavac, $(ALL_BIN_LIST))
 
-# For unknown reason the debuginfo files for executables are not put into images
-# e.g filter them out
-ifneq ($(OPENJDK_TARGET_OS), windows)
-  ALL_BIN_LIST := $(filter-out %.debuginfo %.diz, $(ALL_BIN_LIST))
-else
+ifeq ($(OPENJDK_TARGET_OS), windows)
   # On windows, the libraries are in the bin dir, only filter out debuginfo files
   # for executables. "java" is both a library and executable.
   ALL_BIN_EXEC_FILES := $(filter-out java.exe, $(notdir $(filter %.exe, $(ALL_BIN_LIST))))
@@ -160,7 +167,7 @@ else
 endif
 
 JDKJRE_BIN_LIST := $(filter-out $(addprefix %, $(NOT_JRE_BIN_FILES)), $(ALL_BIN_LIST))
-JRE_BIN_LIST := $(filter-out $(addprefix %, $(WINDOWS_JDKJRE_BIN_FILES)), $(JDKJRE_BIN_LIST))
+JRE_BIN_LIST := $(filter-out $(addprefix %, $(WINDOWS_JDKJRE_BIN_FILES)) $(addprefix %, $(NOT_JRE_DEBUGINFO_FILES)), $(JDKJRE_BIN_LIST))
 
 ifeq ($(OPENJDK_TARGET_OS), windows)
   JDK_BIN_LIST := $(filter $(addprefix %, $(WINDOWS_JDK_BIN_FILES)), $(ALL_BIN_LIST))

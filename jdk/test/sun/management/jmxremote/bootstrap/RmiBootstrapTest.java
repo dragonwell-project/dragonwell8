@@ -824,7 +824,7 @@ public class RmiBootstrapTest {
 
         String errStr = null;
         for (int i=0;i<conf.length;i++) {
-            for (int j = 0; j < PORT_TEST_LEN; i++) {
+            for (int j = 0; j < PORT_TEST_LEN; j++) {
                 try {
                     errStr = testConfiguration(conf[i],port+testPort++);
                     break;

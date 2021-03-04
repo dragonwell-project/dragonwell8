@@ -47,7 +47,7 @@ public class TestZoneInfo310 {
         String TESTDIR = System.getProperty("test.dir", ".");
         String SRCDIR = System.getProperty("test.src", ".");
         String tzdir = SRCDIR + File.separator + "tzdata";
-        String tzfiles = "africa antarctica asia australasia europe northamerica pacificnew southamerica backward etcetera systemv";
+        String tzfiles = "africa antarctica asia australasia europe northamerica southamerica backward etcetera";
         String jdk_tzdir = SRCDIR + File.separator + "tzdata_jdk";
         String jdk_tzfiles = "gmt jdk11_backward";
         String zidir = TESTDIR + File.separator + "zi";
@@ -194,8 +194,9 @@ public class TestZoneInfo310 {
 
         // test getAvailableIDs(raw);
         zids_new = TimeZone.getAvailableIDs(-8 * 60 * 60 * 1000);
-        //Arrays.sort(zids_new);
+        Arrays.sort(zids_new);
         zids_old = ZoneInfoOld.getAvailableIDs(-8 * 60 * 60 * 1000);
+        Arrays.sort(zids_old);
         if (!Arrays.equals(zids_new, zids_old)) {
             System.out.println("------------------------");
             System.out.println("NEW.getAvailableIDs(-8:00)");
