@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -224,7 +224,7 @@ Symbol* SymbolTable::lookup(int index, const char* name,
 // Pick hashing algorithm.
 unsigned int SymbolTable::hash_symbol(const char* s, int len) {
   return use_alternate_hashcode() ?
-           AltHashing::murmur3_32(seed(), (const jbyte*)s, len) :
+           AltHashing::halfsiphash_32(seed(), (const uint8_t*)s, len) :
            java_lang_String::hash_code(s, len);
 }
 
@@ -650,7 +650,7 @@ volatile int StringTable::_parallel_claimed_idx = 0;
 
 // Pick hashing algorithm
 unsigned int StringTable::hash_string(const jchar* s, int len) {
-  return use_alternate_hashcode() ? AltHashing::murmur3_32(seed(), s, len) :
+  return use_alternate_hashcode() ? AltHashing::halfsiphash_32(seed(), s, len) :
                                     java_lang_String::hash_code(s, len);
 }
 
