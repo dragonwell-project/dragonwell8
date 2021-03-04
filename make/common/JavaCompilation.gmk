@@ -222,7 +222,7 @@ define SetupArchive
 	$$($1_GREP_EXCLUDE_OUTPUT)
 	$$(if $$($1_MANIFEST), \
 	  $(SED) -e "s#@@RELEASE@@#$(RELEASE)#" \
-	      -e "s#@@COMPANY_NAME@@#$(COMPANY_NAME)#" $$($1_MANIFEST) > $$($1_MANIFEST_FILE) \
+	      -e "s#@@COMPANY_NAME@@#$$(COMPANY_NAME)#" $$($1_MANIFEST) > $$($1_MANIFEST_FILE) \
 	, \
 	  $(RM) $$($1_MANIFEST_FILE) && $(TOUCH) $$($1_MANIFEST_FILE))
 	$$(if $$($1_JARMAIN),$(ECHO) "Main-Class: $$(strip $$($1_JARMAIN))" >> $$($1_MANIFEST_FILE))

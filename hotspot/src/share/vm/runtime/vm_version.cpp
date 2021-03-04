@@ -283,7 +283,7 @@ const char *Abstract_VM_Version::vm_build_user() {
 
 unsigned int Abstract_VM_Version::jvm_version() {
   return ((Abstract_VM_Version::vm_major_version() & 0xFF) << 24) |
-         ((Abstract_VM_Version::vm_minor_version() & 0xFF) << 16) |
+         ((Abstract_VM_Version::vm_minor_version() & 0xFFFF) << 8) |
          (Abstract_VM_Version::vm_build_number() & 0xFF);
 }
 
