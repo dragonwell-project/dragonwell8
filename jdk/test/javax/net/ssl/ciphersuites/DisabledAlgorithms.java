@@ -21,6 +21,14 @@
  * questions.
  */
 
+/*
+ * @test
+ * @bug 8076221 8211883
+ * @summary Check if weak cipher suites are disabled
+ * @run main/othervm DisabledAlgorithms default
+ * @run main/othervm DisabledAlgorithms empty
+ */
+
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
 import java.io.IOException;
@@ -36,17 +44,9 @@ import javax.net.ssl.SSLServerSocketFactory;
 import javax.net.ssl.SSLSocket;
 import javax.net.ssl.SSLSocketFactory;
 
-/**
- * @test
- * @bug 8076221 8157035 8211883
- * @summary Check if weak cipher suites are disabled
- * @run main/othervm DisabledAlgorithms default
- * @run main/othervm DisabledAlgorithms empty
- */
 public class DisabledAlgorithms {
 
-    private static final String pathToStores =
-            "../../../../sun/security/ssl/etc";
+    private static final String pathToStores = "../etc";
     private static final String keyStoreFile = "keystore";
     private static final String trustStoreFile = "truststore";
     private static final String passwd = "passphrase";
@@ -249,7 +249,6 @@ public class DisabledAlgorithms {
                     socket.getSession().invalidate();
                 } catch (SSLHandshakeException e) {
                     System.out.println("Server: run: " + e);
-                    e.printStackTrace();
                     sslError = true;
                     stopped = true;
                 } catch (IOException e) {
