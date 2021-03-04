@@ -25,7 +25,6 @@
 #include "precompiled.hpp"
 #include "classfile/classLoaderData.inline.hpp"
 #include "classfile/javaClasses.hpp"
-// XXX #include "classfile/packageEntry.hpp"
 #include "classfile/symbolTable.hpp"
 #include "classfile/systemDictionary.hpp"
 #include "jfr/jfr.hpp"
@@ -55,7 +54,6 @@ static u8 checkpoint_id = 0;
 #define CREATE_PACKAGE_ID(pkg_id) (((u8)((checkpoint_id << 24) | pkg_id)))
 
 typedef const Klass* KlassPtr;
-// XXX typedef const PackageEntry* PkgPtr;
 typedef const ClassLoaderData* CldPtr;
 typedef const Method* MethodPtr;
 typedef const Symbol* SymbolPtr;
@@ -87,11 +85,6 @@ static traceid cld_id(CldPtr cld) {
 
 static void tag_leakp_klass_artifacts(KlassPtr k, bool class_unload) {
   assert(k != NULL, "invariant");
-  // XXX
-  // PkgPtr pkg = k->package();
-  // if (pkg != NULL) {
-  //   tag_leakp_artifact(pkg, class_unload);
-  // }
   CldPtr cld = k->class_loader_data();
   assert(cld != NULL, "invariant");
   if (!cld->is_anonymous()) {
@@ -295,7 +288,6 @@ class KlassSymbolWriterImpl {
   UniquePredicate<traceid, _compare_traceid_> _unique_predicate;
 
   int klass_symbols(KlassPtr klass);
-// XXX  int package_symbols(PkgPtr pkg);
   int class_loader_symbols(CldPtr cld);
   int method_symbols(KlassPtr klass);
 
@@ -315,11 +307,6 @@ class KlassSymbolWriterImpl {
     int count = 0;
     if (_predicate(klass)) {
       count += klass_symbols(klass);
-      // XXX
-      // PkgPtr pkg = klass->package();
-      // if (pkg != NULL) {
-      //   count += package_symbols(pkg);
-      // }
       CldPtr cld = klass->class_loader_data();
       assert(cld != NULL, "invariant");
       if (!cld->is_anonymous()) {
@@ -348,52 +335,6 @@ int KlassSymbolWriterImpl<Predicate>::klass_symbols(KlassPtr klass) {
   assert(entry != NULL, "invariant");
   return _unique_predicate(entry->id()) ? write__artifact__symbol__entry__(this->_writer, entry) : 0;
 }
-
-// XXX
-// template <template <typename> class Predicate>
-// int KlassSymbolWriterImpl<Predicate>::package_symbols(PkgPtr pkg) {
-//   assert(pkg != NULL, "invariant");
-//   SymbolPtr pkg_name = pkg->name();
-//   assert(pkg_name != NULL, "invariant");
-//   SymbolEntryPtr package_symbol = this->_artifacts->map_symbol(pkg_name);
-//   assert(package_symbol != NULL, "invariant");
-//   return _unique_predicate(package_symbol->id()) ?
-//     write__artifact__symbol__entry__(this->_writer, package_symbol) : 0;
-// }
-
-// XXX
-// template <template <typename> class Predicate>
-// int KlassSymbolWriterImpl<Predicate>::module_symbols(ModPtr module) {
-//   assert(module != NULL, "invariant");
-//   assert(module->is_named(), "invariant");
-//   int count = 0;
-//   SymbolPtr sym = module->name();
-//   SymbolEntryPtr entry = NULL;
-//   if (sym != NULL) {
-//     entry = this->_artifacts->map_symbol(sym);
-//     assert(entry != NULL, "invariant");
-//     if (_unique_predicate(entry->id())) {
-//       count += write__artifact__symbol__entry__(this->_writer, entry);
-//     }
-//   }
-//   sym = module->version();
-//   if (sym != NULL) {
-//     entry = this->_artifacts->map_symbol(sym);
-//     assert(entry != NULL, "invariant");
-//     if (_unique_predicate(entry->id())) {
-//       count += write__artifact__symbol__entry__(this->_writer, entry);
-//     }
-//   }
-//   sym = module->location();
-//   if (sym != NULL) {
-//     entry = this->_artifacts->map_symbol(sym);
-//     assert(entry != NULL, "invariant");
-//     if (_unique_predicate(entry->id())) {
-//       count += write__artifact__symbol__entry__(this->_writer, entry);
-//     }
-//   }
-//   return count;
-// }
 
 template <template <typename> class Predicate>
 int KlassSymbolWriterImpl<Predicate>::class_loader_symbols(CldPtr cld) {
@@ -711,30 +652,6 @@ void JfrTypeSet::do_klasses() {
   }
   ClassLoaderDataGraph::classes_do(&do_klass);
 }
-
-// XXX
-// void JfrTypeSet::do_unloaded_package(PackageEntry* entry) {
-//   assert(entry != NULL, "invariant");
-//   assert(_subsystem_callback != NULL, "invariant");
-//   if (ANY_USED_THIS_EPOCH(entry)) { // includes leakp subset
-//     _subsystem_callback->do_artifact(entry);
-//   }
-// }
-
-// void JfrTypeSet::do_package(PackageEntry* entry) {
-//   assert(_subsystem_callback != NULL, "invariant");
-//   if (ANY_USED_PREV_EPOCH(entry)) { // includes leakp subset
-//     _subsystem_callback->do_artifact(entry);
-//   }
-// }
-
-// void JfrTypeSet::do_packages() {
-//   if (_class_unload) {
-//     ClassLoaderDataGraph::packages_unloading_do(&do_unloaded_package);
-//     return;
-//   }
-//   ClassLoaderDataGraph::packages_do(&do_package);
-// }
 
 void JfrTypeSet::do_unloaded_class_loader_data(ClassLoaderData* cld) {
   assert(_subsystem_callback != NULL, "invariant");
