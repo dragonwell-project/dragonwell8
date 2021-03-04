@@ -788,7 +788,7 @@ public class ZipPath implements Path {
     {
         if (options.length == 0)
             return zfs.newOutputStream(getResolvedPath(),
-                                       CREATE_NEW, WRITE);
+                                       CREATE, TRUNCATE_EXISTING, WRITE);
         return zfs.newOutputStream(getResolvedPath(), options);
     }
 
