@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -50,6 +50,7 @@ import java.security.cert.CertStoreException;
 import java.security.cert.CRL;
 import java.security.cert.X509Certificate;
 import java.security.cert.CertificateException;
+import java.security.spec.AlgorithmParameterSpec;
 import java.text.Collator;
 import java.text.MessageFormat;
 import java.util.*;
@@ -77,6 +78,7 @@ import sun.security.provider.X509Factory;
 import sun.security.provider.certpath.CertStoreHelper;
 import sun.security.util.Password;
 import sun.security.util.SecurityProviderConstants;
+import sun.security.util.SignatureUtil;
 import javax.crypto.KeyGenerator;
 import javax.crypto.SecretKey;
 import javax.crypto.SecretKeyFactory;
@@ -1293,17 +1295,20 @@ public final class Main {
             sigAlgName = getCompatibleSigAlgName(privateKey.getAlgorithm());
         }
         Signature signature = Signature.getInstance(sigAlgName);
-        signature.initSign(privateKey);
+        AlgorithmParameterSpec params = AlgorithmId
+                .getDefaultAlgorithmParameterSpec(sigAlgName, privateKey);
+
+        SignatureUtil.initSignWithParam(signature, privateKey, params, null);
 
         X509CertInfo info = new X509CertInfo();
+        AlgorithmId algID = AlgorithmId.getWithParameterSpec(sigAlgName, params);
         info.set(X509CertInfo.VALIDITY, interval);
         info.set(X509CertInfo.SERIAL_NUMBER, new CertificateSerialNumber(
                     new java.util.Random().nextInt() & 0x7fffffff));
         info.set(X509CertInfo.VERSION,
                     new CertificateVersion(CertificateVersion.V3));
         info.set(X509CertInfo.ALGORITHM_ID,
-                    new CertificateAlgorithmId(
-                        AlgorithmId.get(sigAlgName)));
+                    new CertificateAlgorithmId(algID));
         info.set(X509CertInfo.ISSUER, issuer);
 
         BufferedReader reader = new BufferedReader(new InputStreamReader(in));
@@ -1347,7 +1352,7 @@ public final class Main {
                 signerCert.getPublicKey());
         info.set(X509CertInfo.EXTENSIONS, ext);
         X509CertImpl cert = new X509CertImpl(info);
-        cert.sign(privateKey, sigAlgName);
+        cert.sign(privateKey, params, sigAlgName, null);
         dumpCert(cert, out);
         for (Certificate ca: keyStore.getCertificateChain(alias)) {
             if (ca instanceof X509Certificate) {
@@ -1449,7 +1454,10 @@ public final class Main {
         }
 
         Signature signature = Signature.getInstance(sigAlgName);
-        signature.initSign(privKey);
+        AlgorithmParameterSpec params = AlgorithmId
+                .getDefaultAlgorithmParameterSpec(sigAlgName, privKey);
+        SignatureUtil.initSignWithParam(signature, privKey, params, null);
+
         X500Name subject = dname == null?
                 new X500Name(((X509Certificate)cert).getSubjectDN().toString()):
                 new X500Name(dname);
@@ -1705,6 +1713,8 @@ public final class Main {
                 keysize = SecurityProviderConstants.DEF_EC_KEY_SIZE;
             } else if ("RSA".equalsIgnoreCase(keyAlgName)) {
                 keysize = SecurityProviderConstants.DEF_RSA_KEY_SIZE;
+            } else if ("RSASSA-PSS".equalsIgnoreCase(keyAlgName)) {
+                keysize = SecurityProviderConstants.DEF_RSASSA_PSS_KEY_SIZE;
             } else if ("DSA".equalsIgnoreCase(keyAlgName)) {
                 keysize = SecurityProviderConstants.DEF_DSA_KEY_SIZE;
             }
@@ -2236,9 +2246,9 @@ public final class Main {
         out.println(form.format(source));
         out.println();
 
-        for (Enumeration<String> e = keyStore.aliases();
-                                        e.hasMoreElements(); ) {
-            String alias = e.nextElement();
+        List<String> aliases = Collections.list(keyStore.aliases());
+        aliases.sort(String::compareTo);
+        for (String alias : aliases) {
             doPrintEntry("<" + alias + ">", alias, out);
             if (verbose || rfc) {
                 out.println(rb.getString("NEWLINE"));
@@ -2742,7 +2752,9 @@ public final class Main {
         // other solution: We first sign the cert, then retrieve the
         // outer sigalg and use it to set the inner sigalg
         X509CertImpl newCert = new X509CertImpl(certInfo);
-        newCert.sign(privKey, sigAlgName);
+        AlgorithmParameterSpec params = AlgorithmId
+                .getDefaultAlgorithmParameterSpec(sigAlgName, privKey);
+        newCert.sign(privKey, params, sigAlgName, null);
         AlgorithmId sigAlgid = (AlgorithmId)newCert.get(X509CertImpl.SIG_ALG);
         certInfo.set(CertificateAlgorithmId.NAME + "." +
                      CertificateAlgorithmId.ALGORITHM, sigAlgid);
@@ -2759,7 +2771,7 @@ public final class Main {
         certInfo.set(X509CertInfo.EXTENSIONS, ext);
         // Sign the new certificate
         newCert = new X509CertImpl(certInfo);
-        newCert.sign(privKey, sigAlgName);
+        newCert.sign(privKey, params, sigAlgName, null);
 
         // Store the new certificate as a single-element certificate chain
         keyStore.setKeyEntry(alias, privKey,
@@ -3330,6 +3342,11 @@ public final class Main {
         throws Exception
     {
         Key key = null;
+
+        if (KeyStoreUtil.isWindowsKeyStore(storetype)) {
+            key = keyStore.getKey(alias, null);
+            return Pair.of(key, null);
+        }
 
         if (keyStore.containsAlias(alias) == false) {
             MessageFormat form = new MessageFormat
