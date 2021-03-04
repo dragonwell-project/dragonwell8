@@ -43,7 +43,6 @@
 #endif
 #ifdef __linux__
 #include <unistd.h>
-#include <sys/sysctl.h>
 #endif
 
 #include "jvm.h"
