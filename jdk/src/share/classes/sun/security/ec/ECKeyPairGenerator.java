@@ -35,7 +35,6 @@ import java.security.spec.ECPoint;
 import java.security.spec.InvalidParameterSpecException;
 import java.util.Optional;
 
-import sun.security.ec.NamedCurve;
 import sun.security.jca.JCAUtil;
 import sun.security.util.ECUtil;
 import sun.security.util.math.*;
