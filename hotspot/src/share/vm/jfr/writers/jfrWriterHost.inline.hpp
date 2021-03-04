@@ -33,7 +33,6 @@
 #include "memory/resourceArea.hpp"
 #include "oops/oop.hpp"
 #include "oops/symbol.hpp"
-//#include "oops/typeArrayOop.inline.hpp" - XXX
 
 inline bool compressed_integers() {
   static const bool comp_integers = JfrOptionSet::compressed_integers();
@@ -259,12 +258,6 @@ void WriterHost<BE, IE, WriterPolicyImpl>::write(const Method* method) {
   tag_write(this, method);
 }
 
-// XXX
-// template <typename BE, typename IE, typename WriterPolicyImpl>
-// void WriterHost<BE, IE, WriterPolicyImpl>::write(const PackageEntry* package) {
-//   tag_write(this, package);
-// }
-
 template <typename BE, typename IE, typename WriterPolicyImpl>
 void WriterHost<BE, IE, WriterPolicyImpl>::write(const Symbol* symbol) {
   ResourceMark rm;
@@ -313,9 +306,9 @@ inline void WriterHost<BE, IE, WriterPolicyImpl>::write_utf8_u2_len(const char* 
 }
 
 template <typename BE, typename IE, typename WriterPolicyImpl>
-inline intptr_t WriterHost<BE, IE, WriterPolicyImpl>::reserve(size_t size) {
+inline int64_t WriterHost<BE, IE, WriterPolicyImpl>::reserve(size_t size) {
   if (ensure_size(size) != NULL) {
-    intptr_t reserved_offset = this->current_offset();
+    const int64_t reserved_offset = this->current_offset();
     this->set_current_pos(size);
     return reserved_offset;
   }
@@ -325,9 +318,9 @@ inline intptr_t WriterHost<BE, IE, WriterPolicyImpl>::reserve(size_t size) {
 
 template <typename BE, typename IE, typename WriterPolicyImpl>
 template <typename T>
-inline void WriterHost<BE, IE, WriterPolicyImpl>::write_padded_at_offset(T value, intptr_t offset) {
+inline void WriterHost<BE, IE, WriterPolicyImpl>::write_padded_at_offset(T value, int64_t offset) {
   if (this->is_valid()) {
-    const intptr_t current = this->current_offset();
+    const int64_t current = this->current_offset();
     this->seek(offset);
     write_padded(value);
     this->seek(current); // restore
@@ -336,9 +329,9 @@ inline void WriterHost<BE, IE, WriterPolicyImpl>::write_padded_at_offset(T value
 
 template <typename BE, typename IE, typename WriterPolicyImpl>
 template <typename T>
-inline void WriterHost<BE, IE, WriterPolicyImpl>::write_at_offset(T value, intptr_t offset) {
+inline void WriterHost<BE, IE, WriterPolicyImpl>::write_at_offset(T value, int64_t offset) {
   if (this->is_valid()) {
-    const intptr_t current = this->current_offset();
+    const int64_t current = this->current_offset();
     this->seek(offset);
     write(value);
     this->seek(current); // restore
@@ -347,9 +340,9 @@ inline void WriterHost<BE, IE, WriterPolicyImpl>::write_at_offset(T value, intpt
 
 template <typename BE, typename IE, typename WriterPolicyImpl>
 template <typename T>
-inline void WriterHost<BE, IE, WriterPolicyImpl>::write_be_at_offset(T value, intptr_t offset) {
+inline void WriterHost<BE, IE, WriterPolicyImpl>::write_be_at_offset(T value, int64_t offset) {
   if (this->is_valid()) {
-    const intptr_t current = this->current_offset();
+    const int64_t current = this->current_offset();
     this->seek(offset);
     be_write(value);
     this->seek(current); // restore
