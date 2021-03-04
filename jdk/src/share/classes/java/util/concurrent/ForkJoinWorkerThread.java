@@ -73,6 +73,11 @@ public class ForkJoinWorkerThread extends Thread {
     final ForkJoinPool pool;                // the pool this thread works in
     final ForkJoinPool.WorkQueue workQueue; // work-stealing mechanics
 
+    /** An AccessControlContext supporting no privileges */
+    private static final AccessControlContext INNOCUOUS_ACC =
+        new AccessControlContext(
+            new ProtectionDomain[] { new ProtectionDomain(null, null) });
+
     /**
      * Creates a ForkJoinWorkerThread operating in the given pool.
      *
@@ -82,6 +87,7 @@ public class ForkJoinWorkerThread extends Thread {
     protected ForkJoinWorkerThread(ForkJoinPool pool) {
         // Use a placeholder until a useful name can be set in registerWorker
         super("aForkJoinWorkerThread");
+        U.putOrderedObject(this, INHERITEDACCESSCONTROLCONTEXT, INNOCUOUS_ACC);
         this.pool = pool;
         this.workQueue = pool.registerWorker(this);
     }
@@ -214,13 +220,6 @@ public class ForkJoinWorkerThread extends Thread {
         /** The ThreadGroup for all InnocuousForkJoinWorkerThreads */
         private static final ThreadGroup innocuousThreadGroup =
             createThreadGroup();
-
-        /** An AccessControlContext supporting no privileges */
-        private static final AccessControlContext INNOCUOUS_ACC =
-            new AccessControlContext(
-                new ProtectionDomain[] {
-                    new ProtectionDomain(null, null)
-                });
 
         InnocuousForkJoinWorkerThread(ForkJoinPool pool) {
             super(pool, innocuousThreadGroup, INNOCUOUS_ACC);

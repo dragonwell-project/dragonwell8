@@ -51,8 +51,10 @@ import org.testng.annotations.Test;
 import org.testng.annotations.DataProvider;
 
 /* @test
+ * @bug 8234836
  * @build SerialFilterTest
  * @run testng/othervm  SerialFilterTest
+ * @run testng/othervm  -Djdk.serialSetFilterAfterRead=true SerialFilterTest
  *
  * @summary Test ObjectInputFilters
  */
@@ -75,6 +77,10 @@ public class SerialFilterTest implements Serializable {
      * Misc object to use that should always be accepted.
      */
     private static final Object otherObject = Integer.valueOf(0);
+
+    // Cache value of jdk.serialSetFilterAfterRead property.
+    static final boolean SET_FILTER_AFTER_READ =
+            Boolean.getBoolean("jdk.serialSetFilterAfterRead");
 
     /**
      * DataProvider for the individual patterns to test.
@@ -294,6 +300,46 @@ public class SerialFilterTest implements Serializable {
             }
         } catch (IOException ex) {
             Assert.fail("Unexpected IOException", ex);
+        }
+    }
+
+    /**
+     * After reading some objects from the stream, setting a filter is disallowed.
+     * If the filter was allowed to be set, it would have unpredictable behavior.
+     * Objects already read would not be checked again, including class descriptors.
+     *
+     * Note: To mitigate possible incompatibility a system property can be set
+     * to revert to the old behavior but it re-enables the incorrect use.
+     */
+    @Test
+    static void testNonSettableAfterReadObject() throws IOException, ClassNotFoundException {
+        String expected1 = "text1";
+        String expected2 = "text2";
+        byte[] bytes = writeObjects(expected1, expected2);
+
+        for (boolean toggle: new boolean[] {true, false}) {
+            try (ByteArrayInputStream bais = new ByteArrayInputStream(bytes);
+                 ObjectInputStream ois = new ObjectInputStream(bais)) {
+                Object actual1 = toggle ? ois.readObject() : ois.readUnshared();
+                Assert.assertEquals(actual1, expected1, "unexpected string");
+                // Attempt to set filter
+                ObjectInputFilter filter = new ObjectInputFilter() {
+                    @Override
+                    public Status checkInput(FilterInfo filterInfo) {
+                        return null;
+                    }
+                };
+                ObjectInputFilter.Config.setObjectInputFilter(ois, filter);
+                if (!SET_FILTER_AFTER_READ)
+                    Assert.fail("Should not be able to set filter after readObject has been called");
+            } catch (IllegalStateException ise) {
+                // success, the exception was expected
+                if (SET_FILTER_AFTER_READ)
+                    Assert.fail("With jdk.serialSetFilterAfterRead property set = true; " +
+                            "should be able to set the filter after a read");
+            } catch (EOFException eof) {
+                Assert.fail("Should not reach end-of-file", eof);
+            }
         }
     }
 
