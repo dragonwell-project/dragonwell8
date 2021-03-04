@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -31,9 +31,7 @@
 #include "jfr/recorder/service/jfrOptionSet.hpp"
 #include "jfr/support/jfrEventClass.hpp"
 #include "memory/resourceArea.hpp"
-#include "prims/jvmtiEnvBase.hpp"
 #include "prims/jvmtiExport.hpp"
-#include "prims/jvmtiUtil.hpp"
 #include "runtime/interfaceSupport.hpp"
 #include "runtime/thread.inline.hpp"
 #include "utilities/exceptions.hpp"
@@ -53,17 +51,19 @@ static void check_jvmti_error(jvmtiEnv* jvmti, jvmtiError errnum, const char* st
   }
 }
 
-static bool set_event_notification_mode(jvmtiEventMode mode,
-                                        jvmtiEvent event,
-                                        jthread event_thread,
-                                        ...) {
-  assert(jfr_jvmti_env != NULL, "invariant");
+static jvmtiError set_event_notification_mode(jvmtiEventMode mode,
+                                              jvmtiEvent event,
+                                              jthread event_thread,
+                                              ...) {
+  if (jfr_jvmti_env == NULL) {
+    return JVMTI_ERROR_NONE;
+  }
   const jvmtiError jvmti_ret_code = jfr_jvmti_env->SetEventNotificationMode(mode, event, event_thread);
   check_jvmti_error(jfr_jvmti_env, jvmti_ret_code, "SetEventNotificationMode");
-  return jvmti_ret_code == JVMTI_ERROR_NONE;
+  return jvmti_ret_code;
 }
 
-static bool update_class_file_load_hook_event(jvmtiEventMode mode) {
+static jvmtiError update_class_file_load_hook_event(jvmtiEventMode mode) {
   return set_event_notification_mode(mode, JVMTI_EVENT_CLASS_FILE_LOAD_HOOK, NULL);
 }
 
@@ -116,23 +116,12 @@ static jclass* create_classes_array(jint classes_count, TRAPS) {
   return classes;
 }
 
-// caller needs ResourceMark
-static void log_and_throw(jvmtiError error, TRAPS) {
+static void log_and_throw(TRAPS) {
   if (!HAS_PENDING_EXCEPTION) {
     DEBUG_ONLY(JfrJavaSupport::check_java_thread_in_native(THREAD));
     ThreadInVMfromNative tvmfn((JavaThread*)THREAD);
-    const char base_error_msg[] = "JfrJvmtiAgent::retransformClasses failed: ";
-    size_t length = sizeof base_error_msg; // includes terminating null
-    const char* const jvmti_error_name = JvmtiUtil::error_name(error);
-    assert(jvmti_error_name != NULL, "invariant");
-    length += strlen(jvmti_error_name);
-    char* error_msg = NEW_RESOURCE_ARRAY(char, length);
-    jio_snprintf(error_msg, length, "%s%s", base_error_msg, jvmti_error_name);
-    if (JVMTI_ERROR_INVALID_CLASS_FORMAT == error) {
-      JfrJavaSupport::throw_class_format_error(error_msg, THREAD);
-    } else {
-      JfrJavaSupport::throw_runtime_exception(error_msg, THREAD);
-    }
+    if (true) tty->print_cr("JfrJvmtiAgent::retransformClasses failed");
+    JfrJavaSupport::throw_class_format_error("JfrJvmtiAgent::retransformClasses failed", THREAD);
   }
 }
 
@@ -147,15 +136,12 @@ static void check_exception_and_log(JNIEnv* env, TRAPS) {
   }
 }
 
-static bool is_valid_jvmti_phase() {
-  return JvmtiEnvBase::get_phase() == JVMTI_PHASE_LIVE;
-}
-
 void JfrJvmtiAgent::retransform_classes(JNIEnv* env, jobjectArray classes_array, TRAPS) {
   assert(env != NULL, "invariant");
-  assert(classes_array != NULL, "invariant");
-  assert(is_valid_jvmti_phase(), "invariant");
   DEBUG_ONLY(JfrJavaSupport::check_java_thread_in_native(THREAD));
+  if (classes_array == NULL) {
+    return;
+  }
   const jint classes_count = env->GetArrayLength(classes_array);
   if (classes_count <= 0) {
     return;
@@ -166,27 +152,27 @@ void JfrJvmtiAgent::retransform_classes(JNIEnv* env, jobjectArray classes_array,
   for (jint i = 0; i < classes_count; i++) {
     jclass clz = (jclass)env->GetObjectArrayElement(classes_array, i);
     check_exception_and_log(env, THREAD);
-    classes[i] = clz;
-  }
-  {
+
     // inspecting the oop/klass requires a thread transition
-    ThreadInVMfromNative transition((JavaThread*)THREAD);
-    for (jint i = 0; i < classes_count; ++i) {
-      jclass clz = classes[i];
-      if (!JdkJfrEvent::is_a(clz)) {
+    {
+      ThreadInVMfromNative transition((JavaThread*)THREAD);
+      if (JdkJfrEvent::is_a(clz)) {
+        // should have been tagged already
+        assert(JdkJfrEvent::is_subklass(clz), "invariant");
+      } else {
         // outside the event hierarchy
         JdkJfrEvent::tag_as_host(clz);
       }
     }
+
+    classes[i] = clz;
   }
-  DEBUG_ONLY(JfrJavaSupport::check_java_thread_in_native(THREAD));
-  const jvmtiError result = jfr_jvmti_env->RetransformClasses(classes_count, classes);
-  if (result != JVMTI_ERROR_NONE) {
-    log_and_throw(result, THREAD);
+  if (jfr_jvmti_env->RetransformClasses(classes_count, classes) != JVMTI_ERROR_NONE) {
+    log_and_throw(THREAD);
   }
 }
 
-static bool register_callbacks(JavaThread* jt) {
+static jvmtiError register_callbacks(JavaThread* jt) {
   assert(jfr_jvmti_env != NULL, "invariant");
   DEBUG_ONLY(JfrJavaSupport::check_java_thread_in_native(jt));
   jvmtiEventCallbacks callbacks;
@@ -195,10 +181,10 @@ static bool register_callbacks(JavaThread* jt) {
   callbacks.ClassFileLoadHook = jfr_on_class_file_load_hook;
   const jvmtiError jvmti_ret_code = jfr_jvmti_env->SetEventCallbacks(&callbacks, sizeof(callbacks));
   check_jvmti_error(jfr_jvmti_env, jvmti_ret_code, "SetEventCallbacks");
-  return jvmti_ret_code == JVMTI_ERROR_NONE;
+  return jvmti_ret_code;
 }
 
-static bool register_capabilities(JavaThread* jt) {
+static jvmtiError register_capabilities(JavaThread* jt) {
   assert(jfr_jvmti_env != NULL, "invariant");
   DEBUG_ONLY(JfrJavaSupport::check_java_thread_in_native(jt));
   jvmtiCapabilities capabilities;
@@ -208,7 +194,7 @@ static bool register_capabilities(JavaThread* jt) {
   capabilities.can_retransform_any_class = 1;
   const jvmtiError jvmti_ret_code = jfr_jvmti_env->AddCapabilities(&capabilities);
   check_jvmti_error(jfr_jvmti_env, jvmti_ret_code, "Add Capabilities");
-  return jvmti_ret_code == JVMTI_ERROR_NONE;
+  return jvmti_ret_code;
 }
 
 static jint create_jvmti_env(JavaThread* jt) {
@@ -219,14 +205,16 @@ static jint create_jvmti_env(JavaThread* jt) {
   return vm->GetEnv((void **)&jfr_jvmti_env, JVMTI_VERSION);
 }
 
-static bool unregister_callbacks(JavaThread* jt) {
-  assert(jfr_jvmti_env != NULL, "invariant");
+static jvmtiError unregister_callbacks(JavaThread* jt) {
+  if (jfr_jvmti_env == NULL) {
+    return JVMTI_ERROR_NONE;
+  }
   jvmtiEventCallbacks callbacks;
   /* Set empty callbacks */
   memset(&callbacks, 0, sizeof(callbacks));
   const jvmtiError jvmti_ret_code = jfr_jvmti_env->SetEventCallbacks(&callbacks, sizeof(callbacks));
   check_jvmti_error(jfr_jvmti_env, jvmti_ret_code, "SetEventCallbacks");
-  return jvmti_ret_code == JVMTI_ERROR_NONE;
+  return jvmti_ret_code;
 }
 
 JfrJvmtiAgent::JfrJvmtiAgent() {}
@@ -234,17 +222,20 @@ JfrJvmtiAgent::JfrJvmtiAgent() {}
 JfrJvmtiAgent::~JfrJvmtiAgent() {
   JavaThread* jt = current_java_thread();
   DEBUG_ONLY(JfrJavaSupport::check_java_thread_in_vm(jt));
+  ThreadToNativeFromVM transition(jt);
+  update_class_file_load_hook_event(JVMTI_DISABLE);
+  unregister_callbacks(jt);
   if (jfr_jvmti_env != NULL) {
-    ThreadToNativeFromVM transition(jt);
-    update_class_file_load_hook_event(JVMTI_DISABLE);
-    unregister_callbacks(jt);
     jfr_jvmti_env->DisposeEnvironment();
     jfr_jvmti_env = NULL;
   }
+  agent = NULL;
 }
 
-static bool initialize(JavaThread* jt) {
+static bool initialize() {
+  JavaThread* const jt = current_java_thread();
   assert(jt != NULL, "invariant");
+  assert(jt->thread_state() == _thread_in_vm, "invariant");
   DEBUG_ONLY(JfrJavaSupport::check_java_thread_in_vm(jt));
   ThreadToNativeFromVM transition(jt);
   if (create_jvmti_env(jt) != JNI_OK) {
@@ -252,38 +243,25 @@ static bool initialize(JavaThread* jt) {
     return false;
   }
   assert(jfr_jvmti_env != NULL, "invariant");
-  if (!register_capabilities(jt)) {
+  if (register_capabilities(jt) != JVMTI_ERROR_NONE) {
     return false;
   }
-  if (!register_callbacks(jt)) {
+  if (register_callbacks(jt) != JVMTI_ERROR_NONE) {
     return false;
   }
-  return update_class_file_load_hook_event(JVMTI_ENABLE);
-}
-
-static void log_and_throw_illegal_state_exception(TRAPS) {
-  DEBUG_ONLY(JfrJavaSupport::check_java_thread_in_vm(THREAD));
-  const char* const illegal_state_msg = "An attempt was made to start JFR too early in the VM initialization sequence.";
-  if (true) {
-    tty->print_cr("%s\n", illegal_state_msg);
-    tty->print_cr("JFR uses JVMTI RetransformClasses and requires the JVMTI state to have entered JVMTI_PHASE_LIVE.\n");
-    tty->print_cr("Please initialize JFR in response to event JVMTI_EVENT_VM_INIT instead of JVMTI_EVENT_VM_START.\n");
+  if (update_class_file_load_hook_event(JVMTI_ENABLE) != JVMTI_ERROR_NONE) {
+    return false;
   }
-  JfrJavaSupport::throw_illegal_state_exception(illegal_state_msg, THREAD);
+  return true;
 }
 
 bool JfrJvmtiAgent::create() {
-  assert(agent == NULL, "invariant");
-  JavaThread* const jt = current_java_thread();
-  if (!is_valid_jvmti_phase()) {
-    log_and_throw_illegal_state_exception(jt);
-    return false;
-  }
+  assert(jfr_jvmti_env == NULL, "invariant");
   agent = new JfrJvmtiAgent();
   if (agent == NULL) {
     return false;
   }
-  if (!initialize(jt)) {
+  if (!initialize()) {
     delete agent;
     agent = NULL;
     return false;
@@ -297,3 +275,4 @@ void JfrJvmtiAgent::destroy() {
     agent = NULL;
   }
 }
+

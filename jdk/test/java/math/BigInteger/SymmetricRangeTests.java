@@ -28,6 +28,7 @@
  * @bug 6910473 8021204 8021203 9005933
  * @summary Test range of BigInteger values
  * @author Dmitry Nadezhin
+ * @key randomness
  */
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
