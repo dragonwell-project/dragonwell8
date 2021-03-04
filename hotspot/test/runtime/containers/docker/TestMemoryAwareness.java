@@ -26,7 +26,7 @@
  * @test
  * @summary Test JVM's memory resource awareness when running inside docker container
  * @library /testlibrary /testlibrary/whitebox
- * @build AttemptOOM sun.hotspot.WhiteBox PrintContainerInfo
+ * @build AttemptOOM sun.hotspot.WhiteBox PrintContainerInfo CheckOperatingSystemMXBean
  * @run driver ClassFileInstaller -jar whitebox.jar sun.hotspot.WhiteBox sun.hotspot.WhiteBox$WhiteBoxPermission
  * @run driver TestMemoryAwareness
  */
@@ -59,6 +59,18 @@ public class TestMemoryAwareness {
             // Add extra 10 Mb to allocator limit, to be sure to cause OOM
             testOOM("256m", 256 + 10);
 
+            testOperatingSystemMXBeanAwareness(
+                "100M", Integer.toString(((int) Math.pow(2, 20)) * 100),
+                "150M", Integer.toString(((int) Math.pow(2, 20)) * (150 - 100))
+            );
+            testOperatingSystemMXBeanAwareness(
+                "128M", Integer.toString(((int) Math.pow(2, 20)) * 128),
+                "256M", Integer.toString(((int) Math.pow(2, 20)) * (256 - 128))
+            );
+            testOperatingSystemMXBeanAwareness(
+                "1G", Integer.toString(((int) Math.pow(2, 20)) * 1024),
+                "1500M", Integer.toString(((int) Math.pow(2, 20)) * (1500 - 1024))
+            );
         } finally {
             DockerTestUtils.removeDockerImage(imageName);
         }
@@ -104,6 +116,26 @@ public class TestMemoryAwareness {
             .shouldContain("Entering AttemptOOM main")
             .shouldNotContain("AttemptOOM allocation successful")
             .shouldContain("java.lang.OutOfMemoryError");
+    }
+
+    private static void testOperatingSystemMXBeanAwareness(String memoryAllocation, String expectedMemory,
+            String swapAllocation, String expectedSwap) throws Exception {
+        Common.logNewTestCase("Check OperatingSystemMXBean");
+
+        DockerRunOptions opts = Common.newOpts(imageName, "CheckOperatingSystemMXBean")
+            .addDockerOpts(
+                "--memory", memoryAllocation,
+                "--memory-swap", swapAllocation
+            );
+
+        DockerTestUtils.dockerRunJava(opts)
+            .shouldHaveExitValue(0)
+            .shouldContain("Checking OperatingSystemMXBean")
+            .shouldContain("OperatingSystemMXBean.getTotalPhysicalMemorySize: " + expectedMemory)
+            .shouldMatch("OperatingSystemMXBean\\.getFreePhysicalMemorySize: [1-9][0-9]+")
+            .shouldContain("OperatingSystemMXBean.getTotalSwapSpaceSize: " + expectedSwap)
+            .shouldMatch("OperatingSystemMXBean\\.getFreeSwapSpaceSize: [1-9][0-9]+")
+            ;
     }
 
 }

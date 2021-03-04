@@ -28,6 +28,7 @@
 SUNWprivate_1.1 {
 	global:
 		JNI_OnLoad;
+		Java_sun_security_pkcs11_wrapper_PKCS11_freeMechanism;
 		Java_sun_security_pkcs11_wrapper_PKCS11_initializeLibrary;
 		Java_sun_security_pkcs11_wrapper_PKCS11_finalizeLibrary;
 		Java_sun_security_pkcs11_wrapper_PKCS11_connect;

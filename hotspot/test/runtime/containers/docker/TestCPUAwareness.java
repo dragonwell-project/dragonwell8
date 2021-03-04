@@ -25,7 +25,9 @@
 /*
  * @test
  * @summary Test JVM's CPU resource awareness when running inside docker container
- * @library /testlibrary
+ * @library /testlibrary /testlibrary/whitebox
+ * @build sun.hotspot.WhiteBox PrintContainerInfo CheckOperatingSystemMXBean
+ * @run driver ClassFileInstaller -jar whitebox.jar sun.hotspot.WhiteBox sun.hotspot.WhiteBox$WhiteBoxPermission
  * @run driver TestCPUAwareness
  */
 
@@ -71,6 +73,14 @@ private static final String imageName = Common.imageName("cpu");
             testCpuQuotaAndPeriod(100*1000, 100*1000);
             testCpuQuotaAndPeriod(150*1000, 100*1000);
             testCpuQuotaAndPeriod(400*1000, 100*1000);
+
+            testOperatingSystemMXBeanAwareness("0.5", "1");
+            testOperatingSystemMXBeanAwareness("1.0", "1");
+            if (availableCPUs > 2) {
+                testOperatingSystemMXBeanAwareness("1.2", "2");
+                testOperatingSystemMXBeanAwareness("1.8", "2");
+                testOperatingSystemMXBeanAwareness("2.0", "2");
+            }
 
         } finally {
             DockerTestUtils.removeDockerImage(imageName);
@@ -201,5 +211,22 @@ private static final String imageName = Common.imageName("cpu");
         Common.run(opts)
             .shouldMatch("CPU Shares is.*" + shares)
             .shouldMatch("active_processor_count.*" + expectedAPC);
+    }
+
+    private static void testOperatingSystemMXBeanAwareness(String cpuAllocation, String expectedCpus) throws Exception {
+        Common.logNewTestCase("Check OperatingSystemMXBean");
+
+        DockerRunOptions opts = Common.newOpts(imageName, "CheckOperatingSystemMXBean")
+            .addDockerOpts(
+                "--cpus", cpuAllocation
+            );
+
+        DockerTestUtils.dockerRunJava(opts)
+            .shouldHaveExitValue(0)
+            .shouldContain("Checking OperatingSystemMXBean")
+            .shouldContain("Runtime.availableProcessors: " + expectedCpus)
+            .shouldContain("OperatingSystemMXBean.getAvailableProcessors: " + expectedCpus)
+            .shouldMatch("OperatingSystemMXBean\\.getSystemCpuLoad: [0-9]+\\.[0-9]+")
+            ;
     }
 }

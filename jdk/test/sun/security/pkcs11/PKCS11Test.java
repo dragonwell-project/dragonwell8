@@ -24,16 +24,40 @@
 
 // common infrastructure for SunPKCS11 tests
 
-import java.io.*;
+import java.io.BufferedReader;
+import java.io.ByteArrayOutputStream;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.StringReader;
+import java.lang.reflect.Constructor;
 import java.nio.charset.StandardCharsets;
-import java.util.*;
-import java.lang.reflect.*;
+import java.security.AlgorithmParameters;
+import java.security.InvalidAlgorithmParameterException;
+import java.security.KeyPairGenerator;
+import java.security.NoSuchProviderException;
+import java.security.Provider;
+import java.security.ProviderException;
+import java.security.Security;
 
-import java.security.*;
 import java.security.spec.ECGenParameterSpec;
 import java.security.spec.ECParameterSpec;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.Properties;
+import java.util.ServiceLoader;
+import java.util.Set;
 
 public abstract class PKCS11Test {
+
+    private boolean enableSM = false;
+
+    static final Properties props = System.getProperties();
 
     static final String PKCS11 = "PKCS11";
 
@@ -42,7 +66,8 @@ public abstract class PKCS11Test {
 
     static final char SEP = File.separatorChar;
 
-    private final static String REL_CLOSED = "../../../../closed/sun/security/pkcs11".replace('/', SEP);
+    private static final String DEFAULT_POLICY =
+            BASE + SEP + ".." + SEP + "policy";
 
     // directory corresponding to BASE in the /closed hierarchy
     static final String CLOSED_BASE;
@@ -55,6 +80,9 @@ public abstract class PKCS11Test {
         String p1 = absBase.substring(0, k + 6);
         String p2 = absBase.substring(k + 5);
         CLOSED_BASE = p1 + "closed" + p2;
+
+        // set it as a system property to make it available in policy file
+        System.setProperty("closed.base", CLOSED_BASE);
     }
 
     static String NSPR_PREFIX = "";
@@ -84,14 +112,43 @@ public abstract class PKCS11Test {
     public abstract void main(Provider p) throws Exception;
 
     private void premain(Provider p) throws Exception {
-        long start = System.currentTimeMillis();
-        System.out.println("Running test with provider " + p.getName() + "...");
-        main(p);
-        long stop = System.currentTimeMillis();
-        System.out.println("Completed test with provider " + p.getName() + " (" + (stop - start) + " ms).");
+        // set a security manager and policy before a test case runs,
+        // and disable them after the test case finished
+        try {
+            if (enableSM) {
+                System.setSecurityManager(new SecurityManager());
+            }
+            long start = System.currentTimeMillis();
+            System.out.printf(
+                    "Running test with provider %s (security manager %s) ...%n",
+                        p.getName(), enableSM ? "enabled" : "disabled");
+            main(p);
+            long stop = System.currentTimeMillis();
+            System.out.println("Completed test with provider " + p.getName() +
+                " (" + (stop - start) + " ms).");
+        } finally {
+            if (enableSM) {
+                System.setSecurityManager(null);
+            }
+        }
     }
 
     public static void main(PKCS11Test test) throws Exception {
+        main(test, null);
+    }
+
+    public static void main(PKCS11Test test, String[] args) throws Exception {
+        if (args != null) {
+            if (args.length > 0 && "sm".equals(args[0])) {
+                test.enableSM = true;
+            }
+            if (test.enableSM) {
+                System.setProperty("java.security.policy",
+                        (args.length > 1) ? BASE + SEP + args[1]
+                                : DEFAULT_POLICY);
+            }
+        }
+
         Provider[] oldProviders = Security.getProviders();
         try {
             System.out.println("Beginning test run " + test.getClass().getName() + "...");
@@ -187,7 +244,6 @@ public abstract class PKCS11Test {
     }
 
     static String getNSSLibDir(String library) throws Exception {
-        Properties props = System.getProperties();
         String osName = props.getProperty("os.name");
         if (osName.startsWith("Win")) {
             osName = "Windows";
@@ -214,6 +270,15 @@ public abstract class PKCS11Test {
             }
         }
         return nssLibDir;
+    }
+
+    static boolean isBadNSSVersion(Provider p) {
+        if (isNSS(p) && badNSSVersion) {
+            System.out.println("NSS 3.11 has a DER issue that recent " +
+                    "version do not.");
+            return true;
+        }
+        return false;
     }
 
     protected static void safeReload(String lib) throws Exception {
@@ -291,35 +356,33 @@ public abstract class PKCS11Test {
 
         try {
             libfile = getNSSLibDir() + System.mapLibraryName(library);
-            FileInputStream is = new FileInputStream(libfile);
-            byte[] data = new byte[1000];
-            int read = 0;
+            try (FileInputStream is = new FileInputStream(libfile)) {
+                byte[] data = new byte[1000];
+                int read = 0;
 
-            while (is.available() > 0) {
-                if (read == 0) {
-                    read = is.read(data, 0, 1000);
-                } else {
-                    // Prepend last 100 bytes in case the header was split
-                    // between the reads.
-                    System.arraycopy(data, 900, data, 0, 100);
-                    read = 100 + is.read(data, 100, 900);
-                }
+                while (is.available() > 0) {
+                    if (read == 0) {
+                        read = is.read(data, 0, 1000);
+                    } else {
+                        // Prepend last 100 bytes in case the header was split
+                        // between the reads.
+                        System.arraycopy(data, 900, data, 0, 100);
+                        read = 100 + is.read(data, 100, 900);
+                    }
 
-                s = new String(data, 0, read, StandardCharsets.US_ASCII);
-                i = s.indexOf(nssHeader1);
-                if (i > 0 || (i = s.indexOf(nssHeader2)) > 0) {
-                    found = true;
-                    // If the nssHeader is before 920 we can break, otherwise
-                    // we may not have the whole header so do another read.  If
-                    // no bytes are in the stream, that is ok, found is true.
-                    if (i < 920) {
-                        break;
+                    s = new String(data, 0, read, StandardCharsets.US_ASCII);
+                    i = s.indexOf(nssHeader1);
+                    if (i > 0 || (i = s.indexOf(nssHeader2)) > 0) {
+                        found = true;
+                        // If the nssHeader is before 920 we can break, otherwise
+                        // we may not have the whole header so do another read.  If
+                        // no bytes are in the stream, that is ok, found is true.
+                        if (i < 920) {
+                            break;
+                        }
                     }
                 }
             }
-
-            is.close();
-
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -421,14 +484,13 @@ public abstract class PKCS11Test {
     }
 
     // Generate a vector of supported elliptic curves of a given provider
-    static Vector<ECParameterSpec> getKnownCurves(Provider p) throws Exception {
+    static List<ECParameterSpec> getKnownCurves(Provider p) throws Exception {
         int index;
         int begin;
         int end;
         String curve;
-        KeyPair kp = null;
 
-        Vector<ECParameterSpec> results = new Vector<ECParameterSpec>();
+        List<ECParameterSpec> results = new ArrayList<>();
         // Get Curves to test from SunEC.
         String kcProp = Security.getProvider("SunEC").
                 getProperty("AlgorithmParameters.EC SupportedCurves");
@@ -466,7 +528,7 @@ public abstract class PKCS11Test {
             try {
                 KeyPairGenerator kpg = KeyPairGenerator.getInstance("EC", p);
                 kpg.initialize(e);
-                kp = kpg.generateKeyPair();
+                kpg.generateKeyPair();
                 results.add(e);
                 System.out.println("Supported");
             } catch (ProviderException ex) {
@@ -497,9 +559,8 @@ public abstract class PKCS11Test {
     }
 
     // Check support for a curve with a provided Vector of EC support
-    boolean checkSupport(Vector<ECParameterSpec> supportedEC,
+    boolean checkSupport(List<ECParameterSpec> supportedEC,
             ECParameterSpec curve) {
-        boolean found = false;
         for (ECParameterSpec ec: supportedEC) {
             if (ec.equals(curve)) {
                 return true;
@@ -512,7 +573,7 @@ public abstract class PKCS11Test {
 
     // Location of the NSS libraries on each supported platform
     static {
-        osMap = new HashMap<String,String[]>();
+        osMap = new HashMap<>();
         osMap.put("SunOS-sparc-32", new String[]{"/usr/lib/mps/"});
         osMap.put("SunOS-sparcv9-64", new String[]{"/usr/lib/mps/64/"});
         osMap.put("SunOS-x86-32", new String[]{"/usr/lib/mps/"});
@@ -534,11 +595,14 @@ public abstract class PKCS11Test {
 
     private final static char[] hexDigits = "0123456789abcdef".toCharArray();
 
+    static final boolean badNSSVersion =
+            getNSSVersion() >= 3.11 && getNSSVersion() < 3.12;
+
     public static String toString(byte[] b) {
         if (b == null) {
             return "(null)";
         }
-        StringBuffer sb = new StringBuffer(b.length * 3);
+        StringBuilder sb = new StringBuilder(b.length * 3);
         for (int i = 0; i < b.length; i++) {
             int k = b[i] & 0xff;
             if (i != 0) {

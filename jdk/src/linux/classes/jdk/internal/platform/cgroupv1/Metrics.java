@@ -31,6 +31,9 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.security.AccessController;
+import java.security.PrivilegedActionException;
+import java.security.PrivilegedExceptionAction;
 import java.util.stream.Stream;
 
 public class Metrics implements jdk.internal.platform.Metrics {
@@ -73,7 +76,7 @@ public class Metrics implements jdk.internal.platform.Metrics {
          * 34 28 0:29 / /sys/fs/cgroup/MemorySubSystem rw,nosuid,nodev,noexec,relatime shared:16 - cgroup cgroup rw,MemorySubSystem
          */
         try (Stream<String> lines =
-             Files.lines(Paths.get("/proc/self/mountinfo"))) {
+             readFilePrivileged(Paths.get("/proc/self/mountinfo"))) {
 
             lines.filter(line -> line.contains(" - cgroup "))
                  .map(line -> line.split(" "))
@@ -107,7 +110,7 @@ public class Metrics implements jdk.internal.platform.Metrics {
          *
          */
         try (Stream<String> lines =
-             Files.lines(Paths.get("/proc/self/cgroup"))) {
+             readFilePrivileged(Paths.get("/proc/self/cgroup"))) {
 
             lines.map(line -> line.split(":"))
                  .filter(line -> (line.length >= 3))
@@ -125,6 +128,25 @@ public class Metrics implements jdk.internal.platform.Metrics {
         return null;
     }
 
+    static Stream<String> readFilePrivileged(Path path) throws IOException {
+        try {
+            PrivilegedExceptionAction<Stream<String>> pea = () -> Files.lines(path);
+            return AccessController.doPrivileged(pea);
+        } catch (PrivilegedActionException e) {
+            unwrapIOExceptionAndRethrow(e);
+            throw new InternalError(e.getCause());
+        }
+    }
+
+    static void unwrapIOExceptionAndRethrow(PrivilegedActionException pae) throws IOException {
+        Throwable x = pae.getCause();
+        if (x instanceof IOException)
+            throw (IOException) x;
+        if (x instanceof RuntimeException)
+            throw (RuntimeException) x;
+        if (x instanceof Error)
+            throw (Error) x;
+    }
     /**
      * createSubSystem objects and initialize mount points
      */
