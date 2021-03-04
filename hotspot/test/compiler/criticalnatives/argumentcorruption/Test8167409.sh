@@ -62,6 +62,12 @@ case "$OS" in
     ;;
 esac
 
+# CriticalJNINatives is not supported for aarch64
+if [ $VM_CPU == "aarch64" ]; then
+    echo "Test Passed"
+    exit 0;
+fi
+
 THIS_DIR=.
 
 cp ${TESTSRC}${FS}*.java ${THIS_DIR}
