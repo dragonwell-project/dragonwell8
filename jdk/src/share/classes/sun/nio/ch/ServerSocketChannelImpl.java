@@ -32,6 +32,7 @@ import java.nio.channels.*;
 import java.nio.channels.spi.*;
 import java.util.*;
 import sun.net.NetHooks;
+import sun.net.ExtendedOptionsHelper;
 
 
 /**
@@ -183,6 +184,7 @@ class ServerSocketChannelImpl
             set.add(StandardSocketOptions.SO_RCVBUF);
             set.add(StandardSocketOptions.SO_REUSEADDR);
             set.add(StandardSocketOptions.IP_TOS);
+            set.addAll(ExtendedOptionsHelper.keepAliveOptions());
             return Collections.unmodifiableSet(set);
         }
     }

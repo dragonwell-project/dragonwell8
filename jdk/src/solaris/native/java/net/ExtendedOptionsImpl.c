@@ -25,6 +25,10 @@
 
 #include <jni.h>
 #include <string.h>
+#if defined(__linux__) || defined(MACOSX)
+#include <netinet/tcp.h>
+#include <netinet/in.h>
+#endif
 
 #include "net_util.h"
 #include "jdk_net_SocketFlow.h"
@@ -328,9 +332,193 @@ static jboolean flowSupported0() {
     return JNI_FALSE;
 }
 
+// Keep alive options are available for MACOSX and Linux only for
+// the time being.
+#if defined(__linux__) || defined(MACOSX)
+
+// Map socket option level/name to OS specific constant
+#ifdef __linux__
+#define SOCK_OPT_LEVEL SOL_TCP
+#define SOCK_OPT_NAME_KEEPIDLE TCP_KEEPIDLE
+#define SOCK_OPT_NAME_KEEPIDLE_STR "TCP_KEEPIDLE"
+#endif
+#ifdef MACOSX
+#define SOCK_OPT_LEVEL IPPROTO_TCP
+#define SOCK_OPT_NAME_KEEPIDLE TCP_KEEPALIVE
+#define SOCK_OPT_NAME_KEEPIDLE_STR "TCP_KEEPALIVE"
+#endif
+
+static jint socketOptionSupported(jint sockopt) {
+    jint one = 1;
+    jint rv, s;
+    s = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP);
+    if (s < 0) {
+        return 0;
+    }
+    rv = setsockopt(s, SOCK_OPT_LEVEL, sockopt, (void *) &one, sizeof (one));
+    if (rv != 0 && errno == ENOPROTOOPT) {
+        rv = 0;
+    } else {
+        rv = 1;
+    }
+    close(s);
+    return rv;
+}
+
+static void handleError(JNIEnv *env, jint rv, const char *errmsg) {
+    if (rv < 0) {
+        if (errno == ENOPROTOOPT) {
+            JNU_ThrowByName(env, "java/lang/UnsupportedOperationException",
+                    "unsupported socket option");
+        } else {
+            JNU_ThrowByNameWithLastError(env, "java/net/SocketException", errmsg);
+        }
+    }
+}
+
+static void setTcpSocketOption
+(JNIEnv *env, jobject fileDesc, jint optval, int opt, int optlevel, const char* errmsg) {
+    int fd = getFD(env, fileDesc);
+
+    if (fd < 0) {
+        NET_ERROR(env, JNU_JAVANETPKG "SocketException", "socket closed");
+        return;
+    } else {
+        jint rv = setsockopt(fd, optlevel, opt, &optval, sizeof (optval));
+        handleError(env, rv, errmsg);
+    }
+}
+
+static jint getTcpSocketOption
+(JNIEnv *env, jobject fileDesc, int opt, int optlevel, const char* errmsg) {
+    int fd = getFD(env, fileDesc);
+
+    if (fd < 0) {
+        NET_ERROR(env, JNU_JAVANETPKG "SocketException", "socket closed");
+        return -1;
+    } else {
+        jint optval, rv;
+        socklen_t sz = sizeof (optval);
+        rv = getsockopt(fd, optlevel, opt, &optval, &sz);
+        handleError(env, rv, errmsg);
+        return optval;
+    }
+}
+
+#else /* __linux__ || MACOSX */
+
+/* Keep alive options not supported for non-linux/non-macosx so throw UnsupportedOpExc */
+
+static void setTcpSocketOption
+(JNIEnv *env, jobject fileDesc, jint optval, int opt, int optlevel, const char* errmsg) {
+    JNU_ThrowByName(env, "java/lang/UnsupportedOperationException",
+        "unsupported socket option");
+}
+
+static jint getTcpSocketOption
+(JNIEnv *env, jobject fileDesc, int opt, int optlevel, const char* errmsg) {
+    JNU_ThrowByName(env, "java/lang/UnsupportedOperationException",
+        "unsupported socket option");
+}
+
+#endif /* __linux__ || MACOSX*/
+
 #endif /* __solaris__ */
 
 JNIEXPORT jboolean JNICALL Java_sun_net_ExtendedOptionsImpl_flowSupported
   (JNIEnv *env, jclass UNUSED) {
     return flowSupported0();
+}
+
+#if defined(__linux__) || defined(MACOSX)
+
+/*
+ * Class:     sun_net_ExtendedOptionsImpl
+ * Method:    keepAliveOptionsSupported
+ * Signature: ()Z
+ */
+JNIEXPORT jboolean JNICALL Java_sun_net_ExtendedOptionsImpl_keepAliveOptionsSupported
+(JNIEnv *env, jobject unused) {
+    return socketOptionSupported(SOCK_OPT_NAME_KEEPIDLE) && socketOptionSupported(TCP_KEEPCNT)
+            && socketOptionSupported(TCP_KEEPINTVL);
+}
+
+#else
+
+/*
+ * Class:     sun_net_ExtendedOptionsImpl
+ * Method:    keepAliveOptionsSupported
+ * Signature: ()Z
+ */
+JNIEXPORT jboolean JNICALL Java_sun_net_ExtendedOptionsImpl_keepAliveOptionsSupported
+(JNIEnv *env, jobject unused) {
+    return JNI_FALSE;
+}
+
+#endif /* __linux__ || MACOSX */
+
+/*
+ * Class:     sun_net_ExtendedOptionsImpl
+ * Method:    setTcpKeepAliveProbes
+ * Signature: (Ljava/io/FileDescriptor;I)V
+ */
+JNIEXPORT void JNICALL Java_sun_net_ExtendedOptionsImpl_setTcpKeepAliveProbes
+(JNIEnv *env, jobject unused, jobject fileDesc, jint optval) {
+    setTcpSocketOption(env, fileDesc, optval, TCP_KEEPCNT, SOCK_OPT_LEVEL,
+                       "set option TCP_KEEPCNT failed");
+}
+
+/*
+ * Class:     sun_net_ExtendedOptionsImpl
+ * Method:    setTcpKeepAliveTime
+ * Signature: (Ljava/io/FileDescriptor;I)V
+ */
+JNIEXPORT void JNICALL Java_sun_net_ExtendedOptionsImpl_setTcpKeepAliveTime
+(JNIEnv *env, jobject unused, jobject fileDesc, jint optval) {
+    setTcpSocketOption(env, fileDesc, optval, SOCK_OPT_NAME_KEEPIDLE, SOCK_OPT_LEVEL,
+                       "set option " SOCK_OPT_NAME_KEEPIDLE_STR " failed");
+}
+
+/*
+ * Class:     sun_net_ExtendedOptionsImpl
+ * Method:    setTcpKeepAliveIntvl
+ * Signature: (Ljava/io/FileDescriptor;I)V
+ */
+JNIEXPORT void JNICALL Java_sun_net_ExtendedOptionsImpl_setTcpKeepAliveIntvl
+(JNIEnv *env, jobject unused, jobject fileDesc, jint optval) {
+    setTcpSocketOption(env, fileDesc, optval, TCP_KEEPINTVL, SOCK_OPT_LEVEL,
+                       "set option TCP_KEEPINTVL failed");
+}
+
+/*
+ * Class:     sun_net_ExtendedOptionsImpl
+ * Method:    getTcpKeepAliveProbes
+ * Signature: (Ljava/io/FileDescriptor;)I
+ */
+JNIEXPORT jint JNICALL Java_sun_net_ExtendedOptionsImpl_getTcpKeepAliveProbes
+(JNIEnv *env, jobject unused, jobject fileDesc) {
+    return getTcpSocketOption(env, fileDesc, TCP_KEEPCNT, SOCK_OPT_LEVEL,
+                              "get option TCP_KEEPCNT failed");
+}
+
+/*
+ * Class:     sun_net_ExtendedOptionsImpl
+ * Method:    getTcpKeepAliveTime
+ * Signature: (Ljava/io/FileDescriptor;)I
+ */
+JNIEXPORT jint JNICALL Java_sun_net_ExtendedOptionsImpl_getTcpKeepAliveTime
+(JNIEnv *env, jobject unused, jobject fileDesc) {
+    return getTcpSocketOption(env, fileDesc, SOCK_OPT_NAME_KEEPIDLE, SOCK_OPT_LEVEL,
+                              "get option " SOCK_OPT_NAME_KEEPIDLE_STR " failed");
+}
+
+/*
+ * Class:     sun_net_ExtendedOptionsImpl
+ * Method:    getTcpKeepAliveIntvl
+ * Signature: (Ljava/io/FileDescriptor;)I
+ */
+JNIEXPORT jint JNICALL Java_sun_net_ExtendedOptionsImpl_getTcpKeepAliveIntvl
+(JNIEnv *env, jobject unused, jobject fileDesc) {
+    return getTcpSocketOption(env, fileDesc, TCP_KEEPINTVL, SOCK_OPT_LEVEL,
+                              "get option TCP_KEEPINTVL failed");
 }

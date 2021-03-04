@@ -574,10 +574,6 @@ JfrJavaSupport::CAUSE JfrJavaSupport::cause() {
   return _cause;
 }
 
-// XXX
-//const char* const JDK_JFR_MODULE_NAME = "jdk.jfr";
-//const char* const JDK_JFR_PACKAGE_NAME = "jdk/jfr";
-
 jlong JfrJavaSupport::jfr_thread_id(jobject target_thread) {
 //  ThreadsListHandle tlh;
   // XXX is it correct and safe?
