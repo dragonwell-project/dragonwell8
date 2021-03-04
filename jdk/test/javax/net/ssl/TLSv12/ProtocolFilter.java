@@ -53,7 +53,7 @@ public class ProtocolFilter {
     /*
      * Where do we find the keystores?
      */
-    static String pathToStores = "../../../../sun/security/ssl/etc";
+    static String pathToStores = "../etc";
     static String keyStoreFile = "keystore";
     static String trustStoreFile = "truststore";
     static String passwd = "passphrase";

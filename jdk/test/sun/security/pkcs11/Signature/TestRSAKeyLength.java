@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,14 +27,26 @@
  * @summary Make sure initSign/initVerify() check RSA key lengths
  * @author Yu-Ching Valerie Peng
  * @library ..
+ * @run main/othervm TestRSAKeyLength
+ * @run main/othervm TestRSAKeyLength sm
  */
 
-import java.security.*;
+import java.security.InvalidKeyException;
+import java.security.KeyPair;
+import java.security.KeyPairGenerator;
+import java.security.PrivateKey;
+import java.security.Provider;
+import java.security.PublicKey;
+import java.security.Signature;
+import java.security.SignedObject;
 
 public class TestRSAKeyLength extends PKCS11Test {
+
     public static void main(String[] args) throws Exception {
-        main(new TestRSAKeyLength());
+        main(new TestRSAKeyLength(), args);
     }
+
+    @Override
     public void main(Provider p) throws Exception {
         boolean isValidKeyLength[] = { true, true, true, false, false };
         String algos[] = { "SHA1withRSA", "SHA224withRSA", "SHA256withRSA",
