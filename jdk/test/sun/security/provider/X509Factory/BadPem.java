@@ -44,7 +44,7 @@ public class BadPem {
 
     public static void main(String[] args) throws Exception {
         String ks = System.getProperty("test.src", ".")
-                + "/../../ssl/etc/keystore";
+                + "/../../../../javax/net/ssl/etc/keystore";
         String pass = "passphrase";
         String alias = "dummy";
 

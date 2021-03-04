@@ -47,14 +47,20 @@ import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLHandshakeException;
 import javax.net.ssl.TrustManagerFactory;
 
-import jdk.testlibrary.OutputAnalyzer;
-import jdk.testlibrary.ProcessTools;
+import jdk.test.lib.process.OutputAnalyzer;
+import jdk.test.lib.process.ProcessTools;
 
 /*
  * @test
  * @bug 8165367
  * @summary Verify the restrictions for certificate path on JSSE with custom trust store.
- * @library /lib/testlibrary
+ * @library /lib
+ * @build jdk.test.lib.Utils
+ *        jdk.test.lib.Asserts
+ *        jdk.test.lib.JDKToolFinder
+ *        jdk.test.lib.JDKToolLauncher
+ *        jdk.test.lib.Platform
+ *        jdk.test.lib.process.*
  * @compile JSSEClient.java
  * @run main/othervm -Djava.security.debug=certpath TLSRestrictions DEFAULT
  * @run main/othervm -Djava.security.debug=certpath TLSRestrictions C1
@@ -198,7 +204,7 @@ public class TLSRestrictions {
      */
     static void testConstraint(String[] trustNames, String[] certNames,
             String serverConstraint, String clientConstraint,
-            boolean needClientAuth, boolean pass) throws Throwable {
+            boolean needClientAuth, boolean pass) throws Exception {
         String trustNameStr = trustNames == null ? ""
                 : String.join(DELIMITER, trustNames);
         String certNameStr = certNames == null ? ""
@@ -213,11 +219,12 @@ public class TLSRestrictions {
                 serverConstraint, clientConstraint,
                 needClientAuth,
                 pass);
-        setConstraint("Server", serverConstraint);
+
         ExecutorService executor = Executors.newFixedThreadPool(1);
         try {
             JSSEServer server = new JSSEServer(
                     createSSLContext(trustNames, certNames),
+                    serverConstraint,
                     needClientAuth);
             int port = server.getPort();
             Future<Exception> serverFuture = executor.submit(() -> server.start());
@@ -275,12 +282,12 @@ public class TLSRestrictions {
      */
     static void testConstraint(String[] trustNames, String[] certNames,
             String serverConstraint, String clientConstraint, boolean pass)
-            throws Throwable {
+            throws Exception {
         testConstraint(trustNames, certNames, serverConstraint, clientConstraint,
                 false, pass);
     }
 
-    public static void main(String[] args) throws Throwable {
+    public static void main(String[] args) throws Exception {
         switch (args[0]) {
         // Case DEFAULT only checks one of default settings for
         // jdk.certpath.disabledAlgorithms in JDK/conf/security/java.security.
