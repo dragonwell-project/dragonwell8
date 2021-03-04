@@ -57,10 +57,10 @@
 #define STR_FORMAT "%.512s"
 #define PRINT_INDENT _dump_file->sp(_dump_file->indentation() * INDENT_SPACE_COUNT)
 #define PRINT_INDENT_IN_CLOSURE _dumper.dump_file()->sp(_dumper.dump_file()->indentation() * INDENT_SPACE_COUNT)
-#define PRINT_CR(format, args...) _dump_file->print_cr(format, ##args)
-#define PRINT_CR_IN_CLOSURE(format, args...) _dumper.dump_file()->print_cr(format, ##args)
-#define PRINT(format, args...) _dump_file->print(format, ##args)
-#define PRINT_IN_CLOSURE(format, args...) _dumper.dump_file()->print(format, ##args)
+#define PRINT_CR(format, ...) _dump_file->print_cr(format, ##__VA_ARGS__)
+#define PRINT_CR_IN_CLOSURE(format, ...) _dumper.dump_file()->print_cr(format, ##__VA_ARGS__)
+#define PRINT(format, ...) _dump_file->print(format, ##__VA_ARGS__)
+#define PRINT_IN_CLOSURE(format, ...) _dumper.dump_file()->print(format, ##__VA_ARGS__)
 #define PRINT_RAW(str) _dump_file->print_raw(str)
 #define PRINT_RAW_IN_CLOSURE(str) _dumper.dump_file()->print_raw(str)
 
@@ -150,7 +150,7 @@ void MetaspaceDumper::do_dump() {
   if (ClassLoaderModuleFieldName != NULL && ClassLoaderModuleFieldName[0] != '\0') {
     const char* label_field_name = ClassLoaderModuleFieldName;
     unsigned int hash = 0;
-    _class_loader_label_name = SymbolTable::lookup_only(label_field_name, strlen(label_field_name), hash);
+    _class_loader_label_name = SymbolTable::lookup_only(label_field_name, (int)strlen(label_field_name), hash);
     _class_loader_label_name_sig = vmSymbols::string_signature();
     assert(_class_loader_label_name_sig != NULL, "must not be null");
   }

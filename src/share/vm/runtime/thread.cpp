@@ -1128,7 +1128,7 @@ static const char* get_class_field_as_utf8_string(Symbol* clazz, Symbol* field, 
     oop name_oop = k->java_mirror()->obj_field(fd.offset());
     if (name_oop == NULL)
       return NULL;
-    const char* name = java_lang_String::as_utf8_string(name_oop, buf, buf_len);
+    const char* name = java_lang_String::as_utf8_string(name_oop, buf, (int)buf_len);
     return name;
   } else {
     return NULL;
