@@ -316,6 +316,8 @@ sun/security/krb5/auto/ReplayCacheTestProc.java                 solaris-sparcv9
 
 security/infra/java/security/cert/CertPathValidator/certification/ActalisCA.java  8224768 generic-all
 
+sun/security/mscapi/SignedObjectChain.java                      8176183 windows-all
+
 ############################################################################
 
 # jdk_sound
@@ -368,3 +370,6 @@ sun/tools/jps/TestJpsJarRelative.java				generic-all
 
 # 8141370
 com/sun/jndi/ldap/DeadSSLLdapTimeoutTest.java			linux-i586,macosx-all
+
+sample/mergesort/MergeSortTest.java				8178912 generic-all
+sample/chatserver/ChatTest.java					8178912 generic-all
