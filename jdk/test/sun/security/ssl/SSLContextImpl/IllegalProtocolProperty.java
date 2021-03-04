@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,6 +28,7 @@
  * @test
  * @bug 7093640
  * @summary Enable TLS 1.1 and TLS 1.2 by default in client side of SunJSSE
+ * @library /lib/security
  * @run main/othervm -Djdk.tls.client.protocols="XSLv3,TLSv1"
  *      IllegalProtocolProperty
  */
@@ -60,6 +61,9 @@ public class IllegalProtocolProperty {
     }
 
     public static void main(String[] args) throws Exception {
+        // Re-enable TLSv1 and TLSv1.1 since test depends on them.
+        SecurityUtils.removeFromDisabledTlsAlgs("TLSv1", "TLSv1.1");
+
         for (ContextVersion cv : ContextVersion.values()) {
             System.out.println("Checking SSLContext of " + cv.contextVersion);
 
