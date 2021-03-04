@@ -189,6 +189,26 @@ public class JavaTimeSupplementary_no extends OpenListResourceBundle {
                     "d.M y GGGG",
                 }
             },
+            { "java.time.japanese.long.Eras",
+                new String[] {
+                    "etter Kristus",
+                    "Meiji",
+                    "Taish\u014d",
+                    "Sh\u014dwa",
+                    "Heisei",
+                    "Reiwa",
+                }
+            },
+            { "java.time.japanese.short.Eras",
+                new String[] {
+                    "e.Kr.",
+                    "M",
+                    "T",
+                    "S",
+                    "H",
+                    "R",
+                }
+            },
         };
     }
 }
