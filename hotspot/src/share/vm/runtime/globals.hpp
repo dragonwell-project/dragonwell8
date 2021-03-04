@@ -204,6 +204,10 @@ define_pd_global(uint64_t,MaxRAM,                    1ULL*G);
 
 #endif // no compilers
 
+#if !INCLUDE_JFR
+#define LogJFR false
+#endif
+
 // string type aliases used only in this file
 typedef const char* ccstr;
 typedef const char* ccstrlist;   // represents string arguments which accumulate
@@ -365,33 +369,33 @@ class DoubleFlagSetting {
 
 class CommandLineFlags {
  public:
-  static bool boolAt(const char* name, size_t len, bool* value);
-  static bool boolAt(const char* name, bool* value)      { return boolAt(name, strlen(name), value); }
+  static bool boolAt(const char* name, size_t len, bool* value, bool allow_locked = false, bool return_flag = false);
+  static bool boolAt(const char* name, bool* value, bool allow_locked = false, bool return_flag = false)   { return boolAt(name, strlen(name), value, allow_locked, return_flag); }
   static bool boolAtPut(const char* name, size_t len, bool* value, Flag::Flags origin);
   static bool boolAtPut(const char* name, bool* value, Flag::Flags origin)   { return boolAtPut(name, strlen(name), value, origin); }
 
-  static bool intxAt(const char* name, size_t len, intx* value);
-  static bool intxAt(const char* name, intx* value)      { return intxAt(name, strlen(name), value); }
+  static bool intxAt(const char* name, size_t len, intx* value, bool allow_locked = false, bool return_flag = false);
+  static bool intxAt(const char* name, intx* value, bool allow_locked = false, bool return_flag = false)      { return intxAt(name, strlen(name), value, allow_locked, return_flag); }
   static bool intxAtPut(const char* name, size_t len, intx* value, Flag::Flags origin);
   static bool intxAtPut(const char* name, intx* value, Flag::Flags origin)   { return intxAtPut(name, strlen(name), value, origin); }
 
-  static bool uintxAt(const char* name, size_t len, uintx* value);
-  static bool uintxAt(const char* name, uintx* value)    { return uintxAt(name, strlen(name), value); }
+  static bool uintxAt(const char* name, size_t len, uintx* value, bool allow_locked = false, bool return_flag = false);
+  static bool uintxAt(const char* name, uintx* value, bool allow_locked = false, bool return_flag = false)    { return uintxAt(name, strlen(name), value, allow_locked, return_flag); }
   static bool uintxAtPut(const char* name, size_t len, uintx* value, Flag::Flags origin);
   static bool uintxAtPut(const char* name, uintx* value, Flag::Flags origin) { return uintxAtPut(name, strlen(name), value, origin); }
 
-  static bool uint64_tAt(const char* name, size_t len, uint64_t* value);
-  static bool uint64_tAt(const char* name, uint64_t* value) { return uint64_tAt(name, strlen(name), value); }
+  static bool uint64_tAt(const char* name, size_t len, uint64_t* value, bool allow_locked = false, bool return_flag = false);
+  static bool uint64_tAt(const char* name, uint64_t* value, bool allow_locked = false, bool return_flag = false) { return uint64_tAt(name, strlen(name), value, allow_locked, return_flag); }
   static bool uint64_tAtPut(const char* name, size_t len, uint64_t* value, Flag::Flags origin);
   static bool uint64_tAtPut(const char* name, uint64_t* value, Flag::Flags origin) { return uint64_tAtPut(name, strlen(name), value, origin); }
 
-  static bool doubleAt(const char* name, size_t len, double* value);
-  static bool doubleAt(const char* name, double* value)    { return doubleAt(name, strlen(name), value); }
+  static bool doubleAt(const char* name, size_t len, double* value, bool allow_locked = false, bool return_flag = false);
+  static bool doubleAt(const char* name, double* value, bool allow_locked = false, bool return_flag = false)    { return doubleAt(name, strlen(name), value, allow_locked, return_flag); }
   static bool doubleAtPut(const char* name, size_t len, double* value, Flag::Flags origin);
   static bool doubleAtPut(const char* name, double* value, Flag::Flags origin) { return doubleAtPut(name, strlen(name), value, origin); }
 
-  static bool ccstrAt(const char* name, size_t len, ccstr* value);
-  static bool ccstrAt(const char* name, ccstr* value)    { return ccstrAt(name, strlen(name), value); }
+  static bool ccstrAt(const char* name, size_t len, ccstr* value, bool allow_locked = false, bool return_flag = false);
+  static bool ccstrAt(const char* name, ccstr* value, bool allow_locked = false, bool return_flag = false)    { return ccstrAt(name, strlen(name), value, allow_locked, return_flag); }
   // Contract:  Flag will make private copy of the incoming value.
   // Outgoing value is always malloc-ed, and caller MUST call free.
   static bool ccstrAtPut(const char* name, size_t len, ccstr* value, Flag::Flags origin);
@@ -3982,15 +3986,35 @@ class CommandLineFlags {
           "Allocation less than this value will be allocated "              \
           "using malloc. Larger allocations will use mmap.")                \
                                                                             \
-  product(bool, EnableTracing, false,                                       \
-          "Enable event-based tracing")                                     \
-                                                                            \
-  product(bool, UseLockedTracing, false,                                    \
-          "Use locked-tracing when doing event-based tracing")              \
-                                                                            \
   product_pd(bool, PreserveFramePointer,                                    \
              "Use the FP register for holding the frame pointer "           \
-             "and not as a general purpose register.")
+             "and not as a general purpose register.")                      \
+                                                                            \
+  product(bool, EnableTracing, false,                                       \
+          "Enable event-based tracing"                                      \
+          "Deprecated: use FlightRecorder instead")                         \
+                                                                            \
+  product(bool, UseLockedTracing, false,                                    \
+          "Use locked-tracing when doing event-based tracing"               \
+          "Deprecated: use FlightRecorder instead")                         \
+                                                                            \
+  JFR_ONLY(product(bool, FlightRecorder, false,                             \
+          "Enable Flight Recorder"))                                        \
+                                                                            \
+  JFR_ONLY(product(ccstr, FlightRecorderOptions, NULL,                      \
+          "Flight Recorder options"))                                       \
+                                                                            \
+  JFR_ONLY(product(ccstr, StartFlightRecording, NULL,                       \
+          "Start flight recording with options"))                           \
+                                                                            \
+  JFR_ONLY(product(bool, UnlockCommercialFeatures, false,                   \
+          "This flag is ignored. Left for compatibility"))                  \
+                                                                            \
+  experimental(bool, UseFastUnorderedTimeStamps, false,                     \
+          "Use platform unstable time where supported for timestamps only") \
+                                                                            \
+  JFR_ONLY(product(bool, LogJFR, false,                                     \
+          "Enable JFR logging (consider +Verbose)"))                        \
 
 /*
  *  Macros for factoring of globals
