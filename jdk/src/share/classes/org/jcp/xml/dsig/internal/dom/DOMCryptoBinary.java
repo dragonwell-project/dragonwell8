@@ -1,7 +1,3 @@
-/*
- * reserved comment block
- * DO NOT REMOVE OR ALTER!
- */
 /**
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements. See the NOTICE file
@@ -21,32 +17,32 @@
  * under the License.
  */
 /*
- * Copyright (c) 2005, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright 2005 Sun Microsystems, Inc. All rights reserved.
  */
 /*
- * $Id: DOMCryptoBinary.java 1197150 2011-11-03 14:34:57Z coheigea $
+ * $Id$
  */
 package org.jcp.xml.dsig.internal.dom;
 
 import java.math.BigInteger;
 import javax.xml.crypto.*;
 import javax.xml.crypto.dom.DOMCryptoContext;
+
+import com.sun.org.apache.xml.internal.security.utils.XMLUtils;
 import org.w3c.dom.Node;
 import org.w3c.dom.Text;
-
-import com.sun.org.apache.xml.internal.security.utils.Base64;
 
 /**
  * A DOM-based representation of the XML <code>CryptoBinary</code> simple type
  * as defined in the W3C specification for XML-Signature Syntax and Processing.
  * The XML Schema Definition is defined as:
  *
- * <pre>{@code
+ * <xmp>
  * <simpleType name="CryptoBinary">
  *   <restriction base = "base64Binary">
  *   </restriction>
  * </simpleType>
- * }</pre>
+ * </xmp>
  *
  * @author Sean Mullan
  */
@@ -68,7 +64,8 @@ public final class DOMCryptoBinary extends DOMStructure {
         }
         this.bigNum = bigNum;
         // convert to bitstring
-        value = Base64.encode(bigNum);
+        byte[] bytes = XMLUtils.getBytes(bigNum, bigNum.bitLength());
+        value = XMLUtils.encodeToString(bytes);
     }
 
     /**
@@ -80,7 +77,7 @@ public final class DOMCryptoBinary extends DOMStructure {
     public DOMCryptoBinary(Node cbNode) throws MarshalException {
         value = cbNode.getNodeValue();
         try {
-            bigNum = Base64.decodeBigIntegerFromText((Text) cbNode);
+            bigNum = new BigInteger(1, XMLUtils.decode(((Text) cbNode).getData()));
         } catch (Exception ex) {
             throw new MarshalException(ex);
         }
@@ -95,6 +92,7 @@ public final class DOMCryptoBinary extends DOMStructure {
         return bigNum;
     }
 
+    @Override
     public void marshal(Node parent, String prefix, DOMCryptoContext context)
         throws MarshalException {
         parent.appendChild

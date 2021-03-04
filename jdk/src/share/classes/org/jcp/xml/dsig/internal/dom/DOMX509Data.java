@@ -21,34 +21,34 @@
  * under the License.
  */
 /*
- * Copyright (c) 2005, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2018, Oracle and/or its affiliates. All rights reserved.
  */
 /*
- * $Id: DOMX509Data.java 1333415 2012-05-03 12:03:51Z coheigea $
+ * $Id: DOMX509Data.java 1789702 2017-03-31 15:15:04Z coheigea $
  */
 package org.jcp.xml.dsig.internal.dom;
 
 import java.io.ByteArrayInputStream;
+import java.io.IOException;
 import java.security.cert.*;
 import java.util.*;
+
 import javax.xml.crypto.*;
 import javax.xml.crypto.dom.DOMCryptoContext;
 import javax.xml.crypto.dsig.*;
-import javax.xml.crypto.dsig.keyinfo.X509IssuerSerial;
 import javax.xml.crypto.dsig.keyinfo.X509Data;
+import javax.xml.crypto.dsig.keyinfo.X509IssuerSerial;
 import javax.security.auth.x500.X500Principal;
+
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.Node;
-import org.w3c.dom.NodeList;
 
-import com.sun.org.apache.xml.internal.security.exceptions.Base64DecodingException;
-import com.sun.org.apache.xml.internal.security.utils.Base64;
+import com.sun.org.apache.xml.internal.security.utils.XMLUtils;
 
 /**
  * DOM-based implementation of X509Data.
  *
- * @author Sean Mullan
  */
 //@@@ check for illegal combinations of data violating MUSTs in W3c spec
 public final class DOMX509Data extends DOMStructure implements X509Data {
@@ -60,21 +60,21 @@ public final class DOMX509Data extends DOMStructure implements X509Data {
      * Creates a DOMX509Data.
      *
      * @param content a list of one or more X.509 data types. Valid types are
-     *    {@link String} (subject names), <code>byte[]</code> (subject key ids),
+     *    {@link String} (subject names), {@code byte[]} (subject key ids),
      *    {@link java.security.cert.X509Certificate}, {@link X509CRL},
-     *    or {@link javax.xml.dsig.XMLStructure} ({@link X509IssuerSerial}
+     *    or {@link javax.xml.dsig.XMLStructure}
      *    objects or elements from an external namespace). The list is
      *    defensively copied to protect against subsequent modification.
-     * @throws NullPointerException if <code>content</code> is <code>null</code>
-     * @throws IllegalArgumentException if <code>content</code> is empty
-     * @throws ClassCastException if <code>content</code> contains any entries
+     * @throws NullPointerException if {@code content} is {@code null}
+     * @throws IllegalArgumentException if {@code content} is empty
+     * @throws ClassCastException if {@code content} contains any entries
      *    that are not of one of the valid types mentioned above
      */
     public DOMX509Data(List<?> content) {
         if (content == null) {
             throw new NullPointerException("content cannot be null");
         }
-        List<Object> contentCopy = new ArrayList<Object>(content);
+        List<Object> contentCopy = new ArrayList<>(content);
         if (contentCopy.isEmpty()) {
             throw new IllegalArgumentException("content cannot be empty");
         }
@@ -94,44 +94,38 @@ public final class DOMX509Data extends DOMStructure implements X509Data {
     }
 
     /**
-     * Creates a <code>DOMX509Data</code> from an element.
+     * Creates a {@code DOMX509Data} from an element.
      *
      * @param xdElem an X509Data element
      * @throws MarshalException if there is an error while unmarshalling
      */
     public DOMX509Data(Element xdElem) throws MarshalException {
         // get all children nodes
-        NodeList nl = xdElem.getChildNodes();
-        int length = nl.getLength();
-        List<Object> content = new ArrayList<Object>(length);
-        for (int i = 0; i < length; i++) {
-            Node child = nl.item(i);
-            // ignore all non-Element nodes
-            if (child.getNodeType() != Node.ELEMENT_NODE) {
-                continue;
-            }
-
-            Element childElem = (Element)child;
-            String localName = childElem.getLocalName();
-            if (localName.equals("X509Certificate")) {
-                content.add(unmarshalX509Certificate(childElem));
-            } else if (localName.equals("X509IssuerSerial")) {
-                content.add(new DOMX509IssuerSerial(childElem));
-            } else if (localName.equals("X509SubjectName")) {
-                content.add(childElem.getFirstChild().getNodeValue());
-            } else if (localName.equals("X509SKI")) {
-                try {
-                    content.add(Base64.decode(childElem));
-                } catch (Base64DecodingException bde) {
-                    throw new MarshalException("cannot decode X509SKI", bde);
+        List<Object> newContent = new ArrayList<>();
+        Node firstChild = xdElem.getFirstChild();
+        while (firstChild != null) {
+            if (firstChild.getNodeType() == Node.ELEMENT_NODE) {
+                Element childElem = (Element)firstChild;
+                String localName = childElem.getLocalName();
+                String namespace = childElem.getNamespaceURI();
+                if ("X509Certificate".equals(localName) && XMLSignature.XMLNS.equals(namespace)) {
+                    newContent.add(unmarshalX509Certificate(childElem));
+                } else if ("X509IssuerSerial".equals(localName) && XMLSignature.XMLNS.equals(namespace)) {
+                    newContent.add(new DOMX509IssuerSerial(childElem));
+                } else if ("X509SubjectName".equals(localName) && XMLSignature.XMLNS.equals(namespace)) {
+                    newContent.add(childElem.getFirstChild().getNodeValue());
+                } else if ("X509SKI".equals(localName) && XMLSignature.XMLNS.equals(namespace)) {
+                    String content = XMLUtils.getFullTextChildrenFromElement(childElem);
+                    newContent.add(XMLUtils.decode(content));
+                } else if ("X509CRL".equals(localName) && XMLSignature.XMLNS.equals(namespace)) {
+                    newContent.add(unmarshalX509CRL(childElem));
+                } else {
+                    newContent.add(new javax.xml.crypto.dom.DOMStructure(childElem));
                 }
-            } else if (localName.equals("X509CRL")) {
-                content.add(unmarshalX509CRL(childElem));
-            } else {
-                content.add(new javax.xml.crypto.dom.DOMStructure(childElem));
             }
+            firstChild = firstChild.getNextSibling();
         }
-        this.content = Collections.unmodifiableList(content);
+        this.content = Collections.unmodifiableList(newContent);
     }
 
     public List<Object> getContent() {
@@ -176,7 +170,7 @@ public final class DOMX509Data extends DOMStructure implements X509Data {
     {
         Element skidElem = DOMUtils.createElement(doc, "X509SKI",
                                                   XMLSignature.XMLNS, dsPrefix);
-        skidElem.appendChild(doc.createTextNode(Base64.encode(skid)));
+        skidElem.appendChild(doc.createTextNode(XMLUtils.encodeToString(skid)));
         parent.appendChild(skidElem);
     }
 
@@ -197,7 +191,7 @@ public final class DOMX509Data extends DOMStructure implements X509Data {
                                                   XMLSignature.XMLNS, dsPrefix);
         try {
             certElem.appendChild(doc.createTextNode
-                                 (Base64.encode(cert.getEncoded())));
+                                 (XMLUtils.encodeToString(cert.getEncoded())));
         } catch (CertificateEncodingException e) {
             throw new MarshalException("Error encoding X509Certificate", e);
         }
@@ -212,7 +206,7 @@ public final class DOMX509Data extends DOMStructure implements X509Data {
                                                  XMLSignature.XMLNS, dsPrefix);
         try {
             crlElem.appendChild(doc.createTextNode
-                                (Base64.encode(crl.getEncoded())));
+                                (XMLUtils.encodeToString(crl.getEncoded())));
         } catch (CRLException e) {
             throw new MarshalException("Error encoding X509CRL", e);
         }
@@ -222,20 +216,22 @@ public final class DOMX509Data extends DOMStructure implements X509Data {
     private X509Certificate unmarshalX509Certificate(Element elem)
         throws MarshalException
     {
-        try {
-            ByteArrayInputStream bs = unmarshalBase64Binary(elem);
+        try (ByteArrayInputStream bs = unmarshalBase64Binary(elem)) {
             return (X509Certificate)cf.generateCertificate(bs);
         } catch (CertificateException e) {
             throw new MarshalException("Cannot create X509Certificate", e);
+        } catch (IOException e) {
+            throw new MarshalException("Error closing stream", e);
         }
     }
 
     private X509CRL unmarshalX509CRL(Element elem) throws MarshalException {
-        try {
-            ByteArrayInputStream bs = unmarshalBase64Binary(elem);
+        try (ByteArrayInputStream bs = unmarshalBase64Binary(elem)) {
             return (X509CRL)cf.generateCRL(bs);
         } catch (CRLException e) {
             throw new MarshalException("Cannot create X509CRL", e);
+        } catch (IOException e) {
+            throw new MarshalException("Error closing stream", e);
         }
     }
 
@@ -245,11 +241,10 @@ public final class DOMX509Data extends DOMStructure implements X509Data {
             if (cf == null) {
                 cf = CertificateFactory.getInstance("X.509");
             }
-            return new ByteArrayInputStream(Base64.decode(elem));
+            String content = XMLUtils.getFullTextChildrenFromElement(elem);
+            return new ByteArrayInputStream(XMLUtils.decode(content));
         } catch (CertificateException e) {
             throw new MarshalException("Cannot create CertificateFactory", e);
-        } catch (Base64DecodingException bde) {
-            throw new MarshalException("Cannot decode Base64-encoded val", bde);
         }
     }
 
