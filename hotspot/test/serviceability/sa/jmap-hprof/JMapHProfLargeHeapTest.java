@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -50,7 +50,6 @@ import com.oracle.java.testlibrary.ProcessTools;
 
 public class JMapHProfLargeHeapTest {
     private static final String HEAP_DUMP_FILE_NAME = "heap.hprof";
-    private static final String HPROF_HEADER_1_0_1 = "JAVA PROFILE 1.0.1";
     private static final String HPROF_HEADER_1_0_2 = "JAVA PROFILE 1.0.2";
     private static final long M = 1024L;
     private static final long G = 1024L * M;
@@ -75,8 +74,8 @@ public class JMapHProfLargeHeapTest {
             }
         }
 
-        // Small heap 22 megabytes, should create 1.0.1 file format
-        testHProfFileFormat("-Xmx1g", 22 * M, HPROF_HEADER_1_0_1);
+        // All heap dumps should create 1.0.2 file format
+        testHProfFileFormat("-Xmx1g", 22 * M, HPROF_HEADER_1_0_2);
 
         /**
          * This test was deliberately commented out since the test system lacks
