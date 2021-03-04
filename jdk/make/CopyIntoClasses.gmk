@@ -91,12 +91,6 @@ ifndef OPENJDK
       $(SWING_PLAF_WINDOWS_RESOURCES_DIR_CLOSED)/icons/JavaCup32.png
 endif
 
-ifeq ($(ENABLE_JFR), true)
-  JFR_CONFIGURATION_DIR_CLOSED = $(JDK_TOPDIR)/src/closed/share/classes/oracle/jrockit/jfr/settings
-  COPY_FILES += \
-      $(JFR_CONFIGURATION_DIR_CLOSED)/jfc.xsd
-endif
-
 SWING_PLAF_BASIC_RESOURCES_DIR = $(JDK_TOPDIR)/src/share/classes/javax/swing/plaf/basic
 COPY_FILES += \
     $(wildcard $(SWING_PLAF_BASIC_RESOURCES_DIR)/icons/*.png)

@@ -96,6 +96,7 @@ class VMThread: public NamedThread {
 
   static bool _should_terminate;
   static bool _terminated;
+  static bool _gclog_reentry;
   static Monitor * _terminate_lock;
   static PerfCounter* _perf_accumulated_vm_operation_time;
 
@@ -115,6 +116,8 @@ class VMThread: public NamedThread {
   static void wait_for_vm_thread_exit();
   static bool should_terminate()                  { return _should_terminate; }
   static bool is_terminated()                     { return _terminated == true; }
+  static bool is_gclog_reentry()                  { return _gclog_reentry; }
+  static void set_gclog_reentry(bool reentry)     { _gclog_reentry = reentry; }
 
   // Execution of vm operation
   static void execute(VM_Operation* op);
