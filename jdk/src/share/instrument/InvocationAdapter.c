@@ -203,6 +203,17 @@ Agent_OnLoad(JavaVM *vm, char *tail, void * reserved) {
          */
         oldLen = (int)strlen(premainClass);
         newLen = modifiedUtf8LengthOfUtf8(premainClass, oldLen);
+        /*
+         * According to JVMS class name is represented as CONSTANT_Utf8_info,
+         * so its length is u2 (i.e. must be <= 0xFFFF).
+         */
+        if (newLen > 0xFFFF) {
+            fprintf(stderr, "-javaagent: Premain-Class value is too big\n");
+            free(jarfile);
+            if (options != NULL) free(options);
+            freeAttributes(attributes);
+            return JNI_ERR;
+        }
         if (newLen == oldLen) {
             premainClass = strdup(premainClass);
         } else {
@@ -362,6 +373,17 @@ Agent_OnAttach(JavaVM* vm, char *args, void * reserved) {
          */
         oldLen = strlen(agentClass);
         newLen = modifiedUtf8LengthOfUtf8(agentClass, oldLen);
+        /*
+         * According to JVMS class name is represented as CONSTANT_Utf8_info,
+         * so its length is u2 (i.e. must be <= 0xFFFF).
+         */
+        if (newLen > 0xFFFF) {
+            fprintf(stderr, "Agent-Class value is too big\n");
+            free(jarfile);
+            if (options != NULL) free(options);
+            freeAttributes(attributes);
+            return AGENT_ERROR_BADJAR;
+        }
         if (newLen == oldLen) {
             agentClass = strdup(agentClass);
         } else {
