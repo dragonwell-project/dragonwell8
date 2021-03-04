@@ -280,7 +280,7 @@ $(variantDir)\local.make: checks
 	@ echo HS_COMPANY=$(COMPANY_NAME)			>> $@
 	@ echo HS_FILEDESC=$(HS_FILEDESC)			>> $@
 	@ echo HOTSPOT_VM_DISTRO=$(HOTSPOT_VM_DISTRO)		>> $@
-	@ echo VENDOR=$(VENDOR)					>> $@
+	@ echo VENDOR=$(COMPANY_NAME)				>> $@
 	@ echo VENDOR_URL=$(VENDOR_URL)				>> $@
 	@ echo VENDOR_URL_BUG=$(VENDOR_URL_BUG)			>> $@
 	@ echo VENDOR_URL_VM_BUG=$(VENDOR_URL_VM_BUG)		>> $@
