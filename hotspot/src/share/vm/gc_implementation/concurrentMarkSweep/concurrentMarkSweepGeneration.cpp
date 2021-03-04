@@ -1928,9 +1928,7 @@ NOT_PRODUCT(
 
     // Has the GC time limit been exceeded?
     DefNewGeneration* young_gen = _young_gen->as_DefNewGeneration();
-    size_t max_eden_size = young_gen->max_capacity() -
-                           young_gen->to()->capacity() -
-                           young_gen->from()->capacity();
+    size_t max_eden_size = young_gen->max_eden_size();
     GenCollectedHeap* gch = GenCollectedHeap::heap();
     GCCause::Cause gc_cause = gch->gc_cause();
     size_policy()->check_gc_overhead_limit(_young_gen->used(),
