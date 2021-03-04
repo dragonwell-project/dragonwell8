@@ -24,7 +24,7 @@
 /*
  * @test
  * @bug 6530336 6537997 8008577
- * @run main/othervm -Djava.locale.providers=COMPAT,SPI Bug6530336
+ * @run main/othervm -Djava.locale.providers=JRE,SPI Bug6530336
  */
 
 import java.text.SimpleDateFormat;
