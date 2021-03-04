@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, Red Hat, Inc. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -19,39 +19,36 @@
  * Please contact Oracle, 500 Oracle Parkway, Redwood Shores, CA 94065 USA
  * or visit www.oracle.com if you need additional information or have any
  * questions.
+ */
+
+/*
+ * @test 8214862
+ * @summary Multiple passes of PhaseRemoveUseless causes infinite loop to be optimized out
+ *
+ * @run main/othervm -XX:-TieredCompilation -Xcomp -XX:CompileOnly=StringConcatInfiniteLoop::test -XX:CompileCommand=dontinline,*StringBuilder::* StringConcatInfiniteLoop
  *
  */
 
-#ifndef SHARE_VM_JFR_WRITERS_JFRPOSITION_HPP
-#define SHARE_VM_JFR_WRITERS_JFRPOSITION_HPP
+public class StringConcatInfiniteLoop {
+    public static void main(String[] args) {
+        StringBuilder sb = new StringBuilder();
+        test(sb, "foo", "bar", true);
+    }
 
-#include "utilities/debug.hpp"
-#include "utilities/globalDefinitions.hpp"
+    private static void test(Object v, String s1, String s2, boolean flag) {
+        if (flag) {
+            return;
+        }
+        int i = 0;
+        for (; i < 10; i++);
+        if (i == 10) {
+            v = null;
+        }
+        StringBuilder sb = new StringBuilder(s1);
+        sb.append(s2);
+        while (v == null);
+    }
 
-template <typename AP> // AllocationPolicy
-class Position : public AP {
- private:
-  const u1* _start_pos; // logical start
-  u1* _current_pos;
-  const u1* _end_pos;
-
- protected:
-  const u1* start_pos() const;
-  void set_start_pos(const u1* position);
-  u1* current_pos();
-  void set_current_pos(const u1* new_position);
-  void set_current_pos(size_t size);
-  const u1* end_pos() const;
-  void set_end_pos(const u1* position);
-  Position(const u1* start_pos, size_t size);
-  Position();
-
- public:
-  size_t available_size() const;
-  int64_t used_offset() const;
-  int64_t current_offset() const;
-  size_t used_size() const;
-  void reset();
-};
-
-#endif // SHARE_VM_JFR_WRITERS_JFRPOSITION_HPP
+    private static class A {
+    }
+}

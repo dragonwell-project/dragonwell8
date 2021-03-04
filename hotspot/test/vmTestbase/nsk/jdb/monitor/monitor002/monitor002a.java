@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -19,39 +19,34 @@
  * Please contact Oracle, 500 Oracle Parkway, Redwood Shores, CA 94065 USA
  * or visit www.oracle.com if you need additional information or have any
  * questions.
- *
  */
 
-#ifndef SHARE_VM_JFR_WRITERS_JFRPOSITION_HPP
-#define SHARE_VM_JFR_WRITERS_JFRPOSITION_HPP
+package nsk.jdb.monitor.monitor002;
 
-#include "utilities/debug.hpp"
-#include "utilities/globalDefinitions.hpp"
+import nsk.share.*;
+import nsk.share.jpda.*;
+import nsk.share.jdb.*;
 
-template <typename AP> // AllocationPolicy
-class Position : public AP {
- private:
-  const u1* _start_pos; // logical start
-  u1* _current_pos;
-  const u1* _end_pos;
+import java.io.*;
 
- protected:
-  const u1* start_pos() const;
-  void set_start_pos(const u1* position);
-  u1* current_pos();
-  void set_current_pos(const u1* new_position);
-  void set_current_pos(size_t size);
-  const u1* end_pos() const;
-  void set_end_pos(const u1* position);
-  Position(const u1* start_pos, size_t size);
-  Position();
+//    THIS TEST IS LINE NUMBER SENSITIVE
 
- public:
-  size_t available_size() const;
-  int64_t used_offset() const;
-  int64_t current_offset() const;
-  size_t used_size() const;
-  void reset();
-};
+/* This is debuggee aplication */
+public class monitor002a {
+    static monitor002a _monitor002a = new monitor002a();
 
-#endif // SHARE_VM_JFR_WRITERS_JFRPOSITION_HPP
+    public static void main(String args[]) {
+        System.exit(monitor002.JCK_STATUS_BASE + _monitor002a.runIt(args, System.out));
+    }
+
+    static void lastBreak () {}
+
+    public int runIt(String args[], PrintStream out) {
+        JdbArgumentHandler argumentHandler = new JdbArgumentHandler(args);
+        Log log = new Log(out, argumentHandler);
+        int localInt = 0; // monitor002.LINE_NUMBER
+        localInt++; // dummy breakpoint
+        log.display("Debuggee PASSED");
+        return monitor002.PASSED;
+    }
+}
