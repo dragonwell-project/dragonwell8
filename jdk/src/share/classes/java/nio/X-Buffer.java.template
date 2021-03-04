@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -414,15 +414,23 @@ public abstract class $Type$Buffer
      */
     public int read(CharBuffer target) throws IOException {
         // Determine the number of bytes n that can be transferred
-        int targetRemaining = target.remaining();
         int limit = limit();
-        int remaining = limit - position();
-        if (remaining == 0)
+        int pos = position();
+        int remaining = limit - pos;
+        assert remaining >= 0;
+        if (remaining <= 0) // include equality condition when remaining == 0
             return -1;
+
+        int targetRemaining = target.remaining();
+        assert targetRemaining >= 0;
+        if (targetRemaining <= 0) // include condition targetRemaining == 0
+            return 0;
+
         int n = Math.min(remaining, targetRemaining);
+
         // Set source limit to prevent target overflow
         if (targetRemaining < remaining)
-            limit(position() + n);
+            limit(pos + n);
         try {
             if (n > 0)
                 target.put(this);
