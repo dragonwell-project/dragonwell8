@@ -26,7 +26,7 @@
  * @bug 4838107 8008577
  * @summary Confirm that DecimalFormat can format a number with negative exponent number correctly.
  * @library /java/text/testlib
- * @run main/othervm -Djava.locale.providers=COMPAT,SPI Bug4838107
+ * @run main/othervm -Djava.locale.providers=JRE,SPI Bug4838107
  */
 
 import java.math.*;
