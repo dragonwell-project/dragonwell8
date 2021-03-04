@@ -27,6 +27,7 @@
  * @library /lib/testlibrary
  * @build jdk.testlibrary.*
  * @run main MultiThreadedReadTest
+ * @key randomness
  */
 
 import java.io.BufferedOutputStream;

@@ -154,6 +154,10 @@ else ifeq ($(OPENJDK_TARGET_OS), macosx)
   LIBJAVA_SRC_DIRS += $(JDK_TOPDIR)/src/macosx/native/sun/util/locale/provider
 endif
 
+ifeq ($(OPENJDK_TARGET_OS), linux)
+  LIBJAVA_SRC_DIRS += $(JDK_TOPDIR)/src/linux/native/jdk/internal/platform/cgroupv1
+endif
+
 ifeq ($(OPENJDK_TARGET_OS), windows)
   LIBJAVA_SRC_DIRS += $(JDK_TOPDIR)/src/$(OPENJDK_TARGET_OS_API_DIR)/native/sun/security/provider \
       $(JDK_TOPDIR)/src/$(OPENJDK_TARGET_OS_API_DIR)/native/sun/io

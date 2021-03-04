@@ -26,6 +26,7 @@
  * @bug 4891312
  * @summary verify that modPow() not broken by the special case for 65537
  * @author Andreas Sterbenz
+ * @key randomness
  */
 
 import java.math.BigInteger;
