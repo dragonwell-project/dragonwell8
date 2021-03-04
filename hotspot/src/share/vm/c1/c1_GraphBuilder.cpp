@@ -34,6 +34,7 @@
 #include "ci/ciMemberName.hpp"
 #include "compiler/compileBroker.hpp"
 #include "interpreter/bytecode.hpp"
+#include "jfr/jfrEvents.hpp"
 #include "runtime/sharedRuntime.hpp"
 #include "runtime/compilationPolicy.hpp"
 #include "utilities/bitMap.inline.hpp"
@@ -3460,10 +3461,16 @@ bool GraphBuilder::try_inline_intrinsics(ciMethod* callee) {
       if (!InlineArrayCopy) return false;
       break;
 
-#ifdef TRACE_HAVE_INTRINSICS
-    case vmIntrinsics::_classID:
-    case vmIntrinsics::_threadID:
-      preserves_state = true;
+#ifdef JFR_HAVE_INTRINSICS
+#if defined(_LP64) || !defined(TRACE_ID_CLASS_SHIFT)
+    case vmIntrinsics::_getClassId:
+      preserves_state = false;
+      cantrap = false;
+      break;
+#endif
+
+    case vmIntrinsics::_getEventWriter:
+      preserves_state = false;
       cantrap = true;
       break;
 
@@ -4396,6 +4403,30 @@ void GraphBuilder::append_unsafe_CAS(ciMethod* callee) {
 }
 
 
+static void post_inlining_event(EventCompilerInlining* event,
+                                int compile_id,
+                                const char* msg,
+                                bool success,
+                                int bci,
+                                ciMethod* caller,
+                                ciMethod* callee) {
+  assert(caller != NULL, "invariant");
+  assert(callee != NULL, "invariant");
+  assert(event != NULL, "invariant");
+  assert(event->should_commit(), "invariant");
+  JfrStructCalleeMethod callee_struct;
+  callee_struct.set_type(callee->holder()->name()->as_utf8());
+  callee_struct.set_name(callee->name()->as_utf8());
+  callee_struct.set_descriptor(callee->signature()->as_symbol()->as_utf8());
+  event->set_compileId(compile_id);
+  event->set_message(msg);
+  event->set_succeeded(success);
+  event->set_bci(bci);
+  event->set_caller(caller->get_Method());
+  event->set_callee(callee_struct);
+  event->commit();
+}
+
 void GraphBuilder::print_inlining(ciMethod* callee, const char* msg, bool success) {
   CompileLog* log = compilation()->log();
   if (log != NULL) {
@@ -4410,6 +4441,11 @@ void GraphBuilder::print_inlining(ciMethod* callee, const char* msg, bool succes
       else
         log->inline_fail("reason unknown");
     }
+  }
+
+  EventCompilerInlining event;
+  if (event.should_commit()) {
+    post_inlining_event(&event, compilation()->env()->task()->compile_id(), msg, success, bci(), method(), callee);
   }
 
   if (!PrintInlining && !compilation()->method()->has_option("PrintInlining")) {
