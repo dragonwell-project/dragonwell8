@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -1550,6 +1550,38 @@ final public class AccessBridge extends AccessBridgeLoader {
         return null;
     }
 
+    private int getNonVisibleChildrenCountTillIndex(AccessibleContext parentAC, int index) {
+        if (parentAC != null && index >= 0 && index < parentAC.getAccessibleChildrenCount()) {
+            int nonVisibleChildrenCount = 0;
+            for (int i = 0; i <= index; i++) {
+                if (!parentAC.getAccessibleChild(i).getAccessibleContext().getAccessibleStateSet().contains(AccessibleState.VISIBLE)) {
+                    nonVisibleChildrenCount++;
+                }
+            }
+            return nonVisibleChildrenCount;
+        }
+        return 0;
+    }
+
+    private Accessible getVisibleChildAtIndex(AccessibleContext parentAC, int index) {
+        if (parentAC != null && index >= 0 && index < parentAC.getAccessibleChildrenCount()) {
+            int visibleIndex = -1;
+            int childrenCount = parentAC.getAccessibleChildrenCount();
+            for (int i = 0; i <= childrenCount; i++) {
+                Accessible child = parentAC.getAccessibleChild(i);
+                if (child != null) {
+                    AccessibleContext ac = child.getAccessibleContext();
+                    if (ac != null && ac.getAccessibleStateSet().contains(AccessibleState.VISIBLE)) {
+                        visibleIndex++;
+                    }
+                    if (visibleIndex == index) {
+                        return child;
+                    }
+                }
+            }
+        }
+        return null;
+    }
     /**
      * returns the AccessibleParent from an AccessibleContext
      */
@@ -1580,7 +1612,12 @@ final public class AccessBridge extends AccessBridgeLoader {
         return InvocationUtils.invokeAndWait(new Callable<Integer>() {
             @Override
             public Integer call() throws Exception {
-                return ac.getAccessibleIndexInParent();
+                int indexInParent = ac.getAccessibleIndexInParent();
+                Accessible parent = ac.getAccessibleParent();
+                if (parent != null) {
+                    indexInParent -= getNonVisibleChildrenCountTillIndex(parent.getAccessibleContext(), indexInParent);
+                }
+                return indexInParent;
             }
         }, ac);
     }
@@ -1594,7 +1631,8 @@ final public class AccessBridge extends AccessBridgeLoader {
         return InvocationUtils.invokeAndWait(new Callable<Integer>() {
             @Override
             public Integer call() throws Exception {
-                return ac.getAccessibleChildrenCount();
+                int childrenCount = ac.getAccessibleChildrenCount();
+                return childrenCount - getNonVisibleChildrenCountTillIndex(ac, childrenCount - 1);
             }
         }, ac);
     }
@@ -1630,7 +1668,7 @@ final public class AccessBridge extends AccessBridgeLoader {
             return InvocationUtils.invokeAndWait(new Callable<AccessibleContext>() {
                 @Override
                 public AccessibleContext call() throws Exception {
-                    Accessible a = ac.getAccessibleChild(index);
+                    Accessible a = getVisibleChildAtIndex(ac, index);
                     if (a != null) {
                         return a.getAccessibleContext();
                     }
@@ -3615,7 +3653,11 @@ final public class AccessBridge extends AccessBridgeLoader {
                         AccessibleRelation[] relations = ars.toArray();
                         if (relations != null && i >= 0 && i < relations.length) {
                             Object[] targets = relations[i].getTarget();
-                            return targets.length;
+                            if (targets != null) {
+                                int targetCount = targets.length -
+                                        getNonVisibleTargetCountTillIndex(targets, targets.length - 1);
+                                return targetCount;
+                            }
                         }
                     }
                 }
@@ -3641,7 +3683,7 @@ final public class AccessBridge extends AccessBridgeLoader {
                         if (relations != null && i >= 0 && i < relations.length) {
                             Object[] targets = relations[i].getTarget();
                             if (targets != null && j >= 0 & j < targets.length) {
-                                Object o = targets[j];
+                                Object o = getVisibleTargetAtIndex(targets, j);
                                 if (o instanceof Accessible) {
                                     return ((Accessible) o).getAccessibleContext();
                                 }
@@ -3652,6 +3694,40 @@ final public class AccessBridge extends AccessBridgeLoader {
                 return null;
             }
         }, ac);
+    }
+
+    private Object getVisibleTargetAtIndex(Object[] targets, int index) {
+        if (index >= 0 && index < targets.length) {
+            int visibleTargetIndex = -1;
+            for (int i = 0; i < targets.length; i++) {
+                if (targets[i] instanceof Accessible) {
+                    AccessibleContext ac = ((Accessible) targets[i]).getAccessibleContext();
+                    if (ac != null && ac.getAccessibleStateSet().contains(AccessibleState.VISIBLE)) {
+                        visibleTargetIndex++;
+                    }
+                    if (visibleTargetIndex == index) {
+                        return targets[i];
+                    }
+                }
+            }
+        }
+        return null;
+    }
+
+    private int getNonVisibleTargetCountTillIndex(Object[] targets, int index) {
+        if (index >= 0 && index < targets.length) {
+            int nonVisibleTargetsCount = 0;
+            for (int i = 0; i <= index; i++) {
+                if (targets[i] instanceof Accessible) {
+                    AccessibleContext ac = ((Accessible) targets[i]).getAccessibleContext();
+                    if (ac != null && !ac.getAccessibleStateSet().contains(AccessibleState.VISIBLE)) {
+                        nonVisibleTargetsCount++;
+                    }
+                }
+            }
+            return nonVisibleTargetsCount;
+        }
+        return 0;
     }
 
     // ========= AccessibleHypertext =========
