@@ -145,6 +145,26 @@ public class JavaTimeSupplementary_hr extends OpenListResourceBundle {
                     "d.M.y. G",
                 }
             },
+            { "java.time.japanese.long.Eras",
+                new String[] {
+                    "poslije Krista",
+                    "Meiji",
+                    "Taish\u014d",
+                    "Sh\u014dwa",
+                    "Heisei",
+                    "Reiwa",
+                }
+            },
+            { "java.time.japanese.short.Eras",
+                new String[] {
+                    "p. Kr.",
+                    "Meiji",
+                    "Taish\u014d",
+                    "Sh\u014dwa",
+                    "Heisei",
+                    "Reiwa",
+                }
+            },
             { "java.time.long.Eras",
                 new String[] {
                     "Prije Krista",
