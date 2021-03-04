@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2011, 2020, Oracle and/or its affiliates. All rights reserved.
 # DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 #
 # This code is free software; you can redistribute it and/or modify it
@@ -171,7 +171,7 @@ ifeq ($(OPENJDK_TARGET_OS), windows)
           -I$(JDK_TOPDIR)/src/$(OPENJDK_TARGET_OS_API_DIR)/native/sun/security/mscapi, \
       LDFLAGS := $(LDFLAGS_JDKLIB) $(LDFLAGS_CXX_JDK) \
           $(call SET_SHARED_LIBRARY_ORIGIN), \
-      LDFLAGS_SUFFIX := Crypt32.Lib advapi32.lib, \
+      LDFLAGS_SUFFIX := Crypt32.Lib advapi32.lib ncrypt.lib, \
       VERSIONINFO_RESOURCE := $(JDK_TOPDIR)/src/windows/resource/version.rc, \
       RC_FLAGS := $(RC_FLAGS) \
           -D "JDK_FNAME=sunmscapi.dll" \
