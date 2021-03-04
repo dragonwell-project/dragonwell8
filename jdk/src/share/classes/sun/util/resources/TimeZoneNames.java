@@ -242,6 +242,9 @@ public final class TimeZoneNames extends TimeZoneNamesBundle {
         String TMT[] = new String[] {"Turkmenistan Time", "TMT",
                                      "Turkmenistan Summer Time", "TMST",
                                      "Turkmenistan Time", "TMT"};
+        String TRT[] = new String[] {"Turkey Time", "TRT",
+                                     "Turkey Summer Time", "TRST",
+                                     "Turkey Time", "TRT"};
         String ULAT[]= new String[] {"Ulaanbaatar Time", "ULAT",
                                      "Ulaanbaatar Summer Time", "ULAST",
                                      "Ulaanbaatar Time", "ULAT"};
@@ -639,7 +642,7 @@ public final class TimeZoneNames extends TimeZoneNamesBundle {
                                         "Hovd Summer Time", "HOVST",
                                         "Hovd Time", "HOVT"}},
             {"Asia/Irkutsk", IRKT},
-            {"Asia/Istanbul", EET},
+            {"Asia/Istanbul", TRT},
             {"Asia/Jakarta", WIT},
             {"Asia/Jayapura", new String[] {"East Indonesia Time", "WIT",
                                             "East Indonesia Summer Time", "EIST",
@@ -819,7 +822,7 @@ public final class TimeZoneNames extends TimeZoneNamesBundle {
             {"Europe/Guernsey", GMTBST},
             {"Europe/Helsinki", EET},
             {"Europe/Isle_of_Man", GMTBST},
-            {"Europe/Istanbul", EET},
+            {"Europe/Istanbul", TRT},
             {"Europe/Jersey", GMTBST},
             {"Europe/Kaliningrad", EET},
             {"Europe/Kiev", EET},
@@ -1021,7 +1024,7 @@ public final class TimeZoneNames extends TimeZoneNamesBundle {
             {"SystemV/PST8PDT", PST},
             {"SystemV/YST9", AKST},
             {"SystemV/YST9YDT", AKST},
-            {"Turkey", EET},
+            {"Turkey", TRT},
             {"UCT", UTC},
             {"Universal", UTC},
             {"US/Alaska", AKST},
