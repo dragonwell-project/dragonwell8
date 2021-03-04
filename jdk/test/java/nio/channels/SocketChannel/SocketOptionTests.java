@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2007, 2011, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2007, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -32,7 +32,9 @@ import java.nio.channels.*;
 import java.net.*;
 import java.io.IOException;
 import java.util.*;
+import sun.net.ExtendedOptionsHelper;
 import static java.net.StandardSocketOptions.*;
+import static jdk.net.ExtendedSocketOptions.*;
 
 public class SocketOptionTests {
 
@@ -49,8 +51,20 @@ public class SocketOptionTests {
 
         // check supported options
         Set<SocketOption<?>> options = sc.supportedOptions();
-        List<? extends SocketOption> expected = Arrays.asList(SO_SNDBUF, SO_RCVBUF,
-            SO_KEEPALIVE, SO_REUSEADDR, SO_LINGER, TCP_NODELAY);
+
+        List<SocketOption<?>> extOptions = Arrays.asList(TCP_KEEPCOUNT, TCP_KEEPIDLE,
+                                                         TCP_KEEPINTERVAL);
+        List<? extends SocketOption> expected;
+        boolean keepAliveOptsupported;
+        if (keepAliveOptsupported=ExtendedOptionsHelper.keepAliveOptions()
+                .containsAll(extOptions)) {
+            expected = Arrays.asList(SO_SNDBUF, SO_RCVBUF, SO_KEEPALIVE,
+                    SO_REUSEADDR, SO_LINGER, TCP_NODELAY, TCP_KEEPCOUNT,
+                    TCP_KEEPIDLE, TCP_KEEPINTERVAL);
+        } else {
+            expected = Arrays.asList(SO_SNDBUF, SO_RCVBUF, SO_KEEPALIVE,
+                    SO_REUSEADDR, SO_LINGER, TCP_NODELAY);
+        }
         for (SocketOption opt: expected) {
             if (!options.contains(opt))
                 throw new RuntimeException(opt.name() + " should be supported");
@@ -114,7 +128,14 @@ public class SocketOptionTests {
             throw new RuntimeException("expected linger to be disabled");
         sc.setOption(TCP_NODELAY, true);        // can't check
         sc.setOption(TCP_NODELAY, false);       // can't check
-
+        if (keepAliveOptsupported) {
+            sc.setOption(TCP_KEEPIDLE, 1234);
+            checkOption(sc, TCP_KEEPIDLE, 1234);
+            sc.setOption(TCP_KEEPINTERVAL, 123);
+            checkOption(sc, TCP_KEEPINTERVAL, 123);
+            sc.setOption(TCP_KEEPCOUNT, 7);
+            checkOption(sc, TCP_KEEPCOUNT, 7);
+        }
         // NullPointerException
         try {
             sc.setOption(null, "value");
