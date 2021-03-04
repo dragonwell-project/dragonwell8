@@ -375,7 +375,7 @@ final public class SSLEngineImpl extends SSLEngine {
         }
 
         sslContext = ctx;
-        sess = SSLSessionImpl.nullSession;
+        sess = new SSLSessionImpl();
         handshakeSession = null;
 
         /*
