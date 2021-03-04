@@ -24,6 +24,7 @@
 /* @test
  * @bug 4241361 4842702 4985614 6646605 5032358 6923692 6233323 8144977 8184993
  * @summary Make sure we can read a zip file.
+   @key randomness
  * @run main/othervm ReadZip
  * @run main/othervm -Djdk.util.zip.ensureTrailingSlash=true ReadZip
  * @run main/othervm -Djdk.util.zip.ensureTrailingSlash=false ReadZip

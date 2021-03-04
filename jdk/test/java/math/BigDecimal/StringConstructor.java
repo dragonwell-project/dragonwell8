@@ -25,6 +25,7 @@
  * @test
  * @bug 4103117 4331084 4488017 4490929 6255285 6268365
  * @summary Tests the BigDecimal string constructor.
+ * @key randomness
  */
 
 import java.math.*;
