@@ -1578,6 +1578,9 @@ bool add_global_entry(JNIEnv* env, Handle name, jmmVMGlobal *global, Flag *flag,
   } else if (flag->is_uint64_t()) {
     global->value.j = (jlong)flag->get_uint64_t();
     global->type = JMM_VMGLOBAL_TYPE_JLONG;
+  } else if (flag->is_double()) {
+    global->value.d = (jdouble)flag->get_double();
+    global->type = JMM_VMGLOBAL_TYPE_JDOUBLE;
   } else if (flag->is_ccstr()) {
     Handle str = java_lang_String::create_from_str(flag->get_ccstr(), CHECK_false);
     global->value.l = (jobject)JNIHandles::make_local(env, str());

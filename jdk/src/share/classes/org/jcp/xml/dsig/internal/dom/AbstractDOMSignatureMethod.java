@@ -59,10 +59,10 @@ abstract class AbstractDOMSignatureMethod extends DOMStructure
      * @param si the SignedInfo
      * @param sig the signature bytes to be verified
      * @param context the XMLValidateContext
-     * @return <code>true</code> if the signature verified successfully,
-     *    <code>false</code> if not
-     * @throws NullPointerException if <code>key</code>, <code>si</code> or
-     *    <code>sig</code> are <code>null</code>
+     * @return {@code true} if the signature verified successfully,
+     *    {@code false} if not
+     * @throws NullPointerException if {@code key}, {@code si} or
+     *    {@code sig} are {@code null}
      * @throws InvalidKeyException if the key is improperly encoded, of
      *    the wrong type, or parameters are missing, etc
      * @throws SignatureException if an unexpected error occurs, such
@@ -81,8 +81,8 @@ abstract class AbstractDOMSignatureMethod extends DOMStructure
      * @param si the SignedInfo
      * @param context the XMLSignContext
      * @return the signature
-     * @throws NullPointerException if <code>key</code> or
-     *    <code>si</code> are <code>null</code>
+     * @throws NullPointerException if {@code key} or
+     *    {@code si} are {@code null}
      * @throws InvalidKeyException if the key is improperly encoded, of
      *    the wrong type, or parameters are missing, etc
      * @throws XMLSignatureException if an unexpected error occurs
@@ -105,6 +105,7 @@ abstract class AbstractDOMSignatureMethod extends DOMStructure
      * This method invokes the {@link #marshalParams marshalParams}
      * method to marshal any algorithm-specific parameters.
      */
+    @Override
     public void marshal(Node parent, String dsPrefix, DOMCryptoContext context)
         throws MarshalException
     {
@@ -140,13 +141,13 @@ abstract class AbstractDOMSignatureMethod extends DOMStructure
     }
 
     /**
-     * Unmarshals <code>SignatureMethodParameterSpec</code> from the specified
-     * <code>Element</code>. By default, this method throws an exception since
+     * Unmarshals {@code SignatureMethodParameterSpec} from the specified
+     * {@code Element}. By default, this method throws an exception since
      * most SignatureMethod algorithms do not have parameters. Subclasses should
      * override it if they have parameters.
      *
-     * @param paramsElem the <code>Element</code> holding the input params
-     * @return the algorithm-specific <code>SignatureMethodParameterSpec</code>
+     * @param paramsElem the {@code Element} holding the input params
+     * @return the algorithm-specific {@code SignatureMethodParameterSpec}
      * @throws MarshalException if the parameters cannot be unmarshalled
      */
     SignatureMethodParameterSpec unmarshalParams(Element paramsElem)
@@ -163,7 +164,7 @@ abstract class AbstractDOMSignatureMethod extends DOMStructure
      * since most SignatureMethod algorithms do not have parameters. Subclasses
      * should override it if they have parameters.
      *
-     * @param params the algorithm-specific params (may be <code>null</code>)
+     * @param params the algorithm-specific params (may be {@code null})
      * @throws InvalidAlgorithmParameterException if the parameters are not
      *    appropriate for this signature method
      */
@@ -189,8 +190,8 @@ abstract class AbstractDOMSignatureMethod extends DOMStructure
         }
         SignatureMethod osm = (SignatureMethod)o;
 
-        return (getAlgorithm().equals(osm.getAlgorithm()) &&
-            paramsEqual(osm.getParameterSpec()));
+        return getAlgorithm().equals(osm.getAlgorithm()) &&
+            paramsEqual(osm.getParameterSpec());
     }
 
     @Override
@@ -213,6 +214,6 @@ abstract class AbstractDOMSignatureMethod extends DOMStructure
      */
     boolean paramsEqual(AlgorithmParameterSpec spec)
     {
-        return (getParameterSpec() == spec);
+        return getParameterSpec() == spec;
     }
 }

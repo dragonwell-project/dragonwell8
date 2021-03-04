@@ -21,10 +21,10 @@
  * under the License.
  */
 /*
- * Copyright (c) 2005, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2018, Oracle and/or its affiliates. All rights reserved.
  */
 /*
- * $Id: DOMSignatureProperties.java 1333415 2012-05-03 12:03:51Z coheigea $
+ * $Id: DOMSignatureProperties.java 1788465 2017-03-24 15:10:51Z coheigea $
  */
 package org.jcp.xml.dsig.internal.dom;
 
@@ -38,12 +38,10 @@ import org.w3c.dom.Attr;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.Node;
-import org.w3c.dom.NodeList;
 
 /**
  * DOM-based implementation of SignatureProperties.
  *
- * @author Sean Mullan
  */
 public final class DOMSignatureProperties extends DOMStructure
     implements SignatureProperties {
@@ -52,16 +50,16 @@ public final class DOMSignatureProperties extends DOMStructure
     private final List<SignatureProperty> properties;
 
     /**
-     * Creates a <code>DOMSignatureProperties</code> from the specified
+     * Creates a {@code DOMSignatureProperties} from the specified
      * parameters.
      *
      * @param properties a list of one or more {@link SignatureProperty}s. The
      *    list is defensively copied to protect against subsequent modification.
-     * @param id the Id (may be <code>null</code>)
-     * @throws ClassCastException if <code>properties</code> contains any
+     * @param id the Id (may be {@code null})
+     * @throws ClassCastException if {@code properties} contains any
      *    entries that are not of type {@link SignatureProperty}
-     * @throws IllegalArgumentException if <code>properties</code> is empty
-     * @throws NullPointerException if <code>properties</code>
+     * @throws IllegalArgumentException if {@code properties} is empty
+     * @throws NullPointerException if {@code properties}
      */
     public DOMSignatureProperties(List<? extends SignatureProperty> properties,
                                   String id)
@@ -72,7 +70,7 @@ public final class DOMSignatureProperties extends DOMStructure
             throw new IllegalArgumentException("properties cannot be empty");
         } else {
             this.properties = Collections.unmodifiableList(
-                new ArrayList<SignatureProperty>(properties));
+                new ArrayList<>(properties));
             for (int i = 0, size = this.properties.size(); i < size; i++) {
                 if (!(this.properties.get(i) instanceof SignatureProperty)) {
                     throw new ClassCastException
@@ -84,12 +82,12 @@ public final class DOMSignatureProperties extends DOMStructure
     }
 
     /**
-     * Creates a <code>DOMSignatureProperties</code> from an element.
+     * Creates a {@code DOMSignatureProperties} from an element.
      *
      * @param propsElem a SignatureProperties element
      * @throws MarshalException if a marshalling error occurs
      */
-    public DOMSignatureProperties(Element propsElem, XMLCryptoContext context)
+    public DOMSignatureProperties(Element propsElem)
         throws MarshalException
     {
         // unmarshal attributes
@@ -101,26 +99,24 @@ public final class DOMSignatureProperties extends DOMStructure
             id = null;
         }
 
-        NodeList nodes = propsElem.getChildNodes();
-        int length = nodes.getLength();
-        List<SignatureProperty> properties =
-            new ArrayList<SignatureProperty>(length);
-        for (int i = 0; i < length; i++) {
-            Node child = nodes.item(i);
-            if (child.getNodeType() == Node.ELEMENT_NODE) {
-                String name = child.getLocalName();
-                if (!name.equals("SignatureProperty")) {
-                    throw new MarshalException("Invalid element name: " + name +
+        List<SignatureProperty> newProperties = new ArrayList<>();
+        Node firstChild = propsElem.getFirstChild();
+        while (firstChild != null) {
+            if (firstChild.getNodeType() == Node.ELEMENT_NODE) {
+                String name = firstChild.getLocalName();
+                String namespace = firstChild.getNamespaceURI();
+                if (!"SignatureProperty".equals(name) || !XMLSignature.XMLNS.equals(namespace)) {
+                    throw new MarshalException("Invalid element name: " + namespace + ":" + name +
                                                ", expected SignatureProperty");
                 }
-                properties.add(new DOMSignatureProperty((Element)child,
-                                                        context));
+                newProperties.add(new DOMSignatureProperty((Element)firstChild));
             }
+            firstChild = firstChild.getNextSibling();
         }
-        if (properties.isEmpty()) {
+        if (newProperties.isEmpty()) {
             throw new MarshalException("properties cannot be empty");
         } else {
-            this.properties = Collections.unmodifiableList(properties);
+            this.properties = Collections.unmodifiableList(newProperties);
         }
     }
 
@@ -132,6 +128,7 @@ public final class DOMSignatureProperties extends DOMStructure
         return id;
     }
 
+    @Override
     public void marshal(Node parent, String dsPrefix, DOMCryptoContext context)
         throws MarshalException
     {
@@ -164,10 +161,10 @@ public final class DOMSignatureProperties extends DOMStructure
         }
         SignatureProperties osp = (SignatureProperties)o;
 
-        boolean idsEqual = (id == null ? osp.getId() == null
-                                       : id.equals(osp.getId()));
+        boolean idsEqual = id == null ? osp.getId() == null
+                                       : id.equals(osp.getId());
 
-        return (properties.equals(osp.getProperties()) && idsEqual);
+        return properties.equals(osp.getProperties()) && idsEqual;
     }
 
     @Override
