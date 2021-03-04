@@ -26,6 +26,7 @@
 #define SHARE_VM_GC_IMPLEMENTATION_G1_CONCURRENTMARK_HPP
 
 #include "classfile/javaClasses.hpp"
+#include "gc_implementation/g1/g1ConcurrentMarkObjArrayProcessor.hpp"
 #include "gc_implementation/g1/heapRegionSet.hpp"
 #include "gc_implementation/g1/g1RegionToSpaceMapper.hpp"
 #include "gc_implementation/shared/gcId.hpp"
@@ -942,13 +943,15 @@ private:
     words_scanned_period          = 12*1024,
     // the regular clock call is called once the number of visited
     // references reaches this limit
-    refs_reached_period           = 384,
+    refs_reached_period           = 1024,
     // initial value for the hash seed, used in the work stealing code
     init_hash_seed                = 17,
     // how many entries will be transferred between global stack and
     // local queues
     global_stack_transfer_size    = 16
   };
+
+  G1CMObjArrayProcessor       _objArray_processor;
 
   uint                        _worker_id;
   G1CollectedHeap*            _g1h;
@@ -1110,6 +1113,9 @@ private:
   template<bool scan> void process_grey_object(oop obj);
 
 public:
+  // Apply the closure on the given area of the objArray. Return the number of words
+  // scanned.
+  inline size_t scan_objArray(objArrayOop obj, MemRegion mr);
   // It resets the task; it should be called right at the beginning of
   // a marking phase.
   void reset(CMBitMap* _nextMarkBitMap);

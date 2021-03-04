@@ -36,6 +36,7 @@ import static java.lang.System.out;
  * @compile ../../../com/sun/crypto/provider/Cipher/DES/TestUtility.java
  * @run main TestKGParity
  * @summary Test key generation of DES and DESEDE
+ * @key randomness
  */
 public class TestKGParity {
 

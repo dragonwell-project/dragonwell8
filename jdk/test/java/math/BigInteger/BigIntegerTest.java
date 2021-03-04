@@ -27,6 +27,7 @@
  * @summary tests methods in BigInteger
  * @run main/timeout=400 BigIntegerTest
  * @author madbot
+ * @key randomness
  */
 
 import java.io.File;

@@ -25,6 +25,7 @@
  * @test 4235519 8004212 8005394 8007298 8006295 8006315 8006530 8007379 8008925
  *       8014217 8025003 8026330 8028397 8165243
  * @summary tests java.util.Base64
+ * @key randomness
  * @library /lib/testlibrary
  * @build jdk.testlibrary.*
  * @run main TestBase64
