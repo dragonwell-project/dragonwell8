@@ -1628,6 +1628,9 @@ installHandler(HandlerNode *node,
 
     node->handlerID = external? ++requestIdCounter : 0;
     error = eventFilterRestricted_install(node);
+    if (node->ei == EI_GC_FINISH) {
+        classTrack_activate(getEnv());
+    }
     if (error == JVMTI_ERROR_NONE) {
         insert(getHandlerChain(node->ei), node);
     }

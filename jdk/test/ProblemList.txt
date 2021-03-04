@@ -277,9 +277,6 @@ sun/security/pkcs11/tls/TestKeyMaterial.java                    generic-all
 # 7164518
 sun/security/krb5/auto/Unreachable.java                         macosx-all
 
-# 7147060
-com/sun/org/apache/xml/internal/security/transforms/ClassLoaderTest.java	generic-all
-
 # 8160071
 sun/security/pkcs11/sslecc/ClientJSSEServerJSSE.java            linux-all
 
