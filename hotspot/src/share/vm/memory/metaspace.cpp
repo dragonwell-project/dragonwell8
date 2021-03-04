@@ -3390,6 +3390,8 @@ void Metaspace::initialize(Mutex* lock, MetaspaceType type) {
   if (using_class_space()) {
     // Allocate SpaceManager for classes.
     _class_vsm = new SpaceManager(ClassType, lock);
+  } else {
+    _class_vsm = NULL;
   }
 
   MutexLockerEx cl(SpaceManager::expand_lock(), Mutex::_no_safepoint_check_flag);

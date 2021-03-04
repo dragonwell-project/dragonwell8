@@ -47,6 +47,7 @@ class ClassFileParser VALUE_OBJ_CLASS_SPEC {
   bool _relax_verify;
   u2   _major_version;
   u2   _minor_version;
+  u2   _this_class_index;
   Symbol* _class_name;
   ClassLoaderData* _loader_data;
   KlassHandle _host_klass;
@@ -491,6 +492,13 @@ PRAGMA_DIAG_POP
   static void check_super_interface_access(instanceKlassHandle this_klass, TRAPS);
   static void check_final_method_override(instanceKlassHandle this_klass, TRAPS);
   static void check_illegal_static_method(instanceKlassHandle this_klass, TRAPS);
+
+  u2 this_class_index() const { return _this_class_index; }
+
+#if INCLUDE_JFR
+  ClassFileStream* clone_stream() const;
+  void set_klass_to_deallocate(InstanceKlass* klass);
+#endif // INCLUDE_JFR
 };
 
 #endif // SHARE_VM_CLASSFILE_CLASSFILEPARSER_HPP

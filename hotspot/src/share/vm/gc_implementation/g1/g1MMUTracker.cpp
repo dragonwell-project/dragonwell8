@@ -23,6 +23,7 @@
  */
 
 #include "precompiled.hpp"
+#include "gc_implementation/shared/gcTrace.hpp"
 #include "gc_implementation/g1/g1MMUTracker.hpp"
 #include "runtime/mutexLocker.hpp"
 #include "utilities/ostream.hpp"
@@ -105,6 +106,9 @@ void G1MMUTrackerQueue::add_pause(double start, double end, bool gc_thread) {
     ++_no_entries;
   }
   _array[_head_index] = G1MMUTrackerQueueElem(start, end);
+
+  double slice_time = calculate_gc_time(end);
+  G1MMUTracer::report_mmu(_time_slice, slice_time, _max_gc_time);
 }
 
 // basically the _internal call does not remove expired entries
