@@ -728,7 +728,7 @@ public class ForkJoinPool extends AbstractExecutorService {
     static final class DefaultForkJoinWorkerThreadFactory
         implements ForkJoinWorkerThreadFactory {
         public final ForkJoinWorkerThread newThread(ForkJoinPool pool) {
-            return new ForkJoinWorkerThread(pool, true);
+            return new ForkJoinWorkerThread(pool);
         }
     }
 
@@ -3427,7 +3427,7 @@ public class ForkJoinPool extends AbstractExecutorService {
         }
         if (factory == null) {
             if (System.getSecurityManager() == null)
-                factory = defaultForkJoinWorkerThreadFactory;
+                factory = new DefaultCommonPoolForkJoinWorkerThreadFactory();
             else // use security-managed default
                 factory = new InnocuousForkJoinWorkerThreadFactory();
         }
@@ -3438,6 +3438,16 @@ public class ForkJoinPool extends AbstractExecutorService {
             parallelism = MAX_CAP;
         return new ForkJoinPool(parallelism, factory, handler, LIFO_QUEUE,
                                 "ForkJoinPool.commonPool-worker-");
+    }
+
+    /**
+     * Default factory for the common pool
+     */
+    static final class DefaultCommonPoolForkJoinWorkerThreadFactory
+        implements ForkJoinWorkerThreadFactory {
+        public final ForkJoinWorkerThread newThread(ForkJoinPool pool) {
+            return new ForkJoinWorkerThread(pool, true);
+        }
     }
 
     /**
