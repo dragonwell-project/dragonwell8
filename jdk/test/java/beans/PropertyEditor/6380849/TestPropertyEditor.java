@@ -28,6 +28,7 @@
  * @author Sergey Malenkov
  * @compile -XDignore.symbol.file TestPropertyEditor.java
  * @run main TestPropertyEditor
+ * @key headful
  */
 
 import editors.SecondBeanEditor;

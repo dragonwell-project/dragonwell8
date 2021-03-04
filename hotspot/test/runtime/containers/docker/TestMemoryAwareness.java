@@ -34,6 +34,7 @@
 import com.oracle.java.testlibrary.Common;
 import com.oracle.java.testlibrary.DockerRunOptions;
 import com.oracle.java.testlibrary.DockerTestUtils;
+import com.oracle.java.testlibrary.OutputAnalyzer;
 
 
 public class TestMemoryAwareness {
@@ -128,14 +129,26 @@ public class TestMemoryAwareness {
                 "--memory-swap", swapAllocation
             );
 
-        DockerTestUtils.dockerRunJava(opts)
-            .shouldHaveExitValue(0)
-            .shouldContain("Checking OperatingSystemMXBean")
-            .shouldContain("OperatingSystemMXBean.getTotalPhysicalMemorySize: " + expectedMemory)
-            .shouldMatch("OperatingSystemMXBean\\.getFreePhysicalMemorySize: [1-9][0-9]+")
-            .shouldContain("OperatingSystemMXBean.getTotalSwapSpaceSize: " + expectedSwap)
-            .shouldMatch("OperatingSystemMXBean\\.getFreeSwapSpaceSize: [1-9][0-9]+")
-            ;
+        OutputAnalyzer out = DockerTestUtils.dockerRunJava(opts);
+            out.shouldHaveExitValue(0)
+               .shouldContain("Checking OperatingSystemMXBean")
+               .shouldContain("OperatingSystemMXBean.getTotalPhysicalMemorySize: " + expectedMemory)
+               .shouldMatch("OperatingSystemMXBean\\.getFreePhysicalMemorySize: [1-9][0-9]+");
+        // in case of warnings like : "Your kernel does not support swap limit capabilities
+        // or the cgroup is not mounted. Memory limited without swap."
+        // the getTotalSwapSpaceSize and getFreeSwapSpaceSize return the system
+        // values as the container setup isn't supported in that case.
+        try {
+            out.shouldContain("OperatingSystemMXBean.getTotalSwapSpaceSize: " + expectedSwap);
+        } catch(RuntimeException ex) {
+            out.shouldMatch("OperatingSystemMXBean.getTotalSwapSpaceSize: [0-9]+");
+        }
+
+        try {
+            out.shouldMatch("OperatingSystemMXBean\\.getFreeSwapSpaceSize: [1-9][0-9]+");
+        } catch(RuntimeException ex) {
+            out.shouldMatch("OperatingSystemMXBean\\.getFreeSwapSpaceSize: 0");
+        }
     }
 
 }
