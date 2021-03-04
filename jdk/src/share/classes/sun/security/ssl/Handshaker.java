@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1996, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,6 +28,7 @@ package sun.security.ssl;
 
 import java.io.*;
 import java.util.*;
+import java.util.function.BiFunction;
 import java.security.*;
 
 import javax.crypto.*;
@@ -108,6 +109,20 @@ abstract class Handshaker {
     // The server name indication and matchers
     List<SNIServerName> serverNames = Collections.<SNIServerName>emptyList();
     Collection<SNIMatcher> sniMatchers = Collections.<SNIMatcher>emptyList();
+
+    // List of local ApplicationProtocols
+    String[] localApl = null;
+
+    // Negotiated ALPN value
+    String applicationProtocol = null;
+
+    // Application protocol callback function (for SSLEngine)
+    BiFunction<SSLEngine,List<String>,String>
+        appProtocolSelectorSSLEngine = null;
+
+    // Application protocol callback function (for SSLSocket)
+    BiFunction<SSLSocket,List<String>,String>
+        appProtocolSelectorSSLSocket = null;
 
     private boolean isClient;
     private boolean needCertVerify;
@@ -486,6 +501,36 @@ abstract class Handshaker {
     void setSNIMatchers(Collection<SNIMatcher> sniMatchers) {
         // The sniMatchers parameter is unmodifiable.
         this.sniMatchers = sniMatchers;
+    }
+
+    /**
+     * Sets the Application Protocol list.
+     */
+    void setApplicationProtocols(String[] apl) {
+        this.localApl = apl;
+    }
+
+    /**
+     * Gets the "negotiated" ALPN value.
+     */
+    String getHandshakeApplicationProtocol() {
+        return applicationProtocol;
+    }
+
+    /**
+     * Sets the Application Protocol selector function for SSLEngine.
+     */
+    void setApplicationProtocolSelectorSSLEngine(
+        BiFunction<SSLEngine,List<String>,String> selector) {
+        this.appProtocolSelectorSSLEngine = selector;
+    }
+
+    /**
+     * Sets the Application Protocol selector function for SSLSocket.
+     */
+    void setApplicationProtocolSelectorSSLSocket(
+        BiFunction<SSLSocket,List<String>,String> selector) {
+        this.appProtocolSelectorSSLSocket = selector;
     }
 
     /**

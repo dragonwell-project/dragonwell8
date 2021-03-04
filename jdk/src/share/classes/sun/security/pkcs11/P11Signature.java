@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -31,6 +31,7 @@ import java.nio.ByteBuffer;
 
 import java.security.*;
 import java.security.interfaces.*;
+import java.security.spec.AlgorithmParameterSpec;
 import sun.nio.ch.DirectBuffer;
 
 import sun.security.util.*;
@@ -434,9 +435,9 @@ final class P11Signature extends SignatureSpi {
     }
 
     // see JCA spec
+    @Override
     protected void engineInitVerify(PublicKey publicKey)
             throws InvalidKeyException {
-
         if (publicKey == null) {
             throw new InvalidKeyException("Key must not be null");
         }
@@ -451,9 +452,9 @@ final class P11Signature extends SignatureSpi {
     }
 
     // see JCA spec
+    @Override
     protected void engineInitSign(PrivateKey privateKey)
             throws InvalidKeyException {
-
         if (privateKey == null) {
             throw new InvalidKeyException("Key must not be null");
         }
@@ -468,6 +469,7 @@ final class P11Signature extends SignatureSpi {
     }
 
     // see JCA spec
+    @Override
     protected void engineUpdate(byte b) throws SignatureException {
         ensureInitialized();
         switch (type) {
@@ -492,6 +494,7 @@ final class P11Signature extends SignatureSpi {
     }
 
     // see JCA spec
+    @Override
     protected void engineUpdate(byte[] b, int ofs, int len)
             throws SignatureException {
 
@@ -535,6 +538,7 @@ final class P11Signature extends SignatureSpi {
     }
 
     // see JCA spec
+    @Override
     protected void engineUpdate(ByteBuffer byteBuffer) {
 
         ensureInitialized();
@@ -585,6 +589,7 @@ final class P11Signature extends SignatureSpi {
     }
 
     // see JCA spec
+    @Override
     protected byte[] engineSign() throws SignatureException {
 
         ensureInitialized();
@@ -641,6 +646,7 @@ final class P11Signature extends SignatureSpi {
     }
 
     // see JCA spec
+    @Override
     protected boolean engineVerify(byte[] signature) throws SignatureException {
         ensureInitialized();
         boolean doCancel = true;
@@ -828,14 +834,31 @@ final class P11Signature extends SignatureSpi {
     }
 
     // see JCA spec
+    @Override
     protected void engineSetParameter(String param, Object value)
             throws InvalidParameterException {
         throw new UnsupportedOperationException("setParameter() not supported");
     }
 
+     // see JCA spec
+    @Override
+    protected void engineSetParameter(AlgorithmParameterSpec params)
+            throws InvalidAlgorithmParameterException {
+        if (params != null) {
+            throw new InvalidAlgorithmParameterException("No parameter accepted");
+        }
+    }
+
     // see JCA spec
+    @Override
     protected Object engineGetParameter(String param)
             throws InvalidParameterException {
         throw new UnsupportedOperationException("getParameter() not supported");
+    }
+
+    // see JCA spec
+    @Override
+    protected AlgorithmParameters engineGetParameters() {
+        return null;
     }
 }
