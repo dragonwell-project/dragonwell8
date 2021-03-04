@@ -351,6 +351,21 @@ public class Platform {
     }
 
     /*
+     * Returns name of system variable containing paths to shared native libraries.
+     */
+    public static String sharedLibraryPathVariableName() {
+        if (isWindows()) {
+            return "PATH";
+        } else if (isOSX()) {
+            return "DYLD_LIBRARY_PATH";
+        } else if (isAix()) {
+            return "LIBPATH";
+        } else {
+            return "LD_LIBRARY_PATH";
+        }
+    }
+
+    /*
      * This should match the #if condition in ClassListParser::load_class_from_source().
      */
     public static boolean areCustomLoadersSupportedForCDS() {
