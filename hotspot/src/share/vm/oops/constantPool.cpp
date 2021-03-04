@@ -504,7 +504,7 @@ Klass* ConstantPool::klass_ref_at(int which, TRAPS) {
 }
 
 
-Symbol* ConstantPool::klass_name_at(int which) {
+Symbol* ConstantPool::klass_name_at(int which) const {
   assert(tag_at(which).is_unresolved_klass() || tag_at(which).is_klass(),
          "Corrupted constant pool");
   // A resolved constantPool entry will contain a Klass*, otherwise a Symbol*.

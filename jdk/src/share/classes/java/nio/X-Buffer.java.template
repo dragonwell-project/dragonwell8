@@ -415,11 +415,11 @@ public abstract class $Type$Buffer
     public int read(CharBuffer target) throws IOException {
         // Determine the number of bytes n that can be transferred
         int targetRemaining = target.remaining();
-        int remaining = remaining();
+        int limit = limit();
+        int remaining = limit - position();
         if (remaining == 0)
             return -1;
         int n = Math.min(remaining, targetRemaining);
-        int limit = limit();
         // Set source limit to prevent target overflow
         if (targetRemaining < remaining)
             limit(position() + n);
@@ -1162,10 +1162,15 @@ public abstract class $Type$Buffer
         if (!(ob instanceof $Type$Buffer))
             return false;
         $Type$Buffer that = ($Type$Buffer)ob;
-        if (this.remaining() != that.remaining())
+        int thisPos = this.position();
+        int thisLim = this.limit();
+        int thatPos = that.position();
+        int thatLim = that.limit();
+        int thisRem = thisLim - thisPos;
+        int thatRem = thatLim - thatPos;
+        if (thisRem < 0 || thisRem != thatRem)
             return false;
-        int p = this.position();
-        for (int i = this.limit() - 1, j = that.limit() - 1; i >= p; i--, j--)
+        for (int i = thisLim - 1, j = thatLim - 1; i >= thisPos; i--, j--)
             if (!equals(this.get(i), that.get(j)))
                 return false;
         return true;
@@ -1203,13 +1208,20 @@ public abstract class $Type$Buffer
      *          is less than, equal to, or greater than the given buffer
      */
     public int compareTo($Type$Buffer that) {
-        int n = this.position() + Math.min(this.remaining(), that.remaining());
-        for (int i = this.position(), j = that.position(); i < n; i++, j++) {
+        int thisPos = this.position();
+        int thisRem = this.limit() - thisPos;
+        int thatPos = that.position();
+        int thatRem = that.limit() - thatPos;
+        int length = Math.min(thisRem, thatRem);
+        if (length < 0)
+            return -1;
+        int n = thisPos + Math.min(thisRem, thatRem);
+        for (int i = thisPos, j = thatPos; i < n; i++, j++) {
             int cmp = compare(this.get(i), that.get(j));
             if (cmp != 0)
                 return cmp;
         }
-        return this.remaining() - that.remaining();
+        return thisRem - thatRem;
     }
 
     private static int compare($type$ x, $type$ y) {
