@@ -44,9 +44,6 @@
 #include "runtime/handles.inline.hpp"
 #include "runtime/globals_extension.hpp"
 #include "utilities/growableArray.hpp"
-#ifdef ASSERT
-#include "prims/jvmtiEnvBase.hpp"
-#endif
 
 bool JfrRecorder::_shutting_down = false;
 
@@ -60,9 +57,7 @@ static bool _enabled = false;
 
 static bool enable() {
   assert(!_enabled, "invariant");
-  if (!FlightRecorder) {
-    FLAG_SET_MGMT(bool, FlightRecorder, true);
-  }
+  FLAG_SET_MGMT(bool, FlightRecorder, true);
   _enabled = FlightRecorder;
   assert(_enabled, "invariant");
   return _enabled;
@@ -72,7 +67,7 @@ bool JfrRecorder::is_enabled() {
   return _enabled;
 }
 
-bool JfrRecorder::on_create_vm_1() {
+bool JfrRecorder::on_vm_init() {
   if (!is_disabled()) {
     if (FlightRecorder || StartFlightRecording != NULL) {
       enable();
@@ -97,7 +92,7 @@ static void release_recordings() {
 
 static void teardown_startup_support() {
   release_recordings();
-  JfrOptionSet::release_start_flight_recording_options();
+  JfrOptionSet::release_startup_recording_options();
 }
 
 // Parsing options here to detect errors as soon as possible
@@ -115,7 +110,7 @@ static bool parse_recording_options(const char* options, JfrStartFlightRecording
 }
 
 static bool validate_recording_options(TRAPS) {
-  const GrowableArray<const char*>* options = JfrOptionSet::start_flight_recording_options();
+  const GrowableArray<const char*>* options = JfrOptionSet::startup_recording_options();
   if (options == NULL) {
     return true;
   }
@@ -148,7 +143,7 @@ static bool launch_recording(JfrStartFlightRecordingDCmd* dcmd_recording, TRAPS)
   return true;
 }
 
-static bool launch_command_line_recordings(TRAPS) {
+static bool launch_recordings(TRAPS) {
   bool result = true;
   if (dcmd_recordings_array != NULL) {
     const int length = dcmd_recordings_array->length();
@@ -166,7 +161,7 @@ static bool launch_command_line_recordings(TRAPS) {
 
 static bool is_cds_dump_requested() {
   // we will not be able to launch recordings if a cds dump is being requested
-  if (DumpSharedSpaces && (JfrOptionSet::start_flight_recording_options() != NULL)) {
+  if (DumpSharedSpaces && (JfrOptionSet::startup_recording_options() != NULL)) {
     warning("JFR will be disabled during CDS dumping");
     teardown_startup_support();
     return true;
@@ -174,7 +169,7 @@ static bool is_cds_dump_requested() {
   return false;
 }
 
-bool JfrRecorder::on_create_vm_2() {
+bool JfrRecorder::on_vm_start() {
   if (is_cds_dump_requested()) {
     return true;
   }
@@ -201,13 +196,9 @@ bool JfrRecorder::on_create_vm_2() {
   if (!is_enabled()) {
     return true;
   }
-  return true;
-}
 
-bool JfrRecorder::on_create_vm_3() {
-  assert(JvmtiEnvBase::get_phase() == JVMTI_PHASE_LIVE, "invalid init sequence");
-  return launch_command_line_recordings(Thread::current());
- }
+  return launch_recordings(thread);
+}
 
 static bool _created = false;
 
@@ -275,6 +266,7 @@ bool JfrRecorder::create_components() {
 }
 
 // subsystems
+static JfrJvmtiAgent* _jvmti_agent = NULL;
 static JfrPostBox* _post_box = NULL;
 static JfrStorage* _storage = NULL;
 static JfrCheckpointManager* _checkpoint_manager = NULL;

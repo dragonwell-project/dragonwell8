@@ -27,6 +27,7 @@
  * @run shell/timeout=300 Assert.sh
  * @summary Test the assertion facility
  * @author Mike McCloskey
+ * @key randomness
  */
 
 import package1.*;

@@ -25,6 +25,7 @@
  * @test
  * @bug 4726380
  * @summary Check that different sorts give equivalent results.
+ * @key randomness
  */
 
 import java.util.*;
