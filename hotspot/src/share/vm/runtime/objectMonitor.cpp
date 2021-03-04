@@ -24,6 +24,8 @@
 
 #include "precompiled.hpp"
 #include "classfile/vmSymbols.hpp"
+#include "jfr/jfrEvents.hpp"
+#include "jfr/support/jfrThreadId.hpp"
 #include "memory/resourceArea.hpp"
 #include "oops/markOop.hpp"
 #include "oops/oop.inline.hpp"
@@ -37,8 +39,6 @@
 #include "runtime/stubRoutines.hpp"
 #include "runtime/thread.inline.hpp"
 #include "services/threadService.hpp"
-#include "trace/tracing.hpp"
-#include "trace/traceMacros.hpp"
 #include "utilities/dtrace.hpp"
 #include "utilities/macros.hpp"
 #include "utilities/preserveException.hpp"
@@ -53,6 +53,9 @@
 #endif
 #ifdef TARGET_OS_FAMILY_bsd
 # include "os_bsd.inline.hpp"
+#endif
+#if INCLUDE_JFR
+#include "jfr/support/jfrFlush.hpp"
 #endif
 
 #if defined(__GNUC__) && !defined(IA64) && !defined(PPC64)
@@ -376,7 +379,12 @@ void ATTR ObjectMonitor::enter(TRAPS) {
   // Ensure the object-monitor relationship remains stable while there's contention.
   Atomic::inc_ptr(&_count);
 
+  JFR_ONLY(JfrConditionalFlushWithStacktrace<EventJavaMonitorEnter> flush(jt);)
   EventJavaMonitorEnter event;
+  if (event.should_commit()) {
+    event.set_monitorClass(((oop)this->object())->klass());
+    event.set_address((uintptr_t)(this->object_addr()));
+  }
 
   { // Change java thread status to indicate blocked on monitor enter.
     JavaThreadBlockedOnMonitorEnterState jtbmes(jt, this);
@@ -465,9 +473,7 @@ void ATTR ObjectMonitor::enter(TRAPS) {
   }
 
   if (event.should_commit()) {
-    event.set_klass(((oop)this->object())->klass());
-    event.set_previousOwner((TYPE_JAVALANGTHREAD)_previous_owner_tid);
-    event.set_address((TYPE_ADDRESS)(uintptr_t)(this->object_addr()));
+    event.set_previousOwner((uintptr_t)_previous_owner_tid);
     event.commit();
   }
 
@@ -990,11 +996,11 @@ void ATTR ObjectMonitor::exit(bool not_suspended, TRAPS) {
       _Responsible = NULL ;
    }
 
-#if INCLUDE_TRACE
+#if INCLUDE_JFR
    // get the owner's thread id for the MonitorEnter event
    // if it is enabled and the thread isn't suspended
-   if (not_suspended && Tracing::is_event_enabled(TraceJavaMonitorEnterEvent)) {
-     _previous_owner_tid = SharedRuntime::get_java_tid(Self);
+   if (not_suspended && EventJavaMonitorEnter::is_enabled()) {
+    _previous_owner_tid = JFR_THREAD_ID(Self);
    }
 #endif
 
@@ -1443,15 +1449,17 @@ static int Adjust (volatile int * adr, int dx) {
 }
 
 // helper method for posting a monitor wait event
-void ObjectMonitor::post_monitor_wait_event(EventJavaMonitorWait* event,
-                                                           jlong notifier_tid,
-                                                           jlong timeout,
-                                                           bool timedout) {
-  event->set_klass(((oop)this->object())->klass());
-  event->set_timeout((TYPE_ULONG)timeout);
-  event->set_address((TYPE_ADDRESS)(uintptr_t)(this->object_addr()));
-  event->set_notifier((TYPE_OSTHREAD)notifier_tid);
-  event->set_timedOut((TYPE_BOOLEAN)timedout);
+static void post_monitor_wait_event(EventJavaMonitorWait* event,
+                                    ObjectMonitor* monitor,
+                                    jlong notifier_tid,
+                                    jlong timeout,
+                                    bool timedout) {
+  assert(monitor != NULL, "invariant");
+  event->set_monitorClass(((oop)monitor->object())->klass());
+  event->set_timeout(timeout);
+  event->set_address((uintptr_t)monitor->object_addr());
+  event->set_notifier((u8)notifier_tid);
+  event->set_timedOut(timedout);
   event->commit();
 }
 
@@ -1489,7 +1497,7 @@ void ObjectMonitor::wait(jlong millis, bool interruptible, TRAPS) {
         // this ObjectMonitor.
      }
      if (event.should_commit()) {
-       post_monitor_wait_event(&event, 0, millis, false);
+       post_monitor_wait_event(&event, this, 0, millis, false);
      }
      TEVENT (Wait - Throw IEX) ;
      THROW(vmSymbols::java_lang_InterruptedException());
@@ -1633,7 +1641,7 @@ void ObjectMonitor::wait(jlong millis, bool interruptible, TRAPS) {
      }
 
      if (event.should_commit()) {
-       post_monitor_wait_event(&event, node._notifier_tid, millis, ret == OS_TIMEOUT);
+       post_monitor_wait_event(&event, this, node._notifier_tid, millis, ret == OS_TIMEOUT);
      }
 
      OrderAccess::fence() ;
@@ -1716,7 +1724,7 @@ void ObjectMonitor::notify(TRAPS) {
      }
      iterator->_notified = 1 ;
      Thread * Self = THREAD;
-     iterator->_notifier_tid = Self->osthread()->thread_id();
+     iterator->_notifier_tid = JFR_THREAD_ID(Self);
 
      ObjectWaiter * List = _EntryList ;
      if (List != NULL) {
@@ -1842,7 +1850,7 @@ void ObjectMonitor::notifyAll(TRAPS) {
      guarantee (iterator->_notified == 0, "invariant") ;
      iterator->_notified = 1 ;
      Thread * Self = THREAD;
-     iterator->_notifier_tid = Self->osthread()->thread_id();
+     iterator->_notifier_tid = JFR_THREAD_ID(Self);
      if (Policy != 4) {
         iterator->TState = ObjectWaiter::TS_ENTER ;
      }
