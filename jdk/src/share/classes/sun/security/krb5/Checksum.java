@@ -133,8 +133,8 @@ public class Checksum {
      * own calculating and verification rules. It does has the same
      * ASN.1 encoding though.
      *
-     * @data the byte array of checksum.
-     * @new_cksumType the type of checksum.
+     * @param data the byte array of checksum.
+     * @param new_cksumType the type of checksum.
      */
     public Checksum(byte[] data, int new_cksumType) {
         cksumType = new_cksumType;
@@ -235,12 +235,12 @@ public class Checksum {
 
     /**
      * Encodes a Checksum object.
-     * <xmp>
+     * <pre>{@code
      * Checksum    ::= SEQUENCE {
      *         cksumtype   [0] Int32,
      *         checksum    [1] OCTET STRING
      * }
-     * </xmp>
+     * }</pre>
      *
      * <p>
      * This definition reflects the Network Working Group RFC 4120

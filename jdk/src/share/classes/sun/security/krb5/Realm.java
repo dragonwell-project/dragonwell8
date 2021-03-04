@@ -41,9 +41,8 @@ import sun.security.krb5.internal.util.KerberosString;
 /**
  * Implements the ASN.1 Realm type.
  *
- * <xmp>
- * Realm ::= GeneralString
- * </xmp>
+ * {@code Realm ::= GeneralString}
+ *
  * This class is immutable.
  */
 public class Realm implements Cloneable {
