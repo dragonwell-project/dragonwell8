@@ -506,7 +506,7 @@ bool Reflection::can_relax_access_check_for(
       (accessor_ik->major_version() < Verifier::STRICTER_ACCESS_CTRL_CHECK_VERSION &&
        accessee_ik->major_version() < Verifier::STRICTER_ACCESS_CTRL_CHECK_VERSION)) {
     return classloader_only &&
-      Verifier::relax_verify_for(accessor_ik->class_loader()) &&
+      Verifier::relax_access_for(accessor_ik->class_loader()) &&
       accessor_ik->protection_domain() == accessee_ik->protection_domain() &&
       accessor_ik->class_loader() == accessee_ik->class_loader();
   } else {
@@ -1093,7 +1093,7 @@ oop Reflection::invoke(instanceKlassHandle klass, methodHandle reflected_method,
   } else {
     if (rtype == T_BOOLEAN || rtype == T_BYTE || rtype == T_CHAR || rtype == T_SHORT)
       narrow((jvalue*) result.get_value_addr(), rtype, CHECK_NULL);
-    return box((jvalue*) result.get_value_addr(), rtype, CHECK_NULL);
+    return box((jvalue*) result.get_value_addr(), rtype, THREAD);
   }
 }
 

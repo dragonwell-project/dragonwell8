@@ -26,7 +26,7 @@
  * @summary test International Date Format API
  * @bug 8008577
  * @library /java/text/testlib
- * @run main/othervm -Djava.locale.providers=COMPAT,SPI IntlTestDateFormatAPI
+ * @run main/othervm -Djava.locale.providers=JRE,SPI IntlTestDateFormatAPI
  */
 /*
 (C) Copyright Taligent, Inc. 1996, 1997 - All Rights Reserved
