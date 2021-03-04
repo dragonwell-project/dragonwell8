@@ -259,7 +259,7 @@ class ObjectIdentifier implements Serializable
                 + " (tag = " +  type_id + ")"
                 );
 
-        int len = in.getLength();
+        int len = in.getDefiniteLength();
         if (len > in.available()) {
             throw new IOException("ObjectIdentifier() -- length exceeds" +
                     "data available.  Length: " + len + ", Available: " +
