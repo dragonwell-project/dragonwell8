@@ -39,7 +39,7 @@ public abstract class ExtendedSSLSession implements SSLSession {
      * is willing to use.
      * <p>
      * Note: this method is used to indicate to the peer which signature
-     * algorithms may be used for digital signatures in TLS 1.2. It is
+     * algorithms may be used for digital signatures since TLS 1.2. It is
      * not meaningful for TLS versions prior to 1.2.
      * <p>
      * The signature algorithm name must be a standard Java Security
@@ -67,7 +67,7 @@ public abstract class ExtendedSSLSession implements SSLSession {
      * able to use.
      * <p>
      * Note: this method is used to indicate to the local side which signature
-     * algorithms may be used for digital signatures in TLS 1.2. It is
+     * algorithms may be used for digital signatures since TLS 1.2. It is
      * not meaningful for TLS versions prior to 1.2.
      * <p>
      * The signature algorithm name must be a standard Java Security

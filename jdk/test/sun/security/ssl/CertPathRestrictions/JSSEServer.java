@@ -36,8 +36,10 @@ public class JSSEServer {
 
     private SSLServerSocket server = null;
 
-    public JSSEServer(SSLContext context,
+    public JSSEServer(SSLContext context, String constraint,
             boolean needClientAuth) throws Exception {
+        TLSRestrictions.setConstraint("Server", constraint);
+
         SSLServerSocketFactory serverFactory = context.getServerSocketFactory();
         server = (SSLServerSocket) serverFactory.createServerSocket(0);
         server.setSoTimeout(TLSRestrictions.TIMEOUT);

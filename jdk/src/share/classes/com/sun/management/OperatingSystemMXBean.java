@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,6 +28,12 @@ package com.sun.management;
 /**
  * Platform-specific management interface for the operating system
  * on which the Java virtual machine is running.
+ *
+ * <p>
+ * This interface provides information about the operating environment
+ * on which the Java virtual machine is running. That might be a native
+ * operating system, a virtualized operating system environment, or a
+ * container-managed environment.
  *
  * <p>
  * The <tt>OperatingSystemMXBean</tt> object returned by
