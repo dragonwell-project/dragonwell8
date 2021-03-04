@@ -111,7 +111,6 @@ public final class XToolkit extends UNIXToolkit implements Runnable {
     static boolean securityWarningEnabled;
 
     private static volatile int screenWidth = -1, screenHeight = -1; // Dimensions of default screen
-    static long awt_defaultFg; // Pixel
     private static XMouseInfoPeer xPeer;
 
     /**
@@ -240,9 +239,6 @@ public final class XToolkit extends UNIXToolkit implements Runnable {
                 log.finer("X locale modifiers are not supported, using default");
             }
             tryXKB();
-
-            AwtScreenData defaultScreen = new AwtScreenData(XToolkit.getDefaultScreenData());
-            awt_defaultFg = defaultScreen.get_blackpixel();
 
             arrowCursor = XlibWrapper.XCreateFontCursor(XToolkit.getDisplay(),
                 XCursorFontConstants.XC_arrow);
@@ -1335,7 +1331,6 @@ public final class XToolkit extends UNIXToolkit implements Runnable {
     }
 
     static native long getDefaultXColormap();
-    static native long getDefaultScreenData();
 
     static ColorModel screenmodel;
 
@@ -2024,10 +2019,6 @@ public final class XToolkit extends UNIXToolkit implements Runnable {
             }
             time = (Long)timeoutTasks.firstKey();
         }
-    }
-
-    static long getAwtDefaultFg() {
-        return awt_defaultFg;
     }
 
     static boolean isLeftMouseButton(MouseEvent me) {

@@ -31,7 +31,7 @@ import java.util.HashSet;
 import java.util.Collections;
 import jdk.net.*;
 
-import static sun.net.ExtendedOptionsImpl.*;
+import sun.net.ExtendedOptionsImpl;
 
 /*
  * On Unix systems we simply delegate to native methods.
@@ -58,29 +58,59 @@ class PlainSocketImpl extends AbstractPlainSocketImpl
     }
 
     protected <T> void setOption(SocketOption<T> name, T value) throws IOException {
-        if (!name.equals(ExtendedSocketOptions.SO_FLOW_SLA)) {
-            super.setOption(name, value);
+        if (name.equals(ExtendedSocketOptions.SO_FLOW_SLA)) {
+            checkSetOption(name, value, SocketFlow.class);
+            ExtendedOptionsImpl.setFlowOption(getFileDescriptor(), (SocketFlow)value);
+        } else if (name == ExtendedSocketOptions.TCP_KEEPIDLE) {
+            checkSetOption(name, value, Integer.class);
+            ExtendedOptionsImpl.setTcpKeepAliveTime(getFileDescriptor(), (Integer)value);
+        } else if (name == ExtendedSocketOptions.TCP_KEEPINTERVAL) {
+            checkSetOption(name, value, Integer.class);
+            ExtendedOptionsImpl.setTcpKeepAliveIntvl(getFileDescriptor(), (Integer)value);
+        } else if (name == ExtendedSocketOptions.TCP_KEEPCOUNT) {
+            checkSetOption(name, value, Integer.class);
+            ExtendedOptionsImpl.setTcpKeepAliveProbes(getFileDescriptor(), (Integer)value);
         } else {
-            if (isClosedOrPending()) {
-                throw new SocketException("Socket closed");
-            }
-            checkSetOptionPermission(name);
-            checkValueType(value, SocketFlow.class);
-            setFlowOption(getFileDescriptor(), (SocketFlow)value);
+            super.setOption(name, value);
         }
     }
 
-    protected <T> T getOption(SocketOption<T> name) throws IOException {
-        if (!name.equals(ExtendedSocketOptions.SO_FLOW_SLA)) {
-            return super.getOption(name);
-        }
+    private <T> void checkSetOption(SocketOption<T> name, T value, Class<?> expected) throws IOException {
         if (isClosedOrPending()) {
             throw new SocketException("Socket closed");
         }
-        checkGetOptionPermission(name);
-        SocketFlow flow = SocketFlow.create();
-        getFlowOption(getFileDescriptor(), flow);
-        return (T)flow;
+        ExtendedOptionsImpl.checkSetOptionPermission(name);
+        ExtendedOptionsImpl.checkValueType(value, expected);
+    }
+
+    private <T> void checkGetOption(SocketOption<T> name) throws IOException {
+        if (isClosedOrPending()) {
+            throw new SocketException("Socket closed");
+        }
+        ExtendedOptionsImpl.checkGetOptionPermission(name);
+    }
+
+    protected <T> T getOption(SocketOption<T> name) throws IOException {
+        if (name.equals(ExtendedSocketOptions.SO_FLOW_SLA)) {
+            checkGetOption(name);
+            SocketFlow flow = SocketFlow.create();
+            ExtendedOptionsImpl.getFlowOption(getFileDescriptor(), flow);
+            return (T)flow;
+        } else if (name == ExtendedSocketOptions.TCP_KEEPIDLE) {
+            checkGetOption(name);
+            int retVal = ExtendedOptionsImpl.getTcpKeepAliveTime(getFileDescriptor());
+            return (T)Integer.valueOf(retVal);
+        } else if (name == ExtendedSocketOptions.TCP_KEEPINTERVAL) {
+            checkGetOption(name);
+            int retVal = ExtendedOptionsImpl.getTcpKeepAliveIntvl(getFileDescriptor());
+            return (T)Integer.valueOf(retVal);
+        } else if (name == ExtendedSocketOptions.TCP_KEEPCOUNT) {
+            checkGetOption(name);
+            int retVal = ExtendedOptionsImpl.getTcpKeepAliveProbes(getFileDescriptor());
+            return (T)Integer.valueOf(retVal);
+        } else {
+            return super.getOption(name);
+        }
     }
 
     protected void socketSetOption(int opt, boolean b, Object val) throws SocketException {
