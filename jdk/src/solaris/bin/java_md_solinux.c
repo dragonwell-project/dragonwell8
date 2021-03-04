@@ -240,6 +240,7 @@ ContainsLibJVM(int wanted, const char *env) {
     char serverPattern[PATH_MAX + 1];
     char *envpath;
     char *path;
+    char* save_ptr = NULL;
     jboolean clientPatternFound;
     jboolean serverPatternFound;
 
@@ -263,7 +264,7 @@ ContainsLibJVM(int wanted, const char *env) {
      * we have a suspicious path component, check if it contains a libjvm.so
      */
     envpath = JLI_StringDup(env);
-    for (path = JLI_StrTok(envpath, ":"); path != NULL; path = JLI_StrTok(NULL, ":")) {
+    for (path = strtok_r(envpath, ":", &save_ptr); path != NULL; path = strtok_r(NULL, ":", &save_ptr)) {
         if (clientPatternFound && JLI_StrStr(path, clientPattern) != NULL) {
             if (JvmExists(path)) {
                 JLI_MemFree(envpath);
