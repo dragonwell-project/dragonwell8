@@ -1690,6 +1690,53 @@ void os::print_dll_info(outputStream *st) {
 #endif
 }
 
+int os::get_loaded_modules_info(os::LoadedModulesCallbackFunc callback, void *param) {
+#ifdef RTLD_DI_LINKMAP
+  Dl_info dli;
+  void *handle;
+  Link_map *map;
+  Link_map *p;
+
+  if (dladdr(CAST_FROM_FN_PTR(void *, os::print_dll_info), &dli) == 0 ||
+      dli.dli_fname == NULL) {
+    return 1;
+  }
+  handle = dlopen(dli.dli_fname, RTLD_LAZY);
+  if (handle == NULL) {
+    return 1;
+  }
+  dlinfo(handle, RTLD_DI_LINKMAP, &map);
+  if (map == NULL) {
+    dlclose(handle);
+    return 1;
+  }
+
+  while (map->l_prev != NULL)
+    map = map->l_prev;
+
+  while (map != NULL) {
+    // Value for top_address is returned as 0 since we don't have any information about module size
+    if (callback(map->l_name, (address)map->l_addr, (address)0, param)) {
+      dlclose(handle);
+      return 1;
+    }
+    map = map->l_next;
+  }
+
+  dlclose(handle);
+#elif defined(__APPLE__)
+  for (uint32_t i = 1; i < _dyld_image_count(); i++) {
+    // Value for top_address is returned as 0 since we don't have any information about module size
+    if (callback(_dyld_get_image_name(i), (address)_dyld_get_image_header(i), (address)0, param)) {
+      return 1;
+    }
+  }
+  return 0;
+#else
+  return 1;
+#endif
+}
+
 void os::print_os_info_brief(outputStream* st) {
   st->print("Bsd");
 
@@ -2560,6 +2607,10 @@ char* os::pd_attempt_reserve_memory_at(size_t bytes, char* requested_addr) {
 
 size_t os::read(int fd, void *buf, unsigned int nBytes) {
   RESTARTABLE_RETURN_INT(::read(fd, buf, nBytes));
+}
+
+size_t os::read_at(int fd, void *buf, unsigned int nBytes, jlong offset) {
+  RESTARTABLE_RETURN_INT(::pread(fd, buf, nBytes, offset));
 }
 
 // TODO-FIXME: reconcile Solaris' os::sleep with the bsd variation.

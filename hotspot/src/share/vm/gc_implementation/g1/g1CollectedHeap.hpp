@@ -38,6 +38,7 @@
 #include "gc_implementation/g1/g1YCTypes.hpp"
 #include "gc_implementation/g1/heapRegionManager.hpp"
 #include "gc_implementation/g1/heapRegionSet.hpp"
+#include "gc_implementation/shared/gcHeapSummary.hpp"
 #include "gc_implementation/shared/hSpaceCounters.hpp"
 #include "gc_implementation/shared/parGCAllocBuffer.hpp"
 #include "memory/barrierSet.hpp"
@@ -75,7 +76,6 @@ class G1NewTracer;
 class G1OldTracer;
 class EvacuationFailedInfo;
 class nmethod;
-class Ticks;
 
 typedef OverflowTaskQueue<StarTask, mtGC>         RefToScanQueue;
 typedef GenericTaskQueueSet<RefToScanQueue, mtGC> RefToScanQueueSet;
@@ -375,6 +375,8 @@ private:
   static G1RegionToSpaceMapper* create_aux_memory_mapper(const char* description,
                                                          size_t size,
                                                          size_t translation_factor);
+
+  void trace_heap(GCWhen::Type when, GCTracer* tracer);
 
   double verify(bool guard, const char* msg);
   void verify_before_gc();
@@ -1621,6 +1623,8 @@ public:
 
   bool is_obj_dead_cond(const oop obj,
                         const VerifyOption vo) const;
+
+  G1HeapSummary create_g1_heap_summary();
 
   // Printing
 

@@ -54,7 +54,7 @@ endif
 # Src_Dirs_V is everything in src/share/vm/*, plus the right os/*/vm and cpu/*/vm
 # The adfiles directory contains ad_<arch>.[ch]pp.
 # The jvmtifiles directory contains jvmti*.[ch]pp
-Src_Dirs_V += $(GENERATED)/adfiles $(GENERATED)/jvmtifiles $(GENERATED)/tracefiles
+Src_Dirs_V += $(GENERATED)/adfiles $(GENERATED)/jvmtifiles $(GENERATED)/jfrfiles
 VPATH += $(Src_Dirs_V:%=%:)
 
 # set INCLUDES for C preprocessor.
@@ -150,24 +150,21 @@ LIBJVM   = lib$(JVM).so
 LIBJVM_DEBUGINFO   = lib$(JVM).debuginfo
 LIBJVM_DIZ         = lib$(JVM).diz
 
+ifeq ($(ENABLE_JFR),false)
+EXCLUDE_JFR_PATHS:= -o -name jfr -prune
+endif
 SPECIAL_PATHS:=adlc c1 gc_implementation opto shark libadt
 
 SOURCE_PATHS=\
   $(shell find $(HS_COMMON_SRC)/share/vm/* -type d \! \
-      \( -name DUMMY $(foreach dir,$(SPECIAL_PATHS),-o -name $(dir)) \))
+      \( -name DUMMY $(foreach dir,$(SPECIAL_PATHS),-o -name $(dir)) $(EXCLUDE_JFR_PATHS) \))
 SOURCE_PATHS+=$(HS_COMMON_SRC)/os/$(Platform_os_family)/vm
 SOURCE_PATHS+=$(HS_COMMON_SRC)/os/posix/vm
 SOURCE_PATHS+=$(HS_COMMON_SRC)/cpu/$(Platform_arch)/vm
 SOURCE_PATHS+=$(HS_COMMON_SRC)/os_cpu/$(Platform_os_arch)/vm
 
 CORE_PATHS=$(foreach path,$(SOURCE_PATHS),$(call altsrc,$(path)) $(path))
-CORE_PATHS+=$(GENERATED)/jvmtifiles $(GENERATED)/tracefiles
-
-ifneq ($(INCLUDE_TRACE), false)
-CORE_PATHS+=$(shell if [ -d $(HS_ALT_SRC)/share/vm/jfr ]; then \
-  find $(HS_ALT_SRC)/share/vm/jfr -type d; \
-  fi)
-endif
+CORE_PATHS+=$(GENERATED)/jvmtifiles $(GENERATED)/jfrfiles
 
 COMPILER1_PATHS := $(call altsrc,$(HS_COMMON_SRC)/share/vm/c1)
 COMPILER1_PATHS += $(HS_COMMON_SRC)/share/vm/c1
