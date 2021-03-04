@@ -1817,6 +1817,43 @@ void os::print_dll_info(outputStream * st) {
   dlclose(handle);
 }
 
+int os::get_loaded_modules_info(os::LoadedModulesCallbackFunc callback, void *param) {
+  Dl_info dli;
+  // Sanity check?
+  if (dladdr(CAST_FROM_FN_PTR(void *, os::get_loaded_modules_info), &dli) == 0 ||
+      dli.dli_fname == NULL) {
+    return 1;
+  }
+
+  void * handle = dlopen(dli.dli_fname, RTLD_LAZY);
+  if (handle == NULL) {
+    return 1;
+  }
+
+  Link_map *map;
+  dlinfo(handle, RTLD_DI_LINKMAP, &map);
+  if (map == NULL) {
+    dlclose(handle);
+    return 1;
+  }
+
+  while (map->l_prev != NULL) {
+    map = map->l_prev;
+  }
+
+  while (map != NULL) {
+    // Iterate through all map entries and call callback with fields of interest
+    if(callback(map->l_name, (address)map->l_addr, (address)0, param)) {
+      dlclose(handle);
+      return 1;
+    }
+    map = map->l_next;
+  }
+
+  dlclose(handle);
+  return 0;
+}
+
   // Loads .dll/.so and
   // in case of error it checks if .dll/.so was built for the
   // same architecture as Hotspot is running on
@@ -3257,6 +3294,15 @@ static int os_sleep(jlong millis, bool interruptible) {
 // Read calls from inside the vm need to perform state transitions
 size_t os::read(int fd, void *buf, unsigned int nBytes) {
   INTERRUPTIBLE_RETURN_INT_VM(::read(fd, buf, nBytes), os::Solaris::clear_interrupted);
+}
+
+size_t os::read_at(int fd, void *buf, unsigned int nBytes, jlong offset) {
+  size_t res;
+  JavaThread* thread = (JavaThread*)Thread::current();
+  assert(thread->thread_state() == _thread_in_vm, "Assumed _thread_in_vm");
+  ThreadBlockInVM tbiv(thread);
+  RESTARTABLE(::pread(fd, buf, (size_t) nBytes, offset), res);
+  return res;
 }
 
 size_t os::restartable_read(int fd, void *buf, unsigned int nBytes) {

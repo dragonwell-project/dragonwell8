@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2011, 2020, Oracle and/or its affiliates. All rights reserved.
 # DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 #
 # This code is free software; you can redistribute it and/or modify it
@@ -432,6 +432,30 @@ AC_DEFUN_ONCE([JDKOPT_SETUP_JDK_OPTIONS],
   COMPRESS_JARS=false
 
   AC_SUBST(COMPRESS_JARS)
+
+  ###############################################################################
+  #
+  # Enable or disable JFR
+  #
+  AC_MSG_CHECKING([whether to build jfr])
+  AC_ARG_ENABLE(jfr, [AS_HELP_STRING([--enable-jfr],
+      [Enable Java Flight Recorder support @<:@disabled@:>@])],,
+      [enable_jfr=auto])
+  if test "x$enable_jfr" = "xno" -o "x$enable_jfr" = "xauto"; then
+    ENABLE_JFR=false
+  elif test "x$enable_jfr" = "xyes" ; then
+    if test "x$JVM_VARIANT_MINIMAL1" = "xtrue" -o "x$JVM_VARIANT_ZERO" = "xtrue"; then
+      AC_MSG_ERROR([cannot enable JFR on minimal1 VM or zero build])
+    elif test "x$OPENJDK_TARGET_OS" = xaix; then
+      AC_MSG_ERROR([AIX does not support JFR])
+    else
+      ENABLE_JFR=true
+    fi
+  else
+    AC_MSG_ERROR([--enable-jfr must either be set to yes or no])
+  fi
+  AC_MSG_RESULT([$ENABLE_JFR])
+  AC_SUBST(ENABLE_JFR)
 ])
 
 ###############################################################################
