@@ -145,6 +145,26 @@ public class JavaTimeSupplementary_sr_Latn extends OpenListResourceBundle {
                     "RK",
                 }
             },
+            { "java.time.japanese.long.Eras",
+                new String[] {
+                    "nove ere",
+                    "Mei\u0111i",
+                    "Tai\u0161o",
+                    "\u0160ova",
+                    "Haisei",
+                    "Reiva",
+                }
+            },
+            { "java.time.japanese.short.Eras",
+                new String[] {
+                    "n. e.",
+                    "Mei\u0111i",
+                    "Tai\u0161o",
+                    "\u0160ova",
+                    "Haisei",
+                    "Reiva",
+                }
+            },
         };
     }
 }
