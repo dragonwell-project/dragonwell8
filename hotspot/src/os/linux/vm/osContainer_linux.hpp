@@ -31,11 +31,15 @@
 
 #define OSCONTAINER_ERROR (-2)
 
+// 20ms timeout between re-reads of _active_processor_count.
+#define OSCONTAINER_CACHE_TIMEOUT (NANOSECS_PER_SEC/50)
+
 class OSContainer: AllStatic {
 
  private:
   static bool   _is_initialized;
   static bool   _is_containerized;
+  static int    _active_processor_count;
 
  public:
   static void init();

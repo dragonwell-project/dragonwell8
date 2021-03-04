@@ -6728,7 +6728,7 @@ size_t CMSCollector::block_size_if_printezis_bits(HeapWord* addr) const {
 HeapWord* CMSCollector::next_card_start_after_block(HeapWord* addr) const {
   size_t sz = 0;
   oop p = (oop)addr;
-  if (p->klass_or_null() != NULL) {
+  if (p->klass_or_null_acquire() != NULL) {
     sz = CompactibleFreeListSpace::adjustObjectSize(p->size());
   } else {
     sz = block_size_using_printezis_bits(addr);
@@ -7186,7 +7186,7 @@ size_t ScanMarkedObjectsAgainCarefullyClosure::do_object_careful_m(
   }
   if (_bitMap->isMarked(addr)) {
     // it's marked; is it potentially uninitialized?
-    if (p->klass_or_null() != NULL) {
+    if (p->klass_or_null_acquire() != NULL) {
         // an initialized object; ignore mark word in verification below
         // since we are running concurrent with mutators
         assert(p->is_oop(true), "should be an oop");
@@ -7227,7 +7227,7 @@ size_t ScanMarkedObjectsAgainCarefullyClosure::do_object_careful_m(
     }
   } else {
     // Either a not yet marked object or an uninitialized object
-    if (p->klass_or_null() == NULL) {
+    if (p->klass_or_null_acquire() == NULL) {
       // An uninitialized object, skip to the next card, since
       // we may not be able to read its P-bits yet.
       assert(size == 0, "Initial value");
@@ -7438,7 +7438,7 @@ bool MarkFromRootsClosure::do_bit(size_t offset) {
     assert(_skipBits == 0, "tautology");
     _skipBits = 2;  // skip next two marked bits ("Printezis-marks")
     oop p = oop(addr);
-    if (p->klass_or_null() == NULL) {
+    if (p->klass_or_null_acquire() == NULL) {
       DEBUG_ONLY(if (!_verifying) {)
         // We re-dirty the cards on which this object lies and increase
         // the _threshold so that we'll come back to scan this object
@@ -7458,7 +7458,7 @@ bool MarkFromRootsClosure::do_bit(size_t offset) {
           if (_threshold < end_card_addr) {
             _threshold = end_card_addr;
           }
-          if (p->klass_or_null() != NULL) {
+          if (p->klass_or_null_acquire() != NULL) {
             // Redirty the range of cards...
             _mut->mark_range(redirty_range);
           } // ...else the setting of klass will dirty the card anyway.
@@ -7609,7 +7609,7 @@ bool Par_MarkFromRootsClosure::do_bit(size_t offset) {
     assert(_skip_bits == 0, "tautology");
     _skip_bits = 2;  // skip next two marked bits ("Printezis-marks")
     oop p = oop(addr);
-    if (p->klass_or_null() == NULL) {
+    if (p->klass_or_null_acquire() == NULL) {
       // in the case of Clean-on-Enter optimization, redirty card
       // and avoid clearing card by increasing  the threshold.
       return true;
@@ -8596,7 +8596,7 @@ size_t SweepClosure::do_live_chunk(FreeChunk* fc) {
            "alignment problem");
 
 #ifdef ASSERT
-      if (oop(addr)->klass_or_null() != NULL) {
+      if (oop(addr)->klass_or_null_acquire() != NULL) {
         // Ignore mark word because we are running concurrent with mutators
         assert(oop(addr)->is_oop(true), "live block should be an oop");
         assert(size ==
@@ -8607,7 +8607,7 @@ size_t SweepClosure::do_live_chunk(FreeChunk* fc) {
 
   } else {
     // This should be an initialized object that's alive.
-    assert(oop(addr)->klass_or_null() != NULL,
+    assert(oop(addr)->klass_or_null_acquire() != NULL,
            "Should be an initialized object");
     // Ignore mark word because we are running concurrent with mutators
     assert(oop(addr)->is_oop(true), "live block should be an oop");

@@ -78,11 +78,21 @@ inline Klass* oopDesc::klass() const {
 }
 
 inline Klass* oopDesc::klass_or_null() const volatile {
-  // can be NULL in CMS
   if (UseCompressedClassPointers) {
     return Klass::decode_klass(_metadata._compressed_klass);
   } else {
     return _metadata._klass;
+  }
+}
+
+inline Klass* oopDesc::klass_or_null_acquire() const volatile {
+  if (UseCompressedClassPointers) {
+    // Workaround for non-const load_acquire parameter.
+    const volatile narrowKlass* addr = &_metadata._compressed_klass;
+    volatile narrowKlass* xaddr = const_cast<volatile narrowKlass*>(addr);
+    return Klass::decode_klass(OrderAccess::load_acquire(xaddr));
+  } else {
+    return (Klass*)OrderAccess::load_ptr_acquire(&_metadata._klass);
   }
 }
 

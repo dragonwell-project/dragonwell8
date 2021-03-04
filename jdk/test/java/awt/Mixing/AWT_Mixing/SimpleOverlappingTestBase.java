@@ -24,6 +24,7 @@
 import java.awt.*;
 import java.awt.event.*;
 import javax.swing.*;
+import test.java.awt.regtesthelpers.Util;
 
 /**
  * Base class for testing overlapping of Swing and AWT component put into one frame.
@@ -134,7 +135,7 @@ public abstract class SimpleOverlappingTestBase extends OverlappingTestBase {
 
         // get coord
         Point lLoc = !debug ? testedComponent.getLocationOnScreen() : new Point(70, 30);
-        Util.waitForIdle(null);
+        Util.waitForIdle(robot);
         /* this is a workaround for certain jtreg(?) focus issue:
            tests fail starting after failing mixing tests but always pass alone.
          */
@@ -151,7 +152,7 @@ public abstract class SimpleOverlappingTestBase extends OverlappingTestBase {
         }
 
         clickAndBlink(robot, lLoc);
-        Util.waitForIdle(null);
+        Util.waitForIdle(robot);
 
         return wasLWClicked;
     }
