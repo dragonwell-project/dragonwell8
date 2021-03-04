@@ -938,6 +938,13 @@ static bool match(UnsafeRawOp* x,
     *log2_scale = 0;
   }
 
+// AARCH64 cannot handle shifts which are not either 0, or log2 of the type size
+#ifdef AARCH64
+  if (*log2_scale != 0 &&
+        (1 << *log2_scale) != type2aelembytes(x->basic_type(), true))
+    return false;
+#endif
+
   // If the value is pinned then it will be always be computed so
   // there's no profit to reshaping the expression.
   return !root->is_pinned();

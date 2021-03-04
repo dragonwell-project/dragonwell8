@@ -291,29 +291,32 @@ public class MetricsTester {
         }
 
         //  Memory and Swap
-        oldVal = metrics.getMemoryAndSwapFailCount();
-        newVal = getLongValueFromFile(SubSystem.MEMORY, "memory.memsw.failcnt");
-        if (!compareWithErrorMargin(oldVal, newVal)) {
-            fail(SubSystem.MEMORY, "memory.memsw.failcnt", oldVal, newVal);
-        }
+        // Skip swap tests if no swap is configured.
+        if (metrics.getMemoryAndSwapLimit() > metrics.getMemoryLimit()) {
+            oldVal = metrics.getMemoryAndSwapFailCount();
+            newVal = getLongValueFromFile(SubSystem.MEMORY, "memory.memsw.failcnt");
+            if (!compareWithErrorMargin(oldVal, newVal)) {
+                fail(SubSystem.MEMORY, "memory.memsw.failcnt", oldVal, newVal);
+            }
 
-        oldVal = metrics.getMemoryAndSwapLimit();
-        newVal = getLongValueFromFile(SubSystem.MEMORY, "memory.memsw.limit_in_bytes");
-        newVal = newVal > unlimited_minimum ? -1L : newVal;
-        if (!compareWithErrorMargin(oldVal, newVal)) {
-            fail(SubSystem.MEMORY, "memory.memsw.limit_in_bytes", oldVal, newVal);
-        }
+            oldVal = metrics.getMemoryAndSwapLimit();
+            newVal = getLongValueFromFile(SubSystem.MEMORY, "memory.memsw.limit_in_bytes");
+            newVal = newVal > unlimited_minimum ? -1L : newVal;
+            if (!compareWithErrorMargin(oldVal, newVal)) {
+                fail(SubSystem.MEMORY, "memory.memsw.limit_in_bytes", oldVal, newVal);
+            }
 
-        oldVal = metrics.getMemoryAndSwapMaxUsage();
-        newVal = getLongValueFromFile(SubSystem.MEMORY, "memory.memsw.max_usage_in_bytes");
-        if (!compareWithErrorMargin(oldVal, newVal)) {
-            fail(SubSystem.MEMORY, "memory.memsw.max_usage_in_bytes", oldVal, newVal);
-        }
+            oldVal = metrics.getMemoryAndSwapMaxUsage();
+            newVal = getLongValueFromFile(SubSystem.MEMORY, "memory.memsw.max_usage_in_bytes");
+            if (!compareWithErrorMargin(oldVal, newVal)) {
+                fail(SubSystem.MEMORY, "memory.memsw.max_usage_in_bytes", oldVal, newVal);
+            }
 
-        oldVal = metrics.getMemoryAndSwapUsage();
-        newVal = getLongValueFromFile(SubSystem.MEMORY, "memory.memsw.usage_in_bytes");
-        if (!compareWithErrorMargin(oldVal, newVal)) {
-            fail(SubSystem.MEMORY, "memory.memsw.usage_in_bytes", oldVal, newVal);
+            oldVal = metrics.getMemoryAndSwapUsage();
+            newVal = getLongValueFromFile(SubSystem.MEMORY, "memory.memsw.usage_in_bytes");
+            if (!compareWithErrorMargin(oldVal, newVal)) {
+                fail(SubSystem.MEMORY, "memory.memsw.usage_in_bytes", oldVal, newVal);
+            }
         }
 
         oldVal = metrics.getMemorySoftLimit();
@@ -531,16 +534,20 @@ public class MetricsTester {
         long newUsage = metrics.getCpuUsage();
         long[] newPerCpu = metrics.getPerCpuUsage();
 
-        if (newSysVal <= startSysVal) {
+        // system/user CPU usage counters may be slowly increasing.
+        // allow for equal values for a pass
+        if (newSysVal < startSysVal) {
             fail(SubSystem.CPU, "getCpuSystemUsage", newSysVal, startSysVal);
         }
 
-        if (newUserVal <= startUserVal) {
+        // system/user CPU usage counters may be slowly increasing.
+        // allow for equal values for a pass
+        if (newUserVal < startUserVal) {
             fail(SubSystem.CPU, "getCpuUserUsage", newUserVal, startUserVal);
         }
 
         if (newUsage <= startUsage) {
-            fail(SubSystem.CPU, "getCpuUserUsage", newUsage, startUsage);
+            fail(SubSystem.CPU, "getCpuUsage", newUsage, startUsage);
         }
 
         boolean success = false;
@@ -559,19 +566,28 @@ public class MetricsTester {
         Metrics metrics = Metrics.systemMetrics();
         long memoryMaxUsage = metrics.getMemoryMaxUsage();
         long memoryUsage = metrics.getMemoryUsage();
+        long newMemoryMaxUsage = 0, newMemoryUsage = 0;
 
-        byte[] bb = new byte[64*1024*1024]; // 64M
+        // allocate memory in a loop and check more than once for new values
+        // otherwise we might see seldom the effect of decreasing new memory values
+        // e.g. because the system could free up memory
+        byte[][] bytes = new byte[32][];
+        for (int i = 0; i < 32; i++) {
+            bytes[i] = new byte[8*1024*1024];
+            newMemoryUsage = metrics.getMemoryUsage();
+            if (newMemoryUsage > memoryUsage) {
+                break;
+            }
+        }
+        newMemoryMaxUsage = metrics.getMemoryMaxUsage();
 
-        long newMemoryMaxUsage = metrics.getMemoryMaxUsage();
-        long newMemoryUsage = metrics.getMemoryUsage();
-
-        if(newMemoryMaxUsage < memoryMaxUsage) {
-            fail(SubSystem.MEMORY, "getMemoryMaxUsage", newMemoryMaxUsage,
-                    memoryMaxUsage);
+        if (newMemoryMaxUsage < memoryMaxUsage) {
+            fail(SubSystem.MEMORY, "getMemoryMaxUsage", memoryMaxUsage,
+                    newMemoryMaxUsage);
         }
 
-        if(newMemoryUsage < memoryUsage) {
-            fail(SubSystem.MEMORY, "getMemoryUsage", newMemoryUsage, memoryUsage);
+        if (newMemoryUsage < memoryUsage) {
+            fail(SubSystem.MEMORY, "getMemoryUsage", memoryUsage, newMemoryUsage);
         }
     }
 
