@@ -21,10 +21,10 @@
  * under the License.
  */
 /*
- * Copyright (c) 2005, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2018, Oracle and/or its affiliates. All rights reserved.
  */
 /*
- * $Id: DOMSignedInfo.java 1333415 2012-05-03 12:03:51Z coheigea $
+ * $Id: DOMSignedInfo.java 1820179 2018-01-04 19:09:52Z mullan $
  */
 package org.jcp.xml.dsig.internal.dom;
 
@@ -43,19 +43,17 @@ import java.util.*;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.Node;
-
-import com.sun.org.apache.xml.internal.security.utils.Base64;
 import com.sun.org.apache.xml.internal.security.utils.UnsyncBufferedOutputStream;
+import com.sun.org.apache.xml.internal.security.utils.XMLUtils;
 
 /**
  * DOM-based implementation of SignedInfo.
  *
- * @author Sean Mullan
  */
 public final class DOMSignedInfo extends DOMStructure implements SignedInfo {
 
-    private static java.util.logging.Logger log =
-        java.util.logging.Logger.getLogger("org.jcp.xml.dsig.internal.dom");
+    private static final com.sun.org.slf4j.internal.Logger LOG =
+        com.sun.org.slf4j.internal.LoggerFactory.getLogger(DOMSignedInfo.class);
 
     private List<Reference> references;
     private CanonicalizationMethod canonicalizationMethod;
@@ -66,18 +64,18 @@ public final class DOMSignedInfo extends DOMStructure implements SignedInfo {
     private InputStream canonData;
 
     /**
-     * Creates a <code>DOMSignedInfo</code> from the specified parameters. Use
-     * this constructor when the <code>Id</code> is not specified.
+     * Creates a {@code DOMSignedInfo} from the specified parameters. Use
+     * this constructor when the {@code Id} is not specified.
      *
      * @param cm the canonicalization method
      * @param sm the signature method
      * @param references the list of references. The list is copied.
      * @throws NullPointerException if
-     *    <code>cm</code>, <code>sm</code>, or <code>references</code> is
-     *    <code>null</code>
-     * @throws IllegalArgumentException if <code>references</code> is empty
+     *    {@code cm}, {@code sm}, or {@code references} is
+     *    {@code null}
+     * @throws IllegalArgumentException if {@code references} is empty
      * @throws ClassCastException if any of the references are not of
-     *    type <code>Reference</code>
+     *    type {@code Reference}
      */
     public DOMSignedInfo(CanonicalizationMethod cm, SignatureMethod sm,
                          List<? extends Reference> references) {
@@ -87,7 +85,7 @@ public final class DOMSignedInfo extends DOMStructure implements SignedInfo {
         this.canonicalizationMethod = cm;
         this.signatureMethod = sm;
         this.references = Collections.unmodifiableList(
-            new ArrayList<Reference>(references));
+            new ArrayList<>(references));
         if (this.references.isEmpty()) {
             throw new IllegalArgumentException("list of references must " +
                 "contain at least one entry");
@@ -102,19 +100,19 @@ public final class DOMSignedInfo extends DOMStructure implements SignedInfo {
     }
 
     /**
-     * Creates a <code>DOMSignedInfo</code> from the specified parameters.
+     * Creates a {@code DOMSignedInfo} from the specified parameters.
      *
      * @param cm the canonicalization method
      * @param sm the signature method
      * @param references the list of references. The list is copied.
      * @param id an optional identifer that will allow this
-     *    <code>SignedInfo</code> to be referenced by other signatures and
+     *    {@code SignedInfo} to be referenced by other signatures and
      *    objects
-     * @throws NullPointerException if <code>cm</code>, <code>sm</code>,
-     *    or <code>references</code> is <code>null</code>
-     * @throws IllegalArgumentException if <code>references</code> is empty
+     * @throws NullPointerException if {@code cm}, {@code sm},
+     *    or {@code references} is {@code null}
+     * @throws IllegalArgumentException if {@code references} is empty
      * @throws ClassCastException if any of the references are not of
-     *    type <code>Reference</code>
+     *    type {@code Reference}
      */
     public DOMSignedInfo(CanonicalizationMethod cm, SignatureMethod sm,
                          List<? extends Reference> references, String id) {
@@ -123,7 +121,7 @@ public final class DOMSignedInfo extends DOMStructure implements SignedInfo {
     }
 
     /**
-     * Creates a <code>DOMSignedInfo</code> from an element.
+     * Creates a {@code DOMSignedInfo} from an element.
      *
      * @param siElem a SignedInfo element
      */
@@ -137,13 +135,15 @@ public final class DOMSignedInfo extends DOMStructure implements SignedInfo {
 
         // unmarshal CanonicalizationMethod
         Element cmElem = DOMUtils.getFirstChildElement(siElem,
-                                                       "CanonicalizationMethod");
+                                                       "CanonicalizationMethod",
+                                                       XMLSignature.XMLNS);
         canonicalizationMethod = new DOMCanonicalizationMethod(cmElem, context,
                                                                provider);
 
         // unmarshal SignatureMethod
         Element smElem = DOMUtils.getNextSiblingElement(cmElem,
-                                                        "SignatureMethod");
+                                                        "SignatureMethod",
+                                                        XMLSignature.XMLNS);
         signatureMethod = DOMSignatureMethod.unmarshal(smElem);
 
         boolean secVal = Utils.secureValidation(context);
@@ -157,21 +157,21 @@ public final class DOMSignedInfo extends DOMStructure implements SignedInfo {
         }
 
         // unmarshal References
-        ArrayList<Reference> refList = new ArrayList<Reference>(5);
-        Element refElem = DOMUtils.getNextSiblingElement(smElem, "Reference");
+        ArrayList<Reference> refList = new ArrayList<>(5);
+        Element refElem = DOMUtils.getNextSiblingElement(smElem, "Reference", XMLSignature.XMLNS);
         refList.add(new DOMReference(refElem, context, provider));
 
         refElem = DOMUtils.getNextSiblingElement(refElem);
         while (refElem != null) {
             String name = refElem.getLocalName();
-            if (!name.equals("Reference")) {
+            String namespace = refElem.getNamespaceURI();
+            if (!"Reference".equals(name) || !XMLSignature.XMLNS.equals(namespace)) {
                 throw new MarshalException("Invalid element name: " +
-                                           name + ", expected Reference");
+                                           namespace + ":" + name + ", expected Reference");
             }
             refList.add(new DOMReference(refElem, context, provider));
-
             if (secVal && Policy.restrictNumReferences(refList.size())) {
-                String error = "A maximum of " + Policy.maxReferences()
+                String error = "A maxiumum of " + Policy.maxReferences()
                     + " references per Manifest are allowed when"
                     + " secure validation is enabled";
                 throw new MarshalException(error);
@@ -207,50 +207,36 @@ public final class DOMSignedInfo extends DOMStructure implements SignedInfo {
             throw new NullPointerException("context cannot be null");
         }
 
-        OutputStream os = new UnsyncBufferedOutputStream(bos);
-
         DOMSubTreeData subTree = new DOMSubTreeData(localSiElem, true);
-        try {
+        try (OutputStream os = new UnsyncBufferedOutputStream(bos)) {
             ((DOMCanonicalizationMethod)
                 canonicalizationMethod).canonicalize(subTree, context, os);
+
+            os.flush();
+
+            byte[] signedInfoBytes = bos.toByteArray();
+
+            // this whole block should only be done if LOGging is enabled
+            if (LOG.isDebugEnabled()) {
+                LOG.debug("Canonicalized SignedInfo:");
+                StringBuilder sb = new StringBuilder(signedInfoBytes.length);
+                for (int i = 0; i < signedInfoBytes.length; i++) {
+                    sb.append((char)signedInfoBytes[i]);
+                }
+                LOG.debug(sb.toString());
+                LOG.debug("Data to be signed/verified:" + XMLUtils.encodeToString(signedInfoBytes));
+            }
+
+            this.canonData = new ByteArrayInputStream(signedInfoBytes);
         } catch (TransformException te) {
             throw new XMLSignatureException(te);
-        }
-
-        try {
-            os.flush();
         } catch (IOException e) {
-            if (log.isLoggable(java.util.logging.Level.FINE)) {
-                log.log(java.util.logging.Level.FINE, e.getMessage(), e);
-            }
-            // Impossible
-        }
-
-        byte[] signedInfoBytes = bos.toByteArray();
-
-        // this whole block should only be done if logging is enabled
-        if (log.isLoggable(java.util.logging.Level.FINE)) {
-            log.log(java.util.logging.Level.FINE, "Canonicalized SignedInfo:");
-            StringBuilder sb = new StringBuilder(signedInfoBytes.length);
-            for (int i = 0; i < signedInfoBytes.length; i++) {
-                sb.append((char)signedInfoBytes[i]);
-            }
-            log.log(java.util.logging.Level.FINE, sb.toString());
-            log.log(java.util.logging.Level.FINE, "Data to be signed/verified:" + Base64.encode(signedInfoBytes));
-        }
-
-        this.canonData = new ByteArrayInputStream(signedInfoBytes);
-
-        try {
-            os.close();
-        } catch (IOException e) {
-            if (log.isLoggable(java.util.logging.Level.FINE)) {
-                log.log(java.util.logging.Level.FINE, e.getMessage(), e);
-            }
+            LOG.debug(e.getMessage(), e);
             // Impossible
         }
     }
 
+    @Override
     public void marshal(Node parent, String dsPrefix, DOMCryptoContext context)
         throws MarshalException
     {
@@ -289,12 +275,17 @@ public final class DOMSignedInfo extends DOMStructure implements SignedInfo {
         }
         SignedInfo osi = (SignedInfo)o;
 
-        boolean idEqual = (id == null ? osi.getId() == null
-                                      : id.equals(osi.getId()));
+        boolean idEqual = id == null ? osi.getId() == null
+                                      : id.equals(osi.getId());
 
-        return (canonicalizationMethod.equals(osi.getCanonicalizationMethod())
+        return canonicalizationMethod.equals(osi.getCanonicalizationMethod())
                 && signatureMethod.equals(osi.getSignatureMethod()) &&
-                references.equals(osi.getReferences()) && idEqual);
+                references.equals(osi.getReferences()) && idEqual;
+    }
+
+    @SuppressWarnings("unchecked")
+    public static List<Reference> getSignedInfoReferences(SignedInfo si) {
+        return si.getReferences();
     }
 
     @Override
