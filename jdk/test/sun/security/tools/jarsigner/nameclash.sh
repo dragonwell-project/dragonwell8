@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2009, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2009, 2020, Oracle and/or its affiliates. All rights reserved.
 # DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 #
 # This code is free software; you can redistribute it and/or modify it
@@ -57,8 +57,8 @@ $KT -alias b -dname CN=b -keyalg rsa -genkey -validity 300
 echo A > A
 $JAR cvf $JFILE A
 
-$JARSIGNER -keystore $KS -storepass changeit $JFILE a -digestalg SHA1 || exit 1
-$JARSIGNER -keystore $KS -storepass changeit $JFILE b -digestalg SHA-1 || exit 2
+$JARSIGNER -keystore $KS -storepass changeit $JFILE a -digestalg SHA-256 || exit 1
+$JARSIGNER -keystore $KS -storepass changeit $JFILE b -digestalg SHA-256 || exit 2
 
 $JARSIGNER -keystore $KS -verify -debug -strict $JFILE || exit 3
 
