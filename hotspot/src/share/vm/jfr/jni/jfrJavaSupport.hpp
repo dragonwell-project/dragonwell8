@@ -81,7 +81,6 @@ class JfrJavaSupport : public AllStatic {
   static void throw_internal_error(const char* message, TRAPS);
   static void throw_out_of_memory_error(const char* message, TRAPS);
   static void throw_class_format_error(const char* message, TRAPS);
-  static void throw_runtime_exception(const char* message, TRAPS);
 
   static jlong jfr_thread_id(jobject target_thread);
 
