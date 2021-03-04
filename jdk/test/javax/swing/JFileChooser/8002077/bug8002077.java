@@ -22,13 +22,11 @@
  */
 
 import java.awt.Robot;
-import java.awt.Toolkit;
 import java.awt.event.KeyEvent;
 import javax.swing.JFileChooser;
 import javax.swing.SwingUtilities;
 import javax.swing.UIManager;
 import javax.swing.UIManager.LookAndFeelInfo;
-import sun.awt.SunToolkit;
 
 /**
  * @test
@@ -56,27 +54,26 @@ public class bug8002077 {
     }
 
     private static void runTest() throws Exception {
-        SunToolkit toolkit = (SunToolkit) Toolkit.getDefaultToolkit();
         Robot robot = new Robot();
         robot.setAutoDelay(50);
 
         SwingUtilities.invokeLater(() ->
                 fileChooserState = new JFileChooser().showSaveDialog(null));
-        toolkit.realSync();
+        robot.waitForIdle();
 
         Util.hitMnemonics(robot, KeyEvent.VK_N);
-        toolkit.realSync();
+        robot.waitForIdle();
 
         Util.hitKeys(robot, KeyEvent.VK_A);
-        toolkit.realSync();
+        robot.waitForIdle();
 
         Util.hitMnemonics(robot, KeyEvent.VK_S);
-        toolkit.realSync();
+        robot.waitForIdle();
 
         if (fileChooserState != JFileChooser.APPROVE_OPTION) {
             // Close the dialog
             Util.hitKeys(robot, KeyEvent.VK_ESCAPE);
-            toolkit.realSync();
+            robot.waitForIdle();
 
             throw new RuntimeException("Save button is not pressed!");
         }

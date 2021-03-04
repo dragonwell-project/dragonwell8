@@ -83,6 +83,7 @@ class oopDesc {
 
   Klass* klass() const;
   Klass* klass_or_null() const volatile;
+  Klass* klass_or_null_acquire() const volatile;
   Klass** klass_addr();
   narrowKlass* compressed_klass_addr();
 
