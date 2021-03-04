@@ -171,6 +171,11 @@ const jlong max_jlong = CONST64(0x7fffffffffffffff);
 #define strdup _strdup
 #endif
 
+#if _MSC_VER < 1800
+// Fixes some wrong warnings about 'this' : used in base member initializer list
+#pragma warning( disable : 4355 )
+#endif
+
 #pragma warning( disable : 4100 ) // unreferenced formal parameter
 #pragma warning( disable : 4127 ) // conditional expression is constant
 #pragma warning( disable : 4514 ) // unreferenced inline function has been removed
@@ -217,5 +222,12 @@ const jlong max_jlong = CONST64(0x7fffffffffffffff);
 #endif
 
 #define offset_of(klass,field) offsetof(klass,field)
+
+// Inlining support
+// MSVC has '__declspec(noinline)' but according to the official documentation
+// it only applies to member functions. There are reports though which pretend
+// that it also works for freestanding functions.
+#define NOINLINE     __declspec(noinline)
+#define ALWAYSINLINE __forceinline
 
 #endif // SHARE_VM_UTILITIES_GLOBALDEFINITIONS_VISCPP_HPP

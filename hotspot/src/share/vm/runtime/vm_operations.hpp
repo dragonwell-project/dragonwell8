@@ -98,6 +98,7 @@
   template(RotateGCLog)                           \
   template(WhiteBoxOperation)                     \
   template(ClassLoaderStatsOperation)             \
+  template(JFROldObject)                          \
 
 class VM_Operation: public CHeapObj<mtInternal> {
  public:

@@ -24,9 +24,10 @@
 /*
  * @test
  * @bug 8050374 8146293
+ * @summary Verify a chain of signed objects
  * @library /lib
  * @compile ../../../java/security/SignedObject/Chain.java
- * @summary Verify a chain of signed objects
+ * @run main SignedObjectChain
  */
 public class SignedObjectChain {
 

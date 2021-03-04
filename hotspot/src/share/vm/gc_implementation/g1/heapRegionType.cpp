@@ -67,3 +67,18 @@ const char* HeapRegionType::get_short_str() const {
   // keep some compilers happy
   return NULL;
 }
+
+G1HeapRegionTraceType::Type HeapRegionType::get_trace_type() {
+  hrt_assert_is_valid(_tag);
+  switch (_tag) {
+    case FreeTag:               return G1HeapRegionTraceType::Free;
+    case EdenTag:               return G1HeapRegionTraceType::Eden;
+    case SurvTag:               return G1HeapRegionTraceType::Survivor;
+    case HumStartsTag:          return G1HeapRegionTraceType::StartsHumongous;
+    case HumContTag:            return G1HeapRegionTraceType::ContinuesHumongous;
+    case OldTag:                return G1HeapRegionTraceType::Old;
+    default:
+      ShouldNotReachHere();
+      return G1HeapRegionTraceType::Free; // keep some compilers happy
+  }
+}

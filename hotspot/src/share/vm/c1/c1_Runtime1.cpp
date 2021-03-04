@@ -41,6 +41,7 @@
 #include "gc_interface/collectedHeap.hpp"
 #include "interpreter/bytecode.hpp"
 #include "interpreter/interpreter.hpp"
+#include "jfr/support/jfrIntrinsics.hpp"
 #include "memory/allocation.inline.hpp"
 #include "memory/barrierSet.hpp"
 #include "memory/oopFactory.hpp"
@@ -296,8 +297,8 @@ const char* Runtime1::name_for_address(address entry) {
   FUNCTION_CASE(entry, SharedRuntime::dtrace_method_exit);
   FUNCTION_CASE(entry, is_instance_of);
   FUNCTION_CASE(entry, trace_block_entry);
-#ifdef TRACE_HAVE_INTRINSICS
-  FUNCTION_CASE(entry, TRACE_TIME_METHOD);
+#ifdef JFR_HAVE_INTRINSICS
+  FUNCTION_CASE(entry, JFR_TIME_FUNCTION);
 #endif
   FUNCTION_CASE(entry, StubRoutines::updateBytesCRC32());
 

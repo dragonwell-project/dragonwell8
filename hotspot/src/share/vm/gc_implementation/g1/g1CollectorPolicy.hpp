@@ -676,7 +676,7 @@ public:
   bool need_to_start_conc_mark(const char* source, size_t alloc_word_size = 0);
 
   // Record the start and end of an evacuation pause.
-  void record_collection_pause_start(double start_time_sec);
+  void record_collection_pause_start(double start_time_sec, GCTracer &tracer);
   void record_collection_pause_end(double pause_time_ms, EvacuationInfo& evacuation_info);
 
   // Record the start and end of a full collection.
@@ -924,7 +924,7 @@ public:
   void update_max_gc_locker_expansion();
 
   // Calculates survivor space parameters.
-  void update_survivors_policy();
+  void update_survivors_policy(GCTracer &tracer);
 
   virtual void post_heap_initialize();
 };
