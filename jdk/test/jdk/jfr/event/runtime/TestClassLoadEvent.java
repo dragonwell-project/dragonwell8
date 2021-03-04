@@ -68,8 +68,8 @@ public final class TestClassLoadEvent {
             RecordedClass loadedClass = event.getValue("loadedClass");
             if (SEARCH_CLASS_NAME.equals(loadedClass.getName())) {
                 System.out.println(event);
-                //neither package nor module events are available at 8
-                //Events.assertClassPackage(loadedClass, SEARCH_PACKAGE_NAME);
+                Events.assertClassPackage(loadedClass, SEARCH_PACKAGE_NAME);
+                //module events are not available at 8
                 //Events.assertClassModule(loadedClass, SEARCH_MODULE_NAME);
                 RecordedClassLoader initiatingClassLoader = event.getValue("initiatingClassLoader");
                 Asserts.assertEquals(cl.getClass().getName(), initiatingClassLoader.getType().getName(),
