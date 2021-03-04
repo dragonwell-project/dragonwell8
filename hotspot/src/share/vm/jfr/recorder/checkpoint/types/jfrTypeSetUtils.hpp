@@ -243,6 +243,7 @@ class JfrSymbolId : public JfrCHeapObj {
 
  public:
   static bool is_anonymous_klass(const Klass* k);
+  static const char* get_anonymous_klass_chars(const InstanceKlass* ik, uintptr_t hashcode);
   static const char* create_anonymous_klass_symbol(const InstanceKlass* ik, uintptr_t& hashcode);
   static uintptr_t anonymous_klass_name_hash_code(const InstanceKlass* ik);
   static uintptr_t regular_klass_name_hash_code(const Klass* k);
@@ -266,31 +267,7 @@ class JfrSymbolId : public JfrCHeapObj {
   }
 
   const SymbolEntry* map_symbol(const Symbol* symbol) const;
-  const SymbolEntry* map_symbol(uintptr_t hash) const;
-  const CStringEntry* map_cstring(uintptr_t hash) const;
-
-  template <typename T>
-  void symbol(T& functor, const Klass* k) {
-    if (is_anonymous_klass(k)) {
-      return;
-    }
-    functor(map_symbol(regular_klass_name_hash_code(k)));
-  }
-
-  template <typename T>
-  void symbol(T& functor, const Method* method) {
-    assert(method != NULL, "invariant");
-    functor(map_symbol((uintptr_t)method->name()->identity_hash()));
-    functor(map_symbol((uintptr_t)method->signature()->identity_hash()));
-  }
-
-  template <typename T>
-  void cstring(T& functor, const Klass* k) {
-    if (!is_anonymous_klass(k)) {
-      return;
-    }
-    functor(map_cstring(anonymous_klass_name_hash_code((const InstanceKlass*)k)));
-  }
+  const CStringEntry* map_cstring(const char* const str, uintptr_t hash) const;
 
   template <typename T>
   void iterate_symbols(T& functor) {
@@ -344,8 +321,7 @@ class JfrArtifactSet : public JfrCHeapObj {
   traceid markPackage(const char* const name, uintptr_t hash);
 
   const JfrSymbolId::SymbolEntry* map_symbol(const Symbol* symbol) const;
-  const JfrSymbolId::SymbolEntry* map_symbol(uintptr_t hash) const;
-  const JfrSymbolId::CStringEntry* map_cstring(uintptr_t hash) const;
+  const JfrSymbolId::CStringEntry* map_cstring(const char* const str, uintptr_t hash) const;
 
   bool has_klass_entries() const;
   int entries() const;
