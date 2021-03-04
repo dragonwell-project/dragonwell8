@@ -26,7 +26,7 @@
  * @bug 4018937 8008577
  * @summary Confirm that methods which are newly added to support BigDecimal and BigInteger work as expected.
  * @library /java/text/testlib
- * @run main/othervm -Djava.locale.providers=COMPAT,SPI BigDecimalFormat
+ * @run main/othervm -Djava.locale.providers=JRE,SPI BigDecimalFormat
  */
 
 import java.math.BigDecimal;
