@@ -21,10 +21,10 @@
  * under the License.
  */
 /*
- * Copyright (c) 2005, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2018, Oracle and/or its affiliates. All rights reserved.
  */
 /*
- * $Id: DOMManifest.java 1333415 2012-05-03 12:03:51Z coheigea $
+ * $Id: DOMManifest.java 1788465 2017-03-24 15:10:51Z coheigea $
  */
 package org.jcp.xml.dsig.internal.dom;
 
@@ -35,7 +35,6 @@ import javax.xml.crypto.dsig.*;
 import java.security.Provider;
 import java.util.*;
 
-import org.w3c.dom.Attr;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.Node;
@@ -43,7 +42,6 @@ import org.w3c.dom.Node;
 /**
  * DOM-based implementation of Manifest.
  *
- * @author Sean Mullan
  */
 public final class DOMManifest extends DOMStructure implements Manifest {
 
@@ -51,16 +49,16 @@ public final class DOMManifest extends DOMStructure implements Manifest {
     private final String id;
 
     /**
-     * Creates a <code>DOMManifest</code> containing the specified
+     * Creates a {@code DOMManifest} containing the specified
      * list of {@link Reference}s and optional id.
      *
-     * @param references a list of one or more <code>Reference</code>s. The list
+     * @param references a list of one or more {@code Reference}s. The list
      *    is defensively copied to protect against subsequent modification.
-     * @param id the id (may be <code>null</code>
-     * @throws NullPointerException if <code>references</code> is
-     *    <code>null</code>
-     * @throws IllegalArgumentException if <code>references</code> is empty
-     * @throws ClassCastException if <code>references</code> contains any
+     * @param id the id (may be {@code null}
+     * @throws NullPointerException if {@code references} is
+     *    {@code null}
+     * @throws IllegalArgumentException if {@code references} is empty
+     * @throws ClassCastException if {@code references} contains any
      *    entries that are not of type {@link Reference}
      */
     public DOMManifest(List<? extends Reference> references, String id) {
@@ -68,7 +66,7 @@ public final class DOMManifest extends DOMStructure implements Manifest {
             throw new NullPointerException("references cannot be null");
         }
         this.references =
-            Collections.unmodifiableList(new ArrayList<Reference>(references));
+            Collections.unmodifiableList(new ArrayList<>(references));
         if (this.references.isEmpty()) {
             throw new IllegalArgumentException("list of references must " +
                 "contain at least one entry");
@@ -83,7 +81,7 @@ public final class DOMManifest extends DOMStructure implements Manifest {
     }
 
     /**
-     * Creates a <code>DOMManifest</code> from an element.
+     * Creates a {@code DOMManifest} from an element.
      *
      * @param manElem a Manifest element
      */
@@ -91,30 +89,25 @@ public final class DOMManifest extends DOMStructure implements Manifest {
                        Provider provider)
         throws MarshalException
     {
-        Attr attr = manElem.getAttributeNodeNS(null, "Id");
-        if (attr != null) {
-            this.id = attr.getValue();
-            manElem.setIdAttributeNode(attr, true);
-        } else {
-            this.id = null;
-        }
+        this.id = DOMUtils.getIdAttributeValue(manElem, "Id");
 
         boolean secVal = Utils.secureValidation(context);
 
-        Element refElem = DOMUtils.getFirstChildElement(manElem, "Reference");
-        List<Reference> refs = new ArrayList<Reference>();
+        Element refElem = DOMUtils.getFirstChildElement(manElem, "Reference", XMLSignature.XMLNS);
+        List<Reference> refs = new ArrayList<>();
         refs.add(new DOMReference(refElem, context, provider));
 
         refElem = DOMUtils.getNextSiblingElement(refElem);
         while (refElem != null) {
             String localName = refElem.getLocalName();
-            if (!localName.equals("Reference")) {
+            String namespace = refElem.getNamespaceURI();
+            if (!"Reference".equals(localName) || !XMLSignature.XMLNS.equals(namespace)) {
                 throw new MarshalException("Invalid element name: " +
-                                           localName + ", expected Reference");
+                                           namespace + ":" + localName + ", expected Reference");
             }
             refs.add(new DOMReference(refElem, context, provider));
             if (secVal && Policy.restrictNumReferences(refs.size())) {
-                String error = "A maximum of " + Policy.maxReferences()
+                String error = "A maxiumum of " + Policy.maxReferences()
                     + " references per Manifest are allowed when"
                     + " secure validation is enabled";
                 throw new MarshalException(error);
@@ -129,14 +122,16 @@ public final class DOMManifest extends DOMStructure implements Manifest {
     }
 
     @SuppressWarnings("unchecked")
-    static List<Reference> getManifestReferences(Manifest mf) {
+    public static List<Reference> getManifestReferences(Manifest mf) {
         return mf.getReferences();
     }
 
+    @Override
     public List<Reference> getReferences() {
         return references;
     }
 
+    @Override
     public void marshal(Node parent, String dsPrefix, DOMCryptoContext context)
         throws MarshalException
     {
@@ -164,10 +159,10 @@ public final class DOMManifest extends DOMStructure implements Manifest {
         }
         Manifest oman = (Manifest)o;
 
-        boolean idsEqual = (id == null ? oman.getId() == null
-                                       : id.equals(oman.getId()));
+        boolean idsEqual = id == null ? oman.getId() == null
+                                       : id.equals(oman.getId());
 
-        return (idsEqual && references.equals(oman.getReferences()));
+        return idsEqual && references.equals(oman.getReferences());
     }
 
     @Override

@@ -21,10 +21,10 @@
  * under the License.
  */
 /*
- * Copyright (c) 2005, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2018, Oracle and/or its affiliates. All rights reserved.
  */
 /*
- * $Id: DOMExcC14NMethod.java 1197150 2011-11-03 14:34:57Z coheigea $
+ * $Id: DOMExcC14NMethod.java 1788465 2017-03-24 15:10:51Z coheigea $
  */
 package org.jcp.xml.dsig.internal.dom;
 
@@ -37,8 +37,8 @@ import javax.xml.crypto.dsig.spec.TransformParameterSpec;
 import java.security.InvalidAlgorithmParameterException;
 import java.security.spec.AlgorithmParameterSpec;
 import java.util.*;
-import org.w3c.dom.Element;
 
+import org.w3c.dom.Element;
 import com.sun.org.apache.xml.internal.security.c14n.Canonicalizer;
 import com.sun.org.apache.xml.internal.security.c14n.InvalidCanonicalizerException;
 
@@ -47,7 +47,6 @@ import com.sun.org.apache.xml.internal.security.c14n.InvalidCanonicalizerExcepti
  * Canonical XML algorithm (with or without comments).
  * Uses Apache XML-Sec Canonicalizer.
  *
- * @author Sean Mullan
  */
 public final class DOMExcC14NMethod extends ApacheCanonicalizer {
 
@@ -81,7 +80,7 @@ public final class DOMExcC14NMethod extends ApacheCanonicalizer {
         this.inclusiveNamespaces = prefixListAttr;
         int begin = 0;
         int end = prefixListAttr.indexOf(' ');
-        List<String> prefixList = new ArrayList<String>();
+        List<String> prefixList = new ArrayList<>();
         while (end != -1) {
             prefixList.add(prefixListAttr.substring(begin, end));
             begin = end + 1;
@@ -93,6 +92,12 @@ public final class DOMExcC14NMethod extends ApacheCanonicalizer {
         this.params = new ExcC14NParameterSpec(prefixList);
     }
 
+    @SuppressWarnings("unchecked")
+    public List<String> getParameterSpecPrefixList(ExcC14NParameterSpec paramSpec) {
+        return paramSpec.getPrefixList();
+    }
+
+    @Override
     public void marshalParams(XMLStructure parent, XMLCryptoContext context)
         throws MarshalException
     {
@@ -120,7 +125,7 @@ public final class DOMExcC14NMethod extends ApacheCanonicalizer {
         ExcC14NParameterSpec params = (ExcC14NParameterSpec)spec;
         StringBuffer prefixListAttr = new StringBuffer("");
         @SuppressWarnings("unchecked")
-        List<String> prefixList = params.getPrefixList();
+        List<String> prefixList = getParameterSpecPrefixList(params);
         for (int i = 0, size = prefixList.size(); i < size; i++) {
             prefixListAttr.append(prefixList.get(i));
             if (i < size - 1) {
@@ -148,6 +153,8 @@ public final class DOMExcC14NMethod extends ApacheCanonicalizer {
                 try {
                     apacheCanonicalizer = Canonicalizer.getInstance
                         (CanonicalizationMethod.EXCLUSIVE);
+                    boolean secVal = Utils.secureValidation(xc);
+                    apacheCanonicalizer.setSecureValidation(secVal);
                 } catch (InvalidCanonicalizerException ice) {
                     throw new TransformException
                         ("Couldn't find Canonicalizer for: " +
