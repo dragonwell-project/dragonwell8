@@ -138,7 +138,7 @@ void ElasticHeapConcThread::do_memory_job() {
     uncommit_length += do_memory(&_to_free_list, &free_cl);
   }
 
-  if (PrintElasticHeapDetails) {
+  if (PrintGCDetails && PrintElasticHeapDetails) {
     print_work_summary(uncommit_length, commit_length, start);
   }
 }
@@ -606,7 +606,7 @@ void ElasticHeap::check_to_initate_conc_mark() {
     // G1 conc-mark cycle already started
     return;
   }
-  if (PrintElasticHeapDetails) {
+  if (PrintGCDetails && PrintElasticHeapDetails) {
     gclog_or_tty->print_cr("(Elastic Heap triggers G1 concurrent mark)");
   }
   _g1h->g1_policy()->set_initiate_conc_mark_if_possible();
@@ -801,7 +801,7 @@ void ElasticHeap::finish_conc_cycle() {
   move_regions_back_to_hrm();
   end_conc_cycle();
 
-  if (PrintElasticHeapDetails) {
+  if (PrintGCDetails && PrintElasticHeapDetails) {
     gclog_or_tty->print("(Elastic Heap concurrent cycle ends)\n");
   }
 }
@@ -844,7 +844,7 @@ void ElasticHeap::wait_to_recover() {
   assert(ElasticHeapPeriodicUncommit, "sanity");
   update_desired_young_length(0);
 
-  if (PrintElasticHeapDetails) {
+  if (PrintGCDetails && PrintElasticHeapDetails) {
     gclog_or_tty->print_cr("[Elastic Heap recovers]");
   }
 }
@@ -992,7 +992,7 @@ void ElasticHeap::try_starting_conc_cycle() {
     _conc_thread->conc_lock()->notify();
   }
 
-  if (PrintElasticHeapDetails) {
+  if (PrintGCDetails && PrintElasticHeapDetails) {
     gclog_or_tty->print("(Elastic Heap concurrent cycle starts due to %s)", to_string(evaluation_mode()));
   }
 }
@@ -1412,7 +1412,9 @@ void SoftmxEvaluator::evaluate() {
 
     if (target_free_num < target_reserve_regions) {
       // We don't have more free regions to uncommit
-      gclog_or_tty->print("(Elastic Heap softmx percent setting failed.)");
+      if (PrintGCDetails && PrintElasticHeapDetails) {
+        gclog_or_tty->print("(Elastic Heap softmx percent setting failed.)");
+      }
       if (_hrm->num_uncommitted_regions() == 0) {
         _elas->setting()->set_softmx_percent(0);
       } else {

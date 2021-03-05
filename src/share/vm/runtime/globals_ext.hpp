@@ -88,7 +88,8 @@
           "old gen to grow")                                                \
                                                                             \
   manageable(bool, PrintElasticHeapDetails, true,                           \
-          "Print Elastic Heap detail information in GC log")                \
+          "Print Elastic Heap detail information in GC log"                 \
+          "(effective only when PrintGCDetails)")                           \
                                                                             \
   product(uintx, ElasticHeapParallelWorkers, 0,                             \
           "Number of parallel worker threads for memory "                   \

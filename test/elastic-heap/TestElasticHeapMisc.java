@@ -64,6 +64,23 @@ public class TestElasticHeapMisc {
         System.out.println(output.getOutput());
         output.shouldNotContain("Elastic Heap triggered GC");
         Asserts.assertTrue(output.getExitValue() == 0);
+
+        serverBuilder = ProcessTools.createJavaProcessBuilder("-XX:+UseG1GC",
+                "-XX:+G1ElasticHeap", "-Xmx1g", "-Xms1g",
+                "-Xmn100m", "-XX:G1HeapRegionSize=1m", "-XX:SurvivorRatio=1",
+                "-XX:ElasticHeapYGCIntervalMinMillis=50",
+                "-XX:InitiatingHeapOccupancyPercent=80",
+                "-verbose:gc", "-XX:+PrintGCTimeStamps",
+                "-Dtest.jdk=" + System.getProperty("test.jdk"),
+                GenerationLimitLargerSurvivor.class.getName());
+        server = serverBuilder.start();
+
+        output = new OutputAnalyzer(server);
+        System.out.println(output.getOutput());
+        // Both -XX:+PrintGCDetails and -XX:G1ElasticHeap are necessary
+        // for printing elastic heap related logs.
+        output.shouldNotContain("Elastic Heap concurrent thread");
+        Asserts.assertTrue(output.getExitValue() == 0);
     }
 
     private static class NoElasticHeapGC {
