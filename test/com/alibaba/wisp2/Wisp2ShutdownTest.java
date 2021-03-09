@@ -28,7 +28,10 @@
  */
 
 import com.alibaba.wisp.engine.WispEngine;
+import com.alibaba.wisp.engine.WispTask;
 
+import java.lang.reflect.Field;
+import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -38,8 +41,11 @@ import static jdk.testlibrary.Asserts.assertTrue;
 
 public class Wisp2ShutdownTest {
     public static void main(String[] args) throws Exception {
+        int beg = getAllTasksCount();
         basicShutDownTest();
         multiGroupsShutDownTest();
+        int end = getAllTasksCount();
+        assertTrue(end - beg < 10);
     }
 
     private static void sleep(long millis) {
@@ -79,6 +85,7 @@ public class Wisp2ShutdownTest {
         assertTrue(g.awaitTermination(3, TimeUnit.SECONDS));
 
         System.out.println(System.currentTimeMillis() - start + "ms");
+        Thread.sleep(200);
 
         assertEQ(n.get(), 0);
     }
@@ -96,5 +103,15 @@ public class Wisp2ShutdownTest {
             });
         }
         assertTrue(latch.await(5, TimeUnit.SECONDS));
+    }
+
+    private static int getAllTasksCount() {
+        try {
+            Field f = WispTask.class.getDeclaredField("id2Task");
+            Map m = (Map) f.get(null);
+            return m.size();
+        } catch (Exception e) {
+            return 0;
+        }
     }
 }

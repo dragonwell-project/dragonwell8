@@ -164,12 +164,13 @@ final class WispCarrier implements Comparable<WispCarrier> {
         current.setEpollArray(0);
 
         unregisterEvent();
-        boolean cached = returnTaskToCache(current);
+        boolean cached = !current.shutdownPending && returnTaskToCache(current);
         TASK_COUNT_UPDATER.decrementAndGet(engine);
         if (cached) {
             current.status = WispTask.Status.CACHED;
         } else {
             current.status = WispTask.Status.DEAD;
+            WispTask.cleanExitedTask(current);
         }
 
         // reset threadWrapper after call returnTaskToCache,
@@ -267,13 +268,19 @@ final class WispCarrier implements Comparable<WispCarrier> {
 
     private void checkAndDispatchShutdown() {
         assert WispCarrier.current() == this;
-        if ((engine.hasBeenShutdown
-                || (current.inDestoryedGroup() && current.inheritedFromNonRootContainer()))
-                && !WispTask.SHUTDOWN_TASK_NAME.equals(current.getName())
-                && current.isAlive()
-                && CoroutineSupport.checkAndThrowException(current.ctx)) {
+        WispTask current = WispCarrier.current().getCurrentTask();
+        if (shutdownPending(current) &&
+                CoroutineSupport.checkAndThrowException(current.ctx)) {
+            current.shutdownPending = true;
             throw new ThreadDeath();
         }
+    }
+
+    boolean shutdownPending(WispTask current) {
+        return (engine.hasBeenShutdown
+                || (current.inDestoryedGroup() && current.inheritedFromNonRootContainer()))
+                && !WispTask.SHUTDOWN_TASK_NAME.equals(current.getName())
+                && current.isAlive();
     }
 
     /**

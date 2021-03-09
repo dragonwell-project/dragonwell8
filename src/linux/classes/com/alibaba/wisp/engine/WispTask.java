@@ -126,6 +126,7 @@ public class WispTask implements Comparable<WispTask> {
     private String name;
     final Coroutine ctx;                // the low-level coroutine implement
     Status status = Status.ALIVE;
+    boolean shutdownPending;
     SelectableChannel ch;               // the interesting channel
     TimeOut timeOut;                    // related timer
     ClassLoader ctxClassLoader;
@@ -181,6 +182,7 @@ public class WispTask implements Comparable<WispTask> {
 
     void reset(Runnable runnable, String name, Thread thread, ClassLoader ctxLoader) {
         assert ctx != null;
+        assert !shutdownPending;
         this.status       = Status.ALIVE;
         this.runnable     = runnable;
         this.name         = name;
