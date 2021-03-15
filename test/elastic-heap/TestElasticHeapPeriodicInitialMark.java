@@ -67,8 +67,8 @@ public class TestElasticHeapPeriodicInitialMark {
         server = serverBuilder.start();
         output = new OutputAnalyzer(server);
         output.shouldContain("initial-mark");
-        output.shouldNotContain("(Elastic Heap triggered GC) (young),");
-        output.shouldMatch("(Elastic Heap triggered GC).*initial-mark");
+        output.shouldNotContain("(Elastic Heap Initiated GC) (young),");
+        output.shouldMatch("(Elastic Heap Initiated GC).*initial-mark");
         System.out.println(output.getOutput());
         Asserts.assertTrue(output.getExitValue() == 0);
     }

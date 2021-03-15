@@ -466,6 +466,7 @@ protected:
   DCmdArgument<jlong> _young_commit_percent;
   DCmdArgument<jlong> _uncommit_ihop;
   DCmdArgument<jlong> _softmx_percent;
+  DCmdArgument<bool> _fullgc;
   void print_info();
   bool illegal_percent(uint percent, const char* name);
 public:

@@ -866,10 +866,13 @@ ElasticHeapDCmd::ElasticHeapDCmd(outputStream* output, bool heap) :
                    "INT", false),
     _softmx_percent("softmx_percent",
                          "Percentage of committed size of heap to be adjusted to",
-                         "INT", false) {
+                         "INT", false),
+    _fullgc("-fullgc", "If trigger Full GC to accommodate to softmx_percent",
+                         "BOOLEAN", false, "false") {
   _dcmdparser.add_dcmd_option(&_young_commit_percent);
   _dcmdparser.add_dcmd_option(&_uncommit_ihop);
   _dcmdparser.add_dcmd_option(&_softmx_percent);
+  _dcmdparser.add_dcmd_option(&_fullgc);
 }
 
 int ElasticHeapDCmd::num_arguments() {
@@ -928,9 +931,16 @@ void ElasticHeapDCmd::execute(DCmdSource source, TRAPS) {
     }
     option_set = true;
   }
+  if (_fullgc.value()) {
+    if (!_softmx_percent.is_set()) {
+      output()->print_cr("Error: -fullgc only works with softmx_percent!");
+      print_info();
+      return;
+    }
+  }
 
   if (option_set) {
-    ElasticHeap::ErrorType error = G1CollectedHeap::heap()->elastic_heap()->configure_setting(young_percent, uncommit_ihop, softmx_percent);
+    ElasticHeap::ErrorType error = G1CollectedHeap::heap()->elastic_heap()->configure_setting(young_percent, uncommit_ihop, softmx_percent, _fullgc.value());
     if (error == ElasticHeap::IllegalMode) {
       output()->print_cr("Error: not in correct mode.");
     } else if (error == ElasticHeap::IllegalYoungPercent) {

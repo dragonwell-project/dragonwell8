@@ -1550,6 +1550,10 @@ bool G1CollectedHeap::do_collection(bool explicit_gc,
 
       _allocator->init_mutator_alloc_region();
 
+      if (G1ElasticHeap) {
+        elastic_heap()->perform_after_full_collection();
+      }
+
       double end = os::elapsedTime();
       g1_policy()->record_full_collection_end();
 
@@ -1574,10 +1578,6 @@ bool G1CollectedHeap::do_collection(bool explicit_gc,
     trace_heap_after_gc(gc_tracer);
 
     post_full_gc_dump(gc_timer);
-
-    if (G1ElasticHeap) {
-      elastic_heap()->record_gc_end();
-    }
 
     gc_timer->register_gc_end();
     gc_tracer->report_gc_end(gc_timer->gc_end(), gc_timer->time_partitions());
@@ -2604,7 +2604,7 @@ void G1CollectedHeap::collect(GCCause::Cause cause) {
       return;
     } else {
       if (cause == GCCause::_gc_locker || cause == GCCause::_wb_young_gc
-          || cause == GCCause::_g1_elastic_heap_trigger_gc
+          || cause == GCCause::_g1_elastic_heap_gc
           DEBUG_ONLY(|| cause == GCCause::_scavenge_alot)) {
 
         // Schedule a standard evacuation pause. We're setting word_size
@@ -4361,7 +4361,7 @@ G1CollectedHeap::do_collection_pause_at_safepoint(double target_pause_time_ms) {
         _cm->note_end_of_gc();
 
         if (G1ElasticHeap) {
-          elastic_heap()->perform();
+          elastic_heap()->perform_after_young_collection();
         }
 
         // This timing is only used by the ergonomics to handle our pause target.

@@ -73,7 +73,8 @@ class GCCause : public AllStatic {
     _g1_inc_collection_pause,
     _g1_humongous_allocation,
 
-    _g1_elastic_heap_trigger_gc,
+    _g1_elastic_heap_gc,
+    _g1_elastic_heap_full_gc,
 
     _last_ditch_collection,
     _last_gc_cause

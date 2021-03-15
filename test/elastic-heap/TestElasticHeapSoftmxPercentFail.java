@@ -36,17 +36,6 @@ public class TestElasticHeapSoftmxPercentFail {
         ProcessBuilder serverBuilder;
         Process server;
         OutputAnalyzer output;
-        serverBuilder = ProcessTools.createJavaProcessBuilder("-XX:+UseG1GC",
-            "-XX:+G1ElasticHeap",
-            "-Xmx1000m", "-Xms1000m", "-XX:G1HeapRegionSize=1m", "-XX:+AlwaysPreTouch",
-            "-verbose:gc", "-XX:+PrintGCDetails", "-XX:+PrintGCTimeStamps",
-            "-Dtest.jdk=" + System.getProperty("test.jdk"),
-            Server.class.getName());
-        server = serverBuilder.start();
-        output = new OutputAnalyzer(server);
-        System.out.println(output.getOutput());
-        output.shouldContain("softmx percent setting failed");
-        Asserts.assertTrue(output.getExitValue() == 0);
 
         serverBuilder = ProcessTools.createJavaProcessBuilder("-XX:+UseG1GC",
             "-XX:+G1ElasticHeap",
@@ -77,20 +66,6 @@ public class TestElasticHeapSoftmxPercentFail {
 
         serverBuilder = ProcessTools.createJavaProcessBuilder("-XX:+UseG1GC",
             "-XX:+G1ElasticHeap",
-            "-Xmx1000m", "-Xms1000m", "-XX:G1HeapRegionSize=1m", "-XX:+AlwaysPreTouch",
-            "-Xmn200m",
-            "-verbose:gc", "-XX:+PrintGCDetails", "-XX:+PrintGCTimeStamps",
-            "-Dtest.jdk=" + System.getProperty("test.jdk"),
-            Server4.class.getName());
-        server = serverBuilder.start();
-        output = new OutputAnalyzer(server);
-        System.out.println(output.getOutput());
-        output.shouldContain("Eden: 101376.0K");
-        output.shouldNotContain("softmx percent setting failed");
-        Asserts.assertTrue(output.getExitValue() == 0);
-
-        serverBuilder = ProcessTools.createJavaProcessBuilder("-XX:+UseG1GC",
-            "-XX:+G1ElasticHeap",
             "-Xmx1000m", "-Xms500m", "-XX:G1HeapRegionSize=1m", "-XX:+AlwaysPreTouch",
             "-Xmn200m",
             "-verbose:gc", "-XX:+PrintGCDetails", "-XX:+PrintGCTimeStamps",
@@ -105,29 +80,6 @@ public class TestElasticHeapSoftmxPercentFail {
     }
 
     private static class Server {
-        public static void main(String[] args) throws Exception {
-            // Promote 400M into old gen
-            Object[] root = new Object[4 * 1024];
-            for (int i = 0; i < 4 * 1024; i++) {
-                root[i] = new byte[99*1024];
-            }
-
-            byte[] arr = new byte[200*1024];
-            // Allocate 200k per 1ms, 200M per second
-            for (int i = 0; i < 1000 * 10; i++) {
-                arr = new byte[200*1024];
-                Thread.sleep(1);
-            }
-
-            OutputAnalyzer output = triggerJcmd("GC.elastic_heap", "softmx_percent=50");
-            System.out.println(output.getOutput());
-            // Allocate 200k per 1ms, 200M per second
-            for (int i = 0; i < 1000 * 10; i++) {
-                arr = new byte[200*1024];
-                Thread.sleep(1);
-            }
-        }
-
         private static OutputAnalyzer triggerJcmd(String arg1, String arg2) throws Exception {
             String pid = Integer.toString(ProcessTools.getProcessId());
             JDKToolLauncher jcmd = JDKToolLauncher.create("jcmd")

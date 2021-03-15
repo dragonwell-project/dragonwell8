@@ -76,7 +76,8 @@ private:
   void                sanity_check();
   void                print_work_summary(uint uncommit_length, uint commit_length, double start);
   // Commit/Uncommit phyical pages of regions
-  void                do_memory_job();
+  void                do_memory_job(bool pretouch);
+  void                do_memory_job_after_full_collection();
   // Commit/Uncommit phyical pages of regions
   uint                do_memory(FreeRegionList* list, HeapRegionClosure* cl);
   // Parallel Commit/Uncommit phyical pages
@@ -175,6 +176,9 @@ public:
 };
 
 class SoftmxEvaluator : public ElasticHeapEvaluator {
+private:
+  static  uint        _min_free_region_count;
+  uint                accommodate_heap_regions(uint regions);
 public:
   SoftmxEvaluator(ElasticHeap* eh)
     : ElasticHeapEvaluator(eh) {}
@@ -346,14 +350,14 @@ public:
   void                prepare_in_gc_start();
 
   // Main entry in GC pause for elastic heap
-  void                perform();
+  void                perform_after_young_collection();
+  void                perform_after_full_collection();
   // Commit/uncommit regions
   void                uncommit_regions(uint num);
   void                commit_regions(uint num);
 
   void                resize_young_length(uint target_length);
   void                change_heap_capacity(uint target_heap_regions);
-  void                change_young_size_for_softmx();
 
   uint                max_young_length() const      { return _orig_max_desired_young_length; }
 
@@ -364,7 +368,7 @@ public:
   uint                num_unavailable_regions();
 
   // Main entry for processing elastic heap via JCMD/MXBean
-  ErrorType           configure_setting(uint young_percent, uint uncommit_ihop, uint softmx_percent);
+  ErrorType           configure_setting(uint young_percent, uint uncommit_ihop, uint softmx_percent, bool fullgc = false);
 
   // Get the commit percent and freed bytes
   int                 young_commit_percent() const;
@@ -467,11 +471,14 @@ public:
     _softmx_percent = p;
   }
 
+  bool                evaluating() const { return _evaluating; }
+  void                set_evaluating(bool f) { _evaluating = f; }
+
   ElasticHeap::ErrorType change_young_percent(uint young_percent, bool& trigger_gc);
   ElasticHeap::ErrorType change_uncommit_ihop(uint uncommit_ihop, bool& trigger_gc);
-  ElasticHeap::ErrorType change_softmx_percent(uint softmx_percent, bool& trigger_gc);
+  ElasticHeap::ErrorType change_softmx_percent(uint softmx_percent, bool& trigger_gc, bool fullgc);
   ElasticHeap::ErrorType process_arg(uint young_percent, uint uncommit_ihop, uint softmx_percent,
-                                     bool& trigger_gc);
+                                     bool& trigger_gc, bool fullgc);
   ElasticHeap::EvaluationMode target_evaluation_mode(uint young_percent,
                                              uint uncommit_ihop,
                                              uint softmx_percent);
@@ -484,6 +491,7 @@ private:
   volatile uint       _uncommit_ihop;
   // Set the softmx percent
   volatile uint       _softmx_percent;
+  volatile bool       _evaluating;
 
   // Check if we can change the young percent by jcmd/MXBean
   bool                can_change_young_percent(uint percent);

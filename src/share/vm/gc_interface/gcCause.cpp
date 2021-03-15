@@ -100,8 +100,11 @@ const char* GCCause::to_string(GCCause::Cause cause) {
     case _g1_humongous_allocation:
       return "G1 Humongous Allocation";
 
-    case _g1_elastic_heap_trigger_gc:
-      return "Elastic Heap triggered GC";
+    case _g1_elastic_heap_gc:
+      return "Elastic Heap Initiated GC";
+
+    case _g1_elastic_heap_full_gc:
+      return "Elastic Heap Initiated Full GC";
 
     case _last_ditch_collection:
       return "Last ditch collection";

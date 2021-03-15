@@ -31,12 +31,14 @@ template <bool commit, bool free>
 class RegionMemoryClosure : public HeapRegionClosure {
 private:
   ElasticHeap* _elastic_heap;
+  bool _pretouch;
 public:
-  RegionMemoryClosure(ElasticHeap* elastic_heap) : _elastic_heap(elastic_heap) {}
+  RegionMemoryClosure(ElasticHeap* elastic_heap, bool pretouch) :
+    _elastic_heap(elastic_heap), _pretouch(pretouch)  {}
 
   virtual bool doHeapRegion(HeapRegion* hr) {
     if (commit) {
-      _elastic_heap->commit_region_memory(hr, true);
+      _elastic_heap->commit_region_memory(hr, _pretouch);
     } else if (free) {
       _elastic_heap->free_region_memory(hr);
     } else {
@@ -107,22 +109,18 @@ void ElasticHeapConcThread::sanity_check() {
   } else if (!_commit_list.is_empty()) {
     guarantee(_uncommit_list.is_empty(), "sanity");
   } else {
-    guarantee(!_to_free_list.is_empty(), "sanity");
+    guarantee(!_to_free_list.is_empty() || G1CollectedHeap::heap()->full_collection(), "sanity");
   }
 }
 
-void ElasticHeapConcThread::do_memory_job() {
+void ElasticHeapConcThread::do_memory_job(bool pretouch) {
   double start = os::elapsedTime();
   uint commit_length = 0;
   uint uncommit_length = 0;
 
-  RegionMemoryClosure<false, false> uncommit_cl(_elastic_heap);
-  RegionMemoryClosure<false, true> free_cl(_elastic_heap);
-
-  // We don't want a lot of page faults while accessing a lot of memory(several GB)
-  // in a very short period of time(few seconds) which may cause Java threads slow down
-  // significantly. So we will pretouch the regions after commit them.
-  RegionMemoryClosure<true, false> commit_pretouch_cl(_elastic_heap);
+  RegionMemoryClosure<false, false> uncommit_cl(_elastic_heap, pretouch);
+  RegionMemoryClosure<false, true> free_cl(_elastic_heap, pretouch);
+  RegionMemoryClosure<true, false> commit_pretouch_cl(_elastic_heap, pretouch);
 
   sanity_check();
 
@@ -140,6 +138,12 @@ void ElasticHeapConcThread::do_memory_job() {
 
   if (PrintGCDetails && PrintElasticHeapDetails) {
     print_work_summary(uncommit_length, commit_length, start);
+  }
+}
+
+void ElasticHeapConcThread::do_memory_job_after_full_collection() {
+  if (!_uncommit_list.is_empty() || !_commit_list.is_empty()) {
+    do_memory_job(AlwaysPreTouch);
   }
 }
 
@@ -166,7 +170,8 @@ void ElasticHeapConcThread::print_work_summary(uint uncommit_length, uint commit
     ShouldNotReachHere();
   }
   size_t bytes = list_length * HeapRegion::GrainBytes;
-  gclog_or_tty->print_cr("[Elastic Heap concurrent thread: %s " SIZE_FORMAT "%s spent %.3fs(concurrent workers: %u) ]",
+  gclog_or_tty->print_cr("[Elastic Heap%s: %s " SIZE_FORMAT "%s spent %.3fs(concurrent workers: %u) ]",
+    G1CollectedHeap::heap()->full_collection() ? "" : " concurrent thread",
     op,
     byte_size_in_proper_unit(bytes),
     proper_unit_for_byte_size(bytes),
@@ -186,7 +191,10 @@ void ElasticHeapConcThread::run() {
 
     assert(working(), "sanity");
 
-    do_memory_job();
+    // We don't want a lot of page faults while accessing a lot of memory(several GB)
+    // in a very short period of time(few seconds) which may cause Java threads slow down
+    // significantly. So we will pretouch the regions after commit them.
+    do_memory_job(true);
 
     // Thread work is done by now
     {
@@ -456,7 +464,8 @@ ElasticHeapSetting::ElasticHeapSetting(ElasticHeap* elas, G1CollectedHeap* g1h) 
     _g1h(g1h),
     _young_percent(0),
     _uncommit_ihop(0),
-    _softmx_percent(0) {
+    _softmx_percent(0),
+    _evaluating(false) {
 }
 
 ElasticHeap::ErrorType ElasticHeapSetting::change_young_percent(uint young_percent, bool& trigger_gc) {
@@ -485,10 +494,14 @@ ElasticHeap::ErrorType ElasticHeapSetting::change_uncommit_ihop(uint uncommit_ih
   return ElasticHeap::NoError;
 }
 
-ElasticHeap::ErrorType ElasticHeapSetting::change_softmx_percent(uint softmx_percent, bool& trigger_gc) {
+ElasticHeap::ErrorType ElasticHeapSetting::change_softmx_percent(uint softmx_percent, bool& trigger_gc, bool fullgc) {
   if (!ignore_arg(softmx_percent, _softmx_percent)) {
     _softmx_percent = softmx_percent;
-    _elas->check_to_initate_conc_mark();
+    // softmx_percent == 0 will recover uncommitted regions in RecoverEvaluator
+    set_evaluating(softmx_percent != 0);
+    if (!fullgc) {
+      _elas->check_to_initate_conc_mark();
+    }
     trigger_gc = true;
   }
   return ElasticHeap::NoError;
@@ -511,7 +524,8 @@ ElasticHeap::EvaluationMode ElasticHeapSetting::target_evaluation_mode(uint youn
 ElasticHeap::ErrorType ElasticHeapSetting::process_arg(uint young_percent,
                                                        uint uncommit_ihop,
                                                        uint softmx_percent,
-                                                       bool& trigger_gc) {
+                                                       bool& trigger_gc,
+                                                       bool fullgc) {
   if (_elas->conflict_mode(target_evaluation_mode(young_percent, uncommit_ihop, softmx_percent))) {
     return ElasticHeap::IllegalMode;
   }
@@ -526,7 +540,7 @@ ElasticHeap::ErrorType ElasticHeapSetting::process_arg(uint young_percent,
   error_type = change_uncommit_ihop(uncommit_ihop, trigger_gc);
   assert(error_type == ElasticHeap::NoError, "sanity");
 
-  error_type = change_softmx_percent(softmx_percent, trigger_gc);
+  error_type = change_softmx_percent(softmx_percent, trigger_gc, fullgc);
   assert(error_type == ElasticHeap::NoError, "sanity");
 
   return ElasticHeap::NoError;
@@ -645,7 +659,7 @@ void ElasticHeap::check_to_trigger_ygc() {
 
   if (trigger_gc) {
     // Invoke GC
-    Universe::heap()->collect(GCCause::_g1_elastic_heap_trigger_gc);
+    Universe::heap()->collect(GCCause::_g1_elastic_heap_gc);
   }
 }
 
@@ -852,7 +866,7 @@ void ElasticHeap::wait_to_recover() {
 bool ElasticHeap::is_gc_to_resize_young_gen() {
   assert_at_safepoint(true /* should_be_vm_thread */);
 
-  return Universe::heap()->gc_cause() == GCCause::_g1_elastic_heap_trigger_gc && _setting->young_percent_set();
+  return Universe::heap()->gc_cause() == GCCause::_g1_elastic_heap_gc && _setting->young_percent_set();
 }
 
 bool ElasticHeap::can_turn_on_periodic_uncommit() {
@@ -874,7 +888,7 @@ void ElasticHeap::update_expanded_heap_size() {
   }
 }
 
-void ElasticHeap::perform() {
+void ElasticHeap::perform_after_young_collection() {
   assert(Universe::heap()->is_gc_active(), "should only be called during gc");
   assert_at_safepoint(true /* should_be_vm_thread */);
 
@@ -885,6 +899,21 @@ void ElasticHeap::perform() {
 
   record_gc_end();
 }
+
+void ElasticHeap::perform_after_full_collection() {
+  assert(Universe::heap()->is_gc_active(), "should only be called during gc");
+  assert_at_safepoint(true /* should_be_vm_thread */);
+
+  assert(!in_conc_cycle(), "sanity");
+  if (evaluation_mode() == SoftmxMode || evaluation_mode() == InactiveMode) {
+    _evaluators[evaluation_mode()]->evaluate();
+    _conc_thread->do_memory_job_after_full_collection();
+    move_regions_back_to_hrm();
+  }
+
+  record_gc_end();
+}
+
 
 void ElasticHeap::evaluate_elastic_work() {
   assert_at_safepoint(true /* should_be_vm_thread */);
@@ -928,53 +957,44 @@ void ElasticHeap::change_heap_capacity(uint target_heap_regions) {
   set_heap_capacity_changed(target_heap_regions);
   guarantee(_g1h->num_regions() == target_heap_regions, "sanity");
 
-  // Change IHOP and young size
+  // Reset IHOP and young size
   InitiatingHeapOccupancyPercent = _orig_ihop;
   _g1h->g1_policy()->_young_gen_sizer->resize_min_desired_young_length(_orig_min_desired_young_length);
   _g1h->g1_policy()->_young_gen_sizer->resize_max_desired_young_length(_orig_max_desired_young_length);
 
-  size_t target_heap_capacity = target_heap_regions * HeapRegion::GrainBytes;
-  size_t target_conc_threshold = target_heap_capacity * InitiatingHeapOccupancyPercent / 100;
-  size_t non_young_bytes = _g1h->non_young_capacity_bytes();
-
-  if ((non_young_bytes + target_heap_capacity * ElasticHeapOldGenReservePercent / 100) >
-      target_conc_threshold) {
-    // We don't have ElasticHeapOldGenReservePercent for old gen to grow
-    // So need to adjust the ihop
-    InitiatingHeapOccupancyPercent = (uint)ceil((double)(non_young_bytes + target_heap_capacity * 5
-                                                 / 100) * 100 / target_heap_capacity);
-  }
-
-  assert(InitiatingHeapOccupancyPercent <  100 && InitiatingHeapOccupancyPercent > 0, "sanity");
-
-  assert(target_heap_regions == _g1h->num_regions(), "sanity");
   _g1h->g1_policy()->record_new_heap_size(target_heap_regions);
+  assert(target_heap_regions == _g1h->num_regions(), "sanity");
 
-  if (_g1h->num_regions() == _g1h->max_regions()) {
-    InitiatingHeapOccupancyPercent = _orig_ihop;
-  } else {
-    change_young_size_for_softmx();
+  if (!heap_capacity_changed()) {
+    return;
   }
-}
+  // We need to set correct IHOP and young size if heap capacity changed
+  uint free_regions = _g1h->num_free_regions();
+  // At least 1 reserve region
+  uint reserve_regions = MAX2(1U, (uint)(_g1h->num_regions() * g1_reserve_factor()));
 
-void ElasticHeap::change_young_size_for_softmx() {
-  assert_at_safepoint(true /* should_be_vm_thread */);
+  if (free_regions <= reserve_regions) {
+    // Actually no free regions
+    return;
+  }
 
-  // Resize min/max young length according to softmx percent
-  uint softmx_percent = setting()->softmx_percent();
-  assert(softmx_percent > 0 && softmx_percent < 100, "sanity");
-  uint min_desired_young_length = (uint)ceil((double)_orig_min_desired_young_length * softmx_percent / 100);
-  uint max_desired_young_length = (uint)ceil((double)_orig_max_desired_young_length * softmx_percent / 100);
+  free_regions -= reserve_regions;
+
+  // Half of the free bytes are for IHOP and half for young generation
+  size_t target_ihop_bytes = _g1h->non_young_capacity_bytes() + free_regions * HeapRegion::GrainBytes / 2;
+  assert(target_ihop_bytes < _g1h->capacity(), "sanity");
+  InitiatingHeapOccupancyPercent = target_ihop_bytes * 100 / _g1h->capacity();
+
+  assert(InitiatingHeapOccupancyPercent < 100 && InitiatingHeapOccupancyPercent > 0, "sanity");
+
+  // Min young length will be half of max young length
+  uint min_desired_young_length = (uint)ceil((double)free_regions / 4);
+  uint max_desired_young_length = (uint)ceil((double)free_regions / 2);
+  min_desired_young_length = MIN2(min_desired_young_length, _orig_min_desired_young_length);
+  max_desired_young_length = MIN2(max_desired_young_length, _orig_max_desired_young_length);
   assert(min_desired_young_length > 0 && max_desired_young_length > 0, "sanity");
   _g1h->g1_policy()->_young_gen_sizer->resize_min_desired_young_length(min_desired_young_length);
   _g1h->g1_policy()->_young_gen_sizer->resize_max_desired_young_length(max_desired_young_length);
-
-  // If min desired young length is too large, we need to shrink
-  assert((InitiatingHeapOccupancyPercent + (g1_reserve_factor() * 100)) < 100, "sanity");
-  uint safe_min_desired_young_length = _g1h->num_regions() * (100 - InitiatingHeapOccupancyPercent - (g1_reserve_factor() * 100)) / 100;
-  if (_g1h->g1_policy()->_young_gen_sizer->min_desired_young_length() > safe_min_desired_young_length) {
-    _g1h->g1_policy()->_young_gen_sizer->resize_min_desired_young_length(safe_min_desired_young_length);
-  }
 }
 
 void ElasticHeap::try_starting_conc_cycle() {
@@ -1122,7 +1142,7 @@ private:
   bool            _locked;
 };
 
-ElasticHeap::ErrorType ElasticHeap::configure_setting(uint young_percent, uint uncommit_ihop, uint softmx_percent) {
+ElasticHeap::ErrorType ElasticHeap::configure_setting(uint young_percent, uint uncommit_ihop, uint softmx_percent, bool fullgc) {
   // Called from Java thread or listener thread
   assert(!Thread::current()->is_VM_thread(), "Should not be called in VM thread, either called from JCMD or MXBean");
   assert(JavaThread::current()->thread_state() == _thread_in_vm, "Should be in VM state");
@@ -1139,10 +1159,15 @@ ElasticHeap::ErrorType ElasticHeap::configure_setting(uint young_percent, uint u
 
   bool trigger_gc = false;
   ElasticHeap::ErrorType error_type = _setting->process_arg(young_percent, uncommit_ihop,
-                                                           softmx_percent, trigger_gc);;
+                                                           softmx_percent, trigger_gc, fullgc);
 
   if (error_type != NoError) {
     return error_type;
+  }
+
+  if (fullgc) {
+    Universe::heap()->collect(GCCause::_g1_elastic_heap_full_gc);
+    return NoError;
   }
 
   if (!trigger_gc) {
@@ -1152,7 +1177,7 @@ ElasticHeap::ErrorType ElasticHeap::configure_setting(uint young_percent, uint u
   assert(!_conc_thread->working(), "sanity");
 
   // Invoke GC
-  Universe::heap()->collect(GCCause::_g1_elastic_heap_trigger_gc);
+  Universe::heap()->collect(GCCause::_g1_elastic_heap_gc);
   // Need to handle the scenario that gc is not successfully triggered
 
   wait_for_conc_thread_working_done(true);
@@ -1385,45 +1410,53 @@ void SoftmxEvaluator::evaluate() {
   assert_at_safepoint(true /* should_be_vm_thread */);
 
   assert(_elas->setting()->softmx_percent_set(), "Precondition");
-  uint target_heap_regions = (uint)ceil((double)_g1h->max_regions() * _elas->setting()->softmx_percent() / 100);
-  uint orig_uncommit_num = _g1h->max_regions() - _g1h->num_regions();
-  uint target_uncommit_num = _g1h->max_regions() - target_heap_regions;
-
-  if (target_uncommit_num == orig_uncommit_num) {
+  if(!_elas->setting()->evaluating()) {
     return;
-  } else if (target_uncommit_num < orig_uncommit_num) {
+  }
+
+  uint target_heap_regions = (uint)ceil((double)_g1h->max_regions() * _elas->setting()->softmx_percent() / 100);
+
+  if (target_heap_regions == _g1h->num_regions()) {
+    _elas->setting()->set_evaluating(false);
+    return;
+  } else if (target_heap_regions > _g1h->num_regions()) {
     // Expand heap
-    uint regions_to_commit = orig_uncommit_num - target_uncommit_num;
+    _elas->setting()->set_evaluating(false);
+    uint regions_to_commit = target_heap_regions - _g1h->num_regions();
     _elas->commit_regions(regions_to_commit);
   } else {
     // Shrink heap
-    if (!_elas->stats()->check_mixed_gc_finished()) {
+    if (!_elas->stats()->check_mixed_gc_finished() && !_g1h->full_collection()) {
       return;
     }
-    uint regions_to_uncommit = target_uncommit_num - orig_uncommit_num;
-    int target_free_num = _hrm->num_free_regions() - regions_to_uncommit;
-
-    // Reserved regions for G1ReservePercent
-    int target_reserve_regions = (int)ceil((double)target_heap_regions * _elas->g1_reserve_factor());
-    // Reserved regions for young gen
-    target_reserve_regions += (int)ceil((double)target_heap_regions * G1NewSizePercent / 100);
-    // Reserved regions for old gen
-    target_reserve_regions += (int)ceil((double)target_heap_regions * ElasticHeapOldGenReservePercent / 100);
-
-    if (target_free_num < target_reserve_regions) {
-      // We don't have more free regions to uncommit
-      if (PrintGCDetails && PrintElasticHeapDetails) {
-        gclog_or_tty->print("(Elastic Heap softmx percent setting failed.)");
-      }
-      if (_hrm->num_uncommitted_regions() == 0) {
-        _elas->setting()->set_softmx_percent(0);
-      } else {
-        _elas->setting()->set_softmx_percent(_g1h->num_regions() * 100 / _g1h->max_regions());
-      }
+    _elas->setting()->set_evaluating(false);
+    target_heap_regions = accommodate_heap_regions(target_heap_regions);
+    if (target_heap_regions >= _g1h->num_regions()) {
       return;
     }
+    uint regions_to_uncommit = _g1h->num_regions() - target_heap_regions;
+    assert(_g1h->num_free_regions() >= regions_to_uncommit, "sanity");
 
     _elas->uncommit_regions(regions_to_uncommit);
     _elas->change_heap_capacity(target_heap_regions);
+  }
+}
+
+// Minimal free regions after shrink
+uint SoftmxEvaluator::_min_free_region_count = 5;
+
+uint SoftmxEvaluator::accommodate_heap_regions(uint desired_heap_regions) {
+  uint old_regions = (uint)ceil((double)_g1h->non_young_capacity_bytes() / HeapRegion::GrainBytes);
+
+  const double min_free_percentage = (double) MinHeapFreeRatio / 100.0;
+  const double max_used_percentage = 1.0 - min_free_percentage;
+  uint min_regions = (uint)ceil((double)old_regions / max_used_percentage);
+  uint target_heap_regions = MAX2(min_regions, old_regions + _min_free_region_count);
+  target_heap_regions = MIN2(target_heap_regions, _g1h->max_regions());
+
+  if (target_heap_regions > desired_heap_regions) {
+    return target_heap_regions;
+  } else {
+    return desired_heap_regions;
   }
 }
