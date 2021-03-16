@@ -28,6 +28,7 @@
 #include "memory/metaspaceShared.hpp"
 #include "memory/iterator.hpp"
 #include "memory/universe.hpp"
+#include "memory/gcLocker.inline.hpp"
 #include "oops/oop.inline.hpp"
 
 #include "classfile/symbolTable.hpp"
@@ -906,6 +907,14 @@ WB_ENTRY(jstring, WB_GetCPUFeatures(JNIEnv* env, jobject o))
   return features_string;
 WB_END
 
+WB_ENTRY(void, WB_GCLockCritical(JNIEnv* env, jobject o))
+  GC_locker::lock_critical(thread);
+WB_END
+
+WB_ENTRY(void, WB_GCUnlockCritical(JNIEnv* env, jobject o))
+  GC_locker::unlock_critical(thread);
+WB_END
+
 int WhiteBox::get_blob_type(const CodeBlob* code) {
   guarantee(WhiteBoxAPI, "internal testing API :: WhiteBox has to be enabled");
   return CodeBlobType::All;;
@@ -1641,6 +1650,8 @@ static JNINativeMethod methods[] = {
   {CC"getClassInitOrderList", CC"()[Ljava/lang/String;",
                                                       (void*)&WB_GetClassInitOrderList },
   {CC"isInCurrentTLAB",    CC"(Ljava/lang/Object;)Z", (void*)&WB_IsInCurrentTLAB },
+  {CC"gcLockCritical",            CC"()V",            (void*)&WB_GCLockCritical},
+  {CC"gcUnlockCritical",          CC"()V",            (void*)&WB_GCUnlockCritical},
 };
 
 #undef CC

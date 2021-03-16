@@ -273,7 +273,8 @@ public:
     HeapAdjustInProgress,
     GCTooFrequent,
     IllegalYoungPercent,
-    IllegalMode
+    IllegalMode,
+    GCFailure
   };
 
   // Modes when elastic heap is activated
@@ -408,6 +409,7 @@ public:
       case GCTooFrequent: return "gc is too frequent";
       case IllegalYoungPercent: return "illegal percent";
       case IllegalMode: return "not in correct mode";
+      case GCFailure: return "cannot invoke GC";
       default: ShouldNotReachHere(); return NULL;
     }
   }
@@ -474,14 +476,19 @@ public:
   bool                evaluating() const { return _evaluating; }
   void                set_evaluating(bool f) { _evaluating = f; }
 
-  ElasticHeap::ErrorType change_young_percent(uint young_percent, bool& trigger_gc);
-  ElasticHeap::ErrorType change_uncommit_ihop(uint uncommit_ihop, bool& trigger_gc);
-  ElasticHeap::ErrorType change_softmx_percent(uint softmx_percent, bool& trigger_gc, bool fullgc);
+  bool                need_gc() const { return _need_gc; }
+  void                set_need_gc(bool f) { _need_gc = f; }
+
+  ElasticHeap::ErrorType change_young_percent(uint young_percent);
+  ElasticHeap::ErrorType change_uncommit_ihop(uint uncommit_ihop);
+  ElasticHeap::ErrorType change_softmx_percent(uint softmx_percent, bool fullgc);
   ElasticHeap::ErrorType process_arg(uint young_percent, uint uncommit_ihop, uint softmx_percent,
-                                     bool& trigger_gc, bool fullgc);
+                                     bool fullgc);
   ElasticHeap::EvaluationMode target_evaluation_mode(uint young_percent,
                                              uint uncommit_ihop,
                                              uint softmx_percent);
+  void recover_setting(ElasticHeapSetting *setting);
+
 private:
   ElasticHeap*        _elas;
   G1CollectedHeap*    _g1h;
@@ -492,6 +499,8 @@ private:
   // Set the softmx percent
   volatile uint       _softmx_percent;
   volatile bool       _evaluating;
+
+  volatile bool       _need_gc;
 
   // Check if we can change the young percent by jcmd/MXBean
   bool                can_change_young_percent(uint percent);

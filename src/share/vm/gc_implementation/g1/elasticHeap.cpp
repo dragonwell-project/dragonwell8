@@ -468,7 +468,7 @@ ElasticHeapSetting::ElasticHeapSetting(ElasticHeap* elas, G1CollectedHeap* g1h) 
     _evaluating(false) {
 }
 
-ElasticHeap::ErrorType ElasticHeapSetting::change_young_percent(uint young_percent, bool& trigger_gc) {
+ElasticHeap::ErrorType ElasticHeapSetting::change_young_percent(uint young_percent) {
   ElasticHeap::ErrorType error_type = ElasticHeap::NoError;
   if (ignore_arg(young_percent, _young_percent)) {
     // Do nothing
@@ -477,7 +477,7 @@ ElasticHeap::ErrorType ElasticHeapSetting::change_young_percent(uint young_perce
     error_type = ElasticHeap::IllegalYoungPercent;
   } else if (can_change_young_percent(young_percent)) {
     error_type = ElasticHeap::NoError;
-    trigger_gc = true;
+    set_need_gc(true);
     _young_percent = young_percent;
   } else {
     error_type = ElasticHeap::GCTooFrequent;
@@ -485,16 +485,16 @@ ElasticHeap::ErrorType ElasticHeapSetting::change_young_percent(uint young_perce
   return error_type;
 }
 
-ElasticHeap::ErrorType ElasticHeapSetting::change_uncommit_ihop(uint uncommit_ihop, bool& trigger_gc) {
+ElasticHeap::ErrorType ElasticHeapSetting::change_uncommit_ihop(uint uncommit_ihop) {
   if (!ignore_arg(uncommit_ihop, _uncommit_ihop)) {
     _uncommit_ihop = uncommit_ihop;
     _elas->check_to_initate_conc_mark();
-    trigger_gc = true;
+    set_need_gc(true);
   }
   return ElasticHeap::NoError;
 }
 
-ElasticHeap::ErrorType ElasticHeapSetting::change_softmx_percent(uint softmx_percent, bool& trigger_gc, bool fullgc) {
+ElasticHeap::ErrorType ElasticHeapSetting::change_softmx_percent(uint softmx_percent, bool fullgc) {
   if (!ignore_arg(softmx_percent, _softmx_percent)) {
     _softmx_percent = softmx_percent;
     // softmx_percent == 0 will recover uncommitted regions in RecoverEvaluator
@@ -502,7 +502,7 @@ ElasticHeap::ErrorType ElasticHeapSetting::change_softmx_percent(uint softmx_per
     if (!fullgc) {
       _elas->check_to_initate_conc_mark();
     }
-    trigger_gc = true;
+    set_need_gc(true);
   }
   return ElasticHeap::NoError;
 }
@@ -524,7 +524,6 @@ ElasticHeap::EvaluationMode ElasticHeapSetting::target_evaluation_mode(uint youn
 ElasticHeap::ErrorType ElasticHeapSetting::process_arg(uint young_percent,
                                                        uint uncommit_ihop,
                                                        uint softmx_percent,
-                                                       bool& trigger_gc,
                                                        bool fullgc) {
   if (_elas->conflict_mode(target_evaluation_mode(young_percent, uncommit_ihop, softmx_percent))) {
     return ElasticHeap::IllegalMode;
@@ -532,15 +531,15 @@ ElasticHeap::ErrorType ElasticHeapSetting::process_arg(uint young_percent,
 
   ElasticHeap::ErrorType error_type = ElasticHeap::NoError;
 
-  error_type = change_young_percent(young_percent, trigger_gc);
+  error_type = change_young_percent(young_percent);
   if (error_type != ElasticHeap::NoError) {
     return error_type;
   }
 
-  error_type = change_uncommit_ihop(uncommit_ihop, trigger_gc);
+  error_type = change_uncommit_ihop(uncommit_ihop);
   assert(error_type == ElasticHeap::NoError, "sanity");
 
-  error_type = change_softmx_percent(softmx_percent, trigger_gc, fullgc);
+  error_type = change_softmx_percent(softmx_percent, fullgc);
   assert(error_type == ElasticHeap::NoError, "sanity");
 
   return ElasticHeap::NoError;
@@ -578,6 +577,13 @@ bool ElasticHeapSetting::can_change_young_percent(uint percent) {
     return false;
   }
   return true;
+}
+
+void ElasticHeapSetting::recover_setting(ElasticHeapSetting *setting) {
+  _young_percent = setting->young_percent();
+  _uncommit_ihop = setting->uncommit_ihop();
+  _softmx_percent = setting->softmx_percent();
+  _evaluating = false;
 }
 
 ElasticHeap::ElasticHeap(G1CollectedHeap* g1h) : _g1h(g1h),
@@ -891,6 +897,7 @@ void ElasticHeap::update_expanded_heap_size() {
 void ElasticHeap::perform_after_young_collection() {
   assert(Universe::heap()->is_gc_active(), "should only be called during gc");
   assert_at_safepoint(true /* should_be_vm_thread */);
+  _setting->set_need_gc(false);
 
   if (!in_conc_cycle()) {
     // Do evaluation whether to resize or not, to start the new conc cycle
@@ -903,6 +910,7 @@ void ElasticHeap::perform_after_young_collection() {
 void ElasticHeap::perform_after_full_collection() {
   assert(Universe::heap()->is_gc_active(), "should only be called during gc");
   assert_at_safepoint(true /* should_be_vm_thread */);
+  _setting->set_need_gc(false);
 
   assert(!in_conc_cycle(), "sanity");
   if (evaluation_mode() == SoftmxMode || evaluation_mode() == InactiveMode) {
@@ -1157,20 +1165,26 @@ ElasticHeap::ErrorType ElasticHeap::configure_setting(uint young_percent, uint u
     return HeapAdjustInProgress;
   }
 
-  bool trigger_gc = false;
+  ElasticHeapSetting orig_setting = *_setting;
   ElasticHeap::ErrorType error_type = _setting->process_arg(young_percent, uncommit_ihop,
-                                                           softmx_percent, trigger_gc, fullgc);
+                                                            softmx_percent, fullgc);
 
   if (error_type != NoError) {
     return error_type;
   }
 
   if (fullgc) {
+    assert(setting()->need_gc(), "sanity");
     Universe::heap()->collect(GCCause::_g1_elastic_heap_full_gc);
+    if (setting()->need_gc()) {
+      _setting->set_need_gc(false);
+      _setting->recover_setting(&orig_setting);
+      return GCFailure;
+    }
     return NoError;
   }
 
-  if (!trigger_gc) {
+  if (!setting()->need_gc()) {
     return NoError;
   }
 
@@ -1178,7 +1192,13 @@ ElasticHeap::ErrorType ElasticHeap::configure_setting(uint young_percent, uint u
 
   // Invoke GC
   Universe::heap()->collect(GCCause::_g1_elastic_heap_gc);
+
   // Need to handle the scenario that gc is not successfully triggered
+  if (setting()->need_gc()) {
+    _setting->set_need_gc(false);
+    _setting->recover_setting(&orig_setting);
+    return GCFailure;
+  }
 
   wait_for_conc_thread_working_done(true);
   guarantee(!_conc_thread->working(), "sanity");

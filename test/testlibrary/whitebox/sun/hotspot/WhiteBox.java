@@ -198,6 +198,10 @@ public class WhiteBox {
   // It returns false if CM Thread is always in concurrent cycle.
   public native boolean g1StartConcMarkCycle();
 
+  // Force gc locker
+  public native void gcLockCritical();
+  public native void gcUnlockCritical();
+
   // Tests on ReservedSpace/VirtualSpace classes
   public native int stressVirtualSpaceResize(long reservedSpaceSize, long magnitude, long iterations);
   public native void runMemoryUnitTests();
