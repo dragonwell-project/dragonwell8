@@ -28,4 +28,18 @@ public interface ResourceContainerMXBean extends PlatformManagedObject {
      * @return consumed cpu time by nanosecond
      */
     long getCPUResourceConsumedAmount(long id);
+
+    /**
+     * Get how many times the resource limitation has been reached
+     * @param id
+     * @return
+     */
+    long getCPUResourceLimitReachedCount(long id);
+
+    /**
+     * Get how many active threads are running in container
+     * @param id container id
+     * @return thread id as list
+     */
+    List<Long> getActiveContainerThreadIds(long id);
 }

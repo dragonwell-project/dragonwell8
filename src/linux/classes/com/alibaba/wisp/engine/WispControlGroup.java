@@ -5,6 +5,7 @@ import com.alibaba.rcm.ResourceContainer;
 import com.alibaba.rcm.ResourceType;
 import com.alibaba.rcm.internal.AbstractResourceContainer;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.AbstractExecutorService;
@@ -89,6 +90,7 @@ class WispControlGroup extends AbstractExecutorService {
      * totalConsume provides a rough calculation for total cpu time consumed in this group
      */
     private long totalConsume = 0;
+    long cpuLimitationReached = 0;
     CountDownLatch destroyLatch = new CountDownLatch(1);
 
     private static class CpuLimit {
@@ -286,6 +288,26 @@ class WispControlGroup extends AbstractExecutorService {
                 if (resourceType != ResourceType.CPU_PERCENT)
                     return 0L;
                 return totalConsume;
+            }
+
+            @Override
+            public Long getResourceLimitReachedCount(ResourceType resourceType) {
+                if (resourceType != ResourceType.CPU_PERCENT)
+                    return 0L;
+                return cpuLimitationReached;
+            }
+
+            @Override
+            public List<Long> getActiveContainerThreadIds() {
+                List<Long> threadIdList = new ArrayList<>();
+                for (WispTask task : WispTask.id2Task.values()) {
+                    if (task.isAlive()
+                      && task.getThreadWrapper() != null
+                      && task.controlGroup == WispControlGroup.this) {
+                        threadIdList.add(task.getThreadWrapper().getId());
+                    }
+                }
+                return threadIdList;
             }
 
             @Override

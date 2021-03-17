@@ -208,7 +208,10 @@ public interface ResourceContainer {
      */
     void destroy();
 
-    Long getId();
 
-    Long getConsumedAmount(ResourceType resourceType);
+    /**
+     * Get resourceContainer's identity id, a auto generated long type
+     * @return this resourceContainer's id
+     */
+    Long getId();
 }

@@ -1,6 +1,7 @@
 package com.alibaba.rcm;
 
 import com.alibaba.management.ResourceContainerMXBean;
+import com.alibaba.rcm.internal.AbstractResourceContainer;
 import sun.management.Util;
 
 import javax.management.ObjectName;
@@ -23,12 +24,24 @@ public class ResourceContainerMXBeanImpl implements ResourceContainerMXBean {
 
     @Override
     public long getCPUResourceConsumedAmount(long id) {
-        ResourceContainer container = ResourceContainerMonitor.getContainerById(id);
+        AbstractResourceContainer container = (AbstractResourceContainer) ResourceContainerMonitor.getContainerById(id);
         return container.getConsumedAmount(ResourceType.CPU_PERCENT);
     }
 
     @Override
     public ObjectName getObjectName() {
         return Util.newObjectName(TENANT_CONTAINER_MXBEAN_NAME);
+    }
+
+    @Override
+    public long getCPUResourceLimitReachedCount(long id) {
+        AbstractResourceContainer container = (AbstractResourceContainer) ResourceContainerMonitor.getContainerById(id);
+        return container.getResourceLimitReachedCount(ResourceType.CPU_PERCENT);
+    }
+
+    @Override
+    public List<Long> getActiveContainerThreadIds(long id) {
+        AbstractResourceContainer container = (AbstractResourceContainer) ResourceContainerMonitor.getContainerById(id);
+        return container.getActiveContainerThreadIds();
     }
 }

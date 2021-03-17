@@ -335,6 +335,7 @@ final class WispCarrier implements Comparable<WispCarrier> {
                 if (task.controlGroup != null) {
                     long res = task.controlGroup.checkCpuLimit(task, false);
                     if (res != 0) {
+                        task.controlGroup.cpuLimitationReached++;
                         current.resumeLater(System.nanoTime() + res, task);
                         return;
                     }

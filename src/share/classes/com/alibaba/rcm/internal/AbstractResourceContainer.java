@@ -30,6 +30,7 @@ import sun.misc.SharedSecrets;
 import sun.misc.VM;
 
 import java.util.Collections;
+import java.util.List;
 
 /**
  * A skeletal implementation of {@link ResourceContainer} that practices
@@ -61,6 +62,12 @@ public abstract class AbstractResourceContainer implements ResourceContainer {
         }
         return SharedSecrets.getJavaLangAccess().getResourceContainer(Thread.currentThread());
     }
+
+    public abstract List<Long> getActiveContainerThreadIds();
+
+    public abstract Long getConsumedAmount(ResourceType resourceType);
+
+    public abstract Long getResourceLimitReachedCount(ResourceType resourceType);
 
     @Override
     public void run(Runnable command) {
@@ -165,6 +172,17 @@ public abstract class AbstractResourceContainer implements ResourceContainer {
         @Override
         public Long getConsumedAmount(ResourceType resourceType) {
             return 0L;
+        }
+
+        @Override
+        public Long getResourceLimitReachedCount(ResourceType resourceType) {
+            return 0L;
+        }
+
+        @Override
+        public List<Long> getActiveContainerThreadIds() {
+            // root resource container is not monitored
+            return Collections.emptyList();
         }
     }
 }

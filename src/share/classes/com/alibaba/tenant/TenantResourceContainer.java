@@ -25,6 +25,7 @@ import com.alibaba.rcm.Constraint;
 import com.alibaba.rcm.ResourceType;
 import com.alibaba.rcm.internal.AbstractResourceContainer;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import static com.alibaba.tenant.TenantState.*;
 
@@ -111,6 +112,11 @@ class TenantResourceContainer extends AbstractResourceContainer {
 
 
     @Override
+    public List<Long> getActiveContainerThreadIds() {
+        throw new UnsupportedOperationException("Should not call getActiveTenantThreadIds");
+    }
+
+    @Override
     public void run(Runnable command) {
         // This is the first thread which runs in this tenant container
         if (tenant.getState() == STARTING) {
@@ -150,6 +156,11 @@ class TenantResourceContainer extends AbstractResourceContainer {
 
     @Override
     public Long getConsumedAmount(ResourceType resourceType) {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public Long getResourceLimitReachedCount(ResourceType resourceType) {
         throw new UnsupportedOperationException();
     }
 

@@ -274,7 +274,7 @@ public class WispTask implements Comparable<WispTask> {
 
     private void runCommand() {
         ResourceContainer rc = WispEngine.JLA.getInheritedResourceContainer(threadWrapper);
-        if (rc != null) {
+        if (rc != ResourceContainer.root()) {
             rc.run(wrapRunOutsideWisp(runnable));
         } else {
             runOutsideWisp(runnable);
