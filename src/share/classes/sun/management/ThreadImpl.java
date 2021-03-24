@@ -43,9 +43,7 @@ import java.util.Objects;
  * of this class.
  */
 class ThreadImpl implements com.sun.management.ThreadMXBean {
-
     private static WispEngineAccess WEA = SharedSecrets.getWispEngineAccess();
-
     private final VMManagement jvm;
 
     // default for thread contention monitoring is disabled.
@@ -63,7 +61,7 @@ class ThreadImpl implements com.sun.management.ThreadMXBean {
     }
 
     public int getThreadCount() {
-        return WEA != null && WEA.isAllThreadAsWisp() ? getAllThreadIds().length : jvm.getLiveThreadCount();
+        return jvm.getLiveThreadCount();
     }
 
     public int getPeakThreadCount() {

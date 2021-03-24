@@ -1670,14 +1670,29 @@ class Thread implements Runnable {
      * @since 1.5
      */
     public StackTraceElement[] getStackTrace() {
-        if (WEA != null && this.wispTask == null) {
-            // When we create a thread, coroutine will not be created immediately.
-            // So if we take the stack trace at once, it will NCE.
-            // See: NullStackTrace.java and 6571589, Thread return an array which size is 0.
-            return new StackTraceElement[0];
+        boolean slowPath;
+        if (WEA != null) {
+            WispTask task = this.wispTask;
+            if (task == null) {
+                // When we create a thread, coroutine will not be created immediately.
+                // So if we take the stack trace at once, it will NCE.
+                // See: NullStackTrace.java and 6571589, Thread return an array which size is 0.
+                return new StackTraceElement[0];
+            }
+            if (!WEA.runningAsCoroutine(this)) {
+                slowPath = this != Thread.currentThread();
+            } else {
+                boolean isCurrentTask = WEA.getCurrentTask() == task;
+                slowPath = !isCurrentTask;
+                if (!WEA.isThreadTask(task) && !isCurrentTask) {
+                    return WEA.getStackTrace(task);
+                }
+            }
+        } else {
+            slowPath = this != Thread.currentThread();
         }
 
-        if (this != Thread.currentThread()) {
+        if (slowPath) {
             // check for getStackTrace permission
             SecurityManager security = System.getSecurityManager();
             if (security != null) {

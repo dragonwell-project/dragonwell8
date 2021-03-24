@@ -664,7 +664,7 @@ public class WispTask implements Comparable<WispTask> {
     }
 
     StackTraceElement[] getStackTrace() {
-        return this.threadWrapper.getStackTrace();
+        return this.ctx.getCoroutineStack();
     }
 
     long getCpuTime() {
