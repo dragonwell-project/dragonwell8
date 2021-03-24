@@ -37,7 +37,6 @@
 #include "runtime/vmThread.hpp"
 #include "runtime/vm_operations.hpp"
 #include "services/threadService.hpp"
-#include "runtime/coroutine.hpp"
 
 PRAGMA_FORMAT_MUTE_WARNINGS_FOR_GCC
 
@@ -282,6 +281,31 @@ Handle ThreadService::dump_stack_traces(GrowableArray<instanceHandle>* threads,
   return result_obj;
 }
 
+// Dump stack trace of Coroutine and return StackTraceElement[].
+Handle ThreadService::dump_coroutine_stack_trace(Coroutine *coro, TRAPS) {
+
+  assert(EnableCoroutine, "coroutine enabled");
+
+  ThreadDumpResult dump_result;
+  VM_CoroutineDump op(&dump_result, coro);
+  VMThread::execute(&op);
+
+  // Allocate the resulting StackTraceElement[] object
+
+  ResourceMark rm(THREAD);
+
+  assert(dump_result.num_snapshots() == 1, "must only one stacktrace");
+  ThreadStackTrace* stacktrace = dump_result.snapshots()->get_stack_trace();
+  Handle stacktrace_h;
+  if (stacktrace == NULL) {
+    // No stack trace
+    stacktrace_h = Handle();
+  } else {
+    // Construct an array of java/lang/StackTraceElement object
+    stacktrace_h = stacktrace->allocate_fill_stack_trace_element_array(CHECK_NH);
+  }
+  return stacktrace_h;
+}
 
 void ThreadService::reset_contention_count_stat(JavaThread* thread) {
   ThreadStatistics* stat = thread->get_thread_stat();
@@ -631,7 +655,7 @@ void ThreadStackTrace::add_stack_frame(javaVFrame* jvf) {
   _depth++;
 }
 
-void ThreadStackTrace::dump_stack_at_safepoint_for_coroutine(Coroutine *target, int max_depth) {
+void ThreadStackTrace::dump_stack_at_safepoint_for_coroutine(Coroutine *target) {
   assert(SafepointSynchronize::is_at_safepoint(), "all threads are stopped");
 
   Coroutine::CoroutineState state = target->state();
@@ -657,18 +681,12 @@ void ThreadStackTrace::dump_stack_at_safepoint_for_coroutine(Coroutine *target, 
     }
   }
 
-  int count = 0;
   while (vf) {
     if (vf->is_java_frame()) {
       javaVFrame* jvf = javaVFrame::cast(vf);
       add_stack_frame(jvf);
-      count++;
     }
     vf = vf->sender();
-    if (max_depth > 0 && count == max_depth) {
-      // Skip frames if more than maxDepth
-      break;
-    }
   }
 }
 
@@ -882,9 +900,9 @@ void ThreadSnapshot::dump_stack_at_safepoint(int max_depth, bool with_locked_mon
   _stack_trace->dump_stack_at_safepoint(max_depth);
 }
 
-void ThreadSnapshot::dump_stack_at_safepoint_for_coroutine(Coroutine *target, int max_depth, bool with_locked_monitors) {
-  _stack_trace = new ThreadStackTrace(_thread, with_locked_monitors);
-  _stack_trace->dump_stack_at_safepoint_for_coroutine(target, max_depth);
+void ThreadSnapshot::dump_stack_at_safepoint_for_coroutine(Coroutine *target) {
+  _stack_trace = new ThreadStackTrace(_thread, false);
+  _stack_trace->dump_stack_at_safepoint_for_coroutine(target);
 }
 
 
@@ -998,27 +1016,6 @@ ThreadsListEnumerator::ThreadsListEnumerator(Thread* cur_thread,
   MutexLockerEx ml(Threads_lock);
 
   for (JavaThread* jt = Threads::first(); jt != NULL; jt = jt->next()) {
-    if (!ThreadsListEnumerator::skipThread(jt, include_jvmti_agent_threads, include_jni_attaching_threads)) {
-      instanceHandle h(cur_thread, (instanceOop) jt->threadObj());
-      _threads_array->append(h);
-    }
-
-    if (EnableCoroutine) {
-      for (Coroutine* co = jt->coroutine_list()->next(); co != jt->coroutine_list(); co = co->next()) {
-        if (!ThreadsListEnumerator::skipThread(co->thread(), include_jvmti_agent_threads, include_jni_attaching_threads)) {
-          oop tw = com_alibaba_wisp_engine_WispTask::get_threadWrapper(co->wisp_task());
-          // skip exited wisp threads
-          if (tw != NULL) {
-            instanceHandle hc(cur_thread, (instanceOop) tw);
-            _threads_array->append(hc);
-          }
-        }
-      }
-    }
-  }
-}
-
-bool ThreadsListEnumerator::skipThread(JavaThread* jt, bool include_jvmti_agent_threads, bool include_jni_attaching_threads) {
     // skips JavaThreads in the process of exiting
     // and also skips VM internal JavaThreads
     // Threads in _thread_new or _thread_new_trans state are included.
@@ -1027,18 +1024,20 @@ bool ThreadsListEnumerator::skipThread(JavaThread* jt, bool include_jvmti_agent_
         jt->is_exiting() ||
         !java_lang_Thread::is_alive(jt->threadObj())   ||
         jt->is_hidden_from_external_view()) {
-      return true;
+      continue;
     }
 
     // skip agent threads
     if (!include_jvmti_agent_threads && jt->is_jvmti_agent_thread()) {
-      return true;
+      continue;
     }
 
     // skip jni threads in the process of attaching
     if (!include_jni_attaching_threads && jt->is_attaching_via_jni()) {
-      return true;
+      continue;
     }
 
-    return false;
+    instanceHandle h(cur_thread, (instanceOop) jt->threadObj());
+    _threads_array->append(h);
+  }
 }

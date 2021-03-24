@@ -4316,24 +4316,6 @@ JavaThread* Threads::find_java_thread_from_java_tid(jlong java_tid) {
       java_thread = thread;
       break;
     }
-
-    if (EnableCoroutine && SafepointSynchronize::is_at_safepoint()) {
-      for (Coroutine* co = thread->coroutine_list()->next();
-          co != thread->coroutine_list(); co = co->next()) {
-        oop wObj = co->wisp_task();
-        if (wObj == NULL) {
-          continue;
-        }
-        oop wtObj = com_alibaba_wisp_engine_WispTask::get_threadWrapper(wObj);
-        // wtObj == 0 means coroutine is cached
-        if (!thread->is_exiting() &&
-            wtObj != NULL &&
-            java_tid == java_lang_Thread::thread_id(wtObj)) {
-          co->wisp_thread()->set_threadObj(wtObj);
-          return co->wisp_thread();
-        }
-      }
-    }
   }
   return java_thread;
 }
