@@ -454,13 +454,15 @@ CodeEmitInfo* LIRGenerator::state_for(Instruction* x, ValueStack* state, bool ig
 
     MethodLivenessResult liveness = method->liveness_at_bci(bci);
     if (bci == SynchronizationEntryBCI) {
-      if (x->as_ExceptionObject() || x->as_Throw()) {
+      // Wisp adds a OopMap by copying a state, which may contains dead oops because when
+      // bci == SynchronizationEntryBCI && x is MonitorExit we can determine it is the implicit
+      // monitorexit for the synchronized keyword of a synchronized method. We need to clear
+      // dead locals for it because no locals are needed at this time.
+      if (x->as_ExceptionObject() || x->as_Throw() || (UseWispMonitor && x->as_MonitorExit())) {
         // all locals are dead on exit from the synthetic unlocker
         liveness.clear();
       } else {
-        // In `LIRGenerator::do_MonitorExit()`, this function is called in support of wisp,
-        // when this is called in monitorexit, `x` will be a `MonitorExit` Instruction.
-        assert(x->as_MonitorEnter() || x->as_ProfileInvoke() || (UseWispMonitor && x->as_MonitorExit()), "only other cases are MonitorEnter and ProfileInvoke, or Wisp MonitorExit");
+        assert(x->as_MonitorEnter() || x->as_ProfileInvoke(), "only other cases are MonitorEnter and ProfileInvoke");
       }
     }
     if (!liveness.is_valid()) {
