@@ -1228,7 +1228,8 @@ Monitor * Monitor::get_least_ranked_lock(Monitor * locks) {
     for (tmp = locks; tmp != NULL; tmp = tmp->next()) {
       if (tmp->next() != NULL) {
         assert(tmp->rank() == Mutex::native ||
-               tmp->rank() <= tmp->next()->rank(), "mutex rank anomaly?");
+               tmp->rank() <= tmp->next()->rank() ||
+               Thread::current()->skip_rank_order_check(), "mutex rank anomaly?");
       }
     }
   }
@@ -1314,7 +1315,7 @@ void Monitor::set_owner_implementation(Thread *new_owner) {
           !SafepointSynchronize::is_at_safepoint() &&
           this != Interrupt_lock && this != ProfileVM_lock &&
           !(this == Safepoint_lock && contains(locks, Terminator_lock) &&
-            SafepointSynchronize::is_synchronizing())) {
+            SafepointSynchronize::is_synchronizing()) && !Thread::current()->skip_rank_order_check()) {
         new_owner->print_owned_locks();
         fatal(err_msg("acquiring lock %s/%d out of order with lock %s/%d -- "
                       "possible deadlock", this->name(), this->rank(),

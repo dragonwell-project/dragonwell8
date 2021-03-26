@@ -312,10 +312,15 @@ class Thread: public ThreadShadow {
 #ifdef ASSERT
  private:
   bool _visited_for_critical_count;
+  bool _skip_rank_order_check;
 
  public:
   void set_visited_for_critical_count(bool z) { _visited_for_critical_count = z; }
   bool was_visited_for_critical_count() const   { return _visited_for_critical_count; }
+
+  // introduced by Alibaba Dragonwell issue 233
+  void set_skip_rank_order_check(bool val) { _skip_rank_order_check = val; }
+  bool skip_rank_order_check() { return _skip_rank_order_check; }
 #endif
 
  public:
