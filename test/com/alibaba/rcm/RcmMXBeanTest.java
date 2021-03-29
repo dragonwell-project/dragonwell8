@@ -20,6 +20,7 @@ import static jdk.testlibrary.Asserts.*;
 
 public class RcmMXBeanTest {
     static ResourceContainerMXBean resourceContainerMXBean;
+    static int containers = Integer.parseInt(System.getProperty("container", "10"));
 
     public static void main(String[] args) throws Exception {
         MBeanServer mbs = ManagementFactory.getPlatformMBeanServer();
@@ -30,7 +31,7 @@ public class RcmMXBeanTest {
             e.printStackTrace();
         }
 
-        for (int i = 0; i < 3; i++) {
+        for (int i = 0; i < containers; i++) {
             ResourceContainer rc1 = WispResourceContainerFactory.instance()
                     .createContainer(Collections.singletonList(ResourceType.CPU_PERCENT.newConstraint(20)));
 
@@ -45,7 +46,7 @@ public class RcmMXBeanTest {
             Thread.sleep(1000);
         }
 
-        assertTrue(resourceContainerMXBean.getAllContainerIds().size() == 4);
+        assertTrue(resourceContainerMXBean.getAllContainerIds().size() == containers + 1);
 
         int resourceLimitReachedCnt = 0;
         for (long id : resourceContainerMXBean.getAllContainerIds()) {
@@ -60,6 +61,6 @@ public class RcmMXBeanTest {
             if (resourceContainerMXBean.getCPUResourceLimitReachedCount(id) != 0)
                 resourceLimitReachedCnt++;
         }
-        assertEQ(resourceLimitReachedCnt, 3);
+        assertGreaterThan(resourceLimitReachedCnt, 0);
     }
 }

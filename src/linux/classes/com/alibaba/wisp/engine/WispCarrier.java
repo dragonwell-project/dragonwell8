@@ -457,7 +457,7 @@ final class WispCarrier implements Comparable<WispCarrier> {
                 // delay it, make sure wakeupTask is called after yield out
                 schedule(false);
             }
-            current.carrier.checkAndDispatchShutdown();
+            WispCarrier.current().checkAndDispatchShutdown();
         } else {
             WispEngine.JLA.yield0();
         }
