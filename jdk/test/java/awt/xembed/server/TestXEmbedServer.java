@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004, 2010, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2004, 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,6 +27,8 @@ import javax.swing.*;
 import java.io.*;
 import java.util.logging.*;
 import sun.awt.WindowIDProvider;
+import sun.awt.AWTAccessor;
+import sun.awt.AWTAccessor.ComponentAccessor;
 import java.awt.dnd.*;
 import java.awt.datatransfer.*;
 
@@ -182,7 +184,8 @@ public abstract class TestXEmbedServer {
         client.setBackground(new Color(30, 220, 40));
         clientCont.add(client);
         clientCont.validate();
-        WindowIDProvider pid = (WindowIDProvider)client.getPeer();
+        final ComponentAccessor acc = AWTAccessor.getComponentAccessor();
+        WindowIDProvider pid = (WindowIDProvider)acc.getPeer(client);
         log.fine("Added XEmbed server(Canvas) with X window ID " + pid.getWindow());
         Rectangle toFocusBounds = toFocus.getBounds();
         toFocusBounds.setLocation(toFocus.getLocationOnScreen());
