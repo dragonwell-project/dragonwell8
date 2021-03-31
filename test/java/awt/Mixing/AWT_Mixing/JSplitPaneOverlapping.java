@@ -40,7 +40,8 @@ import test.java.awt.regtesthelpers.Util;
 
 /**
  * AWT/Swing overlapping test for {@link javax.swing.JSplitPane } component.
- * <p>This test creates puts heavyweight and lightweight components into different panels and test if splitter image and components itself are drawn correctly.
+ * <p>This test puts heavyweight and lightweight components into different
+ * panels and test if splitter image and components itself are drawn correctly.
  * <p>See base class for test info.
  */
 /*
