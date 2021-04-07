@@ -972,6 +972,13 @@ oop MemberNameTable::find_or_add_member_name(jweak mem_name_wref) {
       return mname;
     }
   }
+
+  if (new_index < len) {
+    assert(JNIHandles::resolve(this->at(new_index)) == NULL, "sanity");
+    // destroy the old handle
+    JNIHandles::destroy_weak_global(this->at(new_index));
+  }
+
   // Not found, push the new one, or reuse empty slot
   this->at_put_grow(new_index, mem_name_wref);
   return new_mem_name;
