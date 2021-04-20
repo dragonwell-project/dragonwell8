@@ -449,6 +449,8 @@ define SetupNativeCompilation
             $$($1_OUTPUT_DIR)/$$($1_BASENAME).dSYM/Contents/Resources/DWARF/$$($1_BASENAME) : $$($1_OBJECT_DIR)/$$($1_BASENAME).dSYM/Contents/Resources/DWARF/$$($1_BASENAME)
 		mkdir -p $$(@D)
 		$(CP) $$< $$@
+            $$($1_OUTPUT_DIR)/$$($1_NOSUFFIX).diz : $$($1_OBJECT_DIR)/$$($1_NOSUFFIX).diz
+		$(CP) $$< $$@
           else
             # The dependency on TARGET is needed on windows for debuginfo files
             # to be rebuilt properly.
