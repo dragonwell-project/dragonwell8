@@ -22,7 +22,7 @@
  */
 
 // key: compiler.misc.fatal.err.no.java.lang
-// options: -Xbootclasspath:
+// options: -Xbootclasspath: -classpath .
 // run: backdoor
 
 class NoJavaLang { }
