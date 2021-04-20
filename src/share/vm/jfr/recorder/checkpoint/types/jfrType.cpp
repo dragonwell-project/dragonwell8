@@ -151,13 +151,12 @@ void FlagValueOriginConstant::serialize(JfrCheckpointWriter& writer) {
 }
 
 void MonitorInflateCauseConstant::serialize(JfrCheckpointWriter& writer) {
-  // XXX no such counters. implement?
-//  static const u4 nof_entries = ObjectSynchronizer::inflate_cause_nof;
-//  writer.write_count(nof_entries);
-//  for (u4 i = 0; i < nof_entries; ++i) {
-//    writer.write_key(i);
-//    writer.write(ObjectSynchronizer::inflate_cause_name((ObjectSynchronizer::InflateCause)i));
-//  }
+  static const u4 nof_entries = ObjectSynchronizer::inflate_cause_nof;
+  writer.write_count(nof_entries);
+  for (u4 i = 0; i < nof_entries; ++i) {
+    writer.write_key(i);
+    writer.write(ObjectSynchronizer::inflate_cause_name((ObjectSynchronizer::InflateCause)i));
+  }
 }
 
 void GCCauseConstant::serialize(JfrCheckpointWriter& writer) {
