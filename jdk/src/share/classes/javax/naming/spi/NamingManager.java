@@ -31,6 +31,8 @@ import java.util.StringTokenizer;
 import java.net.MalformedURLException;
 
 import javax.naming.*;
+
+import com.sun.naming.internal.ObjectFactoriesFilter;
 import com.sun.naming.internal.VersionHelper;
 import com.sun.naming.internal.ResourceManager;
 import com.sun.naming.internal.FactoryEnumeration;
@@ -143,7 +145,11 @@ public class NamingManager {
 
         // Try to use current class loader
         try {
-             clas = helper.loadClass(factoryName);
+            clas = helper.loadClassWithoutInit(factoryName);
+            // Validate factory's class with the objects factory serial filter
+            if (!ObjectFactoriesFilter.canInstantiateObjectsFactory(clas)) {
+                return null;
+            }
         } catch (ClassNotFoundException e) {
             // ignore and continue
             // e.printStackTrace();
@@ -156,6 +162,11 @@ public class NamingManager {
                 (codebase = ref.getFactoryClassLocation()) != null) {
             try {
                 clas = helper.loadClass(factoryName, codebase);
+                // Validate factory's class with the objects factory serial filter
+                if (clas == null ||
+                    !ObjectFactoriesFilter.canInstantiateObjectsFactory(clas)) {
+                    return null;
+                }
             } catch (ClassNotFoundException e) {
             }
         }
