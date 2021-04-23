@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -53,7 +53,7 @@ public class PKCS8Test {
     static final DerOutputStream derOutput = new DerOutputStream();
 
     static final String FORMAT = "PKCS#8";
-    static final String EXPECTED_ALG_ID_CHRS = "DSA\n\tp:     02\n\tq:     03\n"
+    static final String EXPECTED_ALG_ID_CHRS = "DSA, \n\tp:     02\n\tq:     03\n"
             + "\tg:     04\n";
     static final String ALGORITHM = "DSA";
     static final String EXCEPTION_MESSAGE = "version mismatch: (supported:     "

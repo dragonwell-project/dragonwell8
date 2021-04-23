@@ -1494,18 +1494,22 @@ Method* InstanceKlass::find_method_impl(Symbol* name, Symbol* signature,
 
 // find_instance_method looks up the name/signature in the local methods array
 // and skips over static methods
-Method* InstanceKlass::find_instance_method(
-    Array<Method*>* methods, Symbol* name, Symbol* signature) {
+Method* InstanceKlass::find_instance_method(Array<Method*>* methods,
+                                            Symbol* name,
+                                            Symbol* signature,
+                                            PrivateLookupMode private_mode) {
   Method* meth = InstanceKlass::find_method_impl(methods, name, signature,
-                                                 find_overpass, skip_static, find_private);
+                                                 find_overpass, skip_static, private_mode);
   assert(((meth == NULL) || !meth->is_static()), "find_instance_method should have skipped statics");
   return meth;
 }
 
 // find_instance_method looks up the name/signature in the local methods array
 // and skips over static methods
-Method* InstanceKlass::find_instance_method(Symbol* name, Symbol* signature) {
-    return InstanceKlass::find_instance_method(methods(), name, signature);
+Method* InstanceKlass::find_instance_method(Symbol* name,
+                                            Symbol* signature,
+                                            PrivateLookupMode private_mode) {
+  return InstanceKlass::find_instance_method(methods(), name, signature, private_mode);
 }
 
 // Find looks up the name/signature in the local methods array
