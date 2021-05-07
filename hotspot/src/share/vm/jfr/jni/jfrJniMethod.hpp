@@ -67,6 +67,8 @@ void JNICALL jfr_subscribe_log_level(JNIEnv* env, jobject jvm, jobject log_tag, 
 
 void JNICALL jfr_log(JNIEnv* env, jobject jvm, jint tag_set, jint level, jstring message);
 
+jboolean JNICALL jfr_should_log(JNIEnv* env, jobject jvm, jint level);
+
 void JNICALL jfr_retransform_classes(JNIEnv* env, jobject jvm, jobjectArray classes);
 
 void JNICALL jfr_set_enabled(JNIEnv* env, jobject jvm, jlong event_type_id, jboolean enabled);
