@@ -27,9 +27,6 @@
 #ifdef TARGET_ARCH_x86
 # include "jniTypes_x86.hpp"
 #endif
-#ifdef TARGET_ARCH_aarch64
-# include "jniTypes_aarch64.hpp"
-#endif
 #ifdef TARGET_ARCH_sparc
 # include "jniTypes_sparc.hpp"
 #endif

@@ -163,11 +163,6 @@ endif
 	$(QUIETLY) $(REMOVE_TARGET)
 	$(QUIETLY) $(AS.S) $(DEPFLAGS) -o $@ $< $(COMPILE_DONE)
 
-%.o: %.S
-	@echo Assembling $<
-	$(QUIETLY) $(REMOVE_TARGET)
-	$(COMPILE.CC) -o $@ $< $(COMPILE_DONE)
-
 %.s: %.cpp
 	@echo Generating assembly for $<
 	$(QUIETLY) $(GENASM.CXX) -o $@ $<

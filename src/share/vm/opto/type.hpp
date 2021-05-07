@@ -28,9 +28,6 @@
 #include "libadt/port.hpp"
 #include "opto/adlcVMDeps.hpp"
 #include "runtime/handles.hpp"
-#ifdef AARCH64
-#include "opto/compile.hpp"
-#endif
 
 // Portions of code courtesy of Clifford Click
 

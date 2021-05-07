@@ -28,9 +28,6 @@
 #include "oops/arrayOop.hpp"
 #include "oops/typeArrayKlass.hpp"
 #include "runtime/orderAccess.inline.hpp"
-#ifdef TARGET_OS_ARCH_linux_aarch64
-# include "orderAccess_linux_aarch64.inline.hpp"
-#endif
 
 // A typeArrayOop is an array containing basic types (non oop elements).
 // It is used for arrays of {characters, singles, doubles, bytes, shorts, integers, longs}

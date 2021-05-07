@@ -626,15 +626,3 @@ void CollectedHeap::test_is_in() {
       err_msg("after_heap: " PTR_FORMAT " is unexpectedly in the heap", p2i(after_heap)));
 }
 #endif
-
-#ifdef TARGET_ARCH_aarch64
-uint CollectedHeap::oop_extra_words() {
-  // Default implementation doesn't need extra space for oops.
-  return 0;
-}
-#ifndef CC_INTERP
-void CollectedHeap::compile_prepare_oop(MacroAssembler* masm, Register obj) {
-  // Default implementation does nothing.
-}
-#endif
-#endif

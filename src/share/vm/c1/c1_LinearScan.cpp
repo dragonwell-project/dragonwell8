@@ -35,9 +35,6 @@
 #ifdef TARGET_ARCH_x86
 # include "vmreg_x86.inline.hpp"
 #endif
-#ifdef TARGET_ARCH_aarch64
-# include "vmreg_aarch64.inline.hpp"
-#endif
 #ifdef TARGET_ARCH_sparc
 # include "vmreg_sparc.inline.hpp"
 #endif
@@ -1096,7 +1093,7 @@ IntervalUseKind LinearScan::use_kind_of_input_operand(LIR_Op* op, LIR_Opr opr) {
   }
 
 
-#if defined(X86)
+#ifdef X86
   if (op->code() == lir_cmove) {
     // conditional moves can handle stack operands
     assert(op->result_opr()->is_register(), "result must always be in a register");
@@ -2198,7 +2195,7 @@ LIR_Opr LinearScan::color_lir_opr(LIR_Opr opr, int op_id, LIR_OpVisitState::OprM
 
   LIR_Opr res = operand_for_interval(interval);
 
-#if defined(X86) || defined(AARCH64)
+#ifdef X86
   // new semantic for is_last_use: not only set on definite end of interval,
   // but also before hole
   // This may still miss some cases (e.g. for dead values), but it is not necessary that the
@@ -4541,9 +4538,7 @@ void Interval::print(outputStream* out) const {
       opr = LIR_OprFact::single_xmm(assigned_reg() - pd_first_xmm_reg);
 #endif
     } else {
-#ifndef AARCH64
       ShouldNotReachHere();
-#endif
     }
   } else {
     type_name = type2name(type());
@@ -5617,7 +5612,7 @@ void LinearScanWalker::alloc_locked_reg(Interval* cur) {
 }
 
 bool LinearScanWalker::no_allocation_possible(Interval* cur) {
-#if defined(X86)
+#ifdef X86
   // fast calculation of intervals that can never get a register because the
   // the next instruction is a call that blocks all registers
   // Note: this does not work if callee-saved registers are available (e.g. on Sparc)

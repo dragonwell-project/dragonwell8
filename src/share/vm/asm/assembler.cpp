@@ -30,9 +30,6 @@
 #include "runtime/atomic.inline.hpp"
 #include "runtime/icache.hpp"
 #include "runtime/os.hpp"
-#ifdef TARGET_ARCH_aarch64
-# include "assembler_aarch64.inline.hpp"
-#endif
 
 // Implementation of AbstractAssembler
 //

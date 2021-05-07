@@ -241,31 +241,6 @@ void LIRItem::load_for_store(BasicType type) {
   }
 }
 
-#ifdef TARGET_ARCH_aarch64
-LIR_Opr LIRGenerator::force_opr_to(LIR_Opr op, LIR_Opr reg) {
-  if (op != reg) {
-#if !defined(ARM) && !defined(E500V2)
-    if (op->type() != reg->type()) {
-      // moves between different types need an intervening spill slot
-      op = force_to_spill(op, reg->type());
-    }
-#endif
-    __ move(op, reg);
-    return reg;
-  } else {
-    return op;
-  }
-}
-#endif
-
-#ifdef TARGET_ARCH_aarch64
-void LIRItem::load_item_force(LIR_Opr reg) {
-  LIR_Opr r = result();
-  if (r != reg) {
-    _result = _gen->force_opr_to(r, reg);
-  }
-}
-#else
 void LIRItem::load_item_force(LIR_Opr reg) {
   LIR_Opr r = result();
   if (r != reg) {
@@ -279,7 +254,6 @@ void LIRItem::load_item_force(LIR_Opr reg) {
     _result = reg;
   }
 }
-#endif
 
 ciObject* LIRItem::get_jobject_constant() const {
   ObjectType* oc = type()->as_ObjectType();
@@ -1733,14 +1707,12 @@ void LIRGenerator::do_StoreField(StoreField* x) {
                   x->is_static() ?  "static" : "field", x->printable_bci());
   }
 #endif
-  LIR_Opr obj = object.result();
   if (x->needs_null_check() &&
       (needs_patching ||
        MacroAssembler::needs_explicit_null_check(x->offset()))) {
     // Emit an explicit null check because the offset is too large.
     // If the class is not loaded and the object is NULL, we need to deoptimize to throw a
     // NoClassDefFoundError in the interpreter instead of an implicit NPE from compiled code.
-    //__ null_check(object.result(), new CodeEmitInfo(info), /* deoptimize */ needs_patching);
     __ null_check(object.result(), new CodeEmitInfo(info), /* deoptimize */ needs_patching);
   }
 
@@ -2143,7 +2115,7 @@ void LIRGenerator::do_UnsafeGetRaw(UnsafeGetRaw* x) {
     assert(index_op->type() == T_INT, "only int constants supported");
     addr = new LIR_Address(base_op, index_op->as_jint(), dst_type);
   } else {
-#if defined(X86) || defined(AARCH64)
+#if defined(X86)
     addr = new LIR_Address(base_op, index_op, LIR_Address::Scale(log2_scale), 0, dst_type);
 #elif defined(GENERATE_ADDRESS_IS_PREFERRED)
     addr = generate_address(base_op, index_op, log2_scale, 0, dst_type);

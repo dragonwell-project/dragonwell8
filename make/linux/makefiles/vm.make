@@ -221,7 +221,7 @@ endif
 # Locate all source files in the given directory, excluding files in Src_Files_EXCLUDE.
 define findsrc
 	$(notdir $(shell find $(1)/. ! -name . -prune \
-		-a \( -name \*.c -o -name \*.cpp -o -name \*.s -o -name \*.S \) \
+		-a \( -name \*.c -o -name \*.cpp -o -name \*.s \) \
 		-a ! \( -name DUMMY $(addprefix -o -name ,$(Src_Files_EXCLUDE)) \)))
 endef
 

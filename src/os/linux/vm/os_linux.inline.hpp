@@ -28,10 +28,6 @@
 #include "runtime/atomic.inline.hpp"
 #include "runtime/orderAccess.inline.hpp"
 #include "runtime/os.hpp"
-#ifdef TARGET_OS_ARCH_linux_aarch64
-# include "atomic_linux_aarch64.inline.hpp"
-# include "orderAccess_linux_aarch64.inline.hpp"
-#endif
 // System includes
 
 #include <unistd.h>

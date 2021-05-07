@@ -50,9 +50,6 @@
 #include "runtime/javaCalls.hpp"
 #include "runtime/sharedRuntime.hpp"
 #include "runtime/stubRoutines.hpp"
-#ifdef AARCH64
-#include "runtime/thread.hpp"
-#endif
 #include "runtime/vframe.hpp"
 #include "runtime/vframeArray.hpp"
 #include "utilities/copy.hpp"
@@ -64,10 +61,6 @@
 #ifdef TARGET_ARCH_x86
 # include "nativeInst_x86.hpp"
 # include "vmreg_x86.inline.hpp"
-#endif
-#ifdef TARGET_ARCH_aarch64
-# include "nativeInst_aarch64.hpp"
-# include "vmreg_aarch64.inline.hpp"
 #endif
 #ifdef TARGET_ARCH_sparc
 # include "nativeInst_sparc.hpp"

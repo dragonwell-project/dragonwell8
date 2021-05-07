@@ -25,7 +25,6 @@
 #ifndef SHARE_VM_OOPS_OOP_HPP
 #define SHARE_VM_OOPS_OOP_HPP
 
-#include "memory/barrierSet.hpp"
 #include "memory/iterator.hpp"
 #include "memory/memRegion.hpp"
 #include "memory/specialized_oop_closures.hpp"
@@ -144,28 +143,6 @@ class oopDesc {
   static bool is_null(oop obj);
   static bool is_null(narrowOop obj);
   static bool is_null(Klass* obj);
-
-#ifdef TARGET_ARCH_aarch64
-  inline static bool equals(oop o1, oop o2) {
-    return bs()->obj_equals(o1, o2);
-  }
-
-  inline static bool equals(narrowOop o1, narrowOop o2) {
-    return bs()->obj_equals(o1, o2);
-  }
-
-  inline static bool unsafe_equals(oop o1, oop o2) {
-#ifdef CHECK_UNHANDLED_OOPS
-    return o1.obj() == o2.obj();
-#else
-    return o1 == o2;
-#endif
-  }
-
-  inline static bool unsafe_equals(narrowOop o1, narrowOop o2) {
-    return o1 == o2;
-  }
-#endif
 
   // Decode an oop pointer from a narrowOop if compressed.
   // These are overloaded for oop and narrowOop as are the other functions
