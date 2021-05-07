@@ -238,6 +238,10 @@ JVM_ENTRY_NO_ENV(void, jfr_log(JNIEnv* env, jobject jvm, jint tag_set, jint leve
  JfrJavaLog::log(tag_set, level, message, thread);
 JVM_END
 
+JVM_ENTRY_NO_ENV(jboolean, jfr_should_log(JNIEnv* env, jobject jvm, jint level))
+ return JfrJavaLog::should_log(level, thread) ? JNI_TRUE : JNI_FALSE;
+JVM_END
+
 JVM_ENTRY_NO_ENV(void, jfr_subscribe_log_level(JNIEnv* env, jobject jvm, jobject log_tag, jint id))
  JfrJavaLog::subscribe_log_level(log_tag, id, thread);
 JVM_END
