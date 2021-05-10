@@ -369,7 +369,7 @@ final class PreSharedKeyExtension {
                         shc.sslContext.engineGetServerSessionContext();
                 int idIndex = 0;
                 for (PskIdentity requestedId : pskSpec.identities) {
-                    SSLSessionImpl s = sessionCache.get(requestedId.identity);
+                    SSLSessionImpl s = sessionCache.pull(requestedId.identity);
                     if (s != null && canRejoin(clientHello, shc, s)) {
                         if (SSLLogger.isOn && SSLLogger.isOn("ssl,handshake")) {
                             SSLLogger.fine("Resuming session: ", s);
