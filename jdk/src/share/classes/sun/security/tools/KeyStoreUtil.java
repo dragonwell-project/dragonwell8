@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -39,6 +39,7 @@ import java.security.cert.X509Certificate;
 import java.text.Collator;
 
 import java.util.Locale;
+import java.util.ResourceBundle;
 
 /**
  * <p> This class provides several utilities to <code>KeyStore</code>.
@@ -52,12 +53,6 @@ public class KeyStoreUtil {
     }
 
     private static final String JKS = "jks";
-
-    private static final Collator collator = Collator.getInstance();
-    static {
-        // this is for case insensitive string comparisons
-        collator.setStrength(Collator.PRIMARY);
-    };
 
     /**
      * Returns true if the certificate is self-signed, false otherwise.
@@ -123,7 +118,8 @@ public class KeyStoreUtil {
     }
 
     public static char[] getPassWithModifier(String modifier, String arg,
-                                             java.util.ResourceBundle rb) {
+                                             ResourceBundle rb,
+                                             Collator collator) {
         if (modifier == null) {
             return arg.toCharArray();
         } else if (collator.compare(modifier, "env") == 0) {
