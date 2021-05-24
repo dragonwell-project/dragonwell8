@@ -30,9 +30,6 @@
 #ifdef TARGET_ARCH_x86
 # include "register_x86.hpp"
 #endif
-#ifdef TARGET_ARCH_aarch64
-# include "register_aarch64.hpp"
-#endif
 #ifdef TARGET_ARCH_sparc
 # include "register_sparc.hpp"
 #endif
@@ -140,9 +137,6 @@ class RegisterMap : public StackObj {
   // the following contains the definition of pd_xxx methods
 #ifdef TARGET_ARCH_x86
 # include "registerMap_x86.hpp"
-#endif
-#ifdef TARGET_ARCH_aarch64
-# include "registerMap_aarch64.hpp"
 #endif
 #ifdef TARGET_ARCH_sparc
 # include "registerMap_sparc.hpp"

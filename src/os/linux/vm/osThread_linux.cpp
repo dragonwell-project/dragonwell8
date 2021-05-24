@@ -25,9 +25,6 @@
 // no precompiled headers
 #include "runtime/mutex.hpp"
 #include "runtime/osThread.hpp"
-#ifdef TARGET_ARCH_aarch64
-# include "assembler_aarch64.inline.hpp"
-#endif
 #include <signal.h>
 
 void OSThread::pd_initialize() {

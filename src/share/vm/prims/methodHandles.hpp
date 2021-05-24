@@ -182,9 +182,6 @@ public:
 #ifdef TARGET_ARCH_x86
 # include "methodHandles_x86.hpp"
 #endif
-#ifdef TARGET_ARCH_aarch64
-# include "methodHandles_aarch64.hpp"
-#endif
 #ifdef TARGET_ARCH_sparc
 # include "methodHandles_sparc.hpp"
 #endif

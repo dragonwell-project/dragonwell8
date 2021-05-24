@@ -51,9 +51,6 @@ class ThreadLocalStorage : AllStatic {
 #ifdef TARGET_OS_ARCH_linux_x86
 # include "threadLS_linux_x86.hpp"
 #endif
-#ifdef TARGET_OS_ARCH_linux_aarch64
-# include "threadLS_linux_aarch64.hpp"
-#endif
 #ifdef TARGET_OS_ARCH_linux_sparc
 # include "threadLS_linux_sparc.hpp"
 #endif

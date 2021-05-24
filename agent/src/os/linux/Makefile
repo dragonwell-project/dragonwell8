@@ -53,8 +53,7 @@ $(ARCH)/LinuxDebuggerLocal.o: LinuxDebuggerLocal.c
         $(JAVAH) -jni -classpath ../../../build/classes -d $(ARCH) \
 		sun.jvm.hotspot.debugger.x86.X86ThreadContext \
 		sun.jvm.hotspot.debugger.sparc.SPARCThreadContext \
-		sun.jvm.hotspot.debugger.amd64.AMD64ThreadContext \
-		sun.jvm.hotspot.debugger.aarch64.AARCH64ThreadContext
+		sun.jvm.hotspot.debugger.amd64.AMD64ThreadContext
         $(GCC) $(CFLAGS) $< -o $@
 
 $(ARCH)/sadis.o:  ../../share/native/sadis.c

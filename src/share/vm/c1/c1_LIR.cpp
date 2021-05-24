@@ -67,7 +67,7 @@ FloatRegister LIR_OprDesc::as_double_reg() const {
 
 #endif
 
-#if defined(ARM) || defined (TARGET_ARCH_aarch64)
+#if defined(ARM)
 
 FloatRegister LIR_OprDesc::as_float_reg() const {
   return as_FloatRegister(fpu_regnr());
@@ -149,11 +149,7 @@ void LIR_Address::verify0() const {
 #endif
 #ifdef _LP64
   assert(base()->is_cpu_register(), "wrong base operand");
-#ifndef TARGET_ARCH_aarch64
   assert(index()->is_illegal() || index()->is_double_cpu(), "wrong index operand");
-#else
-  assert(index()->is_illegal() || index()->is_double_cpu() || index()->is_single_cpu(), "wrong index operand");
-#endif
   assert(base()->type() == T_OBJECT || base()->type() == T_LONG || base()->type() == T_METADATA,
          "wrong type for addresses");
 #else
@@ -560,7 +556,7 @@ void LIR_OpVisitState::visit(LIR_Op* op) {
       assert(opConvert->_info == NULL, "must be");
       if (opConvert->_opr->is_valid())       do_input(opConvert->_opr);
       if (opConvert->_result->is_valid())    do_output(opConvert->_result);
-#if defined(PPC) || defined(TARGET_ARCH_aarch64)
+#if defined(PPC)
       if (opConvert->_tmp1->is_valid())      do_temp(opConvert->_tmp1);
       if (opConvert->_tmp2->is_valid())      do_temp(opConvert->_tmp2);
 #endif
@@ -1579,12 +1575,7 @@ void LIR_OprDesc::print(outputStream* out) const {
   } else if (is_double_cpu()) {
     out->print("%s", as_register_hi()->name());
     out->print("%s", as_register_lo()->name());
-#if defined(AARCH64)
-  } else if (is_single_fpu()) {
-    out->print("fpu%d", fpu_regnr());
-  } else if (is_double_fpu()) {
-    out->print("fpu%d", fpu_regnrLo());
-#elif defined(X86)
+#if defined(X86)
   } else if (is_single_xmm()) {
     out->print("%s", as_xmm_float_reg()->name());
   } else if (is_double_xmm()) {
@@ -1981,7 +1972,7 @@ void LIR_OpConvert::print_instr(outputStream* out) const {
   print_bytecode(out, bytecode());
   in_opr()->print(out);                  out->print(" ");
   result_opr()->print(out);              out->print(" ");
-#if defined(PPC) || defined(TARGET_ARCH_aarch64)
+#if defined(PPC)
   if(tmp1()->is_valid()) {
     tmp1()->print(out); out->print(" ");
     tmp2()->print(out); out->print(" ");
@@ -2122,14 +2113,6 @@ void LIR_OpProfileCall::print_instr(outputStream* out) const {
 
 // LIR_OpProfileType
 void LIR_OpProfileType::print_instr(outputStream* out) const {
-#ifdef TARGET_ARCH_aarch64
-  out->print("exact = ");
-  if (exact_klass())
-    exact_klass()->print_name_on(out);
-  else
-    out->print("(null)");
-  out->print(" current = "); ciTypeEntries::print_ciklass(out, current_klass());
-#else
   out->print("exact = ");
   if  (exact_klass() == NULL) {
     out->print("unknown");
@@ -2138,7 +2121,6 @@ void LIR_OpProfileType::print_instr(outputStream* out) const {
   }
   out->print(" current = "); ciTypeEntries::print_ciklass(out, current_klass());
   out->print(" ");
-#endif
   mdp()->print(out);          out->print(" ");
   obj()->print(out);          out->print(" ");
   tmp()->print(out);          out->print(" ");

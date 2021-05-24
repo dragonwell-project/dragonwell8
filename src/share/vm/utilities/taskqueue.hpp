@@ -32,9 +32,6 @@
 #include "runtime/orderAccess.inline.hpp"
 #include "utilities/globalDefinitions.hpp"
 #include "utilities/stack.hpp"
-#ifdef TARGET_OS_ARCH_linux_aarch64
-# include "orderAccess_linux_aarch64.inline.hpp"
-#endif
 
 // Simple TaskQueue stats that are collected by default in debug builds.
 

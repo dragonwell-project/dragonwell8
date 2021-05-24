@@ -35,9 +35,6 @@
 #ifdef TARGET_ARCH_x86
 # include "bytes_x86.hpp"
 #endif
-#ifdef TARGET_ARCH_aarch64
-# include "bytes_aarch64.hpp"
-#endif
 #ifdef TARGET_ARCH_sparc
 # include "bytes_sparc.hpp"
 #endif
@@ -591,9 +588,6 @@ void print();
     // Platform fields/methods
 #ifdef TARGET_ARCH_x86
 # include "bytecodeInterpreter_x86.hpp"
-#endif
-#ifdef TARGET_ARCH_aarch64
-# include "bytecodeInterpreter_aarch64.hpp"
 #endif
 #ifdef TARGET_ARCH_sparc
 # include "bytecodeInterpreter_sparc.hpp"
