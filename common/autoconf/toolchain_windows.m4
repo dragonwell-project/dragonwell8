@@ -672,8 +672,16 @@ AC_DEFUN([TOOLCHAIN_SETUP_VS_RUNTIME_DLLS],
       fi
       UCRT_DLL_DIR="$CYGWIN_WINDOWSSDKDIR/Redist/ucrt/DLLs/$dll_subdir"
       if test -z "$(ls -d "$UCRT_DLL_DIR/"*.dll 2> /dev/null)"; then
-        AC_MSG_RESULT([no])
-        AC_MSG_ERROR([Could not find any dlls in $UCRT_DLL_DIR])
+        # Try with version subdir
+        UCRT_DLL_DIR="`ls -d $CYGWIN_WINDOWSSDKDIR/Redist/*/ucrt/DLLs/$dll_subdir \
+            2> /dev/null | $SORT -d | $HEAD -n1`"
+        if test -z "$UCRT_DLL_DIR" \
+            || test -z "$(ls -d "$UCRT_DLL_DIR/"*.dll 2> /dev/null)"; then
+          AC_MSG_RESULT([no])
+          AC_MSG_ERROR([Could not find any dlls in $UCRT_DLL_DIR])
+        else
+          AC_MSG_RESULT($UCRT_DLL_DIR)
+        fi
       else
         AC_MSG_RESULT($UCRT_DLL_DIR)
       fi
