@@ -122,6 +122,12 @@ java/awt/FontMetrics/MaxAdvanceIsMax.java             solaris-all,macosx-all
 
 # jdk_beans
 
+# 8060027
+java/beans/XMLEncoder/Test4903007.java                        generic-all
+java/beans/XMLEncoder/java_awt_GridBagLayout.java             generic-all
+java/beans/XMLDecoder/8028054/TestConstructorFinder.java      generic-all
+java/beans/XMLDecoder/8028054/TestMethodFinder.java           generic-all
+
 ############################################################################
 
 # jdk_lang
@@ -331,6 +337,9 @@ javax/sound/sampled/DataLine/LongFramePosition.java    8055097 generic-all
 javax/sound/sampled/Clip/Drain/ClipDrain.java          7062792 generic-all
 
 javax/sound/sampled/Mixers/DisabledAssertionCrash.java 7067310 generic-all
+
+# 8059743
+javax/sound/midi/Gervill/SoftProvider/GetDevice.java            generic-all
 
 ############################################################################
 

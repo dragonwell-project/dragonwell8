@@ -33,6 +33,8 @@ import java.util.WeakHashMap;
 import java.lang.ref.WeakReference;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import sun.misc.Unsafe;
+
 import static java.lang.ClassValue.ClassValueMap.probeHomeLocation;
 import static java.lang.ClassValue.ClassValueMap.probeBackupLocations;
 
@@ -385,15 +387,32 @@ public abstract class ClassValue<T> {
     }
 
     private static final Object CRITICAL_SECTION = new Object();
+    private static final Unsafe UNSAFE = Unsafe.getUnsafe();
     private static ClassValueMap initializeMap(Class<?> type) {
         ClassValueMap map;
         synchronized (CRITICAL_SECTION) {  // private object to avoid deadlocks
             // happens about once per type
             if (TenantGlobals.isDataIsolationEnabled() && TenantContainer.current() != null) {
-                type.classValueMap = map = TenantContainer.current()
+                map = TenantContainer.current()
                         .getFieldValue(type, "classValueMap", () -> new ClassValueMap(type));
+                // Place a Store fence after construction and before publishing to emulate
+                // ClassValueMap containing final fields. This ensures it can be
+                // published safely in the non-volatile field Class.classValueMap,
+                // since stores to the fields of ClassValueMap will not be reordered
+                // to occur after the store to the field type.classValueMap
+                UNSAFE.storeFence();
+
+                type.classValueMap = map;
             } else {
                 if ((map = type.classValueMap) == null) {
+                    map = new ClassValueMap(type);
+                    // Place a Store fence after construction and before publishing to emulate
+                    // ClassValueMap containing final fields. This ensures it can be
+                    // published safely in the non-volatile field Class.classValueMap,
+                    // since stores to the fields of ClassValueMap will not be reordered
+                    // to occur after the store to the field type.classValueMap
+                    UNSAFE.storeFence();
+
                     type.classValueMap = map = new ClassValueMap(type);
                 }
             }

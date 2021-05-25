@@ -426,7 +426,7 @@ class TransportContext implements ConnectionContext {
                         sslContext.getDefaultCipherSuites(!useClientMode);
             }
 
-            sslConfig.isClientMode = useClientMode;
+            sslConfig.toggleClientMode();
         }
 
         isUnsureMode = false;

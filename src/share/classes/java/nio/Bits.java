@@ -615,7 +615,8 @@ class Bits {                            // package-private
             new sun.security.action.GetPropertyAction("os.arch"));
         unaligned = arch.equals("i386") || arch.equals("x86")
             || arch.equals("amd64") || arch.equals("x86_64")
-            || arch.equals("ppc64") || arch.equals("ppc64le");
+            || arch.equals("ppc64") || arch.equals("ppc64le")
+            || arch.equals("aarch64");
         unalignedKnown = true;
         return unaligned;
     }

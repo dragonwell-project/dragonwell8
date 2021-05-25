@@ -77,6 +77,9 @@ public abstract class VersionHelper {
         return helper;
     }
 
+    public abstract Class<?> loadClassWithoutInit(String className)
+        throws ClassNotFoundException;
+
     public abstract Class<?> loadClass(String className)
         throws ClassNotFoundException;
 
