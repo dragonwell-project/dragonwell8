@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,25 +23,21 @@
 
 /*
  * @test
- * @bug     6650759 8078024
- * @summary Inference of formal type parameter (unused in formal parameters) is not performed
- * @compile/fail/ref=T6650759m.out T6650759m.java -XDrawDiagnostics
+ * @bug 8145051
+ * @summary Wrong parameter name in synthetic lambda method leads to verifier error
+ * @compile pkg/T8145051.java
+ * @run main/othervm -Xverify:all T8145051
  */
 
-import java.util.*;
+public class T8145051 {
 
-class T6650759m {
-    <Z> List<? super Z> m(List<? extends List<? super Z>> ls) {
-        return ls.get(0);
+    public static void main(String [] args) {
+        pkg.T8145051 t8145051 = new pkg.T8145051();
+        t8145051.new Sub();
+        if (!t8145051.s.equals("Executed lambda"))
+            throw new AssertionError("Unexpected data");
+        else
+            System.out.println("OK");
     }
 
-    void test() {
-        ArrayList<ArrayList<Integer>> lli = new ArrayList<ArrayList<Integer>>();
-        ArrayList<Integer> li = new ArrayList<Integer>();
-        li.add(2);
-        lli.add(li);
-        List<? super String> ls = m(lli); //here
-        ls.add("crash");
-        Integer i = li.get(1);
-    }
 }

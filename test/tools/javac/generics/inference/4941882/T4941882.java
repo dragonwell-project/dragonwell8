@@ -23,7 +23,7 @@
 
 /*
  * @test
- * @bug     4941882
+ * @bug     4941882 8078024
  * @summary incorrect inference for result of lub(int[], float[])
  * @compile/fail T4941882.java
  */
