@@ -541,8 +541,11 @@ class InstanceKlass: public Klass {
   static Method* find_method(Array<Method*>* methods, Symbol* name, Symbol* signature);
 
   // find a local method, but skip static methods
-  Method* find_instance_method(Symbol* name, Symbol* signature);
-  static Method* find_instance_method(Array<Method*>* methods, Symbol* name, Symbol* signature);
+  Method* find_instance_method(Symbol* name, Symbol* signature,
+                               PrivateLookupMode private_mode);
+  static Method* find_instance_method(Array<Method*>* methods,
+                                      Symbol* name, Symbol* signature,
+                                      PrivateLookupMode private_mode);
 
   // find a local method (returns NULL if not found)
   Method* find_local_method(Symbol* name, Symbol* signature,

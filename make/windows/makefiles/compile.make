@@ -159,6 +159,15 @@ COMPILER_NAME=VS2017
 !if "$(MSC_VER)" == "1913"
 COMPILER_NAME=VS2017
 !endif
+!if "$(MSC_VER)" == "1914"
+COMPILER_NAME=VS2017
+!endif
+!if "$(MSC_VER)" == "1915"
+COMPILER_NAME=VS2017
+!endif
+!if "$(MSC_VER)" == "1916"
+COMPILER_NAME=VS2017
+!endif
 !endif
 
 # By default, we do not want to use the debug version of the msvcrt.dll file
