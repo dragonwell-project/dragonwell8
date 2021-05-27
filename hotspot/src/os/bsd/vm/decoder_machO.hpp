@@ -34,7 +34,7 @@
 class MachODecoder : public AbstractDecoder {
  public:
   MachODecoder() { }
-  ~MachODecoder() { }
+  virtual ~MachODecoder() { }
   virtual bool can_decode_C_frame_in_vm() const {
     return true;
   }

@@ -56,7 +56,7 @@ class WindowsDecoder : public AbstractDecoder {
 
 public:
   WindowsDecoder();
-  ~WindowsDecoder() { uninitialize(); };
+  virtual ~WindowsDecoder() { uninitialize(); };
 
   bool can_decode_C_frame_in_vm() const;
   bool demangle(const char* symbol, char *buf, int buflen);
