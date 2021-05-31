@@ -38,9 +38,6 @@
 #ifdef TARGET_ARCH_zero
 # include "vmreg_zero.inline.hpp"
 #endif
-#ifdef TARGET_ARCH_aarch64
-# include "vmreg_aarch64.inline.hpp"
-#endif
 
 
 #ifdef _WINDOWS
