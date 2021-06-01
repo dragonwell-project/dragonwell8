@@ -70,6 +70,9 @@ inline jfloat   OrderAccess::load_acquire(volatile jfloat*  p)
 { jfloat data; __atomic_load(p, &data, __ATOMIC_ACQUIRE); return data; }
 inline jdouble  OrderAccess::load_acquire(volatile jdouble* p)
 { jdouble data; __atomic_load(p, &data, __ATOMIC_ACQUIRE); return data; }
+inline bool OrderAccess::load_acquire(volatile bool* p)
+{ bool data; __atomic_load(p, &data, __ATOMIC_ACQUIRE); return data; }
+
 inline intptr_t OrderAccess::load_ptr_acquire(volatile intptr_t*   p)
 { intptr_t data; __atomic_load(p, &data, __ATOMIC_ACQUIRE); return data; }
 inline void*    OrderAccess::load_ptr_acquire(volatile void*       p)
@@ -97,6 +100,9 @@ inline void     OrderAccess::release_store(volatile jfloat*  p, jfloat  v)
 { __atomic_store(p, &v, __ATOMIC_RELEASE); }
 inline void     OrderAccess::release_store(volatile jdouble* p, jdouble v)
 { __atomic_store(p, &v, __ATOMIC_RELEASE); }
+inline void     OrderAccess::release_store(volatile bool* p, bool v)
+{ __atomic_store(p, &v, __ATOMIC_RELEASE); }
+
 inline void     OrderAccess::release_store_ptr(volatile intptr_t* p, intptr_t v)
 { __atomic_store(p, &v, __ATOMIC_RELEASE); }
 inline void     OrderAccess::release_store_ptr(volatile void*     p, void*    v)
