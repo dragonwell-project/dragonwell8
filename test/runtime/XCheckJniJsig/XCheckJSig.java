@@ -22,7 +22,6 @@
  */
 
 /*
- * @ignore 8023735
  * @test
  * @bug 7051189 8023393
  * @summary Need to suppress info message if -Xcheck:jni is used with libjsig.so

@@ -34,6 +34,10 @@
 # include "nativeInst_x86.hpp"
 # include "vmreg_x86.inline.hpp"
 #endif
+#ifdef TARGET_ARCH_aarch64
+# include "nativeInst_aarch64.hpp"
+# include "vmreg_aarch64.inline.hpp"
+#endif
 #ifdef TARGET_ARCH_sparc
 # include "nativeInst_sparc.hpp"
 # include "vmreg_sparc.inline.hpp"
@@ -124,6 +128,9 @@ LIR_Assembler::LIR_Assembler(Compilation* c):
  , _pending_non_safepoint_offset(0)
 {
   _slow_case_stubs = new CodeStubList();
+#ifdef TARGET_ARCH_aarch64
+  init(); // Target-dependent initialization
+#endif
 }
 
 
@@ -163,7 +170,9 @@ void LIR_Assembler::emit_stubs(CodeStubList* stub_list) {
 #endif
     s->emit_code(this);
 #ifdef ASSERT
+#ifndef AARCH64
     s->assert_no_unbound_labels();
+#endif
 #endif
   }
 }

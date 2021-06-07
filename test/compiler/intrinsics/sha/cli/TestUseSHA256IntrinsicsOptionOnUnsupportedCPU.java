@@ -40,6 +40,8 @@ public class TestUseSHA256IntrinsicsOptionOnUnsupportedCPU {
                         SHAOptionsBase.USE_SHA256_INTRINSICS_OPTION),
                 new UseSHAIntrinsicsSpecificTestCaseForUnsupportedSparcCPU(
                         SHAOptionsBase.USE_SHA256_INTRINSICS_OPTION),
+                new GenericTestCaseForUnsupportedAArch64CPU(
+                        SHAOptionsBase.USE_SHA256_INTRINSICS_OPTION),
                 new GenericTestCaseForUnsupportedX86CPU(
                         SHAOptionsBase.USE_SHA256_INTRINSICS_OPTION),
                 new GenericTestCaseForOtherCPU(

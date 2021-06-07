@@ -264,7 +264,7 @@ G1BlockOffsetArray::forward_to_block_containing_addr_slow(HeapWord* q,
     while (n <= next_boundary) {
       q = n;
       oop obj = oop(q);
-      if (obj->klass_or_null() == NULL) return q;
+      if (obj->klass_or_null_acquire() == NULL) return q;
       n += block_size(q);
     }
     assert(q <= next_boundary && n > next_boundary, "Consequence of loop");
