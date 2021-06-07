@@ -388,7 +388,7 @@ enum CipherSuite {
             ProtocolVersion.PROTOCOLS_TO_TLS12,
             K_DH_ANON, B_RC4_128, M_MD5, H_SHA256),
 
-    // weak cipher suites obsoleted in TLS 1.2 [RFC 5246]
+    // Weak cipher suites obsoleted in TLS 1.2 [RFC 5246]
     SSL_RSA_WITH_DES_CBC_SHA(
             0x0009, false, "SSL_RSA_WITH_DES_CBC_SHA",
                            "TLS_RSA_WITH_DES_CBC_SHA",
@@ -410,7 +410,7 @@ enum CipherSuite {
             ProtocolVersion.PROTOCOLS_TO_11,
             K_DH_ANON, B_DES, M_SHA, H_NONE),
 
-    // weak cipher suites obsoleted in TLS 1.1  [RFC 4346]
+    // Weak cipher suites obsoleted in TLS 1.1  [RFC 4346]
     SSL_RSA_EXPORT_WITH_DES40_CBC_SHA(
             0x0008, false, "SSL_RSA_EXPORT_WITH_DES40_CBC_SHA",
                            "TLS_RSA_EXPORT_WITH_DES40_CBC_SHA",
@@ -442,7 +442,7 @@ enum CipherSuite {
             ProtocolVersion.PROTOCOLS_TO_10,
             K_DH_ANON, B_RC4_40, M_MD5, H_NONE),
 
-    // no traffic encryption cipher suites
+    // No traffic encryption cipher suites
     TLS_RSA_WITH_NULL_SHA256(
             0x003B, false, "TLS_RSA_WITH_NULL_SHA256", "",
             ProtocolVersion.PROTOCOLS_OF_12,
@@ -521,7 +521,7 @@ enum CipherSuite {
             ProtocolVersion.PROTOCOLS_TO_10,
             K_KRB5_EXPORT, B_RC4_40, M_MD5, H_SHA256),
 
-    // Definition of the CipherSuites that are not supported but the names
+    // Definition of the cipher suites that are not supported but the names
     // are known.
     TLS_CHACHA20_POLY1305_SHA256(                    // TLS 1.3
             "TLS_CHACHA20_POLY1305_SHA256", 0x1303),
@@ -530,7 +530,7 @@ enum CipherSuite {
     TLS_AES_128_CCM_8_SHA256(                        // TLS 1.3
             "TLS_AES_128_CCM_8_SHA256", 0x1305),
 
-    // remaining unsupported ciphersuites defined in RFC2246.
+    // Remaining unsupported cipher suites defined in RFC2246.
     CS_0006("SSL_RSA_EXPORT_WITH_RC2_CBC_40_MD5",           0x0006),
     CS_0007("SSL_RSA_WITH_IDEA_CBC_SHA",                    0x0007),
     CS_000B("SSL_DH_DSS_EXPORT_WITH_DES40_CBC_SHA",         0x000b),
@@ -540,18 +540,18 @@ enum CipherSuite {
     CS_000F("SSL_DH_RSA_WITH_DES_CBC_SHA",                  0x000f),
     CS_0010("SSL_DH_RSA_WITH_3DES_EDE_CBC_SHA",             0x0010),
 
-    // SSL 3.0 Fortezza ciphersuites
+    // SSL 3.0 Fortezza cipher suites
     CS_001C("SSL_FORTEZZA_DMS_WITH_NULL_SHA",               0x001c),
     CS_001D("SSL_FORTEZZA_DMS_WITH_FORTEZZA_CBC_SHA",       0x001d),
 
-    // 1024/56 bit exportable ciphersuites from expired internet draft
+    // 1024/56 bit exportable cipher suites from expired internet draft
     CS_0062("SSL_RSA_EXPORT1024_WITH_DES_CBC_SHA",          0x0062),
     CS_0063("SSL_DHE_DSS_EXPORT1024_WITH_DES_CBC_SHA",      0x0063),
     CS_0064("SSL_RSA_EXPORT1024_WITH_RC4_56_SHA",           0x0064),
     CS_0065("SSL_DHE_DSS_EXPORT1024_WITH_RC4_56_SHA",       0x0065),
     CS_0066("SSL_DHE_DSS_WITH_RC4_128_SHA",                 0x0066),
 
-    // Netscape old and new SSL 3.0 FIPS ciphersuites
+    // Netscape old and new SSL 3.0 FIPS cipher suites
     // see http://www.mozilla.org/projects/security/pki/nss/ssl/fips-ssl-ciphersuites.html
     CS_FFE0("NETSCAPE_RSA_FIPS_WITH_3DES_EDE_CBC_SHA",      0xffe0),
     CS_FFE1("NETSCAPE_RSA_FIPS_WITH_DES_CBC_SHA",           0xffe1),

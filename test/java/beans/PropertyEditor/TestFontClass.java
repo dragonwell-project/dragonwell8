@@ -26,6 +26,7 @@
  * @bug 4506596 6258510 6538853
  * @summary Tests PropertyEditor for value of type Font with security manager
  * @author Sergey Malenkov
+ * @key headful
  */
 
 import java.awt.Font;

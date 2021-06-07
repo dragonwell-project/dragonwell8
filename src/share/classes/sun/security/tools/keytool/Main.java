@@ -50,7 +50,9 @@ import java.security.cert.CertStoreException;
 import java.security.cert.CRL;
 import java.security.cert.X509Certificate;
 import java.security.cert.CertificateException;
+import java.security.interfaces.ECKey;
 import java.security.spec.AlgorithmParameterSpec;
+import java.security.spec.ECParameterSpec;
 import java.text.Collator;
 import java.text.MessageFormat;
 import java.util.*;
@@ -71,6 +73,7 @@ import java.util.Base64;
 
 import sun.security.util.DisabledAlgorithmConstraints;
 import sun.security.util.KeyUtil;
+import sun.security.util.NamedCurve;
 import sun.security.util.ObjectIdentifier;
 import sun.security.pkcs10.PKCS10;
 import sun.security.pkcs10.PKCS10Attribute;
@@ -180,6 +183,10 @@ public final class Main {
     private static final DisabledAlgorithmConstraints DISABLED_CHECK =
             new DisabledAlgorithmConstraints(
                     DisabledAlgorithmConstraints.PROPERTY_CERTPATH_DISABLED_ALGS);
+
+    private static final DisabledAlgorithmConstraints LEGACY_CHECK =
+            new DisabledAlgorithmConstraints(
+                    DisabledAlgorithmConstraints.PROPERTY_SECURITY_LEGACY_ALGS);
 
     private static final Set<CryptoPrimitive> SIG_PRIMITIVE_SET = Collections
             .unmodifiableSet(EnumSet.of(CryptoPrimitive.SIGNATURE));
@@ -1933,8 +1940,8 @@ public final class Main {
                 } else {
                     // Print the digest of the user cert only
                     out.println
-                        (rb.getString("Certificate.fingerprint.SHA1.") +
-                        getCertFingerPrint("SHA1", chain[0]));
+                        (rb.getString("Certificate.fingerprint.SHA.256.") +
+                        getCertFingerPrint("SHA-256", chain[0]));
                     checkWeak(label, chain[0]);
                 }
             }
@@ -1955,8 +1962,8 @@ public final class Main {
                 out.println(cert.toString());
             } else {
                 out.println("trustedCertEntry, ");
-                out.println(rb.getString("Certificate.fingerprint.SHA1.")
-                            + getCertFingerPrint("SHA1", cert));
+                out.println(rb.getString("Certificate.fingerprint.SHA.256.")
+                            + getCertFingerPrint("SHA-256", cert));
             }
             checkWeak(label, cert);
         } else {
@@ -3083,19 +3090,42 @@ public final class Main {
 
     private String withWeak(String alg) {
         if (DISABLED_CHECK.permits(SIG_PRIMITIVE_SET, alg, null)) {
-            return alg;
+            if (LEGACY_CHECK.permits(SIG_PRIMITIVE_SET, alg, null)) {
+                return alg;
+            } else {
+                return String.format(rb.getString("with.weak"), alg);
+            }
         } else {
-            return String.format(rb.getString("with.weak"), alg);
+            return String.format(rb.getString("with.disabled"), alg);
         }
     }
 
+    private String fullDisplayAlgName(Key key) {
+        String result = key.getAlgorithm();
+        if (key instanceof ECKey) {
+            ECParameterSpec paramSpec = ((ECKey) key).getParams();
+            if (paramSpec instanceof NamedCurve) {
+                result += " (" + paramSpec.toString().split(" ")[0] + ")";
+            }
+        }
+        return result;
+    }
+
     private String withWeak(PublicKey key) {
+        int kLen = KeyUtil.getKeySize(key);
+        String displayAlg = fullDisplayAlgName(key);
         if (DISABLED_CHECK.permits(SIG_PRIMITIVE_SET, key)) {
-            return String.format(rb.getString("key.bit"),
-                    KeyUtil.getKeySize(key), key.getAlgorithm());
+            if (LEGACY_CHECK.permits(SIG_PRIMITIVE_SET, key)) {
+                if (kLen >= 0) {
+                    return String.format(rb.getString("key.bit"), kLen, displayAlg);
+                } else {
+                    return String.format(rb.getString("unknown.size.1"), displayAlg);
+                }
+            } else {
+                return String.format(rb.getString("key.bit.weak"), kLen, displayAlg);
+            }
         } else {
-            return String.format(rb.getString("key.bit.weak"),
-                    KeyUtil.getKeySize(key), key.getAlgorithm());
+            return String.format(rb.getString("key.bit.disabled"), kLen, displayAlg);
         }
     }
 
@@ -3105,23 +3135,6 @@ public final class Main {
     private void printX509Cert(X509Certificate cert, PrintStream out)
         throws Exception
     {
-        /*
-        out.println("Owner: "
-                    + cert.getSubjectDN().toString()
-                    + "\n"
-                    + "Issuer: "
-                    + cert.getIssuerDN().toString()
-                    + "\n"
-                    + "Serial number: " + cert.getSerialNumber().toString(16)
-                    + "\n"
-                    + "Valid from: " + cert.getNotBefore().toString()
-                    + " until: " + cert.getNotAfter().toString()
-                    + "\n"
-                    + "Certificate fingerprints:\n"
-                    + "\t MD5:  " + getCertFingerPrint("MD5", cert)
-                    + "\n"
-                    + "\t SHA1: " + getCertFingerPrint("SHA1", cert));
-        */
 
         MessageFormat form = new MessageFormat
                 (rb.getString(".PATTERN.printX509Cert.with.weak"));
@@ -3136,8 +3149,7 @@ public final class Main {
                         cert.getSerialNumber().toString(16),
                         cert.getNotBefore().toString(),
                         cert.getNotAfter().toString(),
-                        getCertFingerPrint("MD5", cert),
-                        getCertFingerPrint("SHA1", cert),
+                        getCertFingerPrint("SHA-1", cert),
                         getCertFingerPrint("SHA-256", cert),
                         sigName,
                         withWeak(pkey),
@@ -4368,18 +4380,28 @@ public final class Main {
     }
 
     private void checkWeak(String label, String sigAlg, Key key) {
-
-        if (sigAlg != null && !DISABLED_CHECK.permits(
-                SIG_PRIMITIVE_SET, sigAlg, null)) {
-            weakWarnings.add(String.format(
-                    rb.getString("whose.sigalg.risk"), label, sigAlg));
+        if (sigAlg != null) {
+            if (!DISABLED_CHECK.permits(SIG_PRIMITIVE_SET, sigAlg, null)) {
+                weakWarnings.add(String.format(
+                    rb.getString("whose.sigalg.disabled"), label, sigAlg));
+            } else if (!LEGACY_CHECK.permits(SIG_PRIMITIVE_SET, sigAlg, null)) {
+                weakWarnings.add(String.format(
+                    rb.getString("whose.sigalg.weak"), label, sigAlg));
+            }
         }
-        if (key != null && !DISABLED_CHECK.permits(SIG_PRIMITIVE_SET, key)) {
-            weakWarnings.add(String.format(
-                    rb.getString("whose.key.risk"),
-                    label,
+
+        if (key != null) {
+            if (!DISABLED_CHECK.permits(SIG_PRIMITIVE_SET, key)) {
+                weakWarnings.add(String.format(
+                    rb.getString("whose.key.disabled"), label,
                     String.format(rb.getString("key.bit"),
-                            KeyUtil.getKeySize(key), key.getAlgorithm())));
+                    KeyUtil.getKeySize(key), fullDisplayAlgName(key))));
+            } else if (!LEGACY_CHECK.permits(SIG_PRIMITIVE_SET, key)) {
+                weakWarnings.add(String.format(
+                    rb.getString("whose.key.weak"), label,
+                    String.format(rb.getString("key.bit"),
+                    KeyUtil.getKeySize(key), fullDisplayAlgName(key))));
+            }
         }
     }
 

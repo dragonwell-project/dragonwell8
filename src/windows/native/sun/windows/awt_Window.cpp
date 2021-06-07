@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1996, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -168,6 +168,7 @@ jfieldID AwtWindow::sysYID;
 jfieldID AwtWindow::sysWID;
 jfieldID AwtWindow::sysHID;
 jfieldID AwtWindow::windowTypeID;
+jmethodID AwtWindow::notifyWindowStateChangedMID;
 
 jmethodID AwtWindow::getWarningStringMID;
 jmethodID AwtWindow::calculateSecurityWarningPositionMID;
@@ -1612,6 +1613,16 @@ void AwtWindow::SendWindowEvent(jint id, HWND opposite,
     SendEvent(event);
 
     env->DeleteLocalRef(event);
+}
+
+void AwtWindow::NotifyWindowStateChanged(jint oldState, jint newState)
+{
+    JNIEnv *env = (JNIEnv *)JNU_GetEnv(jvm, JNI_VERSION_1_2);
+    jobject peer = GetPeer(env);
+    if (peer != NULL) {
+        env->CallVoidMethod(peer, AwtWindow::notifyWindowStateChangedMID,
+            oldState, newState);
+    }
 }
 
 BOOL AwtWindow::AwtSetActiveWindow(BOOL isMouseEventCause, UINT hittest)
@@ -3210,6 +3221,11 @@ Java_sun_awt_windows_WWindowPeer_initIDs(JNIEnv *env, jclass cls)
 
     AwtWindow::windowTypeID = env->GetFieldID(cls, "windowType",
             "Ljava/awt/Window$Type;");
+
+    AwtWindow::notifyWindowStateChangedMID =
+        env->GetMethodID(cls, "notifyWindowStateChanged", "(II)V");
+    DASSERT(AwtWindow::notifyWindowStateChangedMID);
+    CHECK_NULL(AwtWindow::notifyWindowStateChangedMID);
 
     CATCH_BAD_ALLOC;
 }
