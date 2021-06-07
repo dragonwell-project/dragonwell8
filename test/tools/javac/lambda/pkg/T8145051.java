@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,27 +21,23 @@
  * questions.
  */
 
-/*
- * @test
- * @bug     6650759 8078024
- * @summary Inference of formal type parameter (unused in formal parameters) is not performed
- * @compile/fail/ref=T6650759m.out T6650759m.java -XDrawDiagnostics
- */
+package pkg;
 
-import java.util.*;
+public class T8145051 {
 
-class T6650759m {
-    <Z> List<? super Z> m(List<? extends List<? super Z>> ls) {
-        return ls.get(0);
+    public String s;
+
+    public static class Sup {
+        Sup(Runnable r) {
+            r.run();
+        }
     }
 
-    void test() {
-        ArrayList<ArrayList<Integer>> lli = new ArrayList<ArrayList<Integer>>();
-        ArrayList<Integer> li = new ArrayList<Integer>();
-        li.add(2);
-        lli.add(li);
-        List<? super String> ls = m(lli); //here
-        ls.add("crash");
-        Integer i = li.get(1);
+    public class Sub extends Sup {
+        public Sub() {
+            super(() -> {
+                s = "Executed lambda";
+            });
+        }
     }
 }
