@@ -39,6 +39,7 @@ SUNWprivate_1.1 {
 	    Java_sun_management_OperatingSystemImpl_getTotalSwapSpaceSize0;
 	    Java_sun_management_OperatingSystemImpl_getSingleCpuLoad0;
 	    Java_sun_management_OperatingSystemImpl_getHostConfiguredCpuCount0;
+	    Java_sun_management_OperatingSystemImpl_getHostOnlineCpuCount0;
 	    Java_sun_management_OperatingSystemImpl_initialize;
 	    Java_sun_management_ClassLoadingImpl_setVerboseClass;
             Java_sun_management_DiagnosticCommandImpl_executeDiagnosticCommand;
