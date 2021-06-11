@@ -59,6 +59,7 @@ static struct perfbuf {
 } counters;
 
 #define DEC_64 "%"SCNd64
+#define NS_PER_SEC 1000000000
 
 static void next_line(FILE *f) {
     while (fgetc(f) != '\n');
@@ -363,6 +364,31 @@ Java_sun_management_OperatingSystemImpl_getHostConfiguredCpuCount0
         return counters.nProcs;
     } else {
        return -1;
+    }
+}
+
+// Return the host cpu ticks since boot in nanoseconds
+JNIEXPORT jlong JNICALL
+Java_sun_management_OperatingSystemImpl_getHostTotalCpuTicks0
+(JNIEnv *env, jobject mbean)
+{
+    if (perfInit() == 0) {
+        if (get_totalticks(-1, &counters.cpuTicks) < 0) {
+            return -1;
+        } else {
+            long ticks_per_sec = sysconf(_SC_CLK_TCK);
+            jlong result = (jlong)counters.cpuTicks.total;
+            if (ticks_per_sec <= NS_PER_SEC) {
+                long scale_factor = NS_PER_SEC/ticks_per_sec;
+                result = result * scale_factor;
+            } else {
+                long scale_factor = ticks_per_sec/NS_PER_SEC;
+                result = result / scale_factor;
+            }
+            return result;
+        }
+    } else {
+        return -1;
     }
 }
 
