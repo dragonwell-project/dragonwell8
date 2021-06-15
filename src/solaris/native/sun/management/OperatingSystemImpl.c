@@ -488,7 +488,7 @@ JNIEXPORT jlong JNICALL
 Java_sun_management_OperatingSystemImpl_getHostTotalCpuTicks0
 (JNIEnv *env, jobject mbean)
 {
-    return -1.0;
+    return -1;
 }
 #endif
 
