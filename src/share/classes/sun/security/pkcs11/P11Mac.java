@@ -91,9 +91,11 @@ final class P11Mac extends MacSpi {
             macLength = 20;
             break;
         case (int)CKM_SHA224_HMAC:
+        case (int)CKM_SHA512_224_HMAC:
             macLength = 28;
             break;
         case (int)CKM_SHA256_HMAC:
+        case (int)CKM_SHA512_256_HMAC:
             macLength = 32;
             break;
         case (int)CKM_SHA384_HMAC:
