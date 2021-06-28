@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2017, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,10 +26,15 @@
  * @bug 4422122
  * @summary Test that MulticastSocket.getInterface returns the
  *          same InetAddress set by MulticastSocket.setInterface
+ * @library /lib
+ * @build jdk.test.lib.NetworkConfiguration
+ *        jdk.test.lib.Platform
+ * @run main TestInterfaces
  */
 import java.net.*;
 import java.util.Enumeration;
 import java.io.IOException;
+import jdk.test.lib.NetworkConfiguration;
 
 public class TestInterfaces {
 
@@ -43,6 +48,10 @@ public class TestInterfaces {
         Enumeration nifs = NetworkInterface.getNetworkInterfaces();
         while (nifs.hasMoreElements()) {
             NetworkInterface ni = (NetworkInterface)nifs.nextElement();
+
+            // Skip those interfaces not up or not support multicast
+            if (!ni.isUp() || !ni.supportsMulticast())
+                continue;
 
             /*
              * Test MulticastSocket.getInterface
@@ -104,6 +113,8 @@ public class TestInterfaces {
         }
 
         if (failures > 0) {
+            System.err.println("********************************");
+            NetworkConfiguration.printSystemConfiguration(System.err);
             System.out.println("********************************");
             throw new Exception(failures + " test(s) failed!!!");
         }
