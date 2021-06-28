@@ -687,6 +687,7 @@ CFLAGS_JDKEXE
 CFLAGS_JDKLIB
 MACOSX_VERSION_MIN
 FDLIBM_CFLAGS
+USE_FORMAT_OVERFLOW
 NO_LIFETIME_DSE_CFLAG
 NO_DELETE_NULL_POINTER_CHECKS_CFLAG
 LEGACY_EXTRA_ASFLAGS
@@ -4394,7 +4395,7 @@ VS_SDK_PLATFORM_NAME_2017=
 #CUSTOM_AUTOCONF_INCLUDE
 
 # Do not change or remove the following line, it is needed for consistency checks:
-DATE_WHEN_GENERATED=1623274143
+DATE_WHEN_GENERATED=1624896904
 
 ###############################################################################
 #
@@ -42298,6 +42299,102 @@ $as_echo "$supports" >&6; }
     :
   fi
 
+    # Check that the compiler supports -Wformat-overflow flag
+    # Set USE_FORMAT_OVERFLOW to 1 if it does.
+
+
+  { $as_echo "$as_me:${as_lineno-$LINENO}: checking if the C compiler supports \"-Wformat-overflow -Werror\"" >&5
+$as_echo_n "checking if the C compiler supports \"-Wformat-overflow -Werror\"... " >&6; }
+  supports=yes
+
+  saved_cflags="$CFLAGS"
+  CFLAGS="$CFLAGS -Wformat-overflow -Werror"
+  ac_ext=c
+ac_cpp='$CPP $CPPFLAGS'
+ac_compile='$CC -c $CFLAGS $CPPFLAGS conftest.$ac_ext >&5'
+ac_link='$CC -o conftest$ac_exeext $CFLAGS $CPPFLAGS $LDFLAGS conftest.$ac_ext $LIBS >&5'
+ac_compiler_gnu=$ac_cv_c_compiler_gnu
+
+  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+int i;
+_ACEOF
+if ac_fn_c_try_compile "$LINENO"; then :
+
+else
+  supports=no
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
+  ac_ext=cpp
+ac_cpp='$CXXCPP $CPPFLAGS'
+ac_compile='$CXX -c $CXXFLAGS $CPPFLAGS conftest.$ac_ext >&5'
+ac_link='$CXX -o conftest$ac_exeext $CXXFLAGS $CPPFLAGS $LDFLAGS conftest.$ac_ext $LIBS >&5'
+ac_compiler_gnu=$ac_cv_cxx_compiler_gnu
+
+  CFLAGS="$saved_cflags"
+
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: $supports" >&5
+$as_echo "$supports" >&6; }
+  if test "x$supports" = "xyes" ; then
+    C_COMP_SUPPORTS="yes"
+  else
+    C_COMP_SUPPORTS="no"
+  fi
+
+
+  { $as_echo "$as_me:${as_lineno-$LINENO}: checking if the C++ compiler supports \"-Wformat-overflow -Werror\"" >&5
+$as_echo_n "checking if the C++ compiler supports \"-Wformat-overflow -Werror\"... " >&6; }
+  supports=yes
+
+  saved_cxxflags="$CXXFLAGS"
+  CXXFLAGS="$CXXFLAG -Wformat-overflow -Werror"
+  ac_ext=cpp
+ac_cpp='$CXXCPP $CPPFLAGS'
+ac_compile='$CXX -c $CXXFLAGS $CPPFLAGS conftest.$ac_ext >&5'
+ac_link='$CXX -o conftest$ac_exeext $CXXFLAGS $CPPFLAGS $LDFLAGS conftest.$ac_ext $LIBS >&5'
+ac_compiler_gnu=$ac_cv_cxx_compiler_gnu
+
+  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+int i;
+_ACEOF
+if ac_fn_cxx_try_compile "$LINENO"; then :
+
+else
+  supports=no
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
+  ac_ext=cpp
+ac_cpp='$CXXCPP $CPPFLAGS'
+ac_compile='$CXX -c $CXXFLAGS $CPPFLAGS conftest.$ac_ext >&5'
+ac_link='$CXX -o conftest$ac_exeext $CXXFLAGS $CPPFLAGS $LDFLAGS conftest.$ac_ext $LIBS >&5'
+ac_compiler_gnu=$ac_cv_cxx_compiler_gnu
+
+  CXXFLAGS="$saved_cxxflags"
+
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: $supports" >&5
+$as_echo "$supports" >&6; }
+  if test "x$supports" = "xyes" ; then
+    CXX_COMP_SUPPORTS="yes"
+  else
+    CXX_COMP_SUPPORTS="no"
+  fi
+
+
+  { $as_echo "$as_me:${as_lineno-$LINENO}: checking if both compilers support \"-Wformat-overflow -Werror\"" >&5
+$as_echo_n "checking if both compilers support \"-Wformat-overflow -Werror\"... " >&6; }
+  supports=no
+  if test "x$C_COMP_SUPPORTS" = "xyes" -a "x$CXX_COMP_SUPPORTS" = "xyes"; then supports=yes; fi
+
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: $supports" >&5
+$as_echo "$supports" >&6; }
+  if test "x$supports" = "xyes" ; then
+    USE_FORMAT_OVERFLOW="1"
+  else
+    USE_FORMAT_OVERFLOW="0"
+  fi
+
+
 
     # Check that the compiler supports -ffp-contract=off flag
     # Set FDLIBM_CFLAGS to -ffp-contract=off if it does.
@@ -42644,7 +42741,7 @@ $as_echo "$supports" >&6; }
     fi
     LDFLAGS_JDKEXE="${LDFLAGS_JDK} /STACK:$LDFLAGS_STACK_SIZE"
   else
-    if test "x$TOOLCHAIN_TYPE" = xgcc -o test "x$TOOLCHAIN_TYPE" = xclang; then
+    if test "x$TOOLCHAIN_TYPE" = xgcc -o "x$TOOLCHAIN_TYPE" = xclang; then
       # If this is a --hash-style=gnu system, use --hash-style=both, why?
       # We have previously set HAS_GNU_HASH if this is the case
       if test -n "$HAS_GNU_HASH"; then
