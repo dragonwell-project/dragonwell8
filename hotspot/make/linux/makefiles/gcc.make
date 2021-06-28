@@ -233,7 +233,10 @@ CFLAGS_WARN/BYFILE = $(CFLAGS_WARN/$@)$(CFLAGS_WARN/DEFAULT$(CFLAGS_WARN/$@))
 # -Werror (the default).
 # See JDK-8269388 and PR3798 in IcedTea:
 # https://icedtea.wildebeest.org/hg/icedtea8-forest/hotspot/rev/9f2ceb42dc64
-CFLAGS_WARN/os_linux.o = $(CFLAGS_WARN/DEFAULT) -Wno-error=format-overflow
+# Option only exists on GCC 7 and later, checked by configure
+ifeq ($(USE_FORMAT_OVERFLOW), 1)
+  CFLAGS_WARN/os_linux.o = $(CFLAGS_WARN/DEFAULT) -Wno-error=format-overflow
+endif
 
 # The flags to use for an Optimized g++ build
 OPT_CFLAGS/SIZE=-Os
