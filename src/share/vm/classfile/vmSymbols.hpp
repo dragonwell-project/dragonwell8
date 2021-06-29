@@ -324,6 +324,7 @@
   template(daemon_name,                               "daemon")                                   \
   template(eetop_name,                                "eetop")                                    \
   template(inheritedTenantContainer_name,             "inheritedTenantContainer")                 \
+  template(resourceContainer_name,                    "resourceContainer")                        \
   template(thread_status_name,                        "threadStatus")                             \
   template(run_method_name,                           "run")                                      \
   template(runThread_method_name,                     "runThread")                                \
@@ -524,6 +525,7 @@
   template(protectiondomain_signature,                "[Ljava/security/ProtectionDomain;")                        \
   template(accesscontrolcontext_signature,            "Ljava/security/AccessControlContext;")                     \
   template(tenantcontainer_signature,                 "Lcom/alibaba/tenant/TenantContainer;")                     \
+  template(resourcecontainer_signature,               "Lcom/alibaba/rcm/internal/AbstractResourceContainer;")     \
   template(class_protectiondomain_signature,          "(Ljava/lang/Class;Ljava/security/ProtectionDomain;)V")     \
   template(thread_signature,                          "Ljava/lang/Thread;")                                       \
   template(thread_array_signature,                    "[Ljava/lang/Thread;")                                      \
@@ -643,6 +645,8 @@
                                                        "Lcom/alibaba/wisp/engine/WispControlGroup;")              \
   template(com_alibaba_wisp_engine_WispControlGroup_CpuLimit_signature,                                           \
                                                        "Lcom/alibaba/wisp/engine/WispControlGroup$CpuLimit;")     \
+  template(com_alibaba_rcm_internal_AbstractResourceContainer_signature,                                          \
+                                                       "com/alibaba/rcm/internal/AbstractResourceContainer")      \
   template(com_alibaba_wisp_engine_WispEngine,         "com/alibaba/wisp/engine/WispEngine")                      \
   template(com_alibaba_wisp_engine_WispCarrier,        "com/alibaba/wisp/engine/WispCarrier")                     \
   template(com_alibaba_wisp_engine_WispEventPump,      "com/alibaba/wisp/engine/WispEventPump")                   \

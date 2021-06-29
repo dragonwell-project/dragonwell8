@@ -935,6 +935,7 @@ int java_lang_Thread::_thread_status_offset = 0;
 int java_lang_Thread::_park_blocker_offset = 0;
 int java_lang_Thread::_park_event_offset = 0 ;
 int java_lang_Thread::_inheritedTenantContainer_offset = 0 ;
+int java_lang_Thread::_resourceContainer_offset = 0 ;
 
 
 void java_lang_Thread::compute_offsets() {
@@ -959,6 +960,7 @@ void java_lang_Thread::compute_offsets() {
   compute_optional_offset(_park_event_offset, k, vmSymbols::park_event_name(),
  vmSymbols::long_signature());
   compute_offset(_inheritedTenantContainer_offset, k, vmSymbols::inheritedTenantContainer_name(), vmSymbols::tenantcontainer_signature());
+  compute_offset(_resourceContainer_offset, k, vmSymbols::resourceContainer_name(), vmSymbols::resourcecontainer_signature());
 }
 
 
@@ -974,6 +976,11 @@ void java_lang_Thread::set_thread(oop java_thread, JavaThread* thread) {
 
 oop java_lang_Thread::name(oop java_thread) {
   return java_thread->obj_field(_name_offset);
+}
+
+
+oop java_lang_Thread::resourceContainer(oop java_thread) {
+  return java_thread->obj_field(_resourceContainer_offset);
 }
 
 
@@ -3541,6 +3548,18 @@ long com_alibaba_wisp_engine_WispControlGroup_CpuLimit::get_cfsQuota(oop obj) {
   return obj->long_field(_cfsQuota_offset);
 }
 
+int com_alibaba_rcm_internal_AbstractResourceContainer::_id_offset = 0;
+
+long com_alibaba_rcm_internal_AbstractResourceContainer::get_id(oop obj) {
+  return obj->long_field(_id_offset);
+}
+
+void com_alibaba_rcm_internal_AbstractResourceContainer::compute_offsets() {
+  Klass *k = SystemDictionary::com_alibaba_rcm_internal_AbstractResourceContainer_klass();
+  assert(k != NULL, "AbstractResourceContainer is null");
+  compute_offset(_id_offset,      k,   vmSymbols::id_name(),     vmSymbols::long_signature());
+}
+
 void java_util_concurrent_locks_AbstractOwnableSynchronizer::initialize(TRAPS) {
   if (_owner_offset != 0) return;
 
@@ -3657,6 +3676,7 @@ void JavaClasses::compute_offsets() {
     com_alibaba_wisp_engine_WispTask::compute_offsets();
     com_alibaba_wisp_engine_WispControlGroup::compute_offsets();
     com_alibaba_wisp_engine_WispControlGroup_CpuLimit::compute_offsets();
+    com_alibaba_rcm_internal_AbstractResourceContainer::compute_offsets();
   }
 
   if(MultiTenant) {

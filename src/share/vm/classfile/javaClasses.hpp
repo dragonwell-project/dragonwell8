@@ -333,6 +333,7 @@ class java_lang_Thread : AllStatic {
   static int _park_blocker_offset;
   static int _park_event_offset ;
   static int _inheritedTenantContainer_offset;
+  static int _resourceContainer_offset;
 
   static void compute_offsets();
 
@@ -345,6 +346,7 @@ class java_lang_Thread : AllStatic {
   static void set_thread(oop java_thread, JavaThread* thread);
   // Name
   static oop name(oop java_thread);
+  static oop resourceContainer(oop java_thread);
   static void set_name(oop java_thread, oop name);
   // Priority
   static ThreadPriority priority(oop java_thread);
@@ -1560,6 +1562,14 @@ public:
   static long get_cfsPeriod(oop obj);
   static long get_cfsQuota(oop obj);
 
+  static void compute_offsets();
+};
+
+class com_alibaba_rcm_internal_AbstractResourceContainer: AllStatic {
+private:
+  static int _id_offset;
+public:
+  static long get_id(oop obj);
   static void compute_offsets();
 };
 

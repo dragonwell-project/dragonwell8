@@ -497,12 +497,17 @@ oop Coroutine::print_stack_header_on(outputStream* st) {
   oop thread_obj = NULL;
   st->print("\n - Coroutine [%p]", this);
   if (_wisp_task != NULL) {
+    long cgId = 0;
     thread_obj = com_alibaba_wisp_engine_WispTask::get_threadWrapper(_wisp_task);
     char buf[128] = "<cached>";
     if (thread_obj != NULL) {
       oop name = java_lang_Thread::name(thread_obj);
       if (name != NULL) {
         java_lang_String::as_utf8_string(name, buf, sizeof(buf));
+      }
+      oop container = java_lang_Thread::resourceContainer(thread_obj);
+      if (container != NULL) {
+        cgId = com_alibaba_rcm_internal_AbstractResourceContainer::get_id(container);
       }
     }
     // calculate wisp container's cfs_period and cfs_quota
@@ -526,10 +531,11 @@ oop Coroutine::print_stack_header_on(outputStream* st) {
     if (VerboseWisp) {
       st->print("es=%d jc=%d ", enable_steal_count(), java_call_counter());
     }
-    st->print("preempt=%d park=%d/%d cg=%ld/%ld ttr=%ld",
+    st->print("preempt=%d park=%d/%d containerId=%ld cg=%ld/%ld ttr=%ld",
         com_alibaba_wisp_engine_WispTask::get_preemptCount(_wisp_task),
         com_alibaba_wisp_engine_WispTask::get_jvmParkStatus(_wisp_task),
         com_alibaba_wisp_engine_WispTask::get_jdkParkStatus(_wisp_task),
+        cgId,
         cfsQuota / 1000, cfsPeriod / 1000,
         com_alibaba_wisp_engine_WispTask::get_ttr(_wisp_task));
   }
