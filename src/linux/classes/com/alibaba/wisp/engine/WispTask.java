@@ -426,15 +426,14 @@ public class WispTask implements Comparable<WispTask> {
                             carrier.schedule(false);
                         } else {
                             UA.park0(false, timeoutNano < 0 ? 0 : timeoutNano);
+                            // this timer is not scheduled by Wisp, requires a status update here
+                            statusUpdater.set(this, FREE);
                         }
                     } finally {
                         carrier.isInCritical = true;
                         if (timeoutNano > 0) {
                             carrier.cancelTimer();
                         }
-                        // we'may direct wakeup by current carrier
-                        // the statue may be still WAITING..
-                        statusUpdater.lazySet(this, FREE);
                     }
                     break;
                 } else if (s == PERMITTED &&
