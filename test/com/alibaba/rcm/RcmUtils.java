@@ -1,5 +1,3 @@
-package com.alibaba.rcm;
-
 import com.alibaba.rcm.Constraint;
 import com.alibaba.rcm.ResourceContainer;
 import com.alibaba.tenant.TenantConfiguration;

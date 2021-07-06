@@ -56,6 +56,7 @@ public class RcmMXBeanTest {
                 assertGreaterThan(resourceContainerMXBean.getCPUResourceConsumedAmount(id), 0L);
                 assertFalse(resourceContainerMXBean.getActiveContainerThreadIds(id).isEmpty());
             } else {
+                assertFalse(resourceContainerMXBean.getActiveContainerThreadIds(id).isEmpty());
                 assertTrue(resourceContainerMXBean.getConstraintsById(id).isEmpty());
             }
             if (resourceContainerMXBean.getCPUResourceLimitReachedCount(id) != 0)
