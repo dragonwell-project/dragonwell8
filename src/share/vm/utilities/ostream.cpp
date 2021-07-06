@@ -673,7 +673,10 @@ void test_snprintf(PrintFn pf, bool expect_count) {
 static int vsnprintf_wrapper(char* buf, size_t len, const char* fmt, ...) {
   va_list args;
   va_start(args, fmt);
+PRAGMA_DIAG_PUSH
+PRAGMA_FORMAT_NONLITERAL_IGNORED_INTERNAL
   int result = os::vsnprintf(buf, len, fmt, args);
+PRAGMA_DIAG_POP
   va_end(args);
   return result;
 }
