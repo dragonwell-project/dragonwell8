@@ -1454,7 +1454,7 @@ JNI_ENTRY(jobject, jni_NewObjectA(JNIEnv *env, jclass clazz, jmethodID methodID,
                                env, clazz, (uintptr_t) methodID);
 #endif /* USDT2 */
   jobject obj = NULL;
-  DT_RETURN_MARK(NewObjectA, jobject, (const jobject)obj);
+  DT_RETURN_MARK(NewObjectA, jobject, (const jobject&)obj);
 
   instanceOop i = alloc_object(clazz, CHECK_NULL);
   obj = JNIHandles::make_local(env, i);
