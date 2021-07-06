@@ -26,7 +26,7 @@
 #ifndef __THREADUTILITIES_H
 #define __THREADUTILITIES_H
 
-#import <pthread.h>
+#include <pthread.h>
 
 #import "AWT_debug.h"
 

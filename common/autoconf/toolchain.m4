@@ -257,7 +257,7 @@ AC_DEFUN_ONCE([TOOLCHAIN_PRE_DETECTION],
   # Before we locate the compilers, we need to sanitize the Xcode build environment
   if test "x$OPENJDK_TARGET_OS" = "xmacosx"; then
     # determine path to Xcode developer directory
-    # can be empty in which case all the tools will rely on a sane Xcode 4 installation
+    # can be empty in which case all the tools will rely on a sane Xcode installation
     SET_DEVELOPER_DIR=
 
     if test -n "$XCODE_PATH"; then
@@ -268,7 +268,7 @@ AC_DEFUN_ONCE([TOOLCHAIN_PRE_DETECTION],
     AC_MSG_CHECKING([Determining if we need to set DEVELOPER_DIR])
     if test -n "$DEVELOPER_DIR"; then
       if test ! -d "$DEVELOPER_DIR"; then
-        AC_MSG_ERROR([Xcode Developer path does not exist: $DEVELOPER_DIR, please provide a path to the Xcode 4 application bundle using --with-xcode-path])
+        AC_MSG_ERROR([Xcode Developer path does not exist: $DEVELOPER_DIR, please provide a path to the Xcode application bundle using --with-xcode-path])
       fi
       if test ! -f "$DEVELOPER_DIR"/usr/bin/xcodebuild; then
         AC_MSG_ERROR([Xcode Developer path is not valid: $DEVELOPER_DIR, it must point to Contents/Developer inside an Xcode application bundle])
@@ -287,14 +287,14 @@ AC_DEFUN_ONCE([TOOLCHAIN_PRE_DETECTION],
       AC_MSG_ERROR([The xcodebuild tool was not found, the Xcode command line tools are required to build on Mac OS X])
     fi
 
-    # Fail-fast: verify we're building on Xcode 4, we cannot build with Xcode 5 or later
+    # Fail-fast: verify we're building on a supported Xcode version
     XCODE_VERSION=`$XCODEBUILD -version | grep '^Xcode ' | sed 's/Xcode //'`
     XC_VERSION_PARTS=( ${XCODE_VERSION//./ } )
-    if test ! "${XC_VERSION_PARTS[[0]]}" = "4"; then
-      AC_MSG_ERROR([Xcode 4 is required to build JDK 8, the version found was $XCODE_VERSION. Use --with-xcode-path to specify the location of Xcode 4 or make Xcode 4 active by using xcode-select.])
+    if test "${XC_VERSION_PARTS[[0]]}" != "6" -a "${XC_VERSION_PARTS[[0]]}" != "9" -a "${XC_VERSION_PARTS[[0]]}" != "10" -a "${XC_VERSION_PARTS[[0]]}" != "11" -a "${XC_VERSION_PARTS[[0]]}" != "12" ; then
+      AC_MSG_ERROR([Xcode 6, 9-12 is required to build JDK 8, the version found was $XCODE_VERSION. Use --with-xcode-path to specify the location of Xcode or make Xcode active by using xcode-select.])
     fi
 
-    # Some versions of Xcode 5 command line tools install gcc and g++ as symlinks to
+    # Some versions of Xcode command line tools install gcc and g++ as symlinks to
     # clang and clang++, which will break the build. So handle that here if we need to.
     if test -L "/usr/bin/gcc" -o -L "/usr/bin/g++"; then
       # use xcrun to find the real gcc and add it's directory to PATH
@@ -317,7 +317,7 @@ AC_DEFUN_ONCE([TOOLCHAIN_PRE_DETECTION],
 
     # Perform a basic sanity test
     if test ! -f "$SDKPATH/System/Library/Frameworks/Foundation.framework/Headers/Foundation.h"; then
-      AC_MSG_ERROR([Unable to find required framework headers, provide a valid path to Xcode 4 using --with-xcode-path])
+      AC_MSG_ERROR([Unable to find required framework headers, provide a valid path to Xcode using --with-xcode-path])
     fi
 
     # if SDKPATH is non-empty then we need to add -isysroot and -iframework for gcc and g++

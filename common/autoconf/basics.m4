@@ -575,7 +575,7 @@ AC_DEFUN_ONCE([BASIC_SETUP_DEVKIT],
 
   # Xcode version will be validated later
   AC_ARG_WITH([xcode-path], [AS_HELP_STRING([--with-xcode-path],
-      [explicit path to Xcode 4 (generally for building on 10.9 and later)])],
+      [explicit path to Xcode application (generally for building on 10.9 and later)])],
       [XCODE_PATH=$with_xcode_path]
   )
 
