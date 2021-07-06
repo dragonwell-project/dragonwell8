@@ -26,6 +26,7 @@
 #import "AppleScriptExecutionContext.h"
 
 #import <Carbon/Carbon.h>
+#import <pthread.h>
 
 #import "AS_NS_ConversionUtils.h"
 
