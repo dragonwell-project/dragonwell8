@@ -409,6 +409,7 @@ LIBJLI_CFLAGS += $(OPENJDK_TARGET_CPU_JLI_CFLAGS)
 
 ifeq ($(OPENJDK_TARGET_OS), macosx)
   LIBJLI_CFLAGS += -DPACKAGE_PATH=\"$(PACKAGE_PATH)\"
+  LIBJLI_CFLAGS += -mmacosx-version-min=$(MACOSX_VERSION_MIN)
 endif
 
 ifneq ($(USE_EXTERNAL_LIBZ), true)
@@ -442,7 +443,7 @@ $(eval $(call SetupNativeCompilation,BUILD_LIBJLI, \
         $(call SET_SHARED_LIBRARY_ORIGIN), \
     LDFLAGS_linux := $(call SET_SHARED_LIBRARY_ORIGIN,/..), \
     LDFLAGS_solaris := $(call SET_SHARED_LIBRARY_ORIGIN,/..), \
-    LDFLAGS_macosx := -framework Cocoa -framework Security -framework ApplicationServices, \
+    LDFLAGS_macosx := -framework Cocoa -framework Security -framework ApplicationServices -mmacosx-version-min=$(MACOSX_VERSION_MIN), \
     LDFLAGS_SUFFIX_solaris := $(LIBZ) $(LIBDL) -lc, \
     LDFLAGS_SUFFIX_linux := $(LIBZ) $(LIBDL) -lc -lpthread, \
     LDFLAGS_SUFFIX_aix := $(LIBZ) $(LIBDL),\
@@ -503,7 +504,7 @@ else ifeq ($(OPENJDK_TARGET_OS), macosx)
       LANG := C, \
       OPTIMIZATION := HIGH, \
       CFLAGS := $(CFLAGS_JDKLIB) $(LIBJLI_CFLAGS), \
-      LDFLAGS := -nostdlib -r, \
+      LDFLAGS := -nostdlib -r -mmacosx-version-min=$(MACOSX_VERSION_MIN), \
       OBJECT_DIR := $(JDK_OUTPUTDIR)/objs/libjli_static, \
       DEBUG_SYMBOLS := $(DEBUG_ALL_BINARIES)))
 

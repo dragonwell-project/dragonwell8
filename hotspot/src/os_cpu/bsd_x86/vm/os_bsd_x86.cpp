@@ -846,7 +846,7 @@ static void current_stack_region(address * bottom, size_t * size) {
   *size = pthread_get_stacksize_np(self);
   // workaround for OS X 10.9.0 (Mavericks)
   // pthread_get_stacksize_np returns 128 pages even though the actual size is 2048 pages
-  if (pthread_main_np() == 1) {
+  if (::pthread_main_np() == 1) {
     if ((*size) < (DEFAULT_MAIN_THREAD_STACK_PAGES * (size_t)getpagesize())) {
       char kern_osrelease[256];
       size_t kern_osrelease_size = sizeof(kern_osrelease);
