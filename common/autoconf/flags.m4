@@ -516,6 +516,11 @@ AC_DEFUN_ONCE([FLAGS_SETUP_COMPILER_FLAGS_FOR_JDK],
         ;;
     esac
     TOOLCHAIN_CHECK_COMPILER_VERSION(6, FLAGS_SETUP_GCC6_COMPILER_FLAGS)
+    # Check that the compiler supports -Wformat-overflow flag
+    # Set USE_FORMAT_OVERFLOW to 1 if it does.
+    FLAGS_COMPILER_CHECK_ARGUMENTS([-Wformat-overflow -Werror],
+                                   [USE_FORMAT_OVERFLOW="1"], [USE_FORMAT_OVERFLOW="0"])
+    AC_SUBST([USE_FORMAT_OVERFLOW])
 
     # Check that the compiler supports -ffp-contract=off flag
     # Set FDLIBM_CFLAGS to -ffp-contract=off if it does.
@@ -751,7 +756,7 @@ AC_DEFUN_ONCE([FLAGS_SETUP_COMPILER_FLAGS_FOR_JDK],
     fi
     LDFLAGS_JDKEXE="${LDFLAGS_JDK} /STACK:$LDFLAGS_STACK_SIZE"
   else
-    if test "x$TOOLCHAIN_TYPE" = xgcc -o test "x$TOOLCHAIN_TYPE" = xclang; then
+    if test "x$TOOLCHAIN_TYPE" = xgcc -o "x$TOOLCHAIN_TYPE" = xclang; then
       # If this is a --hash-style=gnu system, use --hash-style=both, why?
       # We have previously set HAS_GNU_HASH if this is the case
       if test -n "$HAS_GNU_HASH"; then
