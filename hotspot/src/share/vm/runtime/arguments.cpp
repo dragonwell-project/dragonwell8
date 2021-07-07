@@ -3314,6 +3314,12 @@ jint Arguments::parse_each_vm_init_arg(const JavaVMInitArgs* args,
     } else if (match_option(option, "-XX:+DisplayVMOutputToStdout", &tail)) {
       FLAG_SET_CMDLINE(bool, DisplayVMOutputToStderr, false);
       FLAG_SET_CMDLINE(bool, DisplayVMOutputToStdout, true);
+    } else if (match_option(option, "-XX:+ErrorFileToStderr", &tail)) {
+      FLAG_SET_CMDLINE(bool, ErrorFileToStdout, false);
+      FLAG_SET_CMDLINE(bool, ErrorFileToStderr, true);
+    } else if (match_option(option, "-XX:+ErrorFileToStdout", &tail)) {
+      FLAG_SET_CMDLINE(bool, ErrorFileToStderr, false);
+      FLAG_SET_CMDLINE(bool, ErrorFileToStdout, true);
     } else if (match_option(option, "-XX:+ExtendedDTraceProbes", &tail)) {
 #if defined(DTRACE_ENABLED)
       FLAG_SET_CMDLINE(bool, ExtendedDTraceProbes, true);

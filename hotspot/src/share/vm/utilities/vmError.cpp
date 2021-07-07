@@ -984,12 +984,16 @@ void VMError::report_and_die() {
     }
   }
 
-  // print to screen
+  // Part 1: print an abbreviated version (the '#' section) to stdout.
   if (!out_done) {
     first_error->_verbose = false;
 
-    staticBufferStream sbs(buffer, sizeof(buffer), &out);
-    first_error->report(&sbs);
+    // Suppress this output if we plan to print Part 2 to stdout too.
+    // No need to have the "#" section twice.
+    if (!(ErrorFileToStdout && out.fd() == 1)) {
+      staticBufferStream sbs(buffer, sizeof(buffer), &out);
+      first_error->report(&sbs);
+    }
 
     out_done = true;
 
@@ -997,6 +1001,7 @@ void VMError::report_and_die() {
     first_error->_current_step_info = "";   // reset current_step string
   }
 
+  // Part 2: print a full error log file (optionally to stdout or stderr).
   // print to error log file
   if (!log_done) {
     first_error->_verbose = true;
@@ -1004,19 +1009,26 @@ void VMError::report_and_die() {
     // see if log file is already open
     if (!log.is_open()) {
       // open log file
-      int fd = prepare_log_file(ErrorFile, "hs_err_pid%p.log", buffer, sizeof(buffer));
-      if (fd != -1) {
-        out.print_raw("# An error report file with more information is saved as:\n# ");
-        out.print_raw_cr(buffer);
-
-        log.set_fd(fd);
+      int fd;
+      if (ErrorFileToStdout) {
+        fd = 1;
+      } else if (ErrorFileToStderr) {
+        fd = 2;
       } else {
-        out.print_raw_cr("# Can not save log file, dump to screen..");
-        log.set_fd(defaultStream::output_fd());
-        /* Error reporting currently needs dumpfile.
-         * Maybe implement direct streaming in the future.*/
-        transmit_report_done = true;
+        fd = prepare_log_file(ErrorFile, "hs_err_pid%p.log", buffer, sizeof(buffer));
+        if (fd != -1) {
+          out.print_raw("# An error report file with more information is saved as:\n# ");
+          out.print_raw_cr(buffer);
+
+        } else {
+          out.print_raw_cr("# Can not save log file, dump to screen..");
+          fd = defaultStream::output_fd();
+          /* Error reporting currently needs dumpfile.
+           * Maybe implement direct streaming in the future.*/
+          transmit_report_done = true;
+        }
       }
+      log.set_fd(fd);
     }
 
     staticBufferStream sbs(buffer, O_BUFLEN, &log);
@@ -1034,7 +1046,7 @@ void VMError::report_and_die() {
       }
     }
 
-    if (log.fd() != defaultStream::output_fd()) {
+    if (log.fd() > 3) {
       close(log.fd());
     }
 
