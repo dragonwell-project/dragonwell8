@@ -4400,7 +4400,7 @@ VS_SDK_PLATFORM_NAME_2017=
 #CUSTOM_AUTOCONF_INCLUDE
 
 # Do not change or remove the following line, it is needed for consistency checks:
-DATE_WHEN_GENERATED=1625589750
+DATE_WHEN_GENERATED=1625670527
 
 ###############################################################################
 #
@@ -54679,6 +54679,11 @@ fi
 
 # After AC_OUTPUT, we need to do final work
 
+
+  # Try to move the config.log file to the output directory.
+  if test -e ./config.log; then
+    $MV -f ./config.log "$OUTPUT_ROOT/config.log" 2> /dev/null
+  fi
 
   # Rotate our log file (configure.log)
   if test -e "$OUTPUT_ROOT/configure.log.old"; then

@@ -933,6 +933,11 @@ AC_DEFUN_ONCE([BASIC_TEST_USABILITY_ISSUES],
 # Code to run after AC_OUTPUT
 AC_DEFUN_ONCE([BASIC_POST_CONFIG_OUTPUT],
 [
+  # Try to move the config.log file to the output directory.
+  if test -e ./config.log; then
+    $MV -f ./config.log "$OUTPUT_ROOT/config.log" 2> /dev/null
+  fi
+
   # Rotate our log file (configure.log)
   if test -e "$OUTPUT_ROOT/configure.log.old"; then
     $RM -f "$OUTPUT_ROOT/configure.log.old"
