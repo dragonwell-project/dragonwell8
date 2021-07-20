@@ -309,8 +309,9 @@ public class WispEngine extends AbstractExecutorService {
             }
 
             @Override
-            public boolean tryStartThreadAsWisp(Thread thread, Runnable target) {
-                return ThreadAsWisp.tryStart(thread, target);
+            public boolean tryStartThreadAsWisp(Thread thread, Runnable target, long stackSize) {
+                // Thread uses 0 as the default stack size.
+                return ThreadAsWisp.tryStart(thread, target, stackSize == 0 ? WispConfiguration.STACK_SIZE : stackSize);
             }
 
             @Override
@@ -529,7 +530,7 @@ public class WispEngine extends AbstractExecutorService {
         public void run() {
             WispCarrier.current().runTaskInternal(
                     wispControlGroup == null ? new ShutdownEngine() : new ShutdownControlGroup(wispControlGroup),
-                    WispTask.SHUTDOWN_TASK_NAME, null, null);
+                    WispTask.SHUTDOWN_TASK_NAME, null, null, WispConfiguration.STACK_SIZE);
         }
     }
 
@@ -638,7 +639,7 @@ public class WispEngine extends AbstractExecutorService {
 
     @Override
     public void execute(Runnable command) {
-        startAsThread(command, "execute task", null);
+        startAsThread(command, "execute task", null, WispConfiguration.STACK_SIZE);
     }
 
     public List<Long> getWispCarrierIds() {
@@ -669,9 +670,9 @@ public class WispEngine extends AbstractExecutorService {
         });
     }
 
-    void startAsThread(Runnable target, String name, Thread thread) {
+    void startAsThread(Runnable target, String name, Thread thread, long stackSize) {
         scheduler.execute(new TaskDispatcher(WispCarrier.current().current.ctxClassLoader,
-                target, name, thread));
+                target, name, thread, stackSize));
     }
 
     private static native void registerNatives();

@@ -27,13 +27,15 @@ class TaskDispatcher implements StealAwareRunnable {
     private final Runnable target;
     private final String name;
     private final Thread thread;
+    private final long stackSize;
 
-    TaskDispatcher(ClassLoader ctxClassLoader, Runnable target, String name, Thread thread) {
+    TaskDispatcher(ClassLoader ctxClassLoader, Runnable target, String name, Thread thread, long stackSize) {
         this.ctxClassLoader = ctxClassLoader;
         this.enqueueTime = WispEngine.getNanoTime();
         this.target = target;
         this.name = name;
         this.thread = thread;
+        this.stackSize = stackSize;
     }
 
     @Override
@@ -41,6 +43,7 @@ class TaskDispatcher implements StealAwareRunnable {
         WispCarrier current = WispCarrier.current();
         current.countEnqueueTime(enqueueTime);
         current.runTaskInternal(target, name, thread,
-                ctxClassLoader == null ? current.current.ctxClassLoader : ctxClassLoader);
+                ctxClassLoader == null ? current.current.ctxClassLoader : ctxClassLoader,
+                this.stackSize);
     }
 }

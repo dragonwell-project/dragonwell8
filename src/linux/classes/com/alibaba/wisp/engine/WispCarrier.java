@@ -90,7 +90,7 @@ final class WispCarrier implements Comparable<WispCarrier> {
         CoroutineSupport cs = WispEngine.JLA.getCoroutineSupport(thread);
         current = threadTask = new WispTask(this,
                 cs == null ? null : cs.threadCoroutine(),
-                cs != null, true);
+                cs != null, true, WispConfiguration.STACK_SIZE);
         if (cs == null) { // fake carrier used in jni attach
             threadTask.setThreadWrapper(thread);
         } else {
@@ -128,7 +128,7 @@ final class WispCarrier implements Comparable<WispCarrier> {
 
     // ----------------------------------------------- lifecycle
 
-    final WispTask runTaskInternal(Runnable target, String name, Thread thread, ClassLoader ctxLoader) {
+    final WispTask runTaskInternal(Runnable target, String name, Thread thread, ClassLoader ctxLoader, long stackSize) {
         if (engine.hasBeenShutdown && !WispTask.SHUTDOWN_TASK_NAME.equals(name)) {
             throw new RejectedExecutionException("Wisp carrier has been shutdown");
         }
@@ -138,8 +138,8 @@ final class WispCarrier implements Comparable<WispCarrier> {
         WispTask wispTask;
         try {
             counter.incrementCreateTaskCount();
-            if ((wispTask = getTaskFromCache()) == null) {
-                wispTask = new WispTask(this, null, true, false);
+            if ((wispTask = getTaskFromCache(stackSize)) == null) {
+                wispTask = new WispTask(this, null, true, false, stackSize);
                 WispTask.trackTask(wispTask);
             }
             wispTask.reset(target, name, thread, ctxLoader);
@@ -185,9 +185,15 @@ final class WispCarrier implements Comparable<WispCarrier> {
     }
 
     /**
+     * @param stackSize of expected cached task,
+     *                  currently only default value ({@link WispConfiguration.STACK_SIZE}) is supported.
+     *                  see also returnTaskToCache(task)
      * @return task from global cached theScheduler
      */
-    private WispTask getTaskFromCache() {
+    private WispTask getTaskFromCache(long stackSize) {
+        if (stackSize != WispConfiguration.STACK_SIZE) {
+            return null;
+        }
         assert WispCarrier.current() == this;
         if (!taskCache.isEmpty()) {
             return taskCache.remove(taskCache.size() - 1);
@@ -214,6 +220,12 @@ final class WispCarrier implements Comparable<WispCarrier> {
      * cache will return false.
      */
     private boolean returnTaskToCache(WispTask task) {
+        // if the stack size of this task is not default,
+        // do not cache and reuse it.
+        // see also getTaskFromCache(long)
+        if (task.stackSize != WispConfiguration.STACK_SIZE) {
+            return false;
+        }
         // reuse exited wispTasks from shutdown wispEngine is very tricky, so we'd better not return
         // these tasks to global cache
         if (taskCache.size() > WispConfiguration.WISP_ENGINE_TASK_CACHE_SIZE && !engine.hasBeenShutdown) {

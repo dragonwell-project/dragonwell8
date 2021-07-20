@@ -167,12 +167,19 @@ public class WispTask implements Comparable<WispTask> {
 
     WispControlGroup controlGroup;
 
+    final long stackSize;
+
     WispTask(WispCarrier carrier, Coroutine ctx, boolean isRealTask, boolean isThreadTask) {
+        this(carrier, ctx, isRealTask, isThreadTask, WispConfiguration.STACK_SIZE);
+    }
+
+    WispTask(WispCarrier carrier, Coroutine ctx, boolean isRealTask, boolean isThreadTask, long stackSize) {
         this.isThreadTask = isThreadTask;
         this.id = isRealTask ? idGenerator.addAndGet(1) : -1;
+        this.stackSize = stackSize;
         setCarrier(carrier);
         if (isRealTask) {
-            this.ctx = ctx != null ? ctx : new CacheableCoroutine(WispConfiguration.STACK_SIZE);
+            this.ctx = ctx != null ? ctx : new CacheableCoroutine(this.stackSize);
             this.ctx.setWispTask(id, this, carrier);
         } else {
             this.ctx = null;

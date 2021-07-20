@@ -75,7 +75,7 @@ public interface WispEngineAccess {
 
     boolean isAllThreadAsWisp();
 
-    boolean tryStartThreadAsWisp(Thread thread, Runnable target);
+    boolean tryStartThreadAsWisp(Thread thread, Runnable target, long stackSize);
 
     boolean useDirectSelectorWakeup();
 
