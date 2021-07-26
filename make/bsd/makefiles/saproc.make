@@ -78,8 +78,10 @@ else
     ifneq ($(SDKPATH),)
       SA_SYSROOT_FLAGS += -isysroot "$(SDKPATH)" -iframework"$(SDKPATH)/System/Library/Frameworks"
     endif
-    # always needed, even if SDKPATH is empty
-    SA_SYSROOT_FLAGS += -F"$(SDKPATH)/System/Library/Frameworks/JavaVM.framework/Frameworks"
+    ifneq ($(wildcard "$(SDKPATH)/System/Library/Frameworks/JavaVM.framework/Frameworks"), "")
+      # always needed, even if SDKPATH is empty
+      SA_SYSROOT_FLAGS += -F"$(SDKPATH)/System/Library/Frameworks/JavaVM.framework/Frameworks"
+    endif
   else
     SASRCFILES = $(SASRCDIR)/StubDebuggerLocal.c
     SALIBS = 

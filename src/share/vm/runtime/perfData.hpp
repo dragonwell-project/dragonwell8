@@ -288,7 +288,7 @@ class PerfData : public CHeapObj<mtInternal> {
     void *_valuep;
 
     PerfData(CounterNS ns, const char* name, Units u, Variability v);
-    ~PerfData();
+    virtual ~PerfData();
 
     // create the entry for the PerfData item in the PerfData memory region.
     // this region is maintained separately from the PerfData objects to

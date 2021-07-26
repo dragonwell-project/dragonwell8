@@ -1,5 +1,5 @@
 #
-# Copyright (c) 1999, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 1999, 2021, Oracle and/or its affiliates. All rights reserved.
 # Copyright (c) 2012, 2020 SAP SE. All rights reserved.
 # DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 #
@@ -329,9 +329,9 @@ $(LIBJVM): $(LIBJVM.o) $(LIBJVM_MAPFILE) $(LD_SCRIPT)
 #           fi 							        \
 #	}
 
-#ifeq ($(ENABLE_FULL_DEBUG_SYMBOLS),1)
-#	$(QUIETLY) $(OBJCOPY) --only-keep-debug $@ $(LIBJVM_DEBUGINFO)
-#	$(QUIETLY) $(OBJCOPY) --add-gnu-debuglink=$(LIBJVM_DEBUGINFO) $@
+ifeq ($(ENABLE_FULL_DEBUG_SYMBOLS),1)
+  # AIX produces .debuginfo from copy of -g compiled object prior to strip
+	$(QUIETLY) $(CP) $@ $(LIBJVM_DEBUGINFO)
 #    ifeq ($(STRIP_POLICY),all_strip)
 #	$(QUIETLY) $(STRIP) $@
 #    else
@@ -340,11 +340,13 @@ $(LIBJVM): $(LIBJVM.o) $(LIBJVM_MAPFILE) $(LD_SCRIPT)
 #      # implied else here is no stripping at all
 #      endif
 #    endif
-#    ifeq ($(ZIP_DEBUGINFO_FILES),1)
-#	$(ZIPEXE) -q -y $(LIBJVM_DIZ) $(LIBJVM_DEBUGINFO)
-#	$(RM) $(LIBJVM_DEBUGINFO)
-#  endif
-#endif
+    ifneq ($(STRIP_POLICY),no_strip)
+      ifeq ($(ZIP_DEBUGINFO_FILES),1)
+	$(ZIPEXE) -q -y $(LIBJVM_DIZ) $(LIBJVM_DEBUGINFO)
+	$(RM) $(LIBJVM_DEBUGINFO)
+      endif
+    endif
+endif
 
 DEST_SUBDIR        = $(JDK_LIBDIR)/$(VM_SUBDIR)
 DEST_JVM           = $(DEST_SUBDIR)/$(LIBJVM)

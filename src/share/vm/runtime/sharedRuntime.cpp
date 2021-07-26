@@ -716,6 +716,7 @@ address SharedRuntime::compute_compiled_exc_handler(nmethod* nm, address ret_pc,
 #endif
 
   if (t == NULL) {
+    ttyLocker ttyl;
     tty->print_cr("MISSING EXCEPTION HANDLER for pc " INTPTR_FORMAT " and handler bci %d", ret_pc, handler_bci);
     tty->print_cr("   Exception:");
     exception->print();
@@ -2709,8 +2710,8 @@ void AdapterHandlerLibrary::create_native_wrapper(methodHandle method) {
     BufferBlob*  buf = buffer_blob(); // the temporary code buffer in CodeCache
     if (buf != NULL) {
       CodeBuffer buffer(buf);
-      double locs_buf[20];
-      buffer.insts()->initialize_shared_locs((relocInfo*)locs_buf, sizeof(locs_buf) / sizeof(relocInfo));
+      struct { double data[20]; } locs_buf;
+      buffer.insts()->initialize_shared_locs((relocInfo*)&locs_buf, sizeof(locs_buf) / sizeof(relocInfo));
       MacroAssembler _masm(&buffer);
 
       // Fill in the signature array, for the calling-convention call.
