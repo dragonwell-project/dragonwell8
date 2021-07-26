@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2011, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -86,6 +86,7 @@ public class Providers {
         // Note: SunEC *is* in a signed JAR file, but it's not signed
         // by EC itself. So it's still safe to be listed here.
         "sun.security.ec.SunEC",
+        "com.sun.crypto.provider.SunJCE",
         BACKUP_PROVIDER_CLASSNAME,
     };
 

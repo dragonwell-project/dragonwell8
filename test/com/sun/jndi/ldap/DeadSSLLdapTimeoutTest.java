@@ -67,7 +67,8 @@ class DeadServerTimeoutSSLTest implements Callable {
     public void performOp(InitialContext ctx) throws NamingException {}
 
     public void handleNamingException(NamingException e, long start, long end) {
-        if (e.getCause() instanceof SocketTimeoutException) {
+        if (e.getCause() instanceof SocketTimeoutException
+                || e.getCause().getCause() instanceof SocketTimeoutException) {
             // SSL connect will timeout via readReply using
             // SocketTimeoutException
             e.printStackTrace();

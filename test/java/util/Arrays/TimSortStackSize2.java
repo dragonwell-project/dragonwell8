@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,22 +24,64 @@
 /*
  * @test
  * @bug 8072909
- * @run main/othervm -Xms385m TimSortStackSize2 67108864
  * @summary Test TimSort stack size on big arrays
- * big tests not for regular execution on all platforms:
- * run main/othervm -Xmx8g TimSortStackSize2 1073741824
- * run main/othervm -Xmx16g TimSortStackSize2 2147483644
+ * @key intermittent
+ * @library /lib/testlibrary /lib
+ * @build jdk.testlibrary.*
+ * @build TimSortStackSize2
+ * @run driver ClassFileInstaller sun.hotspot.WhiteBox
+ *                                sun.hotspot.WhiteBox$WhiteBoxPermission
+ * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions
+ *     -XX:+WhiteBoxAPI TimSortStackSize2
  */
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Comparator;
 import java.util.List;
 import java.util.function.Consumer;
+
+import jdk.testlibrary.OutputAnalyzer;
+import jdk.testlibrary.ProcessTools;
+import jdk.testlibrary.Utils;
+import sun.hotspot.WhiteBox;
 
 public class TimSortStackSize2 {
 
     public static void main(String[] args) {
-        int lengthOfTest = Integer.parseInt(args[0]);
+        if ( args == null || args.length == 0 ){
+            startMeWithArgs();
+        } else {
+            doTestOfTwoTimSorts(Integer.parseInt(args[0]));
+        }
+    }
+
+    private static void startMeWithArgs(){
+        /*
+         * big tests not for regular execution on all platforms:
+         * run main/othervm -Xmx8g TimSortStackSize2 1073741824
+         * run main/othervm -Xmx16g TimSortStackSize2 2147483644
+         */
+        try {
+            Boolean compressedOops = WhiteBox.getWhiteBox()
+                                             .getBooleanVMFlag("UseCompressedOops");
+            long memory = (compressedOops == null || compressedOops) ? 385 : 770;
+            final String xmsValue = "-Xms" +     memory + "m";
+            final String xmxValue = "-Xmx" + 2 * memory + "m";
+
+            System.out.printf("compressedOops: %s; Test will be started with \"%s %s\"%n",
+                              compressedOops, xmsValue, xmxValue);
+            OutputAnalyzer output = ProcessTools.executeTestJvm(xmsValue,
+                                                                xmxValue,
+                                                                "TimSortStackSize2",
+                                                                "67108864");
+            System.out.println(output.getOutput());
+            output.shouldHaveExitValue(0);
+        } catch (Throwable e) {
+            e.printStackTrace();
+            throw new RuntimeException(e);
+        }
+    }
+
+    private static void doTestOfTwoTimSorts(final int lengthOfTest){
         boolean passed = doTest("TimSort", lengthOfTest,
             (Integer [] a) -> Arrays.sort(a));
         passed = doTest("ComparableTimSort", lengthOfTest, (Integer [] a) ->
