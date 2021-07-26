@@ -149,8 +149,27 @@ AC_DEFUN_ONCE([TOOLCHAIN_DETERMINE_TOOLCHAIN_TYPE],
   # Use indirect variable referencing
   toolchain_var_name=VALID_TOOLCHAINS_$OPENJDK_BUILD_OS
   VALID_TOOLCHAINS=${!toolchain_var_name}
-  # First toolchain type in the list is the default
-  DEFAULT_TOOLCHAIN=${VALID_TOOLCHAINS%% *}
+ 
+  if test "x$OPENJDK_TARGET_OS" = xmacosx; then
+    # On Mac OS X, default toolchain to clang after Xcode 5
+    XCODE_VERSION_OUTPUT=`xcodebuild -version 2>&1 | $HEAD -n 1`
+    $ECHO "$XCODE_VERSION_OUTPUT" | $GREP "Xcode " > /dev/null
+    if test $? -ne 0; then
+      AC_MSG_ERROR([Failed to determine Xcode version.])
+    fi
+    XCODE_MAJOR_VERSION=`$ECHO $XCODE_VERSION_OUTPUT | \
+        $SED -e 's/^Xcode \(@<:@1-9@:>@@<:@0-9.@:>@*\)/\1/' | \
+        $CUT -f 1 -d .`
+    AC_MSG_NOTICE([Xcode major version: $XCODE_MAJOR_VERSION])
+    if test $XCODE_MAJOR_VERSION -ge 5; then
+        DEFAULT_TOOLCHAIN="clang"
+    else
+        DEFAULT_TOOLCHAIN="gcc"
+    fi
+  else
+    # First toolchain type in the list is the default
+    DEFAULT_TOOLCHAIN=${VALID_TOOLCHAINS%% *}
+  fi
 
   if test "x$with_toolchain_type" = xlist; then
     # List all toolchains
@@ -238,7 +257,7 @@ AC_DEFUN_ONCE([TOOLCHAIN_PRE_DETECTION],
   # Before we locate the compilers, we need to sanitize the Xcode build environment
   if test "x$OPENJDK_TARGET_OS" = "xmacosx"; then
     # determine path to Xcode developer directory
-    # can be empty in which case all the tools will rely on a sane Xcode 4 installation
+    # can be empty in which case all the tools will rely on a sane Xcode installation
     SET_DEVELOPER_DIR=
 
     if test -n "$XCODE_PATH"; then
@@ -249,7 +268,7 @@ AC_DEFUN_ONCE([TOOLCHAIN_PRE_DETECTION],
     AC_MSG_CHECKING([Determining if we need to set DEVELOPER_DIR])
     if test -n "$DEVELOPER_DIR"; then
       if test ! -d "$DEVELOPER_DIR"; then
-        AC_MSG_ERROR([Xcode Developer path does not exist: $DEVELOPER_DIR, please provide a path to the Xcode 4 application bundle using --with-xcode-path])
+        AC_MSG_ERROR([Xcode Developer path does not exist: $DEVELOPER_DIR, please provide a path to the Xcode application bundle using --with-xcode-path])
       fi
       if test ! -f "$DEVELOPER_DIR"/usr/bin/xcodebuild; then
         AC_MSG_ERROR([Xcode Developer path is not valid: $DEVELOPER_DIR, it must point to Contents/Developer inside an Xcode application bundle])
@@ -268,14 +287,14 @@ AC_DEFUN_ONCE([TOOLCHAIN_PRE_DETECTION],
       AC_MSG_ERROR([The xcodebuild tool was not found, the Xcode command line tools are required to build on Mac OS X])
     fi
 
-    # Fail-fast: verify we're building on Xcode 4, we cannot build with Xcode 5 or later
+    # Fail-fast: verify we're building on a supported Xcode version
     XCODE_VERSION=`$XCODEBUILD -version | grep '^Xcode ' | sed 's/Xcode //'`
     XC_VERSION_PARTS=( ${XCODE_VERSION//./ } )
-    if test ! "${XC_VERSION_PARTS[[0]]}" = "4"; then
-      AC_MSG_ERROR([Xcode 4 is required to build JDK 8, the version found was $XCODE_VERSION. Use --with-xcode-path to specify the location of Xcode 4 or make Xcode 4 active by using xcode-select.])
+    if test "${XC_VERSION_PARTS[[0]]}" != "6" -a "${XC_VERSION_PARTS[[0]]}" != "9" -a "${XC_VERSION_PARTS[[0]]}" != "10" -a "${XC_VERSION_PARTS[[0]]}" != "11" -a "${XC_VERSION_PARTS[[0]]}" != "12" ; then
+      AC_MSG_ERROR([Xcode 6, 9-12 is required to build JDK 8, the version found was $XCODE_VERSION. Use --with-xcode-path to specify the location of Xcode or make Xcode active by using xcode-select.])
     fi
 
-    # Some versions of Xcode 5 command line tools install gcc and g++ as symlinks to
+    # Some versions of Xcode command line tools install gcc and g++ as symlinks to
     # clang and clang++, which will break the build. So handle that here if we need to.
     if test -L "/usr/bin/gcc" -o -L "/usr/bin/g++"; then
       # use xcrun to find the real gcc and add it's directory to PATH
@@ -298,7 +317,7 @@ AC_DEFUN_ONCE([TOOLCHAIN_PRE_DETECTION],
 
     # Perform a basic sanity test
     if test ! -f "$SDKPATH/System/Library/Frameworks/Foundation.framework/Headers/Foundation.h"; then
-      AC_MSG_ERROR([Unable to find required framework headers, provide a valid path to Xcode 4 using --with-xcode-path])
+      AC_MSG_ERROR([Unable to find required framework headers, provide a valid path to Xcode using --with-xcode-path])
     fi
 
     # if SDKPATH is non-empty then we need to add -isysroot and -iframework for gcc and g++
@@ -308,12 +327,14 @@ AC_DEFUN_ONCE([TOOLCHAIN_PRE_DETECTION],
       CXXFLAGS_JDK="${CXXFLAGS_JDK} -isysroot \"$SDKPATH\" -iframework\"$SDKPATH/System/Library/Frameworks\""
       LDFLAGS_JDK="${LDFLAGS_JDK} -isysroot \"$SDKPATH\" -iframework\"$SDKPATH/System/Library/Frameworks\""
     fi
-    
-    # These always need to be set, or we can't find the frameworks embedded in JavaVM.framework
-    # setting this here means it doesn't have to be peppered throughout the forest
-    CFLAGS_JDK="$CFLAGS_JDK -F\"$SDKPATH/System/Library/Frameworks/JavaVM.framework/Frameworks\""
-    CXXFLAGS_JDK="$CXXFLAGS_JDK -F\"$SDKPATH/System/Library/Frameworks/JavaVM.framework/Frameworks\""
-    LDFLAGS_JDK="$LDFLAGS_JDK -F\"$SDKPATH/System/Library/Frameworks/JavaVM.framework/Frameworks\""
+
+    if test -d "$SDKPATH/System/Library/Frameworks/JavaVM.framework/Frameworks" ; then
+      # These always need to be set on macOS 10.X, or we can't find the frameworks embedded in JavaVM.framework
+      # set this here so it doesn't have to be peppered throughout the forest
+      CFLAGS_JDK="$CFLAGS_JDK -F\"$SDKPATH/System/Library/Frameworks/JavaVM.framework/Frameworks\""
+      CXXFLAGS_JDK="$CXXFLAGS_JDK -F\"$SDKPATH/System/Library/Frameworks/JavaVM.framework/Frameworks\""
+      LDFLAGS_JDK="$LDFLAGS_JDK -F\"$SDKPATH/System/Library/Frameworks/JavaVM.framework/Frameworks\""
+    fi
   fi
 
   # For solaris we really need solaris tools, and not the GNU equivalent.
@@ -745,9 +766,14 @@ AC_DEFUN_ONCE([TOOLCHAIN_SETUP_BUILD_COMPILERS],
     # FIXME: we should list the discovered compilers as an exclude pattern!
     # If we do that, we can do this detection before POST_DETECTION, and still
     # find the build compilers in the tools dir, if needed.
-    BASIC_PATH_PROGS(BUILD_CC, [cl cc gcc])
+    if test "x$OPENJDK_BUILD_OS" = xmacosx; then
+      BASIC_PATH_PROGS(BUILD_CC, [clang cl cc gcc])
+      BASIC_PATH_PROGS(BUILD_CXX, [clang++ cl CC g++])
+    else
+      BASIC_REQUIRE_PROGS(BUILD_CC, [cl cc gcc])
+      BASIC_REQUIRE_PROGS(BUILD_CXX, [cl CC g++])
+    fi
     BASIC_FIXUP_EXECUTABLE(BUILD_CC)
-    BASIC_PATH_PROGS(BUILD_CXX, [cl CC g++])
     BASIC_FIXUP_EXECUTABLE(BUILD_CXX)
     BASIC_PATH_PROGS(BUILD_LD, ld)
     BASIC_FIXUP_EXECUTABLE(BUILD_LD)
