@@ -38,6 +38,7 @@ import javax.xml.transform.TransformerException;
 import com.sun.org.apache.xml.internal.serializer.utils.MsgKey;
 import com.sun.org.apache.xml.internal.serializer.utils.Utils;
 import com.sun.org.apache.xml.internal.serializer.utils.WrappedRuntimeException;
+import jdk.xml.internal.JdkXmlUtils;
 import org.w3c.dom.Node;
 import org.xml.sax.Attributes;
 import org.xml.sax.ContentHandler;
@@ -50,7 +51,7 @@ import org.xml.sax.SAXException;
  * serializers (xml, html, text ...) that write output to a stream.
  *
  * @xsl.usage internal
- * @LastModified: Sept 2018
+ * @LastModified: Apr 2021
  */
 abstract public class ToStream extends SerializerBase
 {
@@ -1888,21 +1889,21 @@ abstract public class ToStream extends SerializerBase
             String doctypeSystem = getDoctypeSystem();
             if (null != doctypeSystem)
             {
-                if (null == doctypePublic)
-                    writer.write(" SYSTEM \"");
-                else
-                    writer.write(" \"");
+                char quote = JdkXmlUtils.getQuoteChar(doctypeSystem);
+                if (null == doctypePublic) {
+                    writer.write(" SYSTEM");
+                }
+                writer.write(" ");
+                writer.write(quote);
 
                 writer.write(doctypeSystem);
-
+                writer.write(quote);
                 if (closeDecl)
                 {
-                    writer.write("\">");
+                    writer.write(">");
                     writer.write(m_lineSep, 0, m_lineSepLen);
                     closeDecl = false; // done closing
                 }
-                else
-                    writer.write('\"');
             }
             boolean dothis = false;
             if (dothis)
