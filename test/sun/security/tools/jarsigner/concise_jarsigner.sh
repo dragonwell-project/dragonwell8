@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2009, 2020, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2009, 2021, Oracle and/or its affiliates. All rights reserved.
 # DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 #
 # This code is free software; you can redistribute it and/or modify it
@@ -22,7 +22,7 @@
 #
 
 # @test
-# @bug 6802846 8172529 8227758
+# @bug 6802846 8172529 8227758 8260960
 # @summary jarsigner needs enhanced cert validation(options)
 #
 # @run shell/timeout=240 concise_jarsigner.sh
@@ -109,17 +109,20 @@ LINES=`$JARSIGNER -verify a.jar -verbose | grep $YEAR | wc -l`
 LINES=`$JARSIGNER -verify a.jar -verbose:grouped | grep $YEAR | wc -l`
 [ $LINES = 12 ] || exit $LINENO
 
-# 4 groups: MANIFST, unrelated, signed, unsigned
+# 5 groups: MANIFEST, signature related entries, directory entries,
+# signed entries, and unsigned entries.
 LINES=`$JARSIGNER -verify a.jar -verbose:summary | grep $YEAR | wc -l`
-[ $LINES = 4 ] || exit $LINENO
+[ $LINES = 5 ] || exit $LINENO
 
-# still 4 groups, but MANIFEST group has no other file
+# still 5 groups, but MANIFEST group and directory entry group
+# have no other file
 LINES=`$JARSIGNER -verify a.jar -verbose:summary | grep "more)" | wc -l`
 [ $LINES = 3 ] || exit $LINENO
 
-# 5 groups: MANIFEST, unrelated, signed by a1/a2, signed by a2, unsigned
+# 6 groups: MANIFEST, signature related entries, directory entries,
+# signed entries by a1/a2, signed entries by a2, and unsigned entries.
 LINES=`$JARSIGNER -verify a.jar -verbose:summary -certs | grep $YEAR | wc -l`
-[ $LINES = 5 ] || exit $LINENO
+[ $LINES = 6 ] || exit $LINENO
 
 # 2 for MANIFEST, 2*2 for A1/A2, 2 for A3/A4
 LINES=`$JARSIGNER -verify a.jar -verbose -certs | grep "\[certificate" | wc -l`
@@ -133,7 +136,8 @@ LINES=`$JARSIGNER -verify a.jar -verbose:grouped -certs | grep "\[certificate" |
 LINES=`$JARSIGNER -verify a.jar -verbose:summary -certs | grep "\[certificate" | wc -l`
 [ $LINES = 5 ] || exit $LINENO
 
-# still 5 groups, but MANIFEST group has no other file
+# still 6 groups, but MANIFEST group and directory entry group
+# have no other file
 LINES=`$JARSIGNER -verify a.jar -verbose:summary -certs | grep "more)" | wc -l`
 [ $LINES = 4 ] || exit $LINENO
 
