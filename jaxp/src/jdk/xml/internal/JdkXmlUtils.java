@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -247,6 +247,22 @@ public class JdkXmlUtils {
             // ignore since it'd never happen with the JDK impl.
         }
         return tf;
+    }
+
+    /**
+     * Returns the character to be used to quote the input content. Between
+     * single and double quotes, this method returns the one that is not found
+     * in the input. Returns double quote by default.
+     *
+     * @param s the input string
+     * @return returns the quote not found in the input
+     */
+    public static char getQuoteChar(String s) {
+        if (s != null && s.indexOf('"') > -1) {
+            return '\'';
+        } else {
+            return '"';
+        }
     }
 
     private static XMLReader getXMLReaderWSAXFactory(boolean overrideDefaultParser) {
