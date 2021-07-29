@@ -66,6 +66,7 @@ SUNWprivate_1.1 {
 		Java_java_util_zip_ZipFile_open;
 		Java_java_util_zip_ZipFile_read;
 		Java_java_util_zip_ZipFile_startsWithLOC;
+		Java_java_util_zip_ZipFile_getManifestNum;
 
 		ZIP_Close;
 		ZIP_CRC32;
