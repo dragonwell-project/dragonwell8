@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -971,7 +971,7 @@ void RangeCheckEliminator::calc_bounds(BlockBegin *block, BlockBegin *loop_heade
           } else {
             // Has no upper bound
             Instruction *instr = ai->length();
-            if (instr != NULL) instr = ai->array();
+            if (instr == NULL) instr = ai->array();
             update_bound(pushed, ai->index(), Instruction::lss, instr, 0);
           }
         }
