@@ -1402,7 +1402,6 @@ public class GenerationTests {
         DOMValidateContext dvc = new DOMValidateContext
             (ks, doc.getDocumentElement());
         File f = new File(DATA_DIR);
-        dvc.setBaseURI(f.toURI().toString());
         dvc.setURIDereferencer(httpUd);
 
         XMLSignature sig2 = fac.unmarshalXMLSignature(dvc);
@@ -2156,6 +2155,12 @@ public class GenerationTests {
                 try {
                     FileInputStream fis = new FileInputStream(new File
                         (DATA_DIR, uri.substring(uri.lastIndexOf('/'))));
+                    return new OctetStreamData(fis,ref.getURI(),ref.getType());
+                } catch (Exception e) { throw new URIReferenceException(e); }
+            } else if (uri.startsWith("certs/")) {
+                try {
+                    FileInputStream fis = new FileInputStream(new File
+                            (DATA_DIR, uri));
                     return new OctetStreamData(fis,ref.getURI(),ref.getType());
                 } catch (Exception e) { throw new URIReferenceException(e); }
             }
