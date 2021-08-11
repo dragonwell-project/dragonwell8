@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020 Alibaba Group Holding Limited. All Rights Reserved.
+ * Copyright (c) 2021 Alibaba Group Holding Limited. All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,11 +21,9 @@
 
 package com.alibaba.wisp.engine;
 
+import com.alibaba.rcm.ResourceContainer;
 import sun.misc.SharedSecrets;
 import sun.misc.UnsafeAccess;
-
-import com.alibaba.rcm.ResourceContainer;
-import com.alibaba.rcm.internal.AbstractResourceContainer;
 
 import java.dyn.Coroutine;
 import java.dyn.CoroutineExitException;
@@ -109,23 +107,10 @@ public class WispTask implements Comparable<WispTask> {
     }
 
     private final int id;
-
-    enum Status {
-        ALIVE,      // ALIVE
-        CACHED,     // exited
-        DEAD        // quited and never be used
-    }
-
-    private Runnable runnable; // runnable for created task
-
-    /**
-     * Task is running in that carrier.
-     */
-    volatile WispCarrier carrier;
-
+    private Runnable runnable;          // runnable for created task
+    volatile WispCarrier carrier;       // Task is running in that carrier.
     private String name;
     final Coroutine ctx;                // the low-level coroutine implement
-    Status status = Status.ALIVE;
     boolean shutdownPending;
     SelectableChannel ch;               // the interesting channel
     TimeOut timeOut;                    // related timer
@@ -190,7 +175,6 @@ public class WispTask implements Comparable<WispTask> {
     void reset(Runnable runnable, String name, Thread thread, ClassLoader ctxLoader) {
         assert ctx != null;
         assert !shutdownPending;
-        this.status       = Status.ALIVE;
         this.runnable     = runnable;
         this.name         = name;
         this.controlGroup = null;
@@ -270,7 +254,6 @@ public class WispTask implements Comparable<WispTask> {
                             throw (CoroutineExitException) throwable;
                         }
                         carrier.taskExit();
-
                     }
                 } else {
                     carrier.schedule(false);
@@ -334,7 +317,7 @@ public class WispTask implements Comparable<WispTask> {
         // store load barrier is not necessary
         assert current.carrier.thread == WispEngine.JLA.currentThread0();
         boolean res = false;
-        if (terminal == true) {
+        if (terminal) {
             WispEngine.JLA.getCoroutineSupport(current.carrier.thread).terminateCoroutine(next.ctx);
             // should never run here.
             assert false: "should not reach here";
@@ -375,8 +358,8 @@ public class WispTask implements Comparable<WispTask> {
     public String toString() {
         return "WispTask" + id + "(" +
                 "name=" + name + ')' +
-                "{status=" + status + "/" +
-                jdkParkStatus + ", " +
+                "{status=" + (isAlive() ? "ALIVE" : "CACHED") + "/" +
+                jdkParkStatus +
                 '}';
     }
 
@@ -393,7 +376,7 @@ public class WispTask implements Comparable<WispTask> {
     static final String SHUTDOWN_TASK_NAME = "SHUTDOWN_TASK";
 
     boolean isAlive() {
-        return status == Status.ALIVE;
+        return isThreadTask || runnable != null;
     }
 
     /**
@@ -424,7 +407,8 @@ public class WispTask implements Comparable<WispTask> {
                     // current task is put to unpark queue,
                     // and will wake up eventually
                     if (WispEngine.runningAsCoroutine(threadWrapper) && timeoutNano > 0) {
-                        carrier.addTimer(timeoutNano + System.nanoTime(), fromJvm ? TimeOut.Action.JVM_UNPARK : TimeOut.Action.JDK_UNPARK);
+                        carrier.addTimer(timeoutNano + System.nanoTime(),
+                                fromJvm ? TimeOut.Action.JVM_UNPARK : TimeOut.Action.JDK_UNPARK);
                     }
                     carrier.isInCritical = isInCritical0;
                     try {

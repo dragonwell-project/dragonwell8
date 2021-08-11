@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020 Alibaba Group Holding Limited. All Rights Reserved.
+ * Copyright (c) 2021 Alibaba Group Holding Limited. All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,10 +27,9 @@ import java.io.IOException;
 import java.nio.channels.SelectableChannel;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.*;
+import java.util.concurrent.RejectedExecutionException;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
-
-import com.alibaba.wisp.engine.WispTask.Status;
 
 /**
  * {@link WispCarrier} schedules all {@link WispTask} on according worker and control their life cycle
@@ -166,10 +165,7 @@ final class WispCarrier implements Comparable<WispCarrier> {
         unregisterEvent();
         boolean cached = !current.shutdownPending && returnTaskToCache(current);
         TASK_COUNT_UPDATER.decrementAndGet(engine);
-        if (cached) {
-            current.status = WispTask.Status.CACHED;
-        } else {
-            current.status = WispTask.Status.DEAD;
+        if (!cached) {
             WispTask.cleanExitedTask(current);
         }
 

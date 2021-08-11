@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020 Alibaba Group Holding Limited. All Rights Reserved.
+ * Copyright (c) 2021 Alibaba Group Holding Limited. All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -242,6 +242,8 @@ class WispEventPump {
                 return updated;
             }
         }
+        assert timeout != 0;
+
         if (WispConfiguration.USE_DIRECT_SELECTOR_WAKEUP &&
                 (status.get() == INTERRUPTED || !(status.get() == null && status.compareAndSet(null, me)))) {
             assert status.get() == INTERRUPTED;
@@ -249,16 +251,13 @@ class WispEventPump {
         }
 
         if (WispConfiguration.MONOLITHIC_POLL) {
-            assert timeout != 0;
             me.epollArraySize = arraySize;
             me.setEpollEventNum(0);
             me.setEpollArray(pollArray);
         }
 
-        if (timeout != 0) {
-            registerEvent(me, epfd, SelectionKey.OP_READ);
-            WispTask.jdkPark(TimeUnit.MILLISECONDS.toNanos(timeout));
-        }
+        registerEvent(me, epfd, SelectionKey.OP_READ);
+        WispTask.jdkPark(TimeUnit.MILLISECONDS.toNanos(timeout));
 
         if (WispConfiguration.USE_DIRECT_SELECTOR_WAKEUP &&
                 !(status.get() == me && status.compareAndSet(me, null))) {
