@@ -58,7 +58,7 @@ public class NoJavaLangTest {
         List<String> output = new ArrayList<>();
         ToolBox.JavaToolArgs javacFailArgs =
                 new ToolBox.JavaToolArgs(ToolBox.Expect.FAIL)
-                .setOptions("-bootclasspath", ".")
+                .setOptions("-bootclasspath", ".", "-classpath", ".")
                 .setSources(noJavaLangSrc)
                 .setErrOutput(output);
 
