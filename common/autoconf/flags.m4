@@ -175,6 +175,26 @@ AC_DEFUN_ONCE([FLAGS_SETUP_COMPILER_FLAGS_FOR_LIBS],
       SET_SHARED_LIBRARY_NAME='-Xlinker -soname=[$]1'
       SET_SHARED_LIBRARY_MAPFILE='-Xlinker -version-script=[$]1'
     fi
+  elif test "x$TOOLCHAIN_TYPE" = xclang; then
+    PICFLAG=''
+    C_FLAG_REORDER=''
+    CXX_FLAG_REORDER=''
+
+    if test "x$OPENJDK_TARGET_OS" = xmacosx; then
+      # Linking is different on MacOSX
+      SHARED_LIBRARY_FLAGS="-dynamiclib -compatibility_version 1.0.0 -current_version 1.0.0 $PICFLAG"
+      SET_EXECUTABLE_ORIGIN='-Xlinker -rpath -Xlinker @loader_path/.'
+      SET_SHARED_LIBRARY_ORIGIN="$SET_EXECUTABLE_ORIGIN"
+      SET_SHARED_LIBRARY_NAME='-Xlinker -install_name -Xlinker @rpath/[$]1'
+      SET_SHARED_LIBRARY_MAPFILE=''
+    else
+      # Default works for linux, might work on other platforms as well.
+      SHARED_LIBRARY_FLAGS='-shared'
+      SET_EXECUTABLE_ORIGIN='-Xlinker -rpath -Xlinker \$$$$ORIGIN[$]1'
+      SET_SHARED_LIBRARY_ORIGIN="-Xlinker -z -Xlinker origin $SET_EXECUTABLE_ORIGIN"
+      SET_SHARED_LIBRARY_NAME='-Xlinker -soname=[$]1'
+      SET_SHARED_LIBRARY_MAPFILE='-Xlinker -version-script=[$]1'
+    fi
   elif test "x$TOOLCHAIN_TYPE" = xsolstudio; then
     PICFLAG="-KPIC"
     PIEFLAG=""
@@ -272,6 +292,8 @@ AC_DEFUN_ONCE([FLAGS_SETUP_COMPILER_FLAGS_FOR_OPTIMIZATION],
   # Generate make dependency files
   if test "x$TOOLCHAIN_TYPE" = xgcc; then
     C_FLAG_DEPS="-MMD -MF"
+  elif test "x$TOOLCHAIN_TYPE" = xclang; then
+    C_FLAG_DEPS="-MMD -MF"
   elif test "x$TOOLCHAIN_TYPE" = xsolstudio; then
     C_FLAG_DEPS="-xMMD -xMF"
   elif test "x$TOOLCHAIN_TYPE" = xxlc; then
@@ -296,6 +318,9 @@ AC_DEFUN_ONCE([FLAGS_SETUP_COMPILER_FLAGS_FOR_OPTIMIZATION],
       CXXFLAGS_DEBUG_SYMBOLS="-g"
     fi
     ASFLAGS_DEBUG_SYMBOLS="-g"
+  elif test "x$TOOLCHAIN_TYPE" = xclang; then
+    CFLAGS_DEBUG_SYMBOLS="-g"
+    CXXFLAGS_DEBUG_SYMBOLS="-g"
   elif test "x$TOOLCHAIN_TYPE" = xsolstudio; then
     CFLAGS_DEBUG_SYMBOLS="-g -xs"
     CXXFLAGS_DEBUG_SYMBOLS="-g0 -xs"
@@ -339,6 +364,20 @@ AC_DEFUN_ONCE([FLAGS_SETUP_COMPILER_FLAGS_FOR_OPTIMIZATION],
     # The remaining toolchains share opt flags between CC and CXX;
     # setup for C and duplicate afterwards.
     if test "x$TOOLCHAIN_TYPE" = xgcc; then
+      if test "x$OPENJDK_TARGET_OS" = xmacosx; then
+        # On MacOSX we optimize for size, something
+        # we should do for all platforms?
+        C_O_FLAG_HIGHEST="-Os"
+        C_O_FLAG_HI="-Os"
+        C_O_FLAG_NORM="-Os"
+        C_O_FLAG_NONE=""
+      else
+        C_O_FLAG_HIGHEST="-O3"
+        C_O_FLAG_HI="-O3"
+        C_O_FLAG_NORM="-O2"
+        C_O_FLAG_NONE="-O0"
+      fi
+    elif test "x$TOOLCHAIN_TYPE" = xclang; then
       if test "x$OPENJDK_TARGET_OS" = xmacosx; then
         # On MacOSX we optimize for size, something
         # we should do for all platforms?
@@ -478,6 +517,11 @@ AC_DEFUN_ONCE([FLAGS_SETUP_COMPILER_FLAGS_FOR_JDK],
         ;;
     esac
     TOOLCHAIN_CHECK_COMPILER_VERSION(6, FLAGS_SETUP_GCC6_COMPILER_FLAGS)
+    # Check that the compiler supports -Wformat-overflow flag
+    # Set USE_FORMAT_OVERFLOW to 1 if it does.
+    FLAGS_COMPILER_CHECK_ARGUMENTS([-Wformat-overflow -Werror],
+                                   [USE_FORMAT_OVERFLOW="1"], [USE_FORMAT_OVERFLOW="0"])
+    AC_SUBST([USE_FORMAT_OVERFLOW])
 
     # Check that the compiler supports -ffp-contract=off flag
     # Set FDLIBM_CFLAGS to -ffp-contract=off if it does.
@@ -646,6 +690,22 @@ AC_DEFUN_ONCE([FLAGS_SETUP_COMPILER_FLAGS_FOR_JDK],
       # command line.
       CCXXFLAGS_JDK="$CCXXFLAGS_JDK -DMAC_OS_X_VERSION_MAX_ALLOWED=\$(subst .,,\$(MACOSX_VERSION_MIN)) -mmacosx-version-min=\$(MACOSX_VERSION_MIN)"
       LDFLAGS_JDK="$LDFLAGS_JDK -mmacosx-version-min=\$(MACOSX_VERSION_MIN)"
+    elif test "x$TOOLCHAIN_TYPE" = xclang; then
+      # FIXME: This needs to be exported in spec.gmk due to closed legacy code.
+      # FIXME: clean this up, and/or move it elsewhere.
+
+      # Setting these parameters makes it an error to link to macosx APIs that are
+      # newer than the given OS version and makes the linked binaries compatible 
+      # even if built on a newer version of the OS.
+      # The expected format is X.Y.Z
+      MACOSX_VERSION_MIN=10.9.0
+      AC_SUBST(MACOSX_VERSION_MIN)
+    
+      # The macro takes the version with no dots, ex: 1070
+      # Let the flags variables get resolved in make for easier override on make
+      # command line.
+      CCXXFLAGS_JDK="$CCXXFLAGS_JDK -DMAC_OS_X_VERSION_MAX_ALLOWED=\$(subst .,,\$(MACOSX_VERSION_MIN)) -mmacosx-version-min=\$(MACOSX_VERSION_MIN)"
+      LDFLAGS_JDK="$LDFLAGS_JDK -mmacosx-version-min=\$(MACOSX_VERSION_MIN)"
     fi
   fi
 
@@ -697,7 +757,7 @@ AC_DEFUN_ONCE([FLAGS_SETUP_COMPILER_FLAGS_FOR_JDK],
     fi
     LDFLAGS_JDKEXE="${LDFLAGS_JDK} /STACK:$LDFLAGS_STACK_SIZE"
   else
-    if test "x$TOOLCHAIN_TYPE" = xgcc; then
+    if test "x$TOOLCHAIN_TYPE" = xgcc -o "x$TOOLCHAIN_TYPE" = xclang; then
       # If this is a --hash-style=gnu system, use --hash-style=both, why?
       # We have previously set HAS_GNU_HASH if this is the case
       if test -n "$HAS_GNU_HASH"; then
