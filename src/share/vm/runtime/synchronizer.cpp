@@ -218,7 +218,9 @@ void ObjectSynchronizer::fast_exit(oop object, BasicLock* lock, TRAPS) {
      }
   }
 
-  ObjectSynchronizer::inflate(THREAD, object)->exit (true, THREAD) ;
+  ObjectSynchronizer::inflate(THREAD,
+                              object,
+                              inflate_cause_vm_internal)->exit(true, THREAD);
 }
 void ObjectSynchronizer::fast_exit(Handle object, BasicLock* lock, TRAPS) {
   assert(!object->mark()->has_bias_pattern(), "should not see bias pattern here");
@@ -294,7 +296,9 @@ void ObjectSynchronizer::slow_enter(Handle obj, BasicLock* lock, TRAPS) {
   // must be non-zero to avoid looking like a re-entrant lock,
   // and must not look locked either.
   lock->set_displaced_header(markOopDesc::unused_mark());
-  ObjectSynchronizer::inflate(THREAD, obj())->enter(THREAD);
+  ObjectSynchronizer::inflate(THREAD,
+                              obj(),
+                              inflate_cause_monitor_enter)->enter(THREAD);
 }
 
 // This routine is used to handle interpreter/compiler slow case
@@ -324,7 +328,9 @@ intptr_t ObjectSynchronizer::complete_exit(Handle obj, TRAPS) {
     assert(!obj->mark()->has_bias_pattern(), "biases should be revoked by now");
   }
 
-  ObjectMonitor* monitor = ObjectSynchronizer::inflate(THREAD, obj());
+  ObjectMonitor* monitor = ObjectSynchronizer::inflate(THREAD,
+                                                       obj(),
+                                                       inflate_cause_vm_internal);
 
   return monitor->complete_exit(THREAD);
 }
@@ -337,7 +343,9 @@ void ObjectSynchronizer::reenter(Handle obj, intptr_t recursion, TRAPS) {
     assert(!obj->mark()->has_bias_pattern(), "biases should be revoked by now");
   }
 
-  ObjectMonitor* monitor = ObjectSynchronizer::inflate(THREAD, obj());
+  ObjectMonitor* monitor = ObjectSynchronizer::inflate(THREAD,
+                                                       obj(),
+                                                       inflate_cause_vm_internal);
 
   monitor->reenter(recursion, THREAD);
 }
@@ -352,7 +360,7 @@ void ObjectSynchronizer::jni_enter(Handle obj, TRAPS) { // possible entry from j
     assert(!obj->mark()->has_bias_pattern(), "biases should be revoked by now");
   }
   THREAD->set_current_pending_monitor_is_from_java(false);
-  ObjectSynchronizer::inflate(THREAD, obj())->enter(THREAD);
+  ObjectSynchronizer::inflate(THREAD, obj(), inflate_cause_jni_enter)->enter(THREAD);
   THREAD->set_current_pending_monitor_is_from_java(true);
 }
 
@@ -378,7 +386,9 @@ void ObjectSynchronizer::jni_exit(oop obj, Thread* THREAD) {
   }
   assert(!obj->mark()->has_bias_pattern(), "biases should be revoked by now");
 
-  ObjectMonitor* monitor = ObjectSynchronizer::inflate(THREAD, obj);
+  ObjectMonitor* monitor = ObjectSynchronizer::inflate(THREAD,
+                                                       obj,
+                                                       inflate_cause_jni_exit);
   // If this thread has locked the object, exit the monitor.  Note:  can't use
   // monitor->check(CHECK); must exit even if an exception is pending.
   if (monitor->check(THREAD)) {
@@ -423,7 +433,10 @@ void ObjectSynchronizer::wait(Handle obj, jlong millis, TRAPS) {
     TEVENT (wait - throw IAX) ;
     THROW_MSG(vmSymbols::java_lang_IllegalArgumentException(), "timeout value is negative");
   }
-  ObjectMonitor* monitor = ObjectSynchronizer::inflate(THREAD, obj());
+  ObjectMonitor* monitor = ObjectSynchronizer::inflate(THREAD,
+                                                       obj(),
+                                                       inflate_cause_wait);
+
   DTRACE_MONITOR_WAIT_PROBE(monitor, obj(), THREAD, millis);
   monitor->wait(millis, true, THREAD);
 
@@ -442,7 +455,9 @@ void ObjectSynchronizer::waitUninterruptibly (Handle obj, jlong millis, TRAPS) {
     TEVENT (wait - throw IAX) ;
     THROW_MSG(vmSymbols::java_lang_IllegalArgumentException(), "timeout value is negative");
   }
-  ObjectSynchronizer::inflate(THREAD, obj()) -> wait(millis, false, THREAD) ;
+  ObjectSynchronizer::inflate(THREAD,
+                              obj(),
+                              inflate_cause_wait)->wait(millis, false, THREAD) ;
 }
 
 void ObjectSynchronizer::notify(Handle obj, TRAPS) {
@@ -455,7 +470,9 @@ void ObjectSynchronizer::notify(Handle obj, TRAPS) {
   if (mark->has_locker() && THREAD->is_lock_owned((address)mark->locker())) {
     return;
   }
-  ObjectSynchronizer::inflate(THREAD, obj())->notify(THREAD);
+  ObjectSynchronizer::inflate(THREAD,
+                              obj(),
+                              inflate_cause_notify)->notify(THREAD);
 }
 
 // NOTE: see comment of notify()
@@ -469,7 +486,9 @@ void ObjectSynchronizer::notifyall(Handle obj, TRAPS) {
   if (mark->has_locker() && THREAD->is_lock_owned((address)mark->locker())) {
     return;
   }
-  ObjectSynchronizer::inflate(THREAD, obj())->notifyAll(THREAD);
+  ObjectSynchronizer::inflate(THREAD,
+                              obj(),
+                              inflate_cause_notify)->notifyAll(THREAD);
 }
 
 // -----------------------------------------------------------------------------
@@ -724,7 +743,7 @@ intptr_t ObjectSynchronizer::FastHashCode (Thread * Self, oop obj) {
   }
 
   // Inflate the monitor to set hash code
-  monitor = ObjectSynchronizer::inflate(Self, obj);
+  monitor = ObjectSynchronizer::inflate(Self, obj, inflate_cause_hash_code);
   // Load displaced header and check it has hash code
   mark = monitor->header();
   assert (mark->is_neutral(), "invariant") ;
@@ -1223,12 +1242,29 @@ void ObjectSynchronizer::omFlush (Thread * Self) {
     TEVENT (omFlush) ;
 }
 
+const char* ObjectSynchronizer::inflate_cause_name(const InflateCause cause) {
+  switch (cause) {
+    case inflate_cause_vm_internal:    return "VM Internal";
+    case inflate_cause_monitor_enter:  return "Monitor Enter";
+    case inflate_cause_wait:           return "Monitor Wait";
+    case inflate_cause_notify:         return "Monitor Notify";
+    case inflate_cause_hash_code:      return "Monitor Hash Code";
+    case inflate_cause_jni_enter:      return "JNI Monitor Enter";
+    case inflate_cause_jni_exit:       return "JNI Monitor Exit";
+    default:
+      ShouldNotReachHere();
+  }
+  return "Unknown";
+}
+
 static void post_monitor_inflate_event(EventJavaMonitorInflate* event,
-                                       const oop obj) {
+                                       const oop obj,
+                                       const ObjectSynchronizer::InflateCause cause) {
   assert(event != NULL, "invariant");
   assert(event->should_commit(), "invariant");
   event->set_monitorClass(obj->klass());
   event->set_address((uintptr_t)(void*)obj);
+  event->set_cause((u1)cause);
   event->commit();
 }
 
@@ -1240,7 +1276,9 @@ ObjectMonitor* ObjectSynchronizer::inflate_helper(oop obj) {
     assert(mark->monitor()->header()->is_neutral(), "monitor must record a good object header");
     return mark->monitor();
   }
-  return ObjectSynchronizer::inflate(Thread::current(), obj);
+  return ObjectSynchronizer::inflate(Thread::current(),
+                                     obj,
+                                     inflate_cause_vm_internal);
 }
 
 
@@ -1248,7 +1286,9 @@ ObjectMonitor* ObjectSynchronizer::inflate_helper(oop obj) {
 // multiple locks occupy the same $ line.  Padding might be appropriate.
 
 
-ObjectMonitor * ATTR ObjectSynchronizer::inflate (Thread * Self, oop object) {
+ObjectMonitor * ATTR ObjectSynchronizer::inflate (Thread * Self,
+                                                  oop object,
+                                                  const InflateCause cause) {
   // Inflate mutates the heap ...
   // Relaxing assertion for bug 6320749.
   assert (Universe::verify_in_progress() ||
@@ -1387,7 +1427,7 @@ ObjectMonitor * ATTR ObjectSynchronizer::inflate (Thread * Self, oop object) {
             }
           }
           if (event.should_commit()) {
-            post_monitor_inflate_event(&event, object);
+            post_monitor_inflate_event(&event, object, cause);
           }
           return m ;
       }
@@ -1440,7 +1480,7 @@ ObjectMonitor * ATTR ObjectSynchronizer::inflate (Thread * Self, oop object) {
         }
       }
       if (event.should_commit()) {
-        post_monitor_inflate_event(&event, object);
+        post_monitor_inflate_event(&event, object, cause);
       }
       return m ;
   }

@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2005, 2013, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2005, 2021, Oracle and/or its affiliates. All rights reserved.
 # Copyright 2012, 2013 SAP AG. All rights reserved.
 # DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 #
@@ -88,16 +88,16 @@ $(LIBSAPROC): $(SASRCFILES) $(SAMAPFILE)
 	           -o $@                                                \
 	           -lthread_db
 ifeq ($(ENABLE_FULL_DEBUG_SYMBOLS),1)
-	$(QUIETLY) $(OBJCOPY) --only-keep-debug $@ $(LIBSAPROC_DEBUGINFO)
-	$(QUIETLY) $(OBJCOPY) --add-gnu-debuglink=$(LIBSAPROC_DEBUGINFO) $@
-  ifeq ($(STRIP_POLICY),all_strip)
-	$(QUIETLY) $(STRIP) $@
-  else
-    ifeq ($(STRIP_POLICY),min_strip)
-	$(QUIETLY) $(STRIP) -g $@
-    # implied else here is no stripping at all
-    endif
-  endif
+  # AIX produces .debuginfo from copy of -g compiled object prior to strip
+	$(QUIETLY) $(CP) $@ $(LIBJSIG_DEBUGINFO)
+#  ifeq ($(STRIP_POLICY),all_strip)
+#	$(QUIETLY) $(STRIP) $@
+#  else
+#    ifeq ($(STRIP_POLICY),min_strip)
+#	$(QUIETLY) $(STRIP) -g $@
+#    # implied else here is no stripping at all
+#    endif
+#  endif
   ifeq ($(ZIP_DEBUGINFO_FILES),1)
 	$(ZIPEXE) -q -y $(LIBSAPROC_DIZ) $(LIBSAPROC_DEBUGINFO)
 	$(RM) $(LIBSAPROC_DEBUGINFO)

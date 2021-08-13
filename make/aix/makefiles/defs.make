@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2006, 2013, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2021, Oracle and/or its affiliates. All rights reserved.
 # Copyright 2012, 2013 SAP AG. All rights reserved.
 # DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 #
@@ -142,36 +142,28 @@ ifeq ($(JDK6_OR_EARLIER),0)
         OBJCOPY=$(shell test -x $(ALT_OBJCOPY) && echo $(ALT_OBJCOPY))
       endif
 
-      ifeq ($(OBJCOPY),)
-        _JUNK_ := $(shell \
-          echo >&2 "INFO: no objcopy cmd found so cannot create .debuginfo files. You may need to set ALT_OBJCOPY.")
-        ENABLE_FULL_DEBUG_SYMBOLS=0
-        _JUNK_ := $(shell \
-          echo >&2 "INFO: ENABLE_FULL_DEBUG_SYMBOLS=$(ENABLE_FULL_DEBUG_SYMBOLS)")
-      else
-        _JUNK_ := $(shell \
-          echo >&2 "INFO: $(OBJCOPY) cmd found so will create .debuginfo files.")
+      _JUNK_ := $(shell \
+        echo >&2 "INFO: AIX .debuginfo files will be produced by copying debug object.")
 
-        # Library stripping policies for .debuginfo configs:
-        #   all_strip - strips everything from the library
-        #   min_strip - strips most stuff from the library; leaves minimum symbols
-        #   no_strip  - does not strip the library at all
-        #
-        # Oracle security policy requires "all_strip". A waiver was granted on
-        # 2011.09.01 that permits using "min_strip" in the Java JDK and Java JRE.
-        #
-        # Currently, STRIP_POLICY is only used when Full Debug Symbols is enabled.
-        #
-        STRIP_POLICY ?= min_strip
+      # Library stripping policies for .debuginfo configs:
+      #   all_strip - strips everything from the library
+      #   min_strip - strips most stuff from the library; leaves minimum symbols
+      #   no_strip  - does not strip the library at all
+      #
+      # Oracle security policy requires "all_strip". A waiver was granted on
+      # 2011.09.01 that permits using "min_strip" in the Java JDK and Java JRE.
+      #
+      # Currently, STRIP_POLICY is only used when Full Debug Symbols is enabled.
+      #
+      STRIP_POLICY ?= min_strip
 
-        _JUNK_ := $(shell \
-          echo >&2 "INFO: STRIP_POLICY=$(STRIP_POLICY)")
+      _JUNK_ := $(shell \
+        echo >&2 "INFO: STRIP_POLICY=$(STRIP_POLICY)")
 
-        ZIP_DEBUGINFO_FILES ?= 1
+      ZIP_DEBUGINFO_FILES ?= 1
 
-        _JUNK_ := $(shell \
-          echo >&2 "INFO: ZIP_DEBUGINFO_FILES=$(ZIP_DEBUGINFO_FILES)")
-      endif
+      _JUNK_ := $(shell \
+        echo >&2 "INFO: ZIP_DEBUGINFO_FILES=$(ZIP_DEBUGINFO_FILES)")
     endif # ENABLE_FULL_DEBUG_SYMBOLS=1
   endif # BUILD_FLAVOR
 endif # JDK_6_OR_EARLIER
@@ -185,13 +177,13 @@ EXPORT_LIST += $(EXPORT_DOCS_DIR)/platform/jvmti/jvmti.html
 
 # client and server subdirectories have symbolic links to ../libjsig.so
 EXPORT_LIST += $(EXPORT_JRE_LIB_ARCH_DIR)/libjsig.$(LIBRARY_SUFFIX)
-#ifeq ($(ENABLE_FULL_DEBUG_SYMBOLS),1)
-#  ifeq ($(ZIP_DEBUGINFO_FILES),1)
-#    EXPORT_LIST += $(EXPORT_JRE_LIB_ARCH_DIR)/libjsig.diz
-#  else
-#    EXPORT_LIST += $(EXPORT_JRE_LIB_ARCH_DIR)/libjsig.debuginfo
-#  endif
-#endif
+ifeq ($(ENABLE_FULL_DEBUG_SYMBOLS),1)
+  ifeq ($(ZIP_DEBUGINFO_FILES),1)
+    EXPORT_LIST += $(EXPORT_JRE_LIB_ARCH_DIR)/libjsig.diz
+  else
+    EXPORT_LIST += $(EXPORT_JRE_LIB_ARCH_DIR)/libjsig.debuginfo
+  endif
+endif
 EXPORT_SERVER_DIR = $(EXPORT_JRE_LIB_ARCH_DIR)/server
 EXPORT_CLIENT_DIR = $(EXPORT_JRE_LIB_ARCH_DIR)/client
 EXPORT_MINIMAL_DIR = $(EXPORT_JRE_LIB_ARCH_DIR)/minimal
@@ -199,25 +191,25 @@ EXPORT_MINIMAL_DIR = $(EXPORT_JRE_LIB_ARCH_DIR)/minimal
 ifeq ($(findstring true, $(JVM_VARIANT_SERVER) $(JVM_VARIANT_ZERO) $(JVM_VARIANT_ZEROSHARK) $(JVM_VARIANT_CORE)), true)
   EXPORT_LIST += $(EXPORT_SERVER_DIR)/Xusage.txt
   EXPORT_LIST += $(EXPORT_SERVER_DIR)/libjvm.$(LIBRARY_SUFFIX)
-#  ifeq ($(ENABLE_FULL_DEBUG_SYMBOLS),1)
-#    ifeq ($(ZIP_DEBUGINFO_FILES),1)
-#      EXPORT_LIST += $(EXPORT_SERVER_DIR)/libjvm.diz
-#    else
-#      EXPORT_LIST += $(EXPORT_SERVER_DIR)/libjvm.debuginfo
-#    endif
-#  endif
+  ifeq ($(ENABLE_FULL_DEBUG_SYMBOLS),1)
+    ifeq ($(ZIP_DEBUGINFO_FILES),1)
+      EXPORT_LIST += $(EXPORT_SERVER_DIR)/libjvm.diz
+    else
+      EXPORT_LIST += $(EXPORT_SERVER_DIR)/libjvm.debuginfo
+    endif
+  endif
 endif
 
 ifeq ($(JVM_VARIANT_CLIENT),true)
   EXPORT_LIST += $(EXPORT_CLIENT_DIR)/Xusage.txt
   EXPORT_LIST += $(EXPORT_CLIENT_DIR)/libjvm.$(LIBRARY_SUFFIX)
-#  ifeq ($(ENABLE_FULL_DEBUG_SYMBOLS),1)
-#    ifeq ($(ZIP_DEBUGINFO_FILES),1)
-#      EXPORT_LIST += $(EXPORT_CLIENT_DIR)/libjvm.diz
-#    else
-#      EXPORT_LIST += $(EXPORT_CLIENT_DIR)/libjvm.debuginfo
-#    endif
-#  endif
+  ifeq ($(ENABLE_FULL_DEBUG_SYMBOLS),1)
+    ifeq ($(ZIP_DEBUGINFO_FILES),1)
+      EXPORT_LIST += $(EXPORT_CLIENT_DIR)/libjvm.diz
+    else
+      EXPORT_LIST += $(EXPORT_CLIENT_DIR)/libjvm.debuginfo
+    endif
+  endif
 endif
 
 # Serviceability Binaries

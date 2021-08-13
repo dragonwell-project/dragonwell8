@@ -67,7 +67,8 @@ echo "Compilation flag: ${COMP_FLAG}"
 $gcc_cmd -DLINUX ${CFLAGS} -o stack-gap \
     -I${COMPILEJAVA}/include -I${COMPILEJAVA}/include/linux \
     -L${COMPILEJAVA}/jre/lib/${VM_CPU}/${VM_TYPE} \
-    -ljvm -lpthread exestack-gap.c
+    exestack-gap.c \
+    -ljvm -lpthread
 
 ./stack-gap || exit $?
 ./stack-gap -XX:+DisablePrimordialThreadGuardPages || exit $?

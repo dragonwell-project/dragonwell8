@@ -926,6 +926,8 @@ definitions %{
 
 source_hpp %{
 
+#include "opto/addnode.hpp"
+
 class CallStubImpl {
  
   //--------------------------------------------------------------
@@ -980,6 +982,9 @@ class HandlerImpl {
 
   // predicate controlling translation of StoreCM
   bool unnecessary_storestore(const Node *storecm);
+
+  // predicate controlling addressing modes
+  bool size_fits_all_mem_uses(AddPNode* addp, int shift);
 %}
 
 source %{
@@ -2159,6 +2164,26 @@ const RegMask Matcher::method_handle_invoke_SP_save_mask() {
   return FP_REG_mask();
 }
 
+bool size_fits_all_mem_uses(AddPNode* addp, int shift) {
+  for (DUIterator_Fast imax, i = addp->fast_outs(imax); i < imax; i++) {
+    Node* u = addp->fast_out(i);
+    if (u->is_LoadStore()) {
+      // On AArch64, LoadStoreNodes (i.e. compare and swap
+      // instructions) only take register indirect as an operand, so
+      // any attempt to use an AddPNode as an input to a LoadStoreNode
+      // must fail.
+      return false;
+    }
+    if (u->is_Mem()) {
+      int opsize = u->as_Mem()->memory_size();
+      assert(opsize > 0, "unexpected memory operand size");
+      if (u->as_Mem()->memory_size() != (1<<shift)) {
+        return false;
+      }
+    }
+  }
+  return true;
+}
 
 #define MOV_VOLATILE(REG, BASE, INDEX, SCALE, DISP, SCRATCH, INSN)	\
   MacroAssembler _masm(&cbuf);						\
@@ -4771,6 +4796,8 @@ operand indirect(iRegP reg)
 
 operand indIndexScaledOffsetI(iRegP reg, iRegL lreg, immIScale scale, immIU12 off)
 %{
+  predicate(size_fits_all_mem_uses(n->as_AddP(),
+                                   n->in(AddPNode::Address)->in(AddPNode::Offset)->in(2)->get_int()));
   constraint(ALLOC_IN_RC(ptr_reg));
   match(AddP (AddP reg (LShiftL lreg scale)) off);
   op_cost(INSN_COST);
@@ -4785,6 +4812,8 @@ operand indIndexScaledOffsetI(iRegP reg, iRegL lreg, immIScale scale, immIU12 of
 
 operand indIndexScaledOffsetL(iRegP reg, iRegL lreg, immIScale scale, immLU12 off)
 %{
+  predicate(size_fits_all_mem_uses(n->as_AddP(),
+                                   n->in(AddPNode::Address)->in(AddPNode::Offset)->in(2)->get_int()));
   constraint(ALLOC_IN_RC(ptr_reg));
   match(AddP (AddP reg (LShiftL lreg scale)) off);
   op_cost(INSN_COST);
@@ -4813,6 +4842,8 @@ operand indIndexOffsetI2L(iRegP reg, iRegI ireg, immLU12 off)
 
 operand indIndexScaledOffsetI2L(iRegP reg, iRegI ireg, immIScale scale, immLU12 off)
 %{
+  predicate(size_fits_all_mem_uses(n->as_AddP(),
+                                   n->in(AddPNode::Address)->in(AddPNode::Offset)->in(2)->get_int()));
   constraint(ALLOC_IN_RC(ptr_reg));
   match(AddP (AddP reg (LShiftL (ConvI2L ireg) scale)) off);
   op_cost(INSN_COST);
@@ -4827,6 +4858,8 @@ operand indIndexScaledOffsetI2L(iRegP reg, iRegI ireg, immIScale scale, immLU12 
 
 operand indIndexScaledI2L(iRegP reg, iRegI ireg, immIScale scale)
 %{
+  predicate(size_fits_all_mem_uses(n->as_AddP(),
+                                   n->in(AddPNode::Offset)->in(2)->get_int()));
   constraint(ALLOC_IN_RC(ptr_reg));
   match(AddP reg (LShiftL (ConvI2L ireg) scale));
   op_cost(0);
@@ -4841,6 +4874,8 @@ operand indIndexScaledI2L(iRegP reg, iRegI ireg, immIScale scale)
 
 operand indIndexScaled(iRegP reg, iRegL lreg, immIScale scale)
 %{
+  predicate(size_fits_all_mem_uses(n->as_AddP(),
+                                   n->in(AddPNode::Offset)->in(2)->get_int()));
   constraint(ALLOC_IN_RC(ptr_reg));
   match(AddP reg (LShiftL lreg scale));
   op_cost(0);
@@ -4996,7 +5031,9 @@ operand indirectN(iRegN reg)
 
 operand indIndexScaledOffsetIN(iRegN reg, iRegL lreg, immIScale scale, immIU12 off)
 %{
-  predicate(Universe::narrow_oop_shift() == 0);
+  predicate(Universe::narrow_oop_shift() == 0 &&
+            size_fits_all_mem_uses(n->as_AddP(),
+                                   n->in(AddPNode::Address)->in(AddPNode::Offset)->in(2)->get_int()));
   constraint(ALLOC_IN_RC(ptr_reg));
   match(AddP (AddP (DecodeN reg) (LShiftL lreg scale)) off);
   op_cost(0);
@@ -5011,7 +5048,9 @@ operand indIndexScaledOffsetIN(iRegN reg, iRegL lreg, immIScale scale, immIU12 o
 
 operand indIndexScaledOffsetLN(iRegN reg, iRegL lreg, immIScale scale, immLU12 off)
 %{
-  predicate(Universe::narrow_oop_shift() == 0);
+  predicate(Universe::narrow_oop_shift() == 0 &&
+            size_fits_all_mem_uses(n->as_AddP(),
+                                   n->in(AddPNode::Address)->in(AddPNode::Offset)->in(2)->get_int()));
   constraint(ALLOC_IN_RC(ptr_reg));
   match(AddP (AddP (DecodeN reg) (LShiftL lreg scale)) off);
   op_cost(INSN_COST);
@@ -5041,7 +5080,9 @@ operand indIndexOffsetI2LN(iRegN reg, iRegI ireg, immLU12 off)
 
 operand indIndexScaledOffsetI2LN(iRegN reg, iRegI ireg, immIScale scale, immLU12 off)
 %{
-  predicate(Universe::narrow_oop_shift() == 0);
+  predicate(Universe::narrow_oop_shift() == 0 &&
+            size_fits_all_mem_uses(n->as_AddP(),
+                                   n->in(AddPNode::Address)->in(AddPNode::Offset)->in(2)->get_int()));
   constraint(ALLOC_IN_RC(ptr_reg));
   match(AddP (AddP (DecodeN reg) (LShiftL (ConvI2L ireg) scale)) off);
   op_cost(INSN_COST);
@@ -5056,7 +5097,9 @@ operand indIndexScaledOffsetI2LN(iRegN reg, iRegI ireg, immIScale scale, immLU12
 
 operand indIndexScaledI2LN(iRegN reg, iRegI ireg, immIScale scale)
 %{
-  predicate(Universe::narrow_oop_shift() == 0);
+  predicate(Universe::narrow_oop_shift() == 0 &&
+            size_fits_all_mem_uses(n->as_AddP(),
+                                   n->in(AddPNode::Offset)->in(2)->get_int()));
   constraint(ALLOC_IN_RC(ptr_reg));
   match(AddP (DecodeN reg) (LShiftL (ConvI2L ireg) scale));
   op_cost(0);
@@ -5071,7 +5114,9 @@ operand indIndexScaledI2LN(iRegN reg, iRegI ireg, immIScale scale)
 
 operand indIndexScaledN(iRegN reg, iRegL lreg, immIScale scale)
 %{
-  predicate(Universe::narrow_oop_shift() == 0);
+  predicate(Universe::narrow_oop_shift() == 0 &&
+            size_fits_all_mem_uses(n->as_AddP(),
+                                   n->in(AddPNode::Offset)->in(2)->get_int()));
   constraint(ALLOC_IN_RC(ptr_reg));
   match(AddP (DecodeN reg) (LShiftL lreg scale));
   op_cost(0);

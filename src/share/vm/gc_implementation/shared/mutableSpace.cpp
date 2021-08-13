@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,6 +28,7 @@
 #include "gc_implementation/shared/mutableSpace.hpp"
 #include "gc_implementation/shared/spaceDecorator.hpp"
 #include "oops/oop.inline.hpp"
+#include "runtime/orderAccess.hpp"
 #include "runtime/safepoint.hpp"
 #include "runtime/thread.hpp"
 #endif // INCLUDE_ALL_GCS
@@ -124,7 +125,11 @@ void MutableSpace::initialize(MemRegion mr,
   }
 
   set_bottom(mr.start());
-  set_end(mr.end());
+  // When expanding concurrently with callers of cas_allocate, setting end
+  // makes the new space available for allocation by other threads.  So this
+  // assignment must follow all other configuration and initialization that
+  // might be done for expansion.
+  OrderAccess::release_store_ptr(end_addr(), mr.end());
 
   if (clear_space) {
     clear(mangle_space);
@@ -192,7 +197,11 @@ HeapWord* MutableSpace::allocate(size_t size) {
 // This version is lock-free.
 HeapWord* MutableSpace::cas_allocate(size_t size) {
   do {
-    HeapWord* obj = top();
+    // Read top before end, else the range check may pass when it shouldn't.
+    // If end is read first, other threads may advance end and top such that
+    // current top > old end and current top + size > current end.  Then
+    // pointer_delta underflows, allowing installation of top > current end.
+    HeapWord* obj = (HeapWord*)OrderAccess::load_ptr_acquire(top_addr());
     if (pointer_delta(end(), obj) >= size) {
       HeapWord* new_top = obj + size;
       HeapWord* result = (HeapWord*)Atomic::cmpxchg_ptr(new_top, top_addr(), obj);

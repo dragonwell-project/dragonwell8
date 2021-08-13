@@ -89,7 +89,7 @@ bool Disassembler::load_library() {
   {
     // Match "jvm[^/]*" in jvm_path.
     const char* base = buf;
-    const char* p = strrchr(buf, '/');
+    const char* p = strrchr(buf, *os::file_separator());
     if (p != NULL) lib_offset = p - base + 1;
     p = strstr(p ? p : base, "jvm");
     if (p != NULL)  jvm_offset = p - base;
@@ -114,7 +114,7 @@ bool Disassembler::load_library() {
     if (_library == NULL) {
       // 3. <home>/jre/lib/<arch>/hsdis-<arch>.so
       buf[lib_offset - 1] = '\0';
-      const char* p = strrchr(buf, '/');
+      const char* p = strrchr(buf, *os::file_separator());
       if (p != NULL) {
         lib_offset = p - buf + 1;
         strcpy(&buf[lib_offset], hsdis_library_name);
@@ -504,6 +504,7 @@ address decode_env::decode_instructions(address start, address end) {
 
 
 void Disassembler::decode(CodeBlob* cb, outputStream* st) {
+  ttyLocker ttyl;
   if (!load_library())  return;
   decode_env env(cb, st);
   env.output()->print_cr("Decoding CodeBlob " PTR_FORMAT, cb);
@@ -511,12 +512,14 @@ void Disassembler::decode(CodeBlob* cb, outputStream* st) {
 }
 
 void Disassembler::decode(address start, address end, outputStream* st, CodeStrings c) {
+  ttyLocker ttyl;
   if (!load_library())  return;
   decode_env env(CodeCache::find_blob_unsafe(start), st, c);
   env.decode_instructions(start, end);
 }
 
 void Disassembler::decode(nmethod* nm, outputStream* st) {
+  ttyLocker ttyl;
   if (!load_library())  return;
   decode_env env(nm, st);
   env.output()->print_cr("Decoding compiled method " PTR_FORMAT ":", nm);
