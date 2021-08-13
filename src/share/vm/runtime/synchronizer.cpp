@@ -255,7 +255,7 @@ void ObjectSynchronizer::fast_exit(Handle object, BasicLock* lock, TRAPS) {
      }
   }
 
-  ObjectSynchronizer::inflate(THREAD, object())->exit (true, THREAD) ;
+  ObjectSynchronizer::inflate(THREAD, object(), inflate_cause_vm_internal)->exit (true, THREAD) ;
 }
 // -----------------------------------------------------------------------------
 // Interpreter/Compiler Slow Case
@@ -1847,11 +1847,11 @@ void SystemDictObjMonitor::lock(BasicLock* lock, TRAPS) {
       // satisfy the critical section semantics.
       _monitor->unlock();
       ObjectSynchronizer::fast_enter(Handle(THREAD, _obj), lock, false, THREAD);
-      assert(ObjectSynchronizer::inflate(THREAD, _obj)->recursions() == 0, "Monitor should not recursive");
+      assert(ObjectSynchronizer::inflate(THREAD, _obj, ObjectSynchronizer::inflate_cause_monitor_enter)->recursions() == 0, "Monitor should not recursive");
     }
   } else {
     ObjectSynchronizer::fast_enter(Handle(THREAD, _obj), lock, false, THREAD);
-    assert(ObjectSynchronizer::inflate(THREAD, _obj)->recursions() == 0, "Monitor should not recursive");
+    assert(ObjectSynchronizer::inflate(THREAD, _obj, ObjectSynchronizer::inflate_cause_monitor_enter)->recursions() == 0, "Monitor should not recursive");
   }
 }
 

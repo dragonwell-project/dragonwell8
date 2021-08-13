@@ -853,13 +853,6 @@ G1CollectedHeap::mem_allocate(size_t word_size,
       result = attempt_allocation_humongous(word_size, &gc_count_before, &gclocker_retry_count);
     }
 
-#ifndef PRODUCT
-    if (TenantHeapIsolation && TraceNonRootTenantAllocation && !AllocationContext::current().is_system()) {
-      tty->print_cr("Non-root allocation: " SIZE_FORMAT " bytes @0x" PTR_FORMAT " in tenant 0x" PTR_FORMAT,
-                    word_size * HeapWordSize, result, AllocationContext::current().tenant_allocation_context());
-    }
-#endif
-
     if (result != NULL) {
       return result;
     }
