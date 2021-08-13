@@ -2571,7 +2571,7 @@ class Character implements java.io.Serializable, Comparable<Character> {
                              "ARABIC MATHEMATICAL ALPHABETIC SYMBOLS",
                              "ARABICMATHEMATICALALPHABETICSYMBOLS");
 
-        private static final int blockStarts[] = {
+        private static final int[] blockStarts = {
             0x0000,   // 0000..007F; Basic Latin
             0x0080,   // 0080..00FF; Latin-1 Supplement
             0x0100,   // 0100..017F; Latin Extended-A
@@ -4368,7 +4368,7 @@ class Character implements java.io.Serializable, Comparable<Character> {
             UNKNOWN
         };
 
-        private static HashMap<String, Character.UnicodeScript> aliases;
+        private static final HashMap<String, Character.UnicodeScript> aliases;
         static {
             aliases = new HashMap<>(128);
             aliases.put("ARAB", ARABIC);
@@ -4651,8 +4651,7 @@ class Character implements java.io.Serializable, Comparable<Character> {
      * @return  a string representation of this object.
      */
     public String toString() {
-        char buf[] = {value};
-        return String.valueOf(buf);
+        return String.valueOf(value);
     }
 
     /**

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -521,7 +521,8 @@ public class Main {
     }
 
     static char[] getPass(String modifier, String arg) {
-        char[] output = KeyStoreUtil.getPassWithModifier(modifier, arg, rb);
+        char[] output =
+            KeyStoreUtil.getPassWithModifier(modifier, arg, rb, collator);
         if (output != null) return output;
         usage();
         return null;    // Useless, usage() already exit
@@ -709,8 +710,12 @@ public class Main {
                     CodeSigner[] signers = je.getCodeSigners();
                     boolean isSigned = (signers != null);
                     anySigned |= isSigned;
-                    hasUnsignedEntry |= !je.isDirectory() && !isSigned
-                                        && !signatureRelated(name);
+
+                    boolean unsignedEntry = !isSigned
+                            && ((!je.isDirectory() && !signatureRelated(name))
+                            // a directory entry but with a suspicious size
+                            || (je.isDirectory() && je.getSize() > 0));
+                    hasUnsignedEntry |= unsignedEntry;
 
                     int inStoreOrScope = inKeyStore(signers);
 
@@ -735,7 +740,9 @@ public class Main {
                           (inManifest ? rb.getString("m") : rb.getString("SPACE")) +
                           (inStore ? rb.getString("k") : rb.getString("SPACE")) +
                           (inScope ? rb.getString("i") : rb.getString("SPACE")) +
-                          ((inStoreOrScope & NOT_ALIAS) != 0 ?"X":" ") +
+                          ((inStoreOrScope & NOT_ALIAS) != 0 ?
+                          rb.getString("X") : rb.getString("SPACE")) +
+                          (unsignedEntry ? rb.getString("q") : rb.getString("SPACE")) +
                           rb.getString("SPACE"));
                         sb.append("|");
                     }
@@ -760,9 +767,13 @@ public class Main {
                         if (signatureRelated(name)) {
                             sb.append("\n" + tab + rb.getString(
                                     ".Signature.related.entries.") + "\n\n");
+                        } else if (unsignedEntry) {
+                            sb.append('\n').append(tab)
+                                    .append(rb.getString(".Unsigned.entries."))
+                                    .append("\n\n");
                         } else {
                             sb.append("\n" + tab + rb.getString(
-                                    ".Unsigned.entries.") + "\n\n");
+                                    ".Directory.entries.") + "\n\n");
                         }
                     }
 
@@ -838,6 +849,11 @@ public class Main {
                 if (ckaliases.size() > 0) {
                     System.out.println(rb.getString(
                         ".X.not.signed.by.specified.alias.es."));
+                }
+
+                if (hasUnsignedEntry) {
+                    System.out.println(rb.getString(
+                            ".q.unsigned.entry"));
                 }
             }
             if (man == null) {

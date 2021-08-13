@@ -27,6 +27,7 @@ package jdk.internal.platform.cgroupv1;
 
 import java.io.BufferedReader;
 import java.io.IOException;
+import java.math.BigInteger;
 import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -156,7 +157,18 @@ public class SubSystem {
     public static long convertStringToLong(String strval) {
         if (strval == null) return 0L;
 
-        long retval = Long.parseLong(strval);
+        long retval = 0;
+
+        try {
+            retval = Long.parseLong(strval);
+        } catch (NumberFormatException e) {
+            // For some properties (e.g. memory.limit_in_bytes) we may overflow the range of signed long.
+            // In this case, return Long.max
+            BigInteger b = new BigInteger(strval);
+            if (b.compareTo(BigInteger.valueOf(Long.MAX_VALUE)) > 0) {
+                return Long.MAX_VALUE;
+            }
+        }
 
         return retval;
     }
