@@ -29,6 +29,11 @@
 #define __STDC_FORMAT_MACROS
 #endif
 
+// Needed for INT64_C and UINT64_C with ISO C99 libraries (see JDK-8272214)
+#ifndef __STDC_CONSTANT_MACROS
+#define __STDC_CONSTANT_MACROS
+#endif
+
 #ifdef TARGET_COMPILER_gcc
 # include "utilities/globalDefinitions_gcc.hpp"
 #endif
