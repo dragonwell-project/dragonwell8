@@ -21,6 +21,7 @@
 
 package com.alibaba.wisp.engine;
 
+import java.util.List;
 import java.util.stream.Stream;
 
 /**
@@ -49,9 +50,14 @@ class ThreadAsWisp {
      * @return if condition is satisfied and thread is started as wisp
      */
     static boolean tryStart(Thread thread, Runnable target, long stackSize) {
-        if (!WispConfiguration.ALL_THREAD_AS_WISP
-                || WispEngine.isEngineThread(thread)
-                || matchBlackList(thread, target)) {
+        if (WispEngine.isEngineThread(thread)) {
+            return false;
+        }
+        if (WispConfiguration.ALL_THREAD_AS_WISP) {
+            if (matchList(thread, target, WispConfiguration.getThreadAsWispBlacklist())) {
+                return false;
+            }
+        } else if (!matchList(thread, target, WispConfiguration.getThreadAsWispWhitelist())) {
             return false;
         }
 
@@ -96,8 +102,8 @@ class ThreadAsWisp {
         }
     }
 
-    private static boolean matchBlackList(Thread thread, Runnable target) {
-        return Stream.concat(Stream.of(JAVA_LANG_PKG), WispConfiguration.getThreadAsWispBlacklist().stream())
+    private static boolean matchList(Thread thread, Runnable target, List<String> list) {
+        return Stream.concat(Stream.of(JAVA_LANG_PKG), list.stream())
                 .anyMatch(s -> {
                     Class<?> clazz = (target == null ? thread : target).getClass();
                     // Java code could start a thread by passing a `target` Runnable argument
