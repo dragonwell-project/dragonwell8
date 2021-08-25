@@ -84,7 +84,7 @@ Java_sun_management_OperatingSystemImpl_getSystemCpuLoad0
 
 
 JNIEXPORT jdouble JNICALL
-Java_sun_management_OperatingSystemImpl_getProcessCpuLoad
+Java_sun_management_OperatingSystemImpl_getProcessCpuLoad0
 (JNIEnv *env, jobject dummy)
 {
     // This code is influenced by the darwin top source

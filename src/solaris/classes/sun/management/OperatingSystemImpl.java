@@ -48,6 +48,10 @@ class OperatingSystemImpl extends BaseOperatingSystemImpl
         this.containerMetrics = jdk.internal.platform.Container.metrics();
     }
 
+    public long getCommittedVirtualMemorySize() {
+        return getCommittedVirtualMemorySize0();
+    }
+
     public long getTotalSwapSpaceSize() {
         if (containerMetrics != null) {
             long limit = containerMetrics.getMemoryAndSwapLimit();
@@ -95,6 +99,10 @@ class OperatingSystemImpl extends BaseOperatingSystemImpl
         return getFreeSwapSpaceSize0();
     }
 
+    public long getProcessCpuTime() {
+        return getProcessCpuTime0();
+    }
+
     public long getFreePhysicalMemorySize() {
         if (containerMetrics != null) {
             long usage = containerMetrics.getMemoryUsage();
@@ -114,6 +122,14 @@ class OperatingSystemImpl extends BaseOperatingSystemImpl
             }
         }
         return getTotalPhysicalMemorySize0();
+    }
+
+    public long getOpenFileDescriptorCount() {
+        return getOpenFileDescriptorCount0();
+    }
+
+    public long getMaxFileDescriptorCount() {
+        return getMaxFileDescriptorCount0();
     }
 
     private double getUsageDividesTotal(long usageTicks, long totalTicks) {
@@ -195,6 +211,10 @@ class OperatingSystemImpl extends BaseOperatingSystemImpl
         return getSystemCpuLoad0();
     }
 
+    public double getProcessCpuLoad() {
+        return getProcessCpuLoad0();
+    }
+
     private boolean isCpuSetSameAsHostCpuSet() {
         if (containerMetrics != null) {
             return containerMetrics.getCpuSetCpus().length == getHostOnlineCpuCount0();
@@ -202,16 +222,17 @@ class OperatingSystemImpl extends BaseOperatingSystemImpl
         return false;
     }
 
-    public native long getCommittedVirtualMemorySize();
-    private native long getTotalSwapSpaceSize0();
-    private native long getFreeSwapSpaceSize0();
-    public native long getProcessCpuTime();
+    /* native methods */
+    private native long getCommittedVirtualMemorySize0();
     private native long getFreePhysicalMemorySize0();
-    private native long getTotalPhysicalMemorySize0();
-    public native long getOpenFileDescriptorCount();
-    public native long getMaxFileDescriptorCount();
+    private native long getFreeSwapSpaceSize0();
+    private native long getMaxFileDescriptorCount0();
+    private native long getOpenFileDescriptorCount0();
+    private native long getProcessCpuTime0();
+    private native double getProcessCpuLoad0();
     private native double getSystemCpuLoad0();
-    public native double getProcessCpuLoad();
+    private native long getTotalPhysicalMemorySize0();
+    private native long getTotalSwapSpaceSize0();
     private native double getSingleCpuLoad0(int cpuNum);
     private native int getHostConfiguredCpuCount0();
     private native int getHostOnlineCpuCount0();
@@ -219,7 +240,8 @@ class OperatingSystemImpl extends BaseOperatingSystemImpl
     private native long getHostTotalCpuTicks0();
 
     static {
-        initialize();
+        initialize0();
     }
-    private static native void initialize();
+
+    private static native void initialize0();
 }
