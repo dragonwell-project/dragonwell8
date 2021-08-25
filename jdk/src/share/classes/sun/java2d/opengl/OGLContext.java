@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2004, 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -164,9 +164,6 @@ public class OGLContext extends BufferedContext {
         @Native
         static final int CAPS_EXT_FBOBJECT     =
                 (CAPS_RT_TEXTURE_ALPHA | CAPS_RT_TEXTURE_OPAQUE);
-        /** Indicates that the context supports a stored alpha channel. */
-        @Native
-        static final int CAPS_STORED_ALPHA     = CAPS_RT_PLAIN_ALPHA;
         /** Indicates that the context is doublebuffered. */
         @Native
         static final int CAPS_DOUBLEBUFFERED   = (FIRST_PRIVATE_CAP << 0);
@@ -208,9 +205,6 @@ public class OGLContext extends BufferedContext {
             StringBuffer buf = new StringBuffer(super.toString());
             if ((caps & CAPS_EXT_FBOBJECT) != 0) {
                 buf.append("CAPS_EXT_FBOBJECT|");
-            }
-            if ((caps & CAPS_STORED_ALPHA) != 0) {
-                buf.append("CAPS_STORED_ALPHA|");
             }
             if ((caps & CAPS_DOUBLEBUFFERED) != 0) {
                 buf.append("CAPS_DOUBLEBUFFERED|");

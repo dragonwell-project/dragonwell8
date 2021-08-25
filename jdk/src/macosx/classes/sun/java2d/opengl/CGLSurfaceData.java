@@ -52,9 +52,6 @@ public abstract class CGLSurfaceData extends OGLSurfaceData {
                                 long pPeerData, long layerPtr, int xoff,
                                 int yoff, boolean isOpaque);
 
-    protected native boolean initPbuffer(long pData, long pConfigInfo,
-            boolean isOpaque, int width, int height);
-
     protected CGLSurfaceData(CGLGraphicsConfig gc, ColorModel cm, int type,
                              int width, int height) {
         super(gc, cm, type);
@@ -140,7 +137,7 @@ public abstract class CGLSurfaceData extends OGLSurfaceData {
 
     /**
      * Creates a SurfaceData object representing an off-screen buffer (either a
-     * Pbuffer or Texture).
+     * FBO or Texture).
      */
     public static CGLOffScreenSurfaceData createData(CGLGraphicsConfig gc,
             int width, int height, ColorModel cm, Image image, int type) {
