@@ -77,10 +77,12 @@
 // pointer is stored as integer value.
 #define NULL_WORD NULL
 
-// MS Visual Studio 10 doesn't seem to have INT64_C and UINT64_C even with
-// __STDC_CONSTANT_MACROS defined.
-#if _MSC_VER <= 1600
+// Some MS Visual Studio versions do not seem to have INT64_C and UINT64_C
+// even with __STDC_CONSTANT_MACROS defined.
+#ifndef INT64_C
 #define INT64_C(c)  (c ## i64)
+#endif
+#ifndef UINT64_C
 #define UINT64_C(c) (c ## ui64)
 #endif
 
