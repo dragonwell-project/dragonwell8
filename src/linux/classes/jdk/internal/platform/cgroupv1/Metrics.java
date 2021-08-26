@@ -116,7 +116,10 @@ public class Metrics implements jdk.internal.platform.Metrics {
         try (Stream<String> lines =
              readFilePrivileged(Paths.get("/proc/self/cgroup"))) {
 
-            lines.map(line -> line.split(":"))
+            // The limit value of 3 is because /proc/self/cgroup contains three
+            // colon-separated tokens per line. The last token, cgroup path, might
+            // contain a ':'.
+            lines.map(line -> line.split(":", 3))
                  .filter(line -> (line.length >= 3))
                  .forEach(line -> setSubSystemPath(metrics, line));
 
