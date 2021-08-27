@@ -74,6 +74,8 @@ class JarFile extends ZipFile {
     private JarVerifier jv;
     private boolean jvInitialized;
     private boolean verify;
+    // The maximum size of array to allocate. Some VMs reserve some header words in an array.
+    private static final int MAX_ARRAY_SIZE = Integer.MAX_VALUE - 8;
 
     // indicates if Class-Path attribute present (only valid if hasCheckedSpecialAttributes true)
     private boolean hasClassPathAttribute;
@@ -431,7 +433,11 @@ class JarFile extends ZipFile {
      */
     private byte[] getBytes(ZipEntry ze) throws IOException {
         try (InputStream is = super.getInputStream(ze)) {
-            int len = (int)ze.getSize();
+            long uncompressedSize = ze.getSize();
+            if (uncompressedSize > MAX_ARRAY_SIZE) {
+                throw new IOException("Unsupported size: " + uncompressedSize);
+            }
+            int len = (int)uncompressedSize;
             byte[] b = IOUtils.readAllBytes(is);
             if (len != -1 && b.length != len)
                 throw new EOFException("Expected:" + len + ", read:" + b.length);
