@@ -622,6 +622,9 @@ public class ClassReader {
                         | ClassWriter.ACC_SYNTHETIC_ATTRIBUTE;
             } else if ("SourceDebugExtension".equals(attrName)) {
                 int len = readInt(u + 4);
+                if (len > b.length - (u + 8)) {
+                    throw new IllegalArgumentException();
+                }
                 sourceDebug = readUTF(u + 8, len, new char[len]);
             } else if (ANNOTATIONS
                     && "RuntimeInvisibleAnnotations".equals(attrName)) {
@@ -1070,6 +1073,9 @@ public class ClassReader {
         int maxLocals = readUnsignedShort(u + 2);
         int codeLength = readInt(u + 4);
         u += 8;
+        if (codeLength > b.length - u) {
+            throw new IllegalArgumentException();
+        }
 
         // reads the bytecode to find the labels
         int codeStart = u;
