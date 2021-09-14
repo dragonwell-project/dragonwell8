@@ -449,7 +449,7 @@ public class Resources extends java.util.ListResourceBundle {
         {"key.bit.disabled", "%1$d-bit %2$s key (disabled)"},
         {"unknown.size.1", "unknown size %s key"},
         {".PATTERN.printX509Cert.with.weak",
-                "Owner: {0}\nIssuer: {1}\nSerial number: {2}\nValid from: {3} until: {4}\nCertificate fingerprints:\n\t SHA1: {5}\n\t SHA256: {6}\nSignature algorithm name: {7}\nSubject Public Key Algorithm: {8} ({9,number,#})\nVersion: {10}"},
+                "Owner: {0}\nIssuer: {1}\nSerial number: {2}\nValid from: {3} until: {4}\nCertificate fingerprints:\n\t SHA1: {5}\n\t SHA256: {6}\nSignature algorithm name: {7}\nSubject Public Key Algorithm: {8}\nVersion: {9}"},
         {"PKCS.10.with.weak",
                 "PKCS #10 Certificate Request (Version 1.0)\n" +
                         "Subject: %1$s\nFormat: %2$s\nPublic Key: %3$s\nSignature algorithm: %4$s\n"},
