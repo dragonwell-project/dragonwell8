@@ -447,12 +447,13 @@ extern "C" void nm(intptr_t p) {
 extern "C" void disnm(intptr_t p) {
   Command c("disnm");
   CodeBlob* cb = CodeCache::find_blob((address) p);
-  nmethod* nm = cb->as_nmethod_or_null();
-  if (nm) {
-    nm->print();
-    Disassembler::decode(nm);
-  } else {
-    cb->print();
+  if (cb != NULL) {
+    nmethod* nm = cb->as_nmethod_or_null();
+    if (nm != NULL) {
+      nm->print();
+    } else {
+      cb->print();
+    }
     Disassembler::decode(cb);
   }
 }
@@ -687,6 +688,7 @@ void help() {
   tty->print_cr("  pns(void* sp, void* fp, void* pc)  - print native (i.e. mixed) stack trace. E.g.");
   tty->print_cr("                   pns($sp, $rbp, $pc) on Linux/amd64 and Solaris/amd64 or");
   tty->print_cr("                   pns($sp, $ebp, $pc) on Linux/x86 or");
+  tty->print_cr("                   pns($sp, $fp, $pc)  on Linux/AArch64 or");
   tty->print_cr("                   pns($sp, 0, $pc)    on Linux/ppc64 or");
   tty->print_cr("                   pns($sp + 0x7ff, 0, $pc) on Solaris/SPARC");
   tty->print_cr("                 - in gdb do 'set overload-resolution off' before calling pns()");

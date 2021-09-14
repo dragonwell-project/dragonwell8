@@ -178,7 +178,7 @@ JVM_handle_aix_signal(int sig, siginfo_t* info, void* ucVoid, int abort_if_unrec
   // avoid unnecessary crash when libjsig is not preloaded, try handle signals
   // that do not require siginfo/ucontext first.
 
-  if (sig == SIGPIPE) {
+  if (sig == SIGPIPE || sig == SIGXFSZ) {
     if (os::Aix::chained_handler(sig, info, ucVoid)) {
       return 1;
     } else {
