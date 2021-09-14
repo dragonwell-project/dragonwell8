@@ -22,13 +22,10 @@
  */
 
 /* @test
- * @bug 8032878
+ * @bug 8032878 8078855
  * @summary Checks that JComboBox as JTable cell editor processes key events
  *          even where setSurrendersFocusOnKeystroke flag in JTable is false and
  *          that it does not lose the first key press where the flag is true.
- * @library ../../regtesthelpers
- * @build Util
- * @author Alexey Ivanov
  * @run main bug8032878
  */
 
@@ -36,6 +33,7 @@ import java.awt.*;
 import java.awt.event.KeyEvent;
 import javax.swing.*;
 import javax.swing.text.JTextComponent;
+import javax.swing.plaf.metal.MetalLookAndFeel;
 
 public class bug8032878 implements Runnable {
     private static final String ONE = "one";
@@ -53,6 +51,8 @@ public class bug8032878 implements Runnable {
     private volatile String text;
 
     public static void main(String[] args) throws Exception {
+        UIManager.setLookAndFeel(new MetalLookAndFeel());
+
         final bug8032878 test = new bug8032878();
 
         test.test(false);
@@ -81,6 +81,7 @@ public class bug8032878 implements Runnable {
 
         frame.pack();
         frame.setVisible(true);
+        frame.setLocationRelativeTo(null);
     }
 
     private void test(final boolean flag) throws Exception {
@@ -88,11 +89,13 @@ public class bug8032878 implements Runnable {
             surrender = flag;
             SwingUtilities.invokeAndWait(this);
 
+            robot.waitForIdle();
+            robot.delay(1000);
             runTest();
             checkResult();
         } finally {
             if (frame != null) {
-                frame.dispose();
+                SwingUtilities.invokeAndWait(() -> frame.dispose());
             }
         }
     }
@@ -100,12 +103,20 @@ public class bug8032878 implements Runnable {
     private void runTest() throws Exception {
         robot.waitForIdle();
         // Select 'one'
-        Util.hitKeys(robot, KeyEvent.VK_TAB);
+        robot.keyPress(KeyEvent.VK_TAB);
+        robot.keyRelease(KeyEvent.VK_TAB);
         robot.waitForIdle();
-        Util.hitKeys(robot, KeyEvent.VK_1);
-        Util.hitKeys(robot, KeyEvent.VK_2);
-        Util.hitKeys(robot, KeyEvent.VK_3);
-        Util.hitKeys(robot, KeyEvent.VK_ENTER);
+        robot.keyPress(KeyEvent.VK_1);
+        robot.keyRelease(KeyEvent.VK_1);
+        robot.waitForIdle();
+        robot.keyPress(KeyEvent.VK_2);
+        robot.keyRelease(KeyEvent.VK_2);
+        robot.waitForIdle();
+        robot.keyPress(KeyEvent.VK_3);
+        robot.keyRelease(KeyEvent.VK_3);
+        robot.waitForIdle();
+        robot.keyPress(KeyEvent.VK_ENTER);
+        robot.keyRelease(KeyEvent.VK_ENTER);
         robot.waitForIdle();
     }
 

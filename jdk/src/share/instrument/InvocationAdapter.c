@@ -373,7 +373,7 @@ Agent_OnAttach(JavaVM* vm, char *args, void * reserved) {
          * class name. The manifest is in UTF8 so need to convert to
          * modified UTF8 (see JNI spec).
          */
-        oldLen = strlen(agentClass);
+        oldLen = (int)strlen(agentClass);
         newLen = modifiedUtf8LengthOfUtf8(agentClass, oldLen);
         /*
          * According to JVMS class name is represented as CONSTANT_Utf8_info,
