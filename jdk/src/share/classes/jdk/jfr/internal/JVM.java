@@ -177,6 +177,14 @@ public final class JVM {
      */
     public static native void log(int tagSetId, int level, String message);
 
+    /**
+     * Check whether the logger would output on the given level
+     *
+     * @param level on level
+     * @return {@literal true} if the logger would output on the given level
+     */
+    public static native boolean shouldLog(int level);
+
      /**
       * Subscribe to LogLevel updates for LogTag
       *
