@@ -1134,7 +1134,7 @@ public class HttpURLConnection extends java.net.HttpURLConnection {
              * 1) if (instProxy != null)
              *        connect to instProxy; raise exception if failed
              * 2) else use system default ProxySelector
-             * 3) is 2) fails, make direct connection
+             * 3) else make a direct connection if ProxySelector is not present
              */
 
             if (instProxy == null) { // no instance Proxy is set
@@ -1177,10 +1177,7 @@ public class HttpURLConnection extends java.net.HttpURLConnection {
                             if (p != Proxy.NO_PROXY) {
                                 sel.connectFailed(uri, p.address(), ioex);
                                 if (!it.hasNext()) {
-                                    // fallback to direct connection
-                                    http = getNewHttpClient(url, null, connectTimeout, false);
-                                    http.setReadTimeout(readTimeout);
-                                    break;
+                                    throw ioex;
                                 }
                             } else {
                                 throw ioex;
