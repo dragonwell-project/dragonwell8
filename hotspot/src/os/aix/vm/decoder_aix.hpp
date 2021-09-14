@@ -32,7 +32,7 @@ class AIXDecoder: public AbstractDecoder {
   AIXDecoder() {
     _decoder_status = no_error;
   }
-  ~AIXDecoder() {}
+  virtual ~AIXDecoder() {}
 
   virtual bool can_decode_C_frame_in_vm() const { return true; }
 

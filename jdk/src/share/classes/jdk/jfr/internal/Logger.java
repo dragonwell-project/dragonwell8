@@ -62,8 +62,6 @@ public final class Logger {
     }
 
     public static boolean shouldLog(LogTag tag, LogLevel level) {
-        // Logging level is not initialized because of lack of Xlog support in jdk8,
-        // so this method returns true directly now.
-        return true; // TODO: level.level >= tag.tagSetLevel;
+        return JVM.shouldLog(level.level);
     }
 }

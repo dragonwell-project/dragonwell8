@@ -309,6 +309,7 @@ public final class MonitorVmStartTerminate {
             String className = JavaProcess.class.getName();
             String classPath = System.getProperty("test.classes");
             ProcessBuilder pb = ProcessTools.createJavaProcessBuilder(
+                "-XX:+UsePerfData",
                 "-Dtest.timeout.factor=" + System.getProperty("test.timeout.factor", "1.0"),
                 "-cp", classPath, className, mainArgsIdentifier);
             OutputBuffer ob = ProcessTools.getOutput(pb.start());
