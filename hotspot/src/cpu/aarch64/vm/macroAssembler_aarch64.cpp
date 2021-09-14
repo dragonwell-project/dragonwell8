@@ -1262,7 +1262,7 @@ void MacroAssembler::verify_oop(Register reg, const char* s) {
   stp(rscratch2, lr, Address(pre(sp, -2 * wordSize)));
 
   mov(r0, reg);
-  mov(rscratch1, (address)b);
+  movptr(rscratch1, (uintptr_t)(address)b);
 
   // call indirectly to solve generation ordering problem
   lea(rscratch2, ExternalAddress(StubRoutines::verify_oop_subroutine_entry_address()));
@@ -1298,7 +1298,7 @@ void MacroAssembler::verify_oop_addr(Address addr, const char* s) {
   } else {
     ldr(r0, addr);
   }
-  mov(rscratch1, (address)b);
+  movptr(rscratch1, (uintptr_t)(address)b);
 
   // call indirectly to solve generation ordering problem
   lea(rscratch2, ExternalAddress(StubRoutines::verify_oop_subroutine_entry_address()));
@@ -1993,8 +1993,8 @@ void MacroAssembler::verify_heapbase(const char* msg) {
 void MacroAssembler::stop(const char* msg) {
   address ip = pc();
   pusha();
-  mov(c_rarg0, (address)msg);
-  mov(c_rarg1, (address)ip);
+  movptr(c_rarg0, (uintptr_t)(address)msg);
+  movptr(c_rarg1, (uintptr_t)(address)ip);
   mov(c_rarg2, sp);
   mov(c_rarg3, CAST_FROM_FN_PTR(address, MacroAssembler::debug64));
   blr(c_rarg3);

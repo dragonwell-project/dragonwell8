@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2011, 2020, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2011, 2021, Oracle and/or its affiliates. All rights reserved.
 # DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 #
 # This code is free software; you can redistribute it and/or modify it
@@ -556,7 +556,9 @@ $(JDK_OUTPUTDIR)/bin$(OUTPUT_SUBDIR)/unpack200$(EXE_SUFFIX): $(BUILD_UNPACKEXE)
 	$(call install-file)
 
 $(JDK_OUTPUTDIR)/bin$(OUTPUT_SUBDIR)/unpack200$(DEBUGINFO_EXT): $(BUILD_UNPACKEXE)
-	$(call install-file)
+	$(MKDIR) -p $(@D)
+	$(RM) $@
+	$(CP) -R $(JDK_OUTPUTDIR)/objs/unpackexe$(OUTPUT_SUBDIR)/unpack200$(DEBUGINFO_EXT) $@
 
 BUILD_LAUNCHERS += $(JDK_OUTPUTDIR)/bin$(OUTPUT_SUBDIR)/unpack200$(EXE_SUFFIX)
 ifeq ($(ENABLE_DEBUG_SYMBOLS), true)
