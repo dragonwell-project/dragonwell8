@@ -39,7 +39,7 @@ class MetaIndex: public CHeapObj<mtClass> {
   int    _num_meta_package_names;
  public:
   MetaIndex(char** meta_package_names, int num_meta_package_names);
-  ~MetaIndex();
+  virtual ~MetaIndex();
   bool may_contain(const char* class_name);
 };
 
@@ -61,6 +61,7 @@ class ClassPathEntry: public CHeapObj<mtClass> {
   virtual bool is_lazy();
   // Constructor
   ClassPathEntry();
+  virtual ~ClassPathEntry() {}
   // Attempt to locate file_name through this class path entry.
   // Returns a class file parsing stream if successfull.
   virtual ClassFileStream* open_stream(const char* name, TRAPS) = 0;
@@ -77,6 +78,7 @@ class ClassPathDirEntry: public ClassPathEntry {
   bool is_jar_file()  { return false;  }
   const char* name()  { return _dir; }
   ClassPathDirEntry(const char* dir);
+  virtual ~ClassPathDirEntry() {}
   ClassFileStream* open_stream(const char* name, TRAPS);
   // Debugging
   NOT_PRODUCT(void compile_the_world(Handle loader, TRAPS);)
@@ -106,7 +108,7 @@ class ClassPathZipEntry: public ClassPathEntry {
   bool is_jar_file()  { return true;  }
   const char* name()  { return _zip_name; }
   ClassPathZipEntry(jzfile* zip, const char* zip_name);
-  ~ClassPathZipEntry();
+  virtual ~ClassPathZipEntry();
   u1* open_entry(const char* name, jint* filesize, bool nul_terminate, TRAPS);
   ClassFileStream* open_stream(const char* name, TRAPS);
   void contents_do(void f(const char* name, void* context), void* context);
@@ -134,6 +136,7 @@ class LazyClassPathEntry: public ClassPathEntry {
   bool is_jar_file();
   const char* name()  { return _path; }
   LazyClassPathEntry(const char* path, const struct stat* st, bool throw_exception);
+  virtual ~LazyClassPathEntry() {}
   u1* open_entry(const char* name, jint* filesize, bool nul_terminate, TRAPS);
   ClassFileStream* open_stream(const char* name, TRAPS);
   void set_meta_index(MetaIndex* meta_index) { _meta_index = meta_index; }
