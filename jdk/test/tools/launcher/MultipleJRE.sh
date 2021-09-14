@@ -308,7 +308,7 @@ TestLongMainClass() {
 # Main test sequence starts here
 #
 RELEASE=`$JAVA -version 2>&1 | head -n 1 | cut -d ' ' -f 3 | \
-  sed -e "s/\"//g"`
+  sed -e "s/\"//g" | sed -e "s/\r//g"`
 BASE_RELEASE=`echo $RELEASE | sed -e "s/-.*//g"`
 
 #
