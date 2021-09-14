@@ -201,7 +201,7 @@ AC_DEFUN_ONCE([HELP_PRINT_SUMMARY_AND_WARNINGS],
     printf "* Environment:    $WINDOWS_ENV_VENDOR version $WINDOWS_ENV_VERSION (root at $WINDOWS_ENV_ROOT_PATH)\n"
   fi
   printf "* Boot JDK:       $BOOT_JDK_VERSION (at $BOOT_JDK)\n"
-  printf "* Toolchain:      $TOOLCHAIN_TYPE ($TOOLCHAIN_DESCRIPTION)\n" 
+  printf "* Toolchain:      $TOOLCHAIN_TYPE ($TOOLCHAIN_DESCRIPTION)\n"
   printf "* C Compiler:     Version $CC_VERSION_NUMBER (at $CC)\n"
   printf "* C++ Compiler:   Version $CXX_VERSION_NUMBER (at $CXX)\n"
 
@@ -247,5 +247,23 @@ AC_DEFUN_ONCE([HELP_PRINT_SUMMARY_AND_WARNINGS],
     printf "WARNING: The toolchain version used is known to have issues. Please\n"
     printf "consider using a supported version unless you know what you are doing.\n"
     printf "\n"
+  fi
+])
+
+AC_DEFUN_ONCE([HELP_REPEAT_WARNINGS],
+[
+  # Locate config.log.
+  if test -e "./config.log"; then
+    CONFIG_LOG_PATH="."
+  fi
+
+  if test -e "$CONFIG_LOG_PATH/config.log"; then
+    $GREP '^configure:.*: WARNING:' "$CONFIG_LOG_PATH/config.log" > /dev/null 2>&1
+    if test $? -eq 0; then
+      printf "The following warnings were produced. Repeated here for convenience:\n"
+      # We must quote sed expression (using []) to stop m4 from eating the [].
+      $GREP '^configure:.*: WARNING:' "$CONFIG_LOG_PATH/config.log" | $SED -e [ 's/^configure:[0-9]*: //' ]
+      printf "\n"
+    fi
   fi
 ])
