@@ -362,7 +362,15 @@ ASFLAGS += -x assembler-with-cpp
 # Linker flags
 
 # statically link libstdc++.so, work with gcc but ignored by g++
-STATIC_STDCXX = -Wl,-Bstatic -lstdc++ -Wl,-Bdynamic
+ifeq ($(OS_VENDOR), Darwin)
+  ifeq ($(USE_CLANG), true)
+    STATIC_STDCXX = -Wl,-Bstatic -lc++ -Wl,-Bdynamic
+  else
+    STATIC_STDCXX = -Wl,-Bstatic -lstdc++ -Wl,-Bdynamic
+  endif
+else
+  STATIC_STDCXX = -Wl,-Bstatic -lstdc++ -Wl,-Bdynamic
+endif
 
 ifeq ($(USE_CLANG),)
   # statically link libgcc and/or libgcc_s, libgcc does not exist before gcc-3.x.
