@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -139,7 +139,7 @@ class ClassFileParser VALUE_OBJ_CLASS_SPEC {
     u2 _contended_group;
 
     AnnotationCollector(Location location)
-    : _location(location), _annotations_present(0)
+    : _location(location), _annotations_present(0), _contended_group(0)
     {
       assert((int)_annotation_LIMIT <= (int)sizeof(_annotations_present) * BitsPerByte, "");
     }

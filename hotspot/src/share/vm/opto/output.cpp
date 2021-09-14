@@ -28,6 +28,7 @@
 #include "code/debugInfo.hpp"
 #include "code/debugInfoRec.hpp"
 #include "compiler/compileBroker.hpp"
+#include "compiler/disassembler.hpp"
 #include "compiler/oopMap.hpp"
 #include "memory/allocation.inline.hpp"
 #include "opto/callnode.hpp"
@@ -1510,8 +1511,17 @@ void Compile::fill_buffer(CodeBuffer* cb, uint* blk_starts) {
       }
 
 #ifdef ASSERT
-      if (n->size(_regalloc) < (current_offset-instr_offset)) {
+      uint n_size = n->size(_regalloc);
+      if (n_size < (current_offset-instr_offset)) {
+        MachNode* mach = n->as_Mach();
         n->dump();
+        mach->dump_format(_regalloc, tty);
+        tty->print_cr(" n_size (%d), current_offset (%d), instr_offset (%d)", n_size, current_offset, instr_offset);
+        Disassembler::decode(cb->insts_begin() + instr_offset, cb->insts_begin() + current_offset + 1, tty);
+        tty->print_cr(" ------------------- ");
+        BufferBlob* blob = this->scratch_buffer_blob();
+        address blob_begin = blob->content_begin();
+        Disassembler::decode(blob_begin, blob_begin + n_size + 1, tty);
         assert(false, "wrong size of mach node");
       }
 #endif
