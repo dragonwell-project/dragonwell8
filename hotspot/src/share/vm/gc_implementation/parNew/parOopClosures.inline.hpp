@@ -38,6 +38,7 @@ template <class T> inline void ParScanWeakRefClosure::do_oop_work(T* p) {
     // we need to ensure that it is copied (see comment in
     // ParScanClosure::do_oop_work).
     Klass* objK = obj->klass();
+    OrderAccess::loadload();
     markOop m = obj->mark();
     oop new_obj;
     if (m->is_marked()) { // Contains forwarding pointer.
@@ -101,6 +102,7 @@ inline void ParScanClosure::do_oop_work(T* p,
       // overwritten with an overflow next pointer after the object is
       // forwarded.
       Klass* objK = obj->klass();
+      OrderAccess::loadload();
       markOop m = obj->mark();
       oop new_obj;
       if (m->is_marked()) { // Contains forwarding pointer.
