@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2011, 2021, Oracle and/or its affiliates. All rights reserved.
 # DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 #
 # This code is free software; you can redistribute it and/or modify it
@@ -501,6 +501,17 @@ define SetupNativeCompilation
 		$(CD) $$(@D) && $(OBJCOPY) --add-gnu-debuglink=$$(@F) $$<
 		$(TOUCH) $$@
           endif
+        else ifeq ($(OPENJDK_TARGET_OS), aix)
+            ifneq ($$($1_STRIP_POLICY), no_strip)
+              # AIX does not provide the equivalent of OBJCOPY to extract debug symbols,
+              # so we copy the compiled object with symbols to the .debuginfo file, which
+              # happens prior to the STRIP on the original target object file.
+              $1_DEBUGINFO_FILES := $$($1_OBJECT_DIR)/$$($1_NOSUFFIX).debuginfo
+              $$($1_DEBUGINFO_FILES): $$($1_TARGET)
+		$(RM) $$@
+		$(CP) $$< $$@
+		$(TOUCH) $$@
+            endif
         else ifeq ($(OPENJDK_TARGET_OS), macosx)
           ifneq ($$($1_STRIP_POLICY), no_strip)
             $1_DEBUGINFO_FILES := $$($1_OBJECT_DIR)/$$($1_BASENAME).dSYM/Contents/Info.plist \
