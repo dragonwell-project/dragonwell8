@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,28 +22,20 @@
  *
  */
 
-#include "precompiled.hpp"
-#include "gc_implementation/g1/g1CollectedHeap.hpp"
-#include "gc_implementation/g1/heapRegion.hpp"
-#include "g1HeapRegionEventSender.hpp"
-#include "jfr/jfrEvents.hpp"
+/*
+ * @test
+ * @bug 8134883
+ * @summary C1's range check elimination breaks with a non-natural loop that an exception handler as one entry
+ * @compile TestRangeCheckExceptionHandlerLoop.jasm
+ * @run main/othervm -XX:-BackgroundCompilation -XX:-UseOnStackReplacement TestRangeCheckExceptionHandlerLoopMain
+ */
 
-class DumpEventInfoClosure : public HeapRegionClosure {
-public:
-  bool doHeapRegion(HeapRegion* r) {
-    EventG1HeapRegionInformation evt;
-    evt.set_index(r->hrm_index());
-    evt.set_type(r->get_trace_type());
-    evt.set_start((uintptr_t)r->bottom());
-    evt.set_used(r->used());
-    evt.commit();
-    return false;
-  }
-};
-
-
-void G1HeapRegionEventSender::send_events() {
-  DumpEventInfoClosure c;
-
-  G1CollectedHeap::heap()->heap_region_iterate(&c);
+public class TestRangeCheckExceptionHandlerLoopMain {
+    public static void main(String[] args) throws Exception {
+        Exception exception = new Exception();
+        int[] array = new int[10];
+        for (int i = 0; i < 20000; i++) {
+            TestRangeCheckExceptionHandlerLoop.test(false, array, exception);
+        }
+    }
 }

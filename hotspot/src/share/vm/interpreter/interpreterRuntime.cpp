@@ -1206,6 +1206,7 @@ void SignatureHandlerLibrary::add(methodHandle method) {
         } else {
           // debugging suppport
           if (PrintSignatureHandlers) {
+            ttyLocker ttyl;
             tty->cr();
             tty->print_cr("argument handler #%d for: %s %s (fingerprint = " UINT64_FORMAT ", %d bytes generated)",
                           _handlers->length(),
