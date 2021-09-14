@@ -226,6 +226,18 @@ CFLAGS_WARN/DEFAULT = $(WARNINGS_ARE_ERRORS) $(WARNING_FLAGS)
 # Special cases
 CFLAGS_WARN/BYFILE = $(CFLAGS_WARN/$@)$(CFLAGS_WARN/DEFAULT$(CFLAGS_WARN/$@)) 
 
+# On newer GCCs, the compiler complains about null being passed
+# to the %s format specifier. The warning appears only on 8u,
+# but the code is largely the same up to trunk. We disable
+# the warning until the code is fixed, to allow builds with
+# -Werror (the default).
+# See JDK-8269388 and PR3798 in IcedTea:
+# https://icedtea.wildebeest.org/hg/icedtea8-forest/hotspot/rev/9f2ceb42dc64
+# Option only exists on GCC 7 and later, checked by configure
+ifeq ($(USE_FORMAT_OVERFLOW), 1)
+  CFLAGS_WARN/os_linux.o = $(CFLAGS_WARN/DEFAULT) -Wno-error=format-overflow
+endif
+
 # The flags to use for an Optimized g++ build
 OPT_CFLAGS/SIZE=-Os
 OPT_CFLAGS/SPEED=-O3
