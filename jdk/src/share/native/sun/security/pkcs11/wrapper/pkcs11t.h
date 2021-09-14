@@ -1998,5 +1998,7 @@ typedef struct CK_SEED_CBC_ENCRYPT_DATA_PARAMS {
 typedef CK_SEED_CBC_ENCRYPT_DATA_PARAMS CK_PTR \
                                         CK_SEED_CBC_ENCRYPT_DATA_PARAMS_PTR;
 
+typedef CK_ULONG CK_PROFILE_ID;
+
 #endif /* _PKCS11T_H_ */
 

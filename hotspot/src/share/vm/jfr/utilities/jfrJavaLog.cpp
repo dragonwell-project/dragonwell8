@@ -139,3 +139,7 @@ void JfrJavaLog::log(jint tag_set, jint level, jstring message, TRAPS) {
   // log_tag_sets[tag_set].log_tag_set->log((LogLevelType)level, s);
   tty->print_cr("JFR: %s", s);
 }
+
+bool JfrJavaLog::should_log(jint level, TRAPS) {
+  return LogJFR;
+}
