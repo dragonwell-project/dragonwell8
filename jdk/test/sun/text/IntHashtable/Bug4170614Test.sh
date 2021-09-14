@@ -60,10 +60,9 @@ cd ${TESTSRC}
 TEST_JAVABASE=${TESTCLASSES}/java.base
 mkdir -p ${TEST_JAVABASE}
 ${COMPILEJAVA}/bin/javac ${TESTJAVACOPTS} ${TESTTOOLVMOPTS} \
-    -Xmodule:java.base \
     -d ${TEST_JAVABASE} Bug4170614Test.java
 
-${TESTJAVA}/bin/java ${TESTVMOPTS} -Xpatch:java.base=${TEST_JAVABASE} java.text.Bug4170614Test
+${TESTJAVA}/bin/java ${TESTVMOPTS} -Xbootclasspath/p:${TEST_JAVABASE} java.text.Bug4170614Test
 
 result=$?
 
