@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -129,8 +129,10 @@ public:
   OverflowMulLNode(Node* in1, Node* in2) : OverflowLNode(in1, in2) {}
   virtual int Opcode() const;
 
-  virtual bool will_overflow(jlong v1, jlong v2) const;
+  virtual bool will_overflow(jlong v1, jlong v2) const { return is_overflow(v1, v2); }
   virtual bool can_overflow(const Type* t1, const Type* t2) const;
+
+  static bool is_overflow(jlong v1, jlong v2);
 };
 
 #endif
