@@ -1897,8 +1897,8 @@ Optional Packages:
   --with-toolchain-path   prepend these directories when searching for
                           toolchain binaries (compilers etc)
   --with-extra-path       prepend these directories to the default path
-  --with-xcode-path       explicit path to Xcode 4 (generally for building on
-                          10.9 and later)
+  --with-xcode-path       explicit path to Xcode application (generally for
+                          building on 10.9 and later)
   --with-conf-name        use this as the name of the configuration [generated
                           from important configuration options]
   --with-builddeps-conf   use this configuration file for the builddeps
@@ -4394,7 +4394,7 @@ VS_SDK_PLATFORM_NAME_2017=
 #CUSTOM_AUTOCONF_INCLUDE
 
 # Do not change or remove the following line, it is needed for consistency checks:
-DATE_WHEN_GENERATED=1621590864
+DATE_WHEN_GENERATED=1623274143
 
 ###############################################################################
 #
@@ -14009,6 +14009,8 @@ $as_echo "$COMPILE_TYPE" >&6; }
     elif test "x$OPENJDK_TARGET_CPU_ARCH" = xx86; then
       OPENJDK_TARGET_CPU_JLI_CFLAGS="$OPENJDK_TARGET_CPU_JLI_CFLAGS -DLIBARCH32NAME='\"i386\"' -DLIBARCH64NAME='\"amd64\"'"
     fi
+  elif test "x$OPENJDK_TARGET_OS" = xmacosx && test "x$TOOLCHAIN_TYPE" = xclang ; then
+    OPENJDK_TARGET_CPU_JLI_CFLAGS="$OPENJDK_TARGET_CPU_JLI_CFLAGS -stdlib=libc++ -mmacosx-version-min=\$(MACOSX_VERSION_MIN)"
   fi
 
 
@@ -26777,7 +26779,7 @@ $as_echo "$as_me: or run \"bash.exe -l\" from a VS command prompt and then run c
   # Before we locate the compilers, we need to sanitize the Xcode build environment
   if test "x$OPENJDK_TARGET_OS" = "xmacosx"; then
     # determine path to Xcode developer directory
-    # can be empty in which case all the tools will rely on a sane Xcode 4 installation
+    # can be empty in which case all the tools will rely on a sane Xcode installation
     SET_DEVELOPER_DIR=
 
     if test -n "$XCODE_PATH"; then
@@ -26789,7 +26791,7 @@ $as_echo "$as_me: or run \"bash.exe -l\" from a VS command prompt and then run c
 $as_echo_n "checking Determining if we need to set DEVELOPER_DIR... " >&6; }
     if test -n "$DEVELOPER_DIR"; then
       if test ! -d "$DEVELOPER_DIR"; then
-        as_fn_error $? "Xcode Developer path does not exist: $DEVELOPER_DIR, please provide a path to the Xcode 4 application bundle using --with-xcode-path" "$LINENO" 5
+        as_fn_error $? "Xcode Developer path does not exist: $DEVELOPER_DIR, please provide a path to the Xcode application bundle using --with-xcode-path" "$LINENO" 5
       fi
       if test ! -f "$DEVELOPER_DIR"/usr/bin/xcodebuild; then
         as_fn_error $? "Xcode Developer path is not valid: $DEVELOPER_DIR, it must point to Contents/Developer inside an Xcode application bundle" "$LINENO" 5
@@ -26849,14 +26851,14 @@ fi
       as_fn_error $? "The xcodebuild tool was not found, the Xcode command line tools are required to build on Mac OS X" "$LINENO" 5
     fi
 
-    # Fail-fast: verify we're building on Xcode 4, we cannot build with Xcode 5 or later
+    # Fail-fast: verify we're building on a supported Xcode version
     XCODE_VERSION=`$XCODEBUILD -version | grep '^Xcode ' | sed 's/Xcode //'`
     XC_VERSION_PARTS=( ${XCODE_VERSION//./ } )
-    if test ! "${XC_VERSION_PARTS[0]}" = "4"; then
-      as_fn_error $? "Xcode 4 is required to build JDK 8, the version found was $XCODE_VERSION. Use --with-xcode-path to specify the location of Xcode 4 or make Xcode 4 active by using xcode-select." "$LINENO" 5
+    if test "${XC_VERSION_PARTS[0]}" != "6" -a "${XC_VERSION_PARTS[0]}" != "9" -a "${XC_VERSION_PARTS[0]}" != "10" -a "${XC_VERSION_PARTS[0]}" != "11" -a "${XC_VERSION_PARTS[0]}" != "12" ; then
+      as_fn_error $? "Xcode 6, 9-12 is required to build JDK 8, the version found was $XCODE_VERSION. Use --with-xcode-path to specify the location of Xcode or make Xcode active by using xcode-select." "$LINENO" 5
     fi
 
-    # Some versions of Xcode 5 command line tools install gcc and g++ as symlinks to
+    # Some versions of Xcode command line tools install gcc and g++ as symlinks to
     # clang and clang++, which will break the build. So handle that here if we need to.
     if test -L "/usr/bin/gcc" -o -L "/usr/bin/g++"; then
       # use xcrun to find the real gcc and add it's directory to PATH
@@ -26883,7 +26885,7 @@ $as_echo "(none, will use system headers and frameworks)" >&6; }
 
     # Perform a basic sanity test
     if test ! -f "$SDKPATH/System/Library/Frameworks/Foundation.framework/Headers/Foundation.h"; then
-      as_fn_error $? "Unable to find required framework headers, provide a valid path to Xcode 4 using --with-xcode-path" "$LINENO" 5
+      as_fn_error $? "Unable to find required framework headers, provide a valid path to Xcode using --with-xcode-path" "$LINENO" 5
     fi
 
     # if SDKPATH is non-empty then we need to add -isysroot and -iframework for gcc and g++
@@ -26894,11 +26896,13 @@ $as_echo "(none, will use system headers and frameworks)" >&6; }
       LDFLAGS_JDK="${LDFLAGS_JDK} -isysroot \"$SDKPATH\" -iframework\"$SDKPATH/System/Library/Frameworks\""
     fi
 
-    # These always need to be set, or we can't find the frameworks embedded in JavaVM.framework
-    # setting this here means it doesn't have to be peppered throughout the forest
-    CFLAGS_JDK="$CFLAGS_JDK -F\"$SDKPATH/System/Library/Frameworks/JavaVM.framework/Frameworks\""
-    CXXFLAGS_JDK="$CXXFLAGS_JDK -F\"$SDKPATH/System/Library/Frameworks/JavaVM.framework/Frameworks\""
-    LDFLAGS_JDK="$LDFLAGS_JDK -F\"$SDKPATH/System/Library/Frameworks/JavaVM.framework/Frameworks\""
+    if test -d "$SDKPATH/System/Library/Frameworks/JavaVM.framework/Frameworks" ; then
+      # These always need to be set on macOS 10.X, or we can't find the frameworks embedded in JavaVM.framework
+      # set this here so it doesn't have to be peppered throughout the forest
+      CFLAGS_JDK="$CFLAGS_JDK -F\"$SDKPATH/System/Library/Frameworks/JavaVM.framework/Frameworks\""
+      CXXFLAGS_JDK="$CXXFLAGS_JDK -F\"$SDKPATH/System/Library/Frameworks/JavaVM.framework/Frameworks\""
+      LDFLAGS_JDK="$LDFLAGS_JDK -F\"$SDKPATH/System/Library/Frameworks/JavaVM.framework/Frameworks\""
+    fi
   fi
 
   # For solaris we really need solaris tools, and not the GNU equivalent.
@@ -38713,6 +38717,381 @@ $as_echo "$as_me: Rewriting OBJDUMP to \"$new_complete\"" >&6;}
     # FIXME: we should list the discovered compilers as an exclude pattern!
     # If we do that, we can do this detection before POST_DETECTION, and still
     # find the build compilers in the tools dir, if needed.
+    if test "x$OPENJDK_BUILD_OS" = xmacosx; then
+
+
+  # Publish this variable in the help.
+
+
+  if test "x$BUILD_CC" = x; then
+    # The variable is not set by user, try to locate tool using the code snippet
+    for ac_prog in clang cl cc gcc
+do
+  # Extract the first word of "$ac_prog", so it can be a program name with args.
+set dummy $ac_prog; ac_word=$2
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for $ac_word" >&5
+$as_echo_n "checking for $ac_word... " >&6; }
+if ${ac_cv_path_BUILD_CC+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  case $BUILD_CC in
+  [\\/]* | ?:[\\/]*)
+  ac_cv_path_BUILD_CC="$BUILD_CC" # Let the user override the test with a path.
+  ;;
+  *)
+  as_save_IFS=$IFS; IFS=$PATH_SEPARATOR
+for as_dir in $PATH
+do
+  IFS=$as_save_IFS
+  test -z "$as_dir" && as_dir=.
+    for ac_exec_ext in '' $ac_executable_extensions; do
+  if as_fn_executable_p "$as_dir/$ac_word$ac_exec_ext"; then
+    ac_cv_path_BUILD_CC="$as_dir/$ac_word$ac_exec_ext"
+    $as_echo "$as_me:${as_lineno-$LINENO}: found $as_dir/$ac_word$ac_exec_ext" >&5
+    break 2
+  fi
+done
+  done
+IFS=$as_save_IFS
+
+  ;;
+esac
+fi
+BUILD_CC=$ac_cv_path_BUILD_CC
+if test -n "$BUILD_CC"; then
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: $BUILD_CC" >&5
+$as_echo "$BUILD_CC" >&6; }
+else
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+fi
+
+
+  test -n "$BUILD_CC" && break
+done
+
+  else
+    # The variable is set, but is it from the command line or the environment?
+
+    # Try to remove the string !BUILD_CC! from our list.
+    try_remove_var=${CONFIGURE_OVERRIDDEN_VARIABLES//!BUILD_CC!/}
+    if test "x$try_remove_var" = "x$CONFIGURE_OVERRIDDEN_VARIABLES"; then
+      # If it failed, the variable was not from the command line. Ignore it,
+      # but warn the user (except for BASH, which is always set by the calling BASH).
+      if test "xBUILD_CC" != xBASH; then
+        { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: Ignoring value of BUILD_CC from the environment. Use command line variables instead." >&5
+$as_echo "$as_me: WARNING: Ignoring value of BUILD_CC from the environment. Use command line variables instead." >&2;}
+      fi
+      # Try to locate tool using the code snippet
+      for ac_prog in clang cl cc gcc
+do
+  # Extract the first word of "$ac_prog", so it can be a program name with args.
+set dummy $ac_prog; ac_word=$2
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for $ac_word" >&5
+$as_echo_n "checking for $ac_word... " >&6; }
+if ${ac_cv_path_BUILD_CC+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  case $BUILD_CC in
+  [\\/]* | ?:[\\/]*)
+  ac_cv_path_BUILD_CC="$BUILD_CC" # Let the user override the test with a path.
+  ;;
+  *)
+  as_save_IFS=$IFS; IFS=$PATH_SEPARATOR
+for as_dir in $PATH
+do
+  IFS=$as_save_IFS
+  test -z "$as_dir" && as_dir=.
+    for ac_exec_ext in '' $ac_executable_extensions; do
+  if as_fn_executable_p "$as_dir/$ac_word$ac_exec_ext"; then
+    ac_cv_path_BUILD_CC="$as_dir/$ac_word$ac_exec_ext"
+    $as_echo "$as_me:${as_lineno-$LINENO}: found $as_dir/$ac_word$ac_exec_ext" >&5
+    break 2
+  fi
+done
+  done
+IFS=$as_save_IFS
+
+  ;;
+esac
+fi
+BUILD_CC=$ac_cv_path_BUILD_CC
+if test -n "$BUILD_CC"; then
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: $BUILD_CC" >&5
+$as_echo "$BUILD_CC" >&6; }
+else
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+fi
+
+
+  test -n "$BUILD_CC" && break
+done
+
+    else
+      # If it succeeded, then it was overridden by the user. We will use it
+      # for the tool.
+
+      # First remove it from the list of overridden variables, so we can test
+      # for unknown variables in the end.
+      CONFIGURE_OVERRIDDEN_VARIABLES="$try_remove_var"
+
+      # Check if the provided tool contains a complete path.
+      tool_specified="$BUILD_CC"
+      tool_basename="${tool_specified##*/}"
+      if test "x$tool_basename" = "x$tool_specified"; then
+        # A command without a complete path is provided, search $PATH.
+        { $as_echo "$as_me:${as_lineno-$LINENO}: Will search for user supplied tool BUILD_CC=$tool_basename" >&5
+$as_echo "$as_me: Will search for user supplied tool BUILD_CC=$tool_basename" >&6;}
+        # Extract the first word of "$tool_basename", so it can be a program name with args.
+set dummy $tool_basename; ac_word=$2
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for $ac_word" >&5
+$as_echo_n "checking for $ac_word... " >&6; }
+if ${ac_cv_path_BUILD_CC+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  case $BUILD_CC in
+  [\\/]* | ?:[\\/]*)
+  ac_cv_path_BUILD_CC="$BUILD_CC" # Let the user override the test with a path.
+  ;;
+  *)
+  as_save_IFS=$IFS; IFS=$PATH_SEPARATOR
+for as_dir in $PATH
+do
+  IFS=$as_save_IFS
+  test -z "$as_dir" && as_dir=.
+    for ac_exec_ext in '' $ac_executable_extensions; do
+  if as_fn_executable_p "$as_dir/$ac_word$ac_exec_ext"; then
+    ac_cv_path_BUILD_CC="$as_dir/$ac_word$ac_exec_ext"
+    $as_echo "$as_me:${as_lineno-$LINENO}: found $as_dir/$ac_word$ac_exec_ext" >&5
+    break 2
+  fi
+done
+  done
+IFS=$as_save_IFS
+
+  ;;
+esac
+fi
+BUILD_CC=$ac_cv_path_BUILD_CC
+if test -n "$BUILD_CC"; then
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: $BUILD_CC" >&5
+$as_echo "$BUILD_CC" >&6; }
+else
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+fi
+
+
+        if test "x$BUILD_CC" = x; then
+          as_fn_error $? "User supplied tool $tool_basename could not be found" "$LINENO" 5
+        fi
+      else
+        # Otherwise we believe it is a complete path. Use it as it is.
+        { $as_echo "$as_me:${as_lineno-$LINENO}: Will use user supplied tool BUILD_CC=$tool_specified" >&5
+$as_echo "$as_me: Will use user supplied tool BUILD_CC=$tool_specified" >&6;}
+        { $as_echo "$as_me:${as_lineno-$LINENO}: checking for BUILD_CC" >&5
+$as_echo_n "checking for BUILD_CC... " >&6; }
+        if test ! -x "$tool_specified"; then
+          { $as_echo "$as_me:${as_lineno-$LINENO}: result: not found" >&5
+$as_echo "not found" >&6; }
+          as_fn_error $? "User supplied tool BUILD_CC=$tool_specified does not exist or is not executable" "$LINENO" 5
+        fi
+        { $as_echo "$as_me:${as_lineno-$LINENO}: result: $tool_specified" >&5
+$as_echo "$tool_specified" >&6; }
+      fi
+    fi
+  fi
+
+
+
+
+  # Publish this variable in the help.
+
+
+  if test "x$BUILD_CXX" = x; then
+    # The variable is not set by user, try to locate tool using the code snippet
+    for ac_prog in clang++ cl CC g++
+do
+  # Extract the first word of "$ac_prog", so it can be a program name with args.
+set dummy $ac_prog; ac_word=$2
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for $ac_word" >&5
+$as_echo_n "checking for $ac_word... " >&6; }
+if ${ac_cv_path_BUILD_CXX+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  case $BUILD_CXX in
+  [\\/]* | ?:[\\/]*)
+  ac_cv_path_BUILD_CXX="$BUILD_CXX" # Let the user override the test with a path.
+  ;;
+  *)
+  as_save_IFS=$IFS; IFS=$PATH_SEPARATOR
+for as_dir in $PATH
+do
+  IFS=$as_save_IFS
+  test -z "$as_dir" && as_dir=.
+    for ac_exec_ext in '' $ac_executable_extensions; do
+  if as_fn_executable_p "$as_dir/$ac_word$ac_exec_ext"; then
+    ac_cv_path_BUILD_CXX="$as_dir/$ac_word$ac_exec_ext"
+    $as_echo "$as_me:${as_lineno-$LINENO}: found $as_dir/$ac_word$ac_exec_ext" >&5
+    break 2
+  fi
+done
+  done
+IFS=$as_save_IFS
+
+  ;;
+esac
+fi
+BUILD_CXX=$ac_cv_path_BUILD_CXX
+if test -n "$BUILD_CXX"; then
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: $BUILD_CXX" >&5
+$as_echo "$BUILD_CXX" >&6; }
+else
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+fi
+
+
+  test -n "$BUILD_CXX" && break
+done
+
+  else
+    # The variable is set, but is it from the command line or the environment?
+
+    # Try to remove the string !BUILD_CXX! from our list.
+    try_remove_var=${CONFIGURE_OVERRIDDEN_VARIABLES//!BUILD_CXX!/}
+    if test "x$try_remove_var" = "x$CONFIGURE_OVERRIDDEN_VARIABLES"; then
+      # If it failed, the variable was not from the command line. Ignore it,
+      # but warn the user (except for BASH, which is always set by the calling BASH).
+      if test "xBUILD_CXX" != xBASH; then
+        { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: Ignoring value of BUILD_CXX from the environment. Use command line variables instead." >&5
+$as_echo "$as_me: WARNING: Ignoring value of BUILD_CXX from the environment. Use command line variables instead." >&2;}
+      fi
+      # Try to locate tool using the code snippet
+      for ac_prog in clang++ cl CC g++
+do
+  # Extract the first word of "$ac_prog", so it can be a program name with args.
+set dummy $ac_prog; ac_word=$2
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for $ac_word" >&5
+$as_echo_n "checking for $ac_word... " >&6; }
+if ${ac_cv_path_BUILD_CXX+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  case $BUILD_CXX in
+  [\\/]* | ?:[\\/]*)
+  ac_cv_path_BUILD_CXX="$BUILD_CXX" # Let the user override the test with a path.
+  ;;
+  *)
+  as_save_IFS=$IFS; IFS=$PATH_SEPARATOR
+for as_dir in $PATH
+do
+  IFS=$as_save_IFS
+  test -z "$as_dir" && as_dir=.
+    for ac_exec_ext in '' $ac_executable_extensions; do
+  if as_fn_executable_p "$as_dir/$ac_word$ac_exec_ext"; then
+    ac_cv_path_BUILD_CXX="$as_dir/$ac_word$ac_exec_ext"
+    $as_echo "$as_me:${as_lineno-$LINENO}: found $as_dir/$ac_word$ac_exec_ext" >&5
+    break 2
+  fi
+done
+  done
+IFS=$as_save_IFS
+
+  ;;
+esac
+fi
+BUILD_CXX=$ac_cv_path_BUILD_CXX
+if test -n "$BUILD_CXX"; then
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: $BUILD_CXX" >&5
+$as_echo "$BUILD_CXX" >&6; }
+else
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+fi
+
+
+  test -n "$BUILD_CXX" && break
+done
+
+    else
+      # If it succeeded, then it was overridden by the user. We will use it
+      # for the tool.
+
+      # First remove it from the list of overridden variables, so we can test
+      # for unknown variables in the end.
+      CONFIGURE_OVERRIDDEN_VARIABLES="$try_remove_var"
+
+      # Check if the provided tool contains a complete path.
+      tool_specified="$BUILD_CXX"
+      tool_basename="${tool_specified##*/}"
+      if test "x$tool_basename" = "x$tool_specified"; then
+        # A command without a complete path is provided, search $PATH.
+        { $as_echo "$as_me:${as_lineno-$LINENO}: Will search for user supplied tool BUILD_CXX=$tool_basename" >&5
+$as_echo "$as_me: Will search for user supplied tool BUILD_CXX=$tool_basename" >&6;}
+        # Extract the first word of "$tool_basename", so it can be a program name with args.
+set dummy $tool_basename; ac_word=$2
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for $ac_word" >&5
+$as_echo_n "checking for $ac_word... " >&6; }
+if ${ac_cv_path_BUILD_CXX+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  case $BUILD_CXX in
+  [\\/]* | ?:[\\/]*)
+  ac_cv_path_BUILD_CXX="$BUILD_CXX" # Let the user override the test with a path.
+  ;;
+  *)
+  as_save_IFS=$IFS; IFS=$PATH_SEPARATOR
+for as_dir in $PATH
+do
+  IFS=$as_save_IFS
+  test -z "$as_dir" && as_dir=.
+    for ac_exec_ext in '' $ac_executable_extensions; do
+  if as_fn_executable_p "$as_dir/$ac_word$ac_exec_ext"; then
+    ac_cv_path_BUILD_CXX="$as_dir/$ac_word$ac_exec_ext"
+    $as_echo "$as_me:${as_lineno-$LINENO}: found $as_dir/$ac_word$ac_exec_ext" >&5
+    break 2
+  fi
+done
+  done
+IFS=$as_save_IFS
+
+  ;;
+esac
+fi
+BUILD_CXX=$ac_cv_path_BUILD_CXX
+if test -n "$BUILD_CXX"; then
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: $BUILD_CXX" >&5
+$as_echo "$BUILD_CXX" >&6; }
+else
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+fi
+
+
+        if test "x$BUILD_CXX" = x; then
+          as_fn_error $? "User supplied tool $tool_basename could not be found" "$LINENO" 5
+        fi
+      else
+        # Otherwise we believe it is a complete path. Use it as it is.
+        { $as_echo "$as_me:${as_lineno-$LINENO}: Will use user supplied tool BUILD_CXX=$tool_specified" >&5
+$as_echo "$as_me: Will use user supplied tool BUILD_CXX=$tool_specified" >&6;}
+        { $as_echo "$as_me:${as_lineno-$LINENO}: checking for BUILD_CXX" >&5
+$as_echo_n "checking for BUILD_CXX... " >&6; }
+        if test ! -x "$tool_specified"; then
+          { $as_echo "$as_me:${as_lineno-$LINENO}: result: not found" >&5
+$as_echo "not found" >&6; }
+          as_fn_error $? "User supplied tool BUILD_CXX=$tool_specified does not exist or is not executable" "$LINENO" 5
+        fi
+        { $as_echo "$as_me:${as_lineno-$LINENO}: result: $tool_specified" >&5
+$as_echo "$tool_specified" >&6; }
+      fi
+    fi
+  fi
+
+
+    else
+
 
 
   # Publish this variable in the help.
@@ -38899,6 +39278,206 @@ $as_echo "$tool_specified" >&6; }
   fi
 
 
+
+  if test "x$BUILD_CC" = x; then
+    as_fn_error $? "Could not find required tool for BUILD_CC" "$LINENO" 5
+  fi
+
+
+
+
+
+  # Publish this variable in the help.
+
+
+  if test "x$BUILD_CXX" = x; then
+    # The variable is not set by user, try to locate tool using the code snippet
+    for ac_prog in cl CC g++
+do
+  # Extract the first word of "$ac_prog", so it can be a program name with args.
+set dummy $ac_prog; ac_word=$2
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for $ac_word" >&5
+$as_echo_n "checking for $ac_word... " >&6; }
+if ${ac_cv_path_BUILD_CXX+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  case $BUILD_CXX in
+  [\\/]* | ?:[\\/]*)
+  ac_cv_path_BUILD_CXX="$BUILD_CXX" # Let the user override the test with a path.
+  ;;
+  *)
+  as_save_IFS=$IFS; IFS=$PATH_SEPARATOR
+for as_dir in $PATH
+do
+  IFS=$as_save_IFS
+  test -z "$as_dir" && as_dir=.
+    for ac_exec_ext in '' $ac_executable_extensions; do
+  if as_fn_executable_p "$as_dir/$ac_word$ac_exec_ext"; then
+    ac_cv_path_BUILD_CXX="$as_dir/$ac_word$ac_exec_ext"
+    $as_echo "$as_me:${as_lineno-$LINENO}: found $as_dir/$ac_word$ac_exec_ext" >&5
+    break 2
+  fi
+done
+  done
+IFS=$as_save_IFS
+
+  ;;
+esac
+fi
+BUILD_CXX=$ac_cv_path_BUILD_CXX
+if test -n "$BUILD_CXX"; then
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: $BUILD_CXX" >&5
+$as_echo "$BUILD_CXX" >&6; }
+else
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+fi
+
+
+  test -n "$BUILD_CXX" && break
+done
+
+  else
+    # The variable is set, but is it from the command line or the environment?
+
+    # Try to remove the string !BUILD_CXX! from our list.
+    try_remove_var=${CONFIGURE_OVERRIDDEN_VARIABLES//!BUILD_CXX!/}
+    if test "x$try_remove_var" = "x$CONFIGURE_OVERRIDDEN_VARIABLES"; then
+      # If it failed, the variable was not from the command line. Ignore it,
+      # but warn the user (except for BASH, which is always set by the calling BASH).
+      if test "xBUILD_CXX" != xBASH; then
+        { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: Ignoring value of BUILD_CXX from the environment. Use command line variables instead." >&5
+$as_echo "$as_me: WARNING: Ignoring value of BUILD_CXX from the environment. Use command line variables instead." >&2;}
+      fi
+      # Try to locate tool using the code snippet
+      for ac_prog in cl CC g++
+do
+  # Extract the first word of "$ac_prog", so it can be a program name with args.
+set dummy $ac_prog; ac_word=$2
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for $ac_word" >&5
+$as_echo_n "checking for $ac_word... " >&6; }
+if ${ac_cv_path_BUILD_CXX+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  case $BUILD_CXX in
+  [\\/]* | ?:[\\/]*)
+  ac_cv_path_BUILD_CXX="$BUILD_CXX" # Let the user override the test with a path.
+  ;;
+  *)
+  as_save_IFS=$IFS; IFS=$PATH_SEPARATOR
+for as_dir in $PATH
+do
+  IFS=$as_save_IFS
+  test -z "$as_dir" && as_dir=.
+    for ac_exec_ext in '' $ac_executable_extensions; do
+  if as_fn_executable_p "$as_dir/$ac_word$ac_exec_ext"; then
+    ac_cv_path_BUILD_CXX="$as_dir/$ac_word$ac_exec_ext"
+    $as_echo "$as_me:${as_lineno-$LINENO}: found $as_dir/$ac_word$ac_exec_ext" >&5
+    break 2
+  fi
+done
+  done
+IFS=$as_save_IFS
+
+  ;;
+esac
+fi
+BUILD_CXX=$ac_cv_path_BUILD_CXX
+if test -n "$BUILD_CXX"; then
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: $BUILD_CXX" >&5
+$as_echo "$BUILD_CXX" >&6; }
+else
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+fi
+
+
+  test -n "$BUILD_CXX" && break
+done
+
+    else
+      # If it succeeded, then it was overridden by the user. We will use it
+      # for the tool.
+
+      # First remove it from the list of overridden variables, so we can test
+      # for unknown variables in the end.
+      CONFIGURE_OVERRIDDEN_VARIABLES="$try_remove_var"
+
+      # Check if the provided tool contains a complete path.
+      tool_specified="$BUILD_CXX"
+      tool_basename="${tool_specified##*/}"
+      if test "x$tool_basename" = "x$tool_specified"; then
+        # A command without a complete path is provided, search $PATH.
+        { $as_echo "$as_me:${as_lineno-$LINENO}: Will search for user supplied tool BUILD_CXX=$tool_basename" >&5
+$as_echo "$as_me: Will search for user supplied tool BUILD_CXX=$tool_basename" >&6;}
+        # Extract the first word of "$tool_basename", so it can be a program name with args.
+set dummy $tool_basename; ac_word=$2
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for $ac_word" >&5
+$as_echo_n "checking for $ac_word... " >&6; }
+if ${ac_cv_path_BUILD_CXX+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  case $BUILD_CXX in
+  [\\/]* | ?:[\\/]*)
+  ac_cv_path_BUILD_CXX="$BUILD_CXX" # Let the user override the test with a path.
+  ;;
+  *)
+  as_save_IFS=$IFS; IFS=$PATH_SEPARATOR
+for as_dir in $PATH
+do
+  IFS=$as_save_IFS
+  test -z "$as_dir" && as_dir=.
+    for ac_exec_ext in '' $ac_executable_extensions; do
+  if as_fn_executable_p "$as_dir/$ac_word$ac_exec_ext"; then
+    ac_cv_path_BUILD_CXX="$as_dir/$ac_word$ac_exec_ext"
+    $as_echo "$as_me:${as_lineno-$LINENO}: found $as_dir/$ac_word$ac_exec_ext" >&5
+    break 2
+  fi
+done
+  done
+IFS=$as_save_IFS
+
+  ;;
+esac
+fi
+BUILD_CXX=$ac_cv_path_BUILD_CXX
+if test -n "$BUILD_CXX"; then
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: $BUILD_CXX" >&5
+$as_echo "$BUILD_CXX" >&6; }
+else
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+fi
+
+
+        if test "x$BUILD_CXX" = x; then
+          as_fn_error $? "User supplied tool $tool_basename could not be found" "$LINENO" 5
+        fi
+      else
+        # Otherwise we believe it is a complete path. Use it as it is.
+        { $as_echo "$as_me:${as_lineno-$LINENO}: Will use user supplied tool BUILD_CXX=$tool_specified" >&5
+$as_echo "$as_me: Will use user supplied tool BUILD_CXX=$tool_specified" >&6;}
+        { $as_echo "$as_me:${as_lineno-$LINENO}: checking for BUILD_CXX" >&5
+$as_echo_n "checking for BUILD_CXX... " >&6; }
+        if test ! -x "$tool_specified"; then
+          { $as_echo "$as_me:${as_lineno-$LINENO}: result: not found" >&5
+$as_echo "not found" >&6; }
+          as_fn_error $? "User supplied tool BUILD_CXX=$tool_specified does not exist or is not executable" "$LINENO" 5
+        fi
+        { $as_echo "$as_me:${as_lineno-$LINENO}: result: $tool_specified" >&5
+$as_echo "$tool_specified" >&6; }
+      fi
+    fi
+  fi
+
+
+
+  if test "x$BUILD_CXX" = x; then
+    as_fn_error $? "Could not find required tool for BUILD_CXX" "$LINENO" 5
+  fi
+
+
+    fi
 
   if test "x$OPENJDK_BUILD_OS_ENV" = "xwindows.cygwin"; then
 
@@ -39180,192 +39759,6 @@ $as_echo "$as_me: This might be caused by spaces in the path, which is not allow
     { $as_echo "$as_me:${as_lineno-$LINENO}: Rewriting BUILD_CC to \"$new_complete\"" >&5
 $as_echo "$as_me: Rewriting BUILD_CC to \"$new_complete\"" >&6;}
   fi
-
-
-
-  # Publish this variable in the help.
-
-
-  if test "x$BUILD_CXX" = x; then
-    # The variable is not set by user, try to locate tool using the code snippet
-    for ac_prog in cl CC g++
-do
-  # Extract the first word of "$ac_prog", so it can be a program name with args.
-set dummy $ac_prog; ac_word=$2
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for $ac_word" >&5
-$as_echo_n "checking for $ac_word... " >&6; }
-if ${ac_cv_path_BUILD_CXX+:} false; then :
-  $as_echo_n "(cached) " >&6
-else
-  case $BUILD_CXX in
-  [\\/]* | ?:[\\/]*)
-  ac_cv_path_BUILD_CXX="$BUILD_CXX" # Let the user override the test with a path.
-  ;;
-  *)
-  as_save_IFS=$IFS; IFS=$PATH_SEPARATOR
-for as_dir in $PATH
-do
-  IFS=$as_save_IFS
-  test -z "$as_dir" && as_dir=.
-    for ac_exec_ext in '' $ac_executable_extensions; do
-  if as_fn_executable_p "$as_dir/$ac_word$ac_exec_ext"; then
-    ac_cv_path_BUILD_CXX="$as_dir/$ac_word$ac_exec_ext"
-    $as_echo "$as_me:${as_lineno-$LINENO}: found $as_dir/$ac_word$ac_exec_ext" >&5
-    break 2
-  fi
-done
-  done
-IFS=$as_save_IFS
-
-  ;;
-esac
-fi
-BUILD_CXX=$ac_cv_path_BUILD_CXX
-if test -n "$BUILD_CXX"; then
-  { $as_echo "$as_me:${as_lineno-$LINENO}: result: $BUILD_CXX" >&5
-$as_echo "$BUILD_CXX" >&6; }
-else
-  { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
-$as_echo "no" >&6; }
-fi
-
-
-  test -n "$BUILD_CXX" && break
-done
-
-  else
-    # The variable is set, but is it from the command line or the environment?
-
-    # Try to remove the string !BUILD_CXX! from our list.
-    try_remove_var=${CONFIGURE_OVERRIDDEN_VARIABLES//!BUILD_CXX!/}
-    if test "x$try_remove_var" = "x$CONFIGURE_OVERRIDDEN_VARIABLES"; then
-      # If it failed, the variable was not from the command line. Ignore it,
-      # but warn the user (except for BASH, which is always set by the calling BASH).
-      if test "xBUILD_CXX" != xBASH; then
-        { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: Ignoring value of BUILD_CXX from the environment. Use command line variables instead." >&5
-$as_echo "$as_me: WARNING: Ignoring value of BUILD_CXX from the environment. Use command line variables instead." >&2;}
-      fi
-      # Try to locate tool using the code snippet
-      for ac_prog in cl CC g++
-do
-  # Extract the first word of "$ac_prog", so it can be a program name with args.
-set dummy $ac_prog; ac_word=$2
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for $ac_word" >&5
-$as_echo_n "checking for $ac_word... " >&6; }
-if ${ac_cv_path_BUILD_CXX+:} false; then :
-  $as_echo_n "(cached) " >&6
-else
-  case $BUILD_CXX in
-  [\\/]* | ?:[\\/]*)
-  ac_cv_path_BUILD_CXX="$BUILD_CXX" # Let the user override the test with a path.
-  ;;
-  *)
-  as_save_IFS=$IFS; IFS=$PATH_SEPARATOR
-for as_dir in $PATH
-do
-  IFS=$as_save_IFS
-  test -z "$as_dir" && as_dir=.
-    for ac_exec_ext in '' $ac_executable_extensions; do
-  if as_fn_executable_p "$as_dir/$ac_word$ac_exec_ext"; then
-    ac_cv_path_BUILD_CXX="$as_dir/$ac_word$ac_exec_ext"
-    $as_echo "$as_me:${as_lineno-$LINENO}: found $as_dir/$ac_word$ac_exec_ext" >&5
-    break 2
-  fi
-done
-  done
-IFS=$as_save_IFS
-
-  ;;
-esac
-fi
-BUILD_CXX=$ac_cv_path_BUILD_CXX
-if test -n "$BUILD_CXX"; then
-  { $as_echo "$as_me:${as_lineno-$LINENO}: result: $BUILD_CXX" >&5
-$as_echo "$BUILD_CXX" >&6; }
-else
-  { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
-$as_echo "no" >&6; }
-fi
-
-
-  test -n "$BUILD_CXX" && break
-done
-
-    else
-      # If it succeeded, then it was overridden by the user. We will use it
-      # for the tool.
-
-      # First remove it from the list of overridden variables, so we can test
-      # for unknown variables in the end.
-      CONFIGURE_OVERRIDDEN_VARIABLES="$try_remove_var"
-
-      # Check if the provided tool contains a complete path.
-      tool_specified="$BUILD_CXX"
-      tool_basename="${tool_specified##*/}"
-      if test "x$tool_basename" = "x$tool_specified"; then
-        # A command without a complete path is provided, search $PATH.
-        { $as_echo "$as_me:${as_lineno-$LINENO}: Will search for user supplied tool BUILD_CXX=$tool_basename" >&5
-$as_echo "$as_me: Will search for user supplied tool BUILD_CXX=$tool_basename" >&6;}
-        # Extract the first word of "$tool_basename", so it can be a program name with args.
-set dummy $tool_basename; ac_word=$2
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for $ac_word" >&5
-$as_echo_n "checking for $ac_word... " >&6; }
-if ${ac_cv_path_BUILD_CXX+:} false; then :
-  $as_echo_n "(cached) " >&6
-else
-  case $BUILD_CXX in
-  [\\/]* | ?:[\\/]*)
-  ac_cv_path_BUILD_CXX="$BUILD_CXX" # Let the user override the test with a path.
-  ;;
-  *)
-  as_save_IFS=$IFS; IFS=$PATH_SEPARATOR
-for as_dir in $PATH
-do
-  IFS=$as_save_IFS
-  test -z "$as_dir" && as_dir=.
-    for ac_exec_ext in '' $ac_executable_extensions; do
-  if as_fn_executable_p "$as_dir/$ac_word$ac_exec_ext"; then
-    ac_cv_path_BUILD_CXX="$as_dir/$ac_word$ac_exec_ext"
-    $as_echo "$as_me:${as_lineno-$LINENO}: found $as_dir/$ac_word$ac_exec_ext" >&5
-    break 2
-  fi
-done
-  done
-IFS=$as_save_IFS
-
-  ;;
-esac
-fi
-BUILD_CXX=$ac_cv_path_BUILD_CXX
-if test -n "$BUILD_CXX"; then
-  { $as_echo "$as_me:${as_lineno-$LINENO}: result: $BUILD_CXX" >&5
-$as_echo "$BUILD_CXX" >&6; }
-else
-  { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
-$as_echo "no" >&6; }
-fi
-
-
-        if test "x$BUILD_CXX" = x; then
-          as_fn_error $? "User supplied tool $tool_basename could not be found" "$LINENO" 5
-        fi
-      else
-        # Otherwise we believe it is a complete path. Use it as it is.
-        { $as_echo "$as_me:${as_lineno-$LINENO}: Will use user supplied tool BUILD_CXX=$tool_specified" >&5
-$as_echo "$as_me: Will use user supplied tool BUILD_CXX=$tool_specified" >&6;}
-        { $as_echo "$as_me:${as_lineno-$LINENO}: checking for BUILD_CXX" >&5
-$as_echo_n "checking for BUILD_CXX... " >&6; }
-        if test ! -x "$tool_specified"; then
-          { $as_echo "$as_me:${as_lineno-$LINENO}: result: not found" >&5
-$as_echo "not found" >&6; }
-          as_fn_error $? "User supplied tool BUILD_CXX=$tool_specified does not exist or is not executable" "$LINENO" 5
-        fi
-        { $as_echo "$as_me:${as_lineno-$LINENO}: result: $tool_specified" >&5
-$as_echo "$tool_specified" >&6; }
-      fi
-    fi
-  fi
-
 
 
   if test "x$OPENJDK_BUILD_OS_ENV" = "xwindows.cygwin"; then
@@ -42184,6 +42577,22 @@ $as_echo "$supports" >&6; }
       # command line.
       CCXXFLAGS_JDK="$CCXXFLAGS_JDK -DMAC_OS_X_VERSION_MAX_ALLOWED=\$(subst .,,\$(MACOSX_VERSION_MIN)) -mmacosx-version-min=\$(MACOSX_VERSION_MIN)"
       LDFLAGS_JDK="$LDFLAGS_JDK -mmacosx-version-min=\$(MACOSX_VERSION_MIN)"
+    elif test "x$TOOLCHAIN_TYPE" = xclang; then
+      # FIXME: This needs to be exported in spec.gmk due to closed legacy code.
+      # FIXME: clean this up, and/or move it elsewhere.
+
+      # Setting these parameters makes it an error to link to macosx APIs that are
+      # newer than the given OS version and makes the linked binaries compatible
+      # even if built on a newer version of the OS.
+      # The expected format is X.Y.Z
+      MACOSX_VERSION_MIN=10.9.0
+
+
+      # The macro takes the version with no dots, ex: 1070
+      # Let the flags variables get resolved in make for easier override on make
+      # command line.
+      CCXXFLAGS_JDK="$CCXXFLAGS_JDK -DMAC_OS_X_VERSION_MAX_ALLOWED=\$(subst .,,\$(MACOSX_VERSION_MIN)) -mmacosx-version-min=\$(MACOSX_VERSION_MIN)"
+      LDFLAGS_JDK="$LDFLAGS_JDK -mmacosx-version-min=\$(MACOSX_VERSION_MIN)"
     fi
   fi
 
@@ -42235,7 +42644,7 @@ $as_echo "$supports" >&6; }
     fi
     LDFLAGS_JDKEXE="${LDFLAGS_JDK} /STACK:$LDFLAGS_STACK_SIZE"
   else
-    if test "x$TOOLCHAIN_TYPE" = xgcc; then
+    if test "x$TOOLCHAIN_TYPE" = xgcc -o test "x$TOOLCHAIN_TYPE" = xclang; then
       # If this is a --hash-style=gnu system, use --hash-style=both, why?
       # We have previously set HAS_GNU_HASH if this is the case
       if test -n "$HAS_GNU_HASH"; then
@@ -48905,8 +49314,12 @@ fi
   fi
 
   # TODO better (platform agnostic) test
-  if test "x$OPENJDK_TARGET_OS" = xmacosx && test "x$LIBCXX" = x && test "x$TOOLCHAIN_TYPE" = xgcc; then
-    LIBCXX="-lstdc++"
+  if test "x$OPENJDK_TARGET_OS" = xmacosx && test "x$LIBCXX" = x ; then
+    if test "x$TOOLCHAIN_TYPE" = xgcc; then
+      LIBCXX="-lstdc++"
+    elif test "x$TOOLCHAIN_TYPE" = xclang; then
+      LIBCXX="-stdlib=libc++"
+    fi
   fi
 
 
