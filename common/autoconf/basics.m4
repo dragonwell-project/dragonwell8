@@ -634,9 +634,9 @@ AC_DEFUN_ONCE([BASIC_SETUP_OUTPUT_DIR],
       # is performed.
       filtered_files=`$ECHO "$files_present" \
           | $SED -e 's/config.log//g' \
-	      -e 's/confdefs.h//g' \
-	      -e 's/fixpath.exe//g' \
-	      -e 's/ //g' \
+              -e 's/configure.log//g' \
+              -e 's/confdefs.h//g' \
+              -e 's/ //g' \
           | $TR -d '\n'`
       if test "x$filtered_files" != x; then
         AC_MSG_NOTICE([Current directory is $CURDIR.])
@@ -928,4 +928,30 @@ AC_DEFUN_ONCE([BASIC_TEST_USABILITY_ISSUES],
   else
     IS_RECONFIGURE=no
   fi
+])
+
+# Code to run after AC_OUTPUT
+AC_DEFUN_ONCE([BASIC_POST_CONFIG_OUTPUT],
+[
+  # Try to move the config.log file to the output directory.
+  if test -e ./config.log; then
+    $MV -f ./config.log "$OUTPUT_ROOT/config.log" 2> /dev/null
+  fi
+
+  # Rotate our log file (configure.log)
+  if test -e "$OUTPUT_ROOT/configure.log.old"; then
+    $RM -f "$OUTPUT_ROOT/configure.log.old"
+  fi
+  if test -e "$OUTPUT_ROOT/configure.log"; then
+    $MV -f "$OUTPUT_ROOT/configure.log" "$OUTPUT_ROOT/configure.log.old" 2> /dev/null
+  fi
+
+  # Move configure.log from current directory to the build output root
+  if test -e ./configure.log; then
+    echo found it
+    $MV -f ./configure.log "$OUTPUT_ROOT/configure.log" 2> /dev/null
+  fi
+
+  # Make the compare script executable
+  $CHMOD +x $OUTPUT_ROOT/compare.sh
 ])
