@@ -255,6 +255,7 @@ final class WispCarrier implements Comparable<WispCarrier> {
     /**
      * Block current coroutine and do scheduling.
      * Typically called when resource is not ready.
+     *
      * @param terminal indicate terminal current coroutine.
      */
     final void schedule(boolean terminal) {
@@ -264,9 +265,9 @@ final class WispCarrier implements Comparable<WispCarrier> {
         assert current.resumeEntry != null && current != threadTask
                 : "call `schedule()` in scheduler";
         if (current.controlGroup != null) {
-            current.totalTs +=  current.controlGroup.calcCpuTicks(current);
+            current.totalTs += current.controlGroup.calcCpuTicks(current);
         } else {
-            current.totalTs += System.nanoTime() -  current.enterTs;
+            current.totalTs += System.nanoTime() - current.enterTs;
             current.enterTs = 0;
         }
         current.resumeEntry.setStealEnable(true);
@@ -352,7 +353,7 @@ final class WispCarrier implements Comparable<WispCarrier> {
                 }
                 if (current.yieldTo(task, false)) {
                     current.runWispTaskEpilog();
-                } else { // switch failure
+                } else if (task.isAlive()) { // switch failure
                     // this is unexpected, record in counter to help troubleshooting.
                     // The actual behavior of switch failure is similar to unpark lost,
                     // so we re-enqueue the entry for compensation.
@@ -532,8 +533,8 @@ final class WispCarrier implements Comparable<WispCarrier> {
      * Add a timer for current {@link WispTask},
      * used for implementing timed IO operation / sleep etc...
      *
-     * @param deadlineNano        deadline of the timer
-     * @param action      JVM_UNPARK/JDK_UNPARK/RESUME
+     * @param deadlineNano deadline of the timer
+     * @param action       JVM_UNPARK/JDK_UNPARK/RESUME
      */
     void addTimer(long deadlineNano, TimeOut.Action action) {
         WispTask task = current;
