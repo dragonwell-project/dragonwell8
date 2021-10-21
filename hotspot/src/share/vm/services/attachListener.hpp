@@ -26,6 +26,7 @@
 #define SHARE_VM_SERVICES_ATTACHLISTENER_HPP
 
 #include "memory/allocation.hpp"
+#include "runtime/atomic.hpp"
 #include "utilities/debug.hpp"
 #include "utilities/ostream.hpp"
 #include "utilities/macros.hpp"
@@ -48,6 +49,10 @@ struct AttachOperationFunctionInfo {
   AttachOperationFunction func;
 };
 
+#define AL_NOT_INITIALIZED 0L
+#define AL_INITIALIZING 1L
+#define AL_INITIALIZED 2L
+
 class AttachListener: AllStatic {
  public:
   static void vm_start() NOT_SERVICES_RETURN;
@@ -56,6 +61,9 @@ class AttachListener: AllStatic {
 
   // invoke to perform clean-up tasks when all clients detach
   static void detachall() NOT_SERVICES_RETURN;
+
+  // check unix domain socket file on filesystem
+  static bool check_socket_file() NOT_SERVICES_RETURN_(false);
 
   // indicates if the Attach Listener needs to be created at startup
   static bool init_at_startup() NOT_SERVICES_RETURN_(false);
@@ -66,12 +74,30 @@ class AttachListener: AllStatic {
 #if !INCLUDE_SERVICES
   static bool is_attach_supported()             { return false; }
 #else
+
  private:
-  static volatile bool _initialized;
+  static volatile jlong _state;
 
  public:
-  static bool is_initialized()                  { return _initialized; }
-  static void set_initialized()                 { _initialized = true; }
+  static void set_state(jlong new_state) {
+    Atomic::store(new_state, &_state);
+  }
+
+  static jlong get_state() {
+    return Atomic::load(&_state);
+  }
+
+  static int transit_state(jlong new_state, jlong cmp_state) {
+    return Atomic::cmpxchg(new_state, &_state, cmp_state);
+  }
+
+  static bool is_initialized() {
+    return Atomic::load(&_state) == AL_INITIALIZED;
+  }
+
+  static void set_initialized() {
+    Atomic::store(AL_INITIALIZED, &_state);
+  }
 
   // indicates if this VM supports attach-on-demand
   static bool is_attach_supported()             { return !DisableAttachMechanism; }
