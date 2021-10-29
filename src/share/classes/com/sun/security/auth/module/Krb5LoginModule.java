@@ -684,9 +684,11 @@ public class Krb5LoginModule implements LoginModule {
                 }
 
                 if (cred != null) {
-                   // get the principal name from the ticket cache
-                   if (principal == null) {
-                        principal = cred.getClient();
+                    // get the principal name from the ticket cache
+                    if (principal == null) {
+                        principal = cred.getProxy() != null
+                                ? cred.getProxy().getClient()
+                                : cred.getClient();
                    }
                 }
                 if (debug) {

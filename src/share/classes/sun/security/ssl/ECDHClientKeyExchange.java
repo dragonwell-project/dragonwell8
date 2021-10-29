@@ -105,9 +105,10 @@ final class ECDHClientKeyExchange {
                         (ECPublicKey)kf.generatePublic(spec);
 
                 // check constraints of ECPublicKey
-                if (!constraints.permits(
-                        EnumSet.of(CryptoPrimitive.KEY_AGREEMENT),
-                        peerPublicKey)) {
+                if (constraints != null &&
+                        !constraints.permits(
+                                EnumSet.of(CryptoPrimitive.KEY_AGREEMENT),
+                                peerPublicKey)) {
                     throw new SSLHandshakeException(
                         "ECPublicKey does not comply to algorithm constraints");
                 }
@@ -324,9 +325,10 @@ final class ECDHClientKeyExchange {
                         (ECPublicKey)kf.generatePublic(spec);
 
                 // check constraints of peer ECPublicKey
-                if (!shc.algorithmConstraints.permits(
-                        EnumSet.of(CryptoPrimitive.KEY_AGREEMENT),
-                        peerPublicKey)) {
+                if (shc.algorithmConstraints != null &&
+                        !shc.algorithmConstraints.permits(
+                                EnumSet.of(CryptoPrimitive.KEY_AGREEMENT),
+                                peerPublicKey)) {
                     throw new SSLHandshakeException(
                         "ECPublicKey does not comply to algorithm constraints");
                 }
@@ -498,9 +500,10 @@ final class ECDHClientKeyExchange {
                         (ECPublicKey)kf.generatePublic(spec);
 
                 // check constraints of peer ECPublicKey
-                if (!shc.algorithmConstraints.permits(
-                        EnumSet.of(CryptoPrimitive.KEY_AGREEMENT),
-                        peerPublicKey)) {
+                if (shc.algorithmConstraints != null &&
+                        !shc.algorithmConstraints.permits(
+                                EnumSet.of(CryptoPrimitive.KEY_AGREEMENT),
+                                peerPublicKey)) {
                     throw new SSLHandshakeException(
                         "ECPublicKey does not comply to algorithm constraints");
                 }

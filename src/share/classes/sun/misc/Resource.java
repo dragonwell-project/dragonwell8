@@ -184,4 +184,12 @@ public abstract class Resource {
     public CodeSigner[] getCodeSigners() {
         return null;
     }
+
+    /**
+     * Returns non-fatal reading error during data retrieval if there's any.
+     * For example, CRC error when reading a JAR entry.
+     */
+    public Exception getDataError() {
+        return null;
+    }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -179,14 +179,14 @@ static jlong get_total_or_available_swap_space_size(JNIEnv* env, jboolean availa
 }
 
 JNIEXPORT void JNICALL
-Java_sun_management_OperatingSystemImpl_initialize
+Java_sun_management_OperatingSystemImpl_initialize0
   (JNIEnv *env, jclass cls)
 {
     page_size = sysconf(_SC_PAGESIZE);
 }
 
 JNIEXPORT jlong JNICALL
-Java_sun_management_OperatingSystemImpl_getCommittedVirtualMemorySize
+Java_sun_management_OperatingSystemImpl_getCommittedVirtualMemorySize0
   (JNIEnv *env, jobject mbean)
 {
 #ifdef __solaris__
@@ -267,7 +267,7 @@ Java_sun_management_OperatingSystemImpl_getFreeSwapSpaceSize0
 }
 
 JNIEXPORT jlong JNICALL
-Java_sun_management_OperatingSystemImpl_getProcessCpuTime
+Java_sun_management_OperatingSystemImpl_getProcessCpuTime0
   (JNIEnv *env, jobject mbean)
 {
 #ifdef __APPLE__
@@ -374,7 +374,7 @@ Java_sun_management_OperatingSystemImpl_getTotalPhysicalMemorySize0
 
 
 JNIEXPORT jlong JNICALL
-Java_sun_management_OperatingSystemImpl_getOpenFileDescriptorCount
+Java_sun_management_OperatingSystemImpl_getOpenFileDescriptorCount0
   (JNIEnv *env, jobject mbean)
 {
 #ifdef __APPLE__
@@ -476,10 +476,24 @@ Java_sun_management_OperatingSystemImpl_getHostConfiguredCpuCount0
 {
     return -1;
 }
+
+JNIEXPORT jint JNICALL
+Java_sun_management_OperatingSystemImpl_getHostOnlineCpuCount0
+(JNIEnv *env, jobject mbean)
+{
+    return -1;
+}
+
+JNIEXPORT jlong JNICALL
+Java_sun_management_OperatingSystemImpl_getHostTotalCpuTicks0
+(JNIEnv *env, jobject mbean)
+{
+    return -1;
+}
 #endif
 
 JNIEXPORT jlong JNICALL
-Java_sun_management_OperatingSystemImpl_getMaxFileDescriptorCount
+Java_sun_management_OperatingSystemImpl_getMaxFileDescriptorCount0
   (JNIEnv *env, jobject mbean)
 {
     struct rlimit rlp;

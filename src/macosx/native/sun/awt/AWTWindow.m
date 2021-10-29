@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -1037,7 +1037,8 @@ JNF_COCOA_ENTER(env);
                     screenContentRect.origin.y - frame.origin.y,
                     screenContentRect.size.width,
                     screenContentRect.size.height);
-                nsWindow.contentView.frame = contentFrame;
+                NSView* view = (NSView*)nsWindow.contentView;
+                view.frame = contentFrame;
                 resized = YES;
             }
         }
