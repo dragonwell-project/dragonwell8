@@ -94,9 +94,9 @@ do
 done
 
 if [ "x$site" = "xgithub" -a "x$connect" = "xssh" ]; then
-    GITURL="git@github.com.cnpmjs.org:alibaba"
+    GITURL="git@github.com:Accelerator1996/dragonwell8"
 elif [ "x$site" = "xgithub" -a "x$connect" = "xhttps" ]; then
-    GITURL="https://github.com.cnpmjs.org/alibaba"
+    GITURL="https://github.com/Accelerator1996/dragonwell8"
 elif [ "x$site" = "xgitlab" -a "x$connect" = "xssh" ]; then
     GITURL="git@gitlab.alibaba-inc.com:dragonwell"
 elif [ "x$site" = "xgitlab" -a "x$connect" = "xhttps" ]; then
