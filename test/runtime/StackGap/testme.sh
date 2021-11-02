@@ -49,7 +49,10 @@ if [ "x$gcc_cmd" = "x" ]; then
     exit 0;
 fi
 
-CFLAGS="-m${VM_BITS}"
+if [ "x${VM_CPU}" != "xaarch64" ];
+then
+    CFLAGS="-m${VM_BITS}"
+fi
 
 LD_LIBRARY_PATH=.:${COMPILEJAVA}/jre/lib/${VM_CPU}/${VM_TYPE}:/usr/lib:$LD_LIBRARY_PATH
 export LD_LIBRARY_PATH

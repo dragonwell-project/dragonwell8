@@ -1288,7 +1288,7 @@ public:
 
   INSN(ldrs, 0b00, 1);
   INSN(ldrd, 0b01, 1);
-  INSN(ldrq, 0x10, 1);
+  INSN(ldrq, 0b10, 1);
 
 #undef INSN
 
@@ -1975,7 +1975,7 @@ public:
  public:
 
   enum SIMD_Arrangement {
-       T8B, T16B, T4H, T8H, T2S, T4S, T1D, T2D
+       T8B, T16B, T4H, T8H, T2S, T4S, T1D, T2D, T1Q
   };
 
   enum SIMD_RegVariant {
@@ -2306,14 +2306,16 @@ public:
     f(0b001111, 15, 10), rf(Vn, 5), rf(Xd, 0);
   }
 
-  // We do not handle the 1Q arrangement.
   void pmull(FloatRegister Vd, SIMD_Arrangement Ta, FloatRegister Vn, FloatRegister Vm, SIMD_Arrangement Tb) {
     starti;
-    assert(Ta == T8H && (Tb == T8B || Tb == T16B), "Invalid Size specifier");
-    f(0, 31), f(Tb & 1, 30), f(0b001110001, 29, 21), rf(Vm, 16), f(0b111000, 15, 10);
-    rf(Vn, 5), rf(Vd, 0);
+    assert((Ta == T1Q && (Tb == T1D || Tb == T2D)) ||
+           (Ta == T8H && (Tb == T8B || Tb == T16B)), "Invalid Size specifier");
+    int size = (Ta == T1Q) ? 0b11 : 0b00;
+    f(0, 31), f(Tb & 1, 30), f(0b001110, 29, 24), f(size, 23, 22);
+    f(1, 21), rf(Vm, 16), f(0b111000, 15, 10), rf(Vn, 5), rf(Vd, 0);
   }
   void pmull2(FloatRegister Vd, SIMD_Arrangement Ta, FloatRegister Vn, FloatRegister Vm, SIMD_Arrangement Tb) {
+    assert(Tb == T2D || Tb == T16B, "pmull2 assumes T2D or T16B as the second size specifier");
     pmull(Vd, Ta, Vn, Vm, Tb);
   }
 
@@ -2324,15 +2326,6 @@ public:
     assert(size_b < 3 && size_b == size_a - 1, "Invalid size specifier");
     f(0, 31), f(Tb & 1, 30), f(0b101110, 29, 24), f(size_b, 23, 22);
     f(0b100001010010, 21, 10), rf(Vn, 5), rf(Vd, 0);
-  }
-
-  void rev32(FloatRegister Vd, SIMD_Arrangement T, FloatRegister Vn)
-  {
-    starti;
-    assert(T <= T8H, "must be one of T8B, T16B, T4H, T8H");
-    f(0, 31), f((int)T & 1, 30), f(0b101110, 29, 24);
-    f(T <= T16B ? 0b00 : 0b01, 23, 22), f(0b100000000010, 21, 10);
-    rf(Vn, 5), rf(Vd, 0);
   }
 
   void dup(FloatRegister Vd, SIMD_Arrangement T, Register Xs)
@@ -2366,6 +2359,68 @@ public:
   INSN(crc32x, 1, 0b11);
 
 #undef INSN
+
+   // Table vector lookup
+#define INSN(NAME, op)                                                  \
+  void NAME(FloatRegister Vd, SIMD_Arrangement T, FloatRegister Vn, unsigned registers, FloatRegister Vm) { \
+    starti;                                                             \
+    assert(T == T8B || T == T16B, "invalid arrangement");               \
+    assert(0 < registers && registers <= 4, "invalid number of registers"); \
+    f(0, 31), f((int)T & 1, 30), f(0b001110000, 29, 21), rf(Vm, 16), f(0, 15); \
+    f(registers - 1, 14, 13), f(op, 12),f(0b00, 11, 10), rf(Vn, 5), rf(Vd, 0); \
+  }
+
+  INSN(tbl, 0);
+  INSN(tbx, 1);
+
+#undef INSN
+
+  // AdvSIMD two-reg misc
+#define INSN(NAME, U, opcode)                                                       \
+  void NAME(FloatRegister Vd, SIMD_Arrangement T, FloatRegister Vn) {               \
+       starti;                                                                      \
+       assert((ASSERTION), MSG);                                                    \
+       f(0, 31), f((int)T & 1, 30), f(U, 29), f(0b01110, 28, 24);                   \
+       f((int)(T >> 1), 23, 22), f(0b10000, 21, 17), f(opcode, 16, 12);             \
+       f(0b10, 11, 10), rf(Vn, 5), rf(Vd, 0);                                       \
+ }
+
+#define MSG "invalid arrangement"
+
+#define ASSERTION (T == T8B || T == T16B || T == T4H || T == T8H || T == T2S || T == T4S)
+  INSN(rev64, 0, 0b00000);
+#undef ASSERTION
+
+#define ASSERTION (T == T8B || T == T16B || T == T4H || T == T8H)
+  INSN(rev32, 1, 0b00000);
+private:
+  INSN(_rbit, 1, 0b00101);
+public:
+
+#undef ASSERTION
+
+#define ASSERTION (T == T8B || T == T16B)
+  INSN(rev16, 0, 0b00001);
+  // RBIT only allows T8B and T16B but encodes them oddly.  Argh...
+  void rbit(FloatRegister Vd, SIMD_Arrangement T, FloatRegister Vn) {
+    assert((ASSERTION), MSG);
+    _rbit(Vd, SIMD_Arrangement(T & 1 | 0b010), Vn);
+  }
+#undef ASSERTION
+
+#undef MSG
+
+#undef INSN
+
+ void ext(FloatRegister Vd, SIMD_Arrangement T, FloatRegister Vn, FloatRegister Vm, int index)
+   {
+     starti;
+     assert(T == T8B || T == T16B, "invalid arrangement");
+     assert((T == T8B && index <= 0b0111) || (T == T16B && index <= 0b1111), "Invalid index value");
+     f(0, 31), f((int)T & 1, 30), f(0b101110000, 29, 21);
+     rf(Vm, 16), f(0, 15), f(index, 14, 11);
+     f(0, 10), rf(Vn, 5), rf(Vd, 0);
+   }
 
   Assembler(CodeBuffer* code) : AbstractAssembler(code) {
   }
