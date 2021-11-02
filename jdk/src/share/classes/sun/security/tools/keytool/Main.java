@@ -1291,8 +1291,7 @@ public final class Main {
                                            X509CertInfo.DN_NAME);
 
         Date firstDate = getStartDate(startDate);
-        Date lastDate = new Date();
-        lastDate.setTime(firstDate.getTime() + validity*1000L*24L*60L*60L);
+        Date lastDate = getLastDate(firstDate, validity);
         CertificateValidity interval = new CertificateValidity(firstDate,
                                                                lastDate);
 
@@ -1388,11 +1387,9 @@ public final class Main {
                                                       X509CertInfo.DN_NAME);
 
         Date firstDate = getStartDate(startDate);
-        Date lastDate = (Date) firstDate.clone();
-        lastDate.setTime(lastDate.getTime() + validity*1000*24*60*60);
+        Date lastDate = getLastDate(firstDate, validity);
         CertificateValidity interval = new CertificateValidity(firstDate,
                                                                lastDate);
-
 
         PrivateKey privateKey =
                 (PrivateKey)recoverKey(alias, storePass, keyPass).fst;
@@ -2728,8 +2725,7 @@ public final class Main {
 
         // Extend its validity
         Date firstDate = getStartDate(startDate);
-        Date lastDate = new Date();
-        lastDate.setTime(firstDate.getTime() + validity*1000L*24L*60L*60L);
+        Date lastDate = getLastDate(firstDate, validity);
         CertificateValidity interval = new CertificateValidity(firstDate,
                                                                lastDate);
         certInfo.set(X509CertInfo.VALIDITY, interval);
@@ -4368,6 +4364,21 @@ public final class Main {
             throw new RuntimeException(e);
         }
         return ext;
+    }
+
+    private Date getLastDate(Date firstDate, long validity)
+            throws Exception {
+        Date lastDate = new Date();
+        lastDate.setTime(firstDate.getTime() + validity*1000L*24L*60L*60L);
+
+        Calendar c = new GregorianCalendar(TimeZone.getTimeZone("UTC"));
+        c.setTime(lastDate);
+        if (c.get(Calendar.YEAR) > 9999) {
+            throw new Exception("Validity period ends at calendar year " +
+                    c.get(Calendar.YEAR) + " which is greater than 9999");
+        }
+
+        return lastDate;
     }
 
     private boolean isTrustedCert(Certificate cert) throws KeyStoreException {
