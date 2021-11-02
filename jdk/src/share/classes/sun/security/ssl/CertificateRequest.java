@@ -31,6 +31,7 @@ import java.security.PrivateKey;
 import java.security.cert.X509Certificate;
 import java.text.MessageFormat;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
@@ -44,6 +45,7 @@ import javax.security.auth.x500.X500Principal;
 import sun.security.ssl.CipherSuite.KeyExchange;
 import sun.security.ssl.SSLHandshake.HandshakeMessage;
 import sun.security.ssl.X509Authentication.X509Possession;
+import sun.security.ssl.X509Authentication.X509PossessionGenerator;
 
 /**
  * Pack of the CertificateRequest handshake message.
@@ -328,6 +330,16 @@ final class CertificateRequest {
 
             // clean up this consumer
             chc.handshakeConsumers.remove(SSLHandshake.CERTIFICATE_REQUEST.id);
+            chc.receivedCertReq = true;
+
+            // If we're processing this message and the server's certificate
+            // message consumer has not already run then this is a state
+            // machine violation.
+            if (chc.handshakeConsumers.containsKey(
+                    SSLHandshake.CERTIFICATE.id)) {
+                throw chc.conContext.fatal(Alert.UNEXPECTED_MESSAGE,
+                        "Unexpected CertificateRequest handshake message");
+            }
 
             SSLConsumer certStatCons = chc.handshakeConsumers.remove(
                     SSLHandshake.CERTIFICATE_STATUS.id);
@@ -654,6 +666,16 @@ final class CertificateRequest {
 
             // clean up this consumer
             chc.handshakeConsumers.remove(SSLHandshake.CERTIFICATE_REQUEST.id);
+            chc.receivedCertReq = true;
+
+            // If we're processing this message and the server's certificate
+            // message consumer has not already run then this is a state
+            // machine violation.
+            if (chc.handshakeConsumers.containsKey(
+                    SSLHandshake.CERTIFICATE.id)) {
+                throw chc.conContext.fatal(Alert.UNEXPECTED_MESSAGE,
+                        "Unexpected CertificateRequest handshake message");
+            }
 
             SSLConsumer certStatCons = chc.handshakeConsumers.remove(
                     SSLHandshake.CERTIFICATE_STATUS.id);
@@ -696,12 +718,11 @@ final class CertificateRequest {
             chc.handshakeSession.setPeerSupportedSignatureAlgorithms(sss);
             chc.peerSupportedAuthorities = crm.getAuthorities();
 
-            // For TLS 1.2, we no longer use the certificate_types field
-            // from the CertificateRequest message to directly determine
-            // the SSLPossession.  Instead, the choosePossession method
-            // will use the accepted signature schemes in the message to
-            // determine the set of acceptable certificate types to select from.
-            SSLPossession pos = choosePossession(chc);
+            // For TLS 1.2, we need to use a combination of the CR message's
+            // allowed key types and the signature algorithms in order to
+            // find a certificate chain that has the right key and all certs
+            // using one or more of the allowed cert signature schemes.
+            SSLPossession pos = choosePossession(chc, crm);
             if (pos == null) {
                 return;
             }
@@ -711,8 +732,8 @@ final class CertificateRequest {
                     SSLHandshake.CERTIFICATE_VERIFY);
         }
 
-        private static SSLPossession choosePossession(HandshakeContext hc)
-                throws IOException {
+        private static SSLPossession choosePossession(HandshakeContext hc,
+                T12CertificateRequestMessage crm) throws IOException {
             if (hc.peerRequestedCertSignSchemes == null ||
                     hc.peerRequestedCertSignSchemes.isEmpty()) {
                 if (SSLLogger.isOn && SSLLogger.isOn("ssl,handshake")) {
@@ -721,6 +742,9 @@ final class CertificateRequest {
                 }
                 return null;
             }
+
+            // Put the CR key type into a more friendly format for searching
+            List<String> crKeyTypes = Arrays.asList(crm.getKeyTypes());
 
             Collection<String> checkedKeyTypes = new HashSet<>();
             for (SignatureScheme ss : hc.peerRequestedCertSignSchemes) {
@@ -747,7 +771,7 @@ final class CertificateRequest {
                     continue;
                 }
 
-                SSLAuthentication ka = X509Authentication.valueOf(ss);
+                X509Authentication ka = X509Authentication.valueOf(ss);
                 if (ka == null) {
                     if (SSLLogger.isOn && SSLLogger.isOn("ssl,handshake")) {
                         SSLLogger.warning(
@@ -755,6 +779,27 @@ final class CertificateRequest {
                     }
                     checkedKeyTypes.add(ss.keyAlgorithm);
                     continue;
+                } else {
+                    // Any auth object will have a possession generator and
+                    // we need to make sure the key types for that generator
+                    // share at least one common algorithm with the CR's
+                    // allowed key types.
+                    if (ka.possessionGenerator instanceof
+                            X509PossessionGenerator) {
+                        X509PossessionGenerator xpg =
+                            (X509PossessionGenerator) ka.possessionGenerator;
+                        if (Collections.disjoint(crKeyTypes,
+                                Arrays.asList(xpg.keyTypes))) {
+                            if (SSLLogger.isOn &&
+                                    SSLLogger.isOn("ssl,handshake")) {
+                                SSLLogger.warning(
+                                        "Unsupported authentication scheme: " +
+                                                ss.name);
+                            }
+                            checkedKeyTypes.add(ss.keyAlgorithm);
+                            continue;
+                        }
+                    }
                 }
 
                 SSLPossession pos = ka.createPossession(hc);
@@ -917,6 +962,15 @@ final class CertificateRequest {
 
             // clean up this consumer
             chc.handshakeConsumers.remove(SSLHandshake.CERTIFICATE_REQUEST.id);
+            chc.receivedCertReq = true;
+
+            // Ensure that the CertificateRequest has not been sent prior
+            // to EncryptedExtensions
+            if (chc.handshakeConsumers.containsKey(
+                    SSLHandshake.ENCRYPTED_EXTENSIONS.id)) {
+                throw chc.conContext.fatal(Alert.UNEXPECTED_MESSAGE,
+                        "Unexpected CertificateRequest handshake message");
+            }
 
             T13CertificateRequestMessage crm =
                     new T13CertificateRequestMessage(chc, message);
