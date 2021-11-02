@@ -227,6 +227,19 @@ final class SSLEngineImpl extends SSLEngine implements SSLTransport {
             hsStatus = ciphertext.handshakeStatus;
         } else {
             hsStatus = getHandshakeStatus();
+            if (ciphertext == null && !conContext.isNegotiated &&
+                    conContext.isInboundClosed() &&
+                    hsStatus == HandshakeStatus.NEED_WRAP) {
+                // Even the outboud is open, no futher data could be wrapped as:
+                //     1. the outbound is empty
+                //     2. no negotiated connection
+                //     3. the inbound has closed, cannot complete the handshake
+                //
+                // Mark the engine as closed if the handshake status is
+                // NEED_WRAP. Otherwise, it could lead to dead loops in
+                // applications.
+                status = Status.CLOSED;
+            }
         }
 
         int deltaSrcs = srcsRemains;
@@ -258,7 +271,7 @@ final class SSLEngineImpl extends SSLEngine implements SSLTransport {
         }
 
         if (ciphertext == null) {
-            return Ciphertext.CIPHERTEXT_NULL;
+            return null;
         }
 
         // Is the handshake completed?
