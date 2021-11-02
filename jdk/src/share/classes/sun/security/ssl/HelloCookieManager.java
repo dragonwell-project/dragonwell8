@@ -180,7 +180,7 @@ abstract class HelloCookieManager {
             md.update(headerBytes);
             byte[] headerCookie = md.digest(secret);
 
-            if (!Arrays.equals(headerCookie, prevHeadCookie)) {
+            if (!MessageDigest.isEqual(headerCookie, prevHeadCookie)) {
                 return false;
             }
 
