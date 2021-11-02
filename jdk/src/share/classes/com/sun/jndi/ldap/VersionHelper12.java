@@ -73,7 +73,7 @@ final class VersionHelper12 extends VersionHelper {
 
     /**
      * Returns true if deserialization of objects from 'javaSerializedData'
-     * LDAP attribute is allowed.
+     * and 'javaReferenceAddress' LDAP attributes is allowed.
      *
      * @return true if deserialization is allowed; false - otherwise
      */
