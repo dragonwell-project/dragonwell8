@@ -535,9 +535,10 @@ final class ECDHServerKeyExchange {
             // validate
             //
             // check constraints of EC PublicKey
-            if (!chc.algorithmConstraints.permits(
-                    EnumSet.of(CryptoPrimitive.KEY_AGREEMENT),
-                    skem.publicKey)) {
+            if (chc.algorithmConstraints != null &&
+                    !chc.algorithmConstraints.permits(
+                            EnumSet.of(CryptoPrimitive.KEY_AGREEMENT),
+                            skem.publicKey)) {
                 throw chc.conContext.fatal(Alert.INSUFFICIENT_SECURITY,
                         "ECDH ServerKeyExchange does not comply " +
                         "to algorithm constraints");
