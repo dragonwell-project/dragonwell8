@@ -178,15 +178,21 @@ bootcycle-images-only: start-make
 	@$(ECHO) Boot cycle build step 2: Building a new JDK image using previously built image
 	@($(CD) $(SRC_ROOT) && $(BUILD_LOG_WRAPPER) $(MAKE) SPEC=$(dir $(SPEC))bootcycle-spec.gmk images)
 
-# If the tests produced a $(TEST)_exitcode.txt file, use the number in that
+# If the tests produced an exitcode.txt file, use the number in that
 # file for the exit code of the "make test" invocation.
 test: images test-only
 test-only: start-make
 	@$(call TargetEnter)
 	@($(CD) $(SRC_ROOT)/test && $(BUILD_LOG_WRAPPER) $(MAKE) -j1 -k MAKEFLAGS= JT_HOME=$(JT_HOME) PRODUCT_HOME=$(JDK_IMAGE_DIR) ALT_OUTPUTDIR=$(OUTPUT_ROOT) CONCURRENCY=$(JOBS) $(TEST)) || true
 	@$(call TargetExit)
+	@$(ECHO) Testing for $(OUTPUT_ROOT)/testoutput/$(TEST)_exitcode.txt
 	@(if [ -r $(OUTPUT_ROOT)/testoutput/$(TEST)_exitcode.txt ]; then \
 		EXIT=$$($(CAT) $(OUTPUT_ROOT)/testoutput/$(TEST)_exitcode.txt); \
+		exit $${EXIT}; \
+	  fi)
+	@$(ECHO) Testing for $(OUTPUT_ROOT)/testoutput/$(TEST)/exitcode.txt
+	@(if [ -r $(OUTPUT_ROOT)/testoutput/$(TEST)/exitcode.txt ]; then \
+		EXIT=$$($(CAT) $(OUTPUT_ROOT)/testoutput/$(TEST)/exitcode.txt); \
 		exit $${EXIT}; \
 	  fi)
 

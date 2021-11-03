@@ -262,15 +262,11 @@ CONFIG_STATUS="$OUTPUT_ROOT/config.status"
 
 # Create the actual output files. Now the main work of configure is done.
 AC_OUTPUT
+
+# After AC_OUTPUT, we need to do final work
 CUSTOM_CONFIG_OUTPUT_GENERATED_HOOK
-
-# Try to move the config.log file to the output directory.
-if test -e ./config.log; then
-  $MV -f ./config.log "$OUTPUT_ROOT/config.log" 2> /dev/null
-fi
-
-# Make the compare script executable
-$CHMOD +x $OUTPUT_ROOT/compare.sh
+BASIC_POST_CONFIG_OUTPUT
 
 # Finally output some useful information to the user
 HELP_PRINT_SUMMARY_AND_WARNINGS
+HELP_REPEAT_WARNINGS
