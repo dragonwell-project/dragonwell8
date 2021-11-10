@@ -49,6 +49,7 @@ public final class FontUtilities {
     public static boolean isLinux;
 
     public static boolean isMacOSX;
+    public static boolean isMacOSX14;
 
     public static boolean isSolaris8;
 
@@ -79,6 +80,25 @@ public final class FontUtilities {
                 isLinux = osName.startsWith("Linux");
 
                 isMacOSX = osName.contains("OS X"); // TODO: MacOSX
+                if (isMacOSX) {
+                    // os.version has values like 10.13.6, 10.14.6
+                    // If it is not positively recognised as 10.13 or less,
+                    // assume it means 10.14 or some later version.
+                    isMacOSX14 = true;
+                    String version = System.getProperty("os.version", "");
+                    if (version.startsWith("10.")) {
+                        version = version.substring(3);
+                        int periodIndex = version.indexOf('.');
+                        if (periodIndex != -1) {
+                            version = version.substring(0, periodIndex);
+                        }
+                        try {
+                            int v = Integer.parseInt(version);
+                            isMacOSX14 = (v >= 14);
+                        } catch (NumberFormatException e) {
+                        }
+                    }
+                }
 
                 String t2kStr = System.getProperty("sun.java2d.font.scaler");
                 if (t2kStr != null) {
