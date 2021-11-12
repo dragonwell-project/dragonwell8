@@ -58,7 +58,6 @@ import jdk.xml.internal.JdkXmlUtils;
  * include the replacement text of internal entities, and supply default attribute values".
  *
  * @author Elena Litani, IBM
- * @version $Id: NonValidatingConfiguration.java,v 1.7 2010-11-01 04:40:09 joehw Exp $
  */
 public class NonValidatingConfiguration
     extends BasicParserConfiguration

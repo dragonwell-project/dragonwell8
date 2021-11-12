@@ -34,7 +34,6 @@ import jdk.xml.internal.JdkXmlFeatures;
 /**
  * The XPathFactory builds XPaths.
  *
- * @version $Revision: 1.11 $
  * @author  Ramesh Mandava
  */
 public  class XPathFactoryImpl extends XPathFactory {

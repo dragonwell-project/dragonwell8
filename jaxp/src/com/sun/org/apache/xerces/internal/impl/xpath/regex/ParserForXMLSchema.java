@@ -30,7 +30,6 @@ import java.util.Map;
  * @xerces.internal
  *
  * @author TAMURA Kent &lt;kent@trl.ibm.co.jp&gt;
- * @version $Id: ParserForXMLSchema.java,v 1.9 2010-11-12 18:09:45 joehw Exp $
  */
 class ParserForXMLSchema extends RegexParser {
 

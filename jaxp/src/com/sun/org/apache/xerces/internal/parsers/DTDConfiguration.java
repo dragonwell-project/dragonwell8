@@ -86,7 +86,6 @@ import jdk.xml.internal.JdkXmlUtils;
  * @author Andy Clark, IBM
  * @author Neil Graham, IBM
  *
- * @version $Id: DTDConfiguration.java,v 1.7 2010-11-01 04:40:09 joehw Exp $
  */
 public class DTDConfiguration
     extends BasicParserConfiguration
