@@ -42,7 +42,6 @@ import com.sun.xml.internal.stream.XMLBufferListener;
  * @author Elena Litani, IBM
  * @author Michael Glavassevich, IBM
  *
- * @version $Id: XMLAttributesImpl.java,v 1.7 2010/05/07 20:13:09 joehw Exp $
  */
 public class XMLAttributesImpl
 implements XMLAttributes, XMLBufferListener {

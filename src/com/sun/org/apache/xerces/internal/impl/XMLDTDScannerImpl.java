@@ -70,7 +70,6 @@ import java.io.IOException;
  * @author Glenn Marcy, IBM
  * @author Eric Ye, IBM
  *
- * @version $Id: XMLDTDScannerImpl.java,v 1.8 2010-11-01 04:39:41 joehw Exp $
  * @LastModified: Feb 2020
  */
 public class XMLDTDScannerImpl
