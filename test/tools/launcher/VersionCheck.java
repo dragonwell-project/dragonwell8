@@ -247,6 +247,10 @@ public class VersionCheck extends TestHelper {
             if (isWindows && !name.endsWith(EXE_FILE_EXT)) {
                 return false;
             }
+            // jgroup requires special permission
+            if (pathname.getName().equals("jgroup")) {
+                return false;
+            }
             for (String x : exclude) {
                 if (name.endsWith(x)) {
                     return false;
