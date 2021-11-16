@@ -37,11 +37,9 @@ import java.security.AccessController;
 import java.security.PrivilegedAction;
 import java.nio.channels.Channel;
 import java.nio.channels.spi.SelectorProvider;
-import com.alibaba.rcm.internal.AbstractResourceContainer;
-import com.alibaba.tenant.TenantContainer;
-import com.alibaba.tenant.TenantGlobals;
 
-import com.alibaba.wisp.engine.WispEngine;
+import com.alibaba.rcm.internal.AbstractResourceContainer;
+import com.alibaba.rcm.internal.ResourceContainerGlobals;
 import com.alibaba.wisp.engine.WispTask;
 import sun.misc.VM;
 import sun.nio.ch.Interruptible;
@@ -540,6 +538,28 @@ public final class System {
     private static Properties props;
     private static native Properties initProperties(Properties props);
 
+    private static Properties getProperties0() {
+        if (VM.isBooted() && ResourceContainerGlobals.propertyIsolationEnabled()) {
+            AbstractResourceContainer rc = AbstractResourceContainer.current();
+            return rc == AbstractResourceContainer.root() ? props : rc.getProperties();
+        } else {
+            return props;
+        }
+    }
+
+    private static void setProperties0(Properties props) {
+        if (VM.isBooted() && ResourceContainerGlobals.propertyIsolationEnabled()) {
+            AbstractResourceContainer rc = AbstractResourceContainer.current();
+            if (rc == AbstractResourceContainer.root()) {
+                System.props = props;
+            } else {
+                rc.setProperties(props);
+            }
+        } else {
+            System.props = props;
+        }
+    }
+
     /**
      * Determines the current system properties.
      * <p>
@@ -638,11 +658,8 @@ public final class System {
         if (sm != null) {
             sm.checkPropertiesAccess();
         }
-        if(TenantGlobals.isDataIsolationEnabled() && null != TenantContainer.current()) {
-            return TenantContainer.current().getProperties();
-        } else {
-            return props;
-        }
+
+        return getProperties0();
     }
 
     /**
@@ -693,12 +710,7 @@ public final class System {
             props = new Properties();
             initProperties(props);
         }
-        if (VM.isBooted() && TenantGlobals.isDataIsolationEnabled()
-                && null != TenantContainer.current()) {
-            TenantContainer.current().setProperties(props);
-        } else {
-            System.props = props;
-        }
+        setProperties0(props);
     }
 
     /**
@@ -734,12 +746,7 @@ public final class System {
             sm.checkPropertyAccess(key);
         }
 
-        if(VM.isBooted() && TenantGlobals.isDataIsolationEnabled()
-           && null != TenantContainer.current()) {
-            return TenantContainer.current().getProperty(key);
-        } else {
-            return props.getProperty(key);
-        }
+        return getProperties0().getProperty(key);
     }
 
     /**
@@ -775,12 +782,7 @@ public final class System {
             sm.checkPropertyAccess(key);
         }
 
-        if (VM.isBooted() && TenantGlobals.isDataIsolationEnabled()
-                && null != TenantContainer.current()) {
-            return TenantContainer.current().getProperties().getProperty(key, def);
-        } else {
-            return props.getProperty(key, def);
-        }
+        return getProperties0().getProperty(key, def);
     }
 
     /**
@@ -820,12 +822,7 @@ public final class System {
                 SecurityConstants.PROPERTY_WRITE_ACTION));
         }
 
-        if(VM.isBooted() && TenantGlobals.isDataIsolationEnabled()
-           && null != TenantContainer.current()) {
-            return (String) TenantContainer.current().setProperty(key, value);
-        } else {
-            return (String) props.setProperty(key, value);
-        }
+        return (String) getProperties0().setProperty(key, value);
     }
 
     /**
@@ -862,11 +859,7 @@ public final class System {
             sm.checkPermission(new PropertyPermission(key, "write"));
         }
 
-        if(TenantGlobals.isDataIsolationEnabled() && null != TenantContainer.current()) {
-            return (String) TenantContainer.current().clearProperty(key);
-        } else {
-            return (String) props.remove(key);
-        }
+        return (String) getProperties0().remove(key);
     }
 
     private static void checkKey(String key) {

@@ -4,10 +4,12 @@ import com.alibaba.rcm.Constraint;
 import com.alibaba.rcm.ResourceContainer;
 import com.alibaba.rcm.ResourceType;
 import com.alibaba.rcm.internal.AbstractResourceContainer;
+import com.alibaba.rcm.internal.ResourceContainerGlobals;
 
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Properties;
 import java.util.concurrent.AbstractExecutorService;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -110,7 +112,7 @@ class WispControlGroup extends AbstractExecutorService {
      *                  to update this field despite there is no time slice left
      *                  under some special scenes.
      * @return x == 0: if it's ok to run the task; x > 0, quota exceed, need to
-     *         delay x nanoseconds.
+     * delay x nanoseconds.
      */
     long checkCpuLimit(WispTask task, boolean updateTs) {
         assert task.controlGroup == this;
@@ -239,6 +241,13 @@ class WispControlGroup extends AbstractExecutorService {
     ResourceContainer createResourceContainer() {
         return new AbstractResourceContainer() {
             private Constraint constraint;
+            private Properties props;
+
+            {
+                if (ResourceContainerGlobals.propertyIsolationEnabled()) {
+                    setProperties(null);
+                }
+            }
 
             @Override
             public State getState() {
@@ -272,6 +281,23 @@ class WispControlGroup extends AbstractExecutorService {
             }
 
             @Override
+            public Properties getProperties() {
+                return props;
+            }
+
+            @Override
+            public void setProperties(Properties props) {
+                if (props == null) {
+                    ResourceContainer.root().run(() -> {
+                        this.props = new Properties();
+                        this.props.putAll(System.getProperties());
+                    });
+                } else {
+                    this.props = props;
+                }
+            }
+
+            @Override
             public void destroy() {
                 shutdown();
                 while (!isTerminated()) {
@@ -302,8 +328,8 @@ class WispControlGroup extends AbstractExecutorService {
                 List<Long> threadIdList = new ArrayList<>();
                 for (WispTask task : WispTask.id2Task.values()) {
                     if (task.isAlive()
-                      && task.getThreadWrapper() != null
-                      && task.controlGroup == WispControlGroup.this) {
+                            && task.getThreadWrapper() != null
+                            && task.controlGroup == WispControlGroup.this) {
                         threadIdList.add(task.getThreadWrapper().getId());
                     }
                 }
