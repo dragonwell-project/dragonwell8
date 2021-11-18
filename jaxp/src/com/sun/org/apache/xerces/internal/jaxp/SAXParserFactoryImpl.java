@@ -41,7 +41,6 @@ import org.xml.sax.SAXNotSupportedException;
  * @author Rajiv Mordani
  * @author Edwin Goei
  *
- * @version $Id: SAXParserFactoryImpl.java,v 1.9 2010-11-01 04:40:06 joehw Exp $
  */
 public class SAXParserFactoryImpl extends SAXParserFactory {
 
