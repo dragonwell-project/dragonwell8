@@ -35,6 +35,7 @@ import java.nio.channels.*;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
 import java.util.*;
+import jdk.internal.misc.TerminatingThreadLocal;
 import sun.misc.Unsafe;
 import sun.misc.Cleaner;
 import sun.security.action.GetPropertyAction;
@@ -51,12 +52,17 @@ public class Util {
     private static final long MAX_CACHED_BUFFER_SIZE = getMaxCachedBufferSize();
 
     // Per-thread cache of temporary direct buffers
-    private static ThreadLocal<BufferCache> bufferCache =
-        new ThreadLocal<BufferCache>()
-    {
+    private static ThreadLocal<BufferCache> bufferCache = new TerminatingThreadLocal<BufferCache>() {
         @Override
         protected BufferCache initialValue() {
             return new BufferCache();
+        }
+        @Override
+        protected void threadTerminated(BufferCache cache) { // will never be null
+            while (!cache.isEmpty()) {
+                ByteBuffer bb = cache.removeFirst();
+                free(bb);
+            }
         }
     };
 
