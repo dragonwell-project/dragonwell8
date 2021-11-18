@@ -345,7 +345,8 @@ final class KeyShareExtension {
                 NamedGroup ng = NamedGroup.valueOf(entry.namedGroupId);
                 if (ng == null || !SupportedGroups.isActivatable(
                         shc.algorithmConstraints, ng)) {
-                    if (SSLLogger.isOn && SSLLogger.isOn("ssl,handshake")) {
+                    if (SSLLogger.isOn &&
+                            SSLLogger.isOn("ssl,handshake")) {
                         SSLLogger.fine(
                                 "Ignore unsupported named group: " +
                                 NamedGroup.nameOf(entry.namedGroupId));
@@ -358,40 +359,52 @@ final class KeyShareExtension {
                         ECDHECredentials ecdhec =
                             ECDHECredentials.valueOf(ng, entry.keyExchange);
                         if (ecdhec != null) {
-                            if (!shc.algorithmConstraints.permits(
-                                    EnumSet.of(CryptoPrimitive.KEY_AGREEMENT),
-                                    ecdhec.popPublicKey)) {
-                                SSLLogger.warning(
-                                        "ECDHE key share entry does not " +
-                                        "comply to algorithm constraints");
+                            if (shc.algorithmConstraints != null &&
+                                    !shc.algorithmConstraints.permits(
+                                            EnumSet.of(CryptoPrimitive.KEY_AGREEMENT),
+                                            ecdhec.popPublicKey)) {
+                                if (SSLLogger.isOn &&
+                                        SSLLogger.isOn("ssl,handshake")) {
+                                    SSLLogger.warning(
+                                            "ECDHE key share entry does not " +
+                                            "comply to algorithm constraints");
+                                }
                             } else {
                                 credentials.add(ecdhec);
                             }
                         }
                     } catch (IOException | GeneralSecurityException ex) {
-                        SSLLogger.warning(
-                                "Cannot decode named group: " +
-                                NamedGroup.nameOf(entry.namedGroupId));
+                        if (SSLLogger.isOn && SSLLogger.isOn("ssl,handshake")) {
+                            SSLLogger.warning(
+                                    "Cannot decode named group: " +
+                                    NamedGroup.nameOf(entry.namedGroupId));
+                        }
                     }
                 } else if (ng.type == NamedGroupType.NAMED_GROUP_FFDHE) {
                     try {
                         DHECredentials dhec =
                                 DHECredentials.valueOf(ng, entry.keyExchange);
                         if (dhec != null) {
-                            if (!shc.algorithmConstraints.permits(
-                                    EnumSet.of(CryptoPrimitive.KEY_AGREEMENT),
-                                    dhec.popPublicKey)) {
-                                SSLLogger.warning(
-                                        "DHE key share entry does not " +
-                                        "comply to algorithm constraints");
+                            if (shc.algorithmConstraints != null &&
+                                    !shc.algorithmConstraints.permits(
+                                            EnumSet.of(CryptoPrimitive.KEY_AGREEMENT),
+                                            dhec.popPublicKey)) {
+                                if (SSLLogger.isOn &&
+                                        SSLLogger.isOn("ssl,handshake")) {
+                                    SSLLogger.warning(
+                                            "DHE key share entry does not " +
+                                            "comply to algorithm constraints");
+                                }
                             } else {
                                 credentials.add(dhec);
                             }
                         }
                     } catch (IOException | GeneralSecurityException ex) {
-                        SSLLogger.warning(
-                                "Cannot decode named group: " +
-                                NamedGroup.nameOf(entry.namedGroupId));
+                        if (SSLLogger.isOn && SSLLogger.isOn("ssl,handshake")) {
+                            SSLLogger.warning(
+                                    "Cannot decode named group: " +
+                                    NamedGroup.nameOf(entry.namedGroupId));
+                        }
                     }
                 }
             }
@@ -648,10 +661,11 @@ final class KeyShareExtension {
                     ECDHECredentials ecdhec =
                             ECDHECredentials.valueOf(ng, keyShare.keyExchange);
                     if (ecdhec != null) {
-                        if (!chc.algorithmConstraints.permits(
-                                EnumSet.of(CryptoPrimitive.KEY_AGREEMENT),
-                                ecdhec.popPublicKey)) {
-                            throw chc.conContext.fatal(Alert.UNEXPECTED_MESSAGE,
+                        if (chc.algorithmConstraints != null &&
+                                !chc.algorithmConstraints.permits(
+                                        EnumSet.of(CryptoPrimitive.KEY_AGREEMENT),
+                                        ecdhec.popPublicKey)) {
+                            throw chc.conContext.fatal(Alert.INSUFFICIENT_SECURITY,
                                     "ECDHE key share entry does not " +
                                     "comply to algorithm constraints");
                         } else {
@@ -668,10 +682,11 @@ final class KeyShareExtension {
                     DHECredentials dhec =
                             DHECredentials.valueOf(ng, keyShare.keyExchange);
                     if (dhec != null) {
-                        if (!chc.algorithmConstraints.permits(
-                                EnumSet.of(CryptoPrimitive.KEY_AGREEMENT),
-                                dhec.popPublicKey)) {
-                            throw chc.conContext.fatal(Alert.UNEXPECTED_MESSAGE,
+                        if (chc.algorithmConstraints != null &&
+                                !chc.algorithmConstraints.permits(
+                                        EnumSet.of(CryptoPrimitive.KEY_AGREEMENT),
+                                        dhec.popPublicKey)) {
+                            throw chc.conContext.fatal(Alert.INSUFFICIENT_SECURITY,
                                     "DHE key share entry does not " +
                                     "comply to algorithm constraints");
                         } else {
