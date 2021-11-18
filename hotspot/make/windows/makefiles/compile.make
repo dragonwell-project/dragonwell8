@@ -77,7 +77,8 @@ LP64=1
 !if "$(BUILDARCH)" == "i486"
 MACHINE=I386
 DEFAULT_COMPILER_NAME=VS2003
-CXX_FLAGS=$(CXX_FLAGS) /D "IA32"
+# VS2013 generates bad l2f without /arch:IA32
+CXX_FLAGS=$(CXX_FLAGS) /D "IA32" /arch:IA32
 !endif
 
 # Sanity check, this is the default if not amd64, ia64, or i486

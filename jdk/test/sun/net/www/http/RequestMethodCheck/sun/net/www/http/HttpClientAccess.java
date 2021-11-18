@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 1999, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,26 +21,15 @@
  * questions.
  */
 
-/*
- * @test
- * @bug 4091811 4148753
- * @summary Test java.net.MulticastSocket joinGroup and leaveGroup
- *
- */
+package sun.net.www.http;
+// We can use this injected accessor class to get the KeepAliveCache from our HttpClient
+public class HttpClientAccess {
+    public KeepAliveCache getKeepAliveCache () {
+        // kac is a protected static field in HttpClient
+        return HttpClient.kac;
+    }
 
-import java.io.*;
-import java.net.*;
-
-
-public class JoinGroup {
-
-    public static void main(String args[]) throws Exception  {
-        MulticastSocket soc = null;
-        InetAddress sin = null;
-
-        soc = new MulticastSocket();
-        sin = InetAddress.getByName("224.80.80.80");
-        soc.joinGroup(sin);
-        soc.leaveGroup(sin);
+    public void setInCache(HttpClient client, boolean inCache) {
+        client.inCache = inCache;
     }
 }
