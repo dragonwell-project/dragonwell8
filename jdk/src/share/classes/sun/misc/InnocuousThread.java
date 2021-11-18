@@ -63,8 +63,14 @@ public final class InnocuousThread extends Thread {
      * Returns a new InnocuousThread with null context class loader.
      */
     public static Thread newSystemThread(String name, Runnable target) {
-        return new InnocuousThread(INNOCUOUSTHREADGROUP,
-                                   target, name, null);
+        return AccessController.doPrivileged(
+                new PrivilegedAction<Thread>() {
+                    @Override
+                    public Thread run() {
+                        return new InnocuousThread(INNOCUOUSTHREADGROUP,
+                                                   target, name, null);
+                    }
+                });
     }
 
     public InnocuousThread(Runnable target) {

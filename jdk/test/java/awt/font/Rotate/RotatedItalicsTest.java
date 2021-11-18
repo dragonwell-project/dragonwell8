@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (C) 2019 JetBrains s.r.o.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,24 +23,33 @@
 
 /*
  * @test
- * @bug 4102731
- * @summary Test the java.net.multicastsocket.leave method
- *
+ * @bug 8210058
+ * @summary Algorithmic Italic font leans opposite angle in Printing
  */
 
-import java.net.*;
-import java.io.*;
+import java.awt.Color;
+import java.awt.Font;
+import java.awt.Graphics2D;
+import java.awt.image.BufferedImage;
+import java.io.File;
 
-public class Leave {
+public class RotatedItalicsTest {
+    public static void main(String[] args) throws Exception {
+        File fontFile = new File(System.getProperty("test.src", "."), "A.ttf");
+        Font baseFont = Font.createFont(Font.TRUETYPE_FONT, fontFile);
+        Font font = baseFont.deriveFont(Font.ITALIC, 120);
 
-    public static void main(String args[]) throws Exception {
-        MulticastSocket socket = null;
-        InetAddress mca = null;
+        BufferedImage image = new BufferedImage(100, 100,
+                                                BufferedImage.TYPE_INT_RGB);
 
-        mca = InetAddress.getByName("224.80.80.80");
-        socket = new MulticastSocket();
-        socket.joinGroup(mca);
-        socket.leaveGroup(mca);
-        socket.close();
+        Graphics2D g = image.createGraphics();
+        g.rotate(Math.PI / 2);
+        g.setFont(font);
+        g.drawString("A", 10, -10);
+        g.dispose();
+
+        if (image.getRGB(50, 76) != Color.white.getRGB()) {
+            throw new RuntimeException("Wrong glyph rendering");
+        }
     }
 }
