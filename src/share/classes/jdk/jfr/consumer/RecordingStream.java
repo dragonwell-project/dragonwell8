@@ -66,6 +66,7 @@ import jdk.jfr.internal.consumer.EventDirectoryStream;
  *
  * @since 14
  */
+@Deprecated
 public final class RecordingStream implements AutoCloseable, EventStream {
 
     private final Recording recording;

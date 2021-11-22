@@ -47,6 +47,7 @@ import jdk.jfr.internal.SecuritySupport;
  * Purpose of this class is to simplify the implementation of
  * an event stream.
  */
+@Deprecated
 abstract class AbstractEventStream implements EventStream {
     private final static AtomicLong counter = new AtomicLong(0);
 

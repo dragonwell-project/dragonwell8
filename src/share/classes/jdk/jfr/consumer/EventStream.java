@@ -120,6 +120,7 @@ import jdk.jfr.internal.consumer.FileAccess;
  *
  * @since 14
  */
+@Deprecated
 public interface EventStream extends AutoCloseable {
     /**
      * Creates a stream from the repository of the current Java Virtual Machine
