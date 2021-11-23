@@ -238,6 +238,9 @@ int ProfileRecorder::assign_class_init_order(InstanceKlass* klass) {
   Symbol* name = klass->name();
   Symbol* path = klass->source_file_path();
   Symbol* loader_name = JitWarmUp::get_class_loader_name(klass->class_loader_data());
+  if (name == NULL || name->utf8_length() == 0) {
+      return -1;
+  }
   MutexLockerEx mu(ProfileRecorder_lock);
   if (_init_list_tail_node == NULL) {
     // add head node
@@ -383,6 +386,7 @@ void ProfileRecorder::write_u8(u8 value) {
 }
 
 void ProfileRecorder::write_string(const char* src, size_t len) {
+  assert(src != NULL && len != 0, "empty string is not allowed");
   _logfile->write(src, len);
   _logfile->write("\0", 1);
   _pos += (unsigned int)len + 1;
@@ -1461,7 +1465,7 @@ private:
   u1                      read_u1();
   u4                      read_u4();
   u8                      read_u8();
-  char*                   read_string();
+  const char*             read_string();
 };
 
 JitWarmUpLogParser::JitWarmUpLogParser(randomAccessFileStream* fs, PreloadJitInfo* holder)
@@ -1502,7 +1506,7 @@ u8 JitWarmUpLogParser::read_u8() {
   return *(u8*)parse_int_buf;
 }
 
-char* JitWarmUpLogParser::read_string() {
+const char* JitWarmUpLogParser::read_string() {
   int index = 0;
   do {
     _fs->read(_parse_str_buf + index, 1, 1);
@@ -1513,7 +1517,8 @@ char* JitWarmUpLogParser::read_string() {
   _position += index;
   int len = index - 1;
   if (len == 0) {
-    return NULL;
+    log_warning(warmup)("[JitWarmUp] WARNING : Parsed empty symbol at position %d\n", _position);
+    return "";
   } else if (len > max_symbol_length()) {
     log_error(warmup)("[JitWarmUp] ERROR : Parsed symbol length is longer than %d\n", max_symbol_length());
     return NULL;
@@ -1633,11 +1638,11 @@ bool JitWarmUpLogParser::parse_class_init_section() {
   chain->set_holder(this->info_holder());
 
   for (int i = 0; i < (int)cnt; i++) {
-    char* name_char = read_string();
+    const char* name_char = read_string();
     LOGPARSER_ILLEGAL_STRING_CHECK(name_char, false);
-    char* loader_char = read_string();
+    const char* loader_char = read_string();
     LOGPARSER_ILLEGAL_STRING_CHECK(loader_char, false);
-    char* path_char = read_string();
+    const char* path_char = read_string();
     LOGPARSER_ILLEGAL_STRING_CHECK(path_char, false);
     Symbol* name = CREATE_SYMBOL(name_char);
     Symbol* loader_name = CREATE_SYMBOL(loader_char);
@@ -1706,10 +1711,10 @@ PreloadMethodHolder* JitWarmUpLogParser::next() {
     return NULL;
   }
   // method info
-  char* method_name_char = read_string();
+  const char* method_name_char = read_string();
   LOGPARSER_ILLEGAL_STRING_CHECK(method_name_char, NULL);
   Symbol* method_name = CREATE_SYMBOL(method_name_char);
-  char* method_sig_char = read_string();
+  const char* method_sig_char = read_string();
   LOGPARSER_ILLEGAL_STRING_CHECK(method_sig_char, NULL);
   Symbol* method_sig = CREATE_SYMBOL(method_sig_char);
   u4 first_invoke_init_order = read_u4();
@@ -1726,7 +1731,7 @@ PreloadMethodHolder* JitWarmUpLogParser::next() {
   }
 
   // class info
-  char* class_name_char = read_string();
+  const char* class_name_char = read_string();
   LOGPARSER_ILLEGAL_STRING_CHECK(class_name_char, NULL);
   Symbol* class_name = CREATE_SYMBOL(class_name_char);
   // ignore
@@ -1734,11 +1739,11 @@ PreloadMethodHolder* JitWarmUpLogParser::next() {
     _position = end_pos;
     return NULL;
   }
-  char* class_loader_char = read_string();
+  const char* class_loader_char = read_string();
   LOGPARSER_ILLEGAL_STRING_CHECK(class_loader_char, NULL);
   Symbol* class_loader = CREATE_SYMBOL(class_loader_char);
   class_loader = PreloadJitInfo::remove_meaningless_suffix(class_loader);
-  char* path_char = read_string();
+  const char* path_char = read_string();
   LOGPARSER_ILLEGAL_STRING_CHECK(path_char, NULL);
   Symbol* path = CREATE_SYMBOL(path_char);
 
