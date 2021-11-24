@@ -10,8 +10,12 @@ public final class ResourceContainerGlobals {
     private final static String PROPERTY_ISOLATION_KEY = "com.alibaba.resourceContainer.propertyIsolation";
 
     private final static boolean PROPERTY_ISOLATION_ENABLED =
-            AccessController.doPrivileged((PrivilegedAction<Boolean>) () ->
-                    Boolean.valueOf(System.getProperty(PROPERTY_ISOLATION_KEY, "false")));
+            AccessController.doPrivileged(new PrivilegedAction<Boolean>() {
+                @Override
+                public Boolean run() {
+                    return Boolean.valueOf(System.getProperty(PROPERTY_ISOLATION_KEY, "false"));
+                }
+            });
 
     /**
      * Returns whether system property isolation is enabled
