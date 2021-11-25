@@ -28,8 +28,12 @@
 
 import java.dyn.Coroutine;
 import java.io.*;
+import sun.misc.SharedSecrets;
+import sun.misc.JavaLangAccess;
+
 
 public class MemLeakTest {
+    private static final JavaLangAccess JLA = SharedSecrets.getJavaLangAccess();
     private final static Runnable r = () -> {};
 
     public static void main(String[] args) throws Exception {
@@ -72,7 +76,7 @@ public class MemLeakTest {
      * After fix :  25436kB -> 25572kB
      */
     private static void testUserCreatedCoroutineLeak() throws Exception {
-        Coroutine threadCoro = Thread.currentThread().getCoroutineSupport().threadCoroutine();
+        Coroutine threadCoro = JLA.getCoroutineSupport(Thread.currentThread()).threadCoroutine();
         // occupy rss
         for (int i = 0; i < 200000; i++) {
             Coroutine target =  new Coroutine(r);

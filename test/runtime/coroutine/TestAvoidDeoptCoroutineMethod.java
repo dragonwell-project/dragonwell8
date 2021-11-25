@@ -32,11 +32,17 @@
 import sun.hotspot.WhiteBox;
 import java.dyn.Coroutine;
 import java.io.*;
+import sun.misc.JavaLangAccess;
+import sun.misc.SharedSecrets;
+
 
 public class TestAvoidDeoptCoroutineMethod {
+    private static final JavaLangAccess JLA = SharedSecrets.getJavaLangAccess();
+
+
     public static void main(String[] args) throws Exception {
         WhiteBox whiteBox = WhiteBox.getWhiteBox();
-        Coroutine threadCoro = Thread.currentThread().getCoroutineSupport().threadCoroutine();
+        Coroutine threadCoro = JLA.getCoroutineSupport(Thread.currentThread()).threadCoroutine();
         runSomeCoroutines(threadCoro);
         // deoptimize all
         whiteBox.deoptimizeAll();
