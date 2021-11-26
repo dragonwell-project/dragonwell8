@@ -245,11 +245,15 @@ public class WispTask implements Comparable<WispTask> {
                     } finally {
                         assert timeOut == null;
                         assert controlGroup == null; // detached
-                        runnable = null;
                         WispEngine.JLA.setWispAlive(threadWrapper, false);
+                        // Setting runnable to null will cause isAlive() to become false.
+                        // If set runnable to null here and ThreadAsWisp.exit() is blocked
+                        // due to lock contention, this coroutine cannot exit normally.
+                        // Therefore, we must ensure runnable is set to null after ThreadAsWisp.exit()
                         if (isThreadAsWisp) {
                             ThreadAsWisp.exit(threadWrapper);
                         }
+                        runnable = null;
                         if (throwable instanceof CoroutineExitException) {
                             throw (CoroutineExitException) throwable;
                         }
