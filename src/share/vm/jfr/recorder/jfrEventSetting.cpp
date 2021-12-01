@@ -54,14 +54,6 @@ void JfrEventSetting::set_enabled(jlong id, bool enabled) {
   setting(event_id).enabled = enabled;
 }
 
-StackWalkMode JfrEventSetting::stack_walk_mode(JfrEventId event_id) {
-  if (event_id == JfrOptoArrayObjectAllocationEvent ||
-      event_id == JfrOptoInstanceObjectAllocationEvent) {
-    return WALK_BY_CURRENT_FRAME;
-  }
-  return WALK_BY_DEFAULT;
-}
-
 #ifdef ASSERT
 bool JfrEventSetting::bounds_check_event(jlong id) {
   if ((unsigned)id < NUM_RESERVED_EVENTS || (unsigned)id >= MaxJfrEventId) {

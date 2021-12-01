@@ -34,15 +34,6 @@ class JfrCheckpointWriter;
 class JfrChunkWriter;
 class Method;
 
-enum StackWalkMode {
-  // walk stack by vframeStream vfs(thread).
-  WALK_BY_DEFAULT = 0,
-  // walk stack by vframeStream vfs(thread, os::current_frame()).
-  // It is only used in JIT runtime leaf call. In JIT runtime leaf call,
-  // last_java_sp is not maintained and WALK_BY_DEFAULT can not walk stack.
-  WALK_BY_CURRENT_FRAME
-};
-
 class JfrStackFrame {
   friend class ObjectSampleCheckpoint;
  private:
@@ -103,7 +94,7 @@ class JfrStackTrace : public JfrCHeapObj {
   void resolve_linenos() const;
 
   bool record_thread(JavaThread& thread, frame& frame);
-  bool record_safe(JavaThread* thread, int skip, StackWalkMode stack_walk_mode);
+  bool record_safe(JavaThread* thread, int skip);
 
   bool have_lineno() const { return _lineno; }
   bool full_stacktrace() const { return _reached_root; }
@@ -112,7 +103,7 @@ class JfrStackTrace : public JfrCHeapObj {
   JfrStackTrace(JfrStackFrame* frames, u4 max_frames);
   ~JfrStackTrace();
 
-  bool fill_in(vframeStream& vfs, int skip, StackWalkMode mode);
+  bool fill_in(vframeStream& vfs, int skip);
  public:
   unsigned int hash() const { return _hash; }
   traceid id() const { return _id; }

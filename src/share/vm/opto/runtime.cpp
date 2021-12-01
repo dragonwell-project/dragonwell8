@@ -134,6 +134,8 @@ address OptoRuntime::_rethrow_Java                                = NULL;
 address OptoRuntime::_slow_arraycopy_Java                         = NULL;
 address OptoRuntime::_register_finalizer_Java                     = NULL;
 
+address OptoRuntime::_jfr_fast_object_alloc_Java                  = NULL;
+
 # ifdef ENABLE_ZAP_DEAD_LOCALS
 address OptoRuntime::_zap_dead_Java_locals_Java                   = NULL;
 address OptoRuntime::_zap_dead_native_locals_Java                 = NULL;
@@ -182,6 +184,8 @@ bool OptoRuntime::generate(ciEnv* env) {
 
   gen(env, _slow_arraycopy_Java            , slow_arraycopy_Type          , SharedRuntime::slow_arraycopy_C ,    0 , false, false, false);
   gen(env, _register_finalizer_Java        , register_finalizer_Type      , register_finalizer              ,    0 , false, false, false);
+
+  gen(env, _jfr_fast_object_alloc_Java     , jfr_fast_object_alloc_Type   , jfr_fast_object_alloc_C         ,    0 , false, false, false);
 
 # ifdef ENABLE_ZAP_DEAD_LOCALS
   gen(env, _zap_dead_Java_locals_Java      , zap_dead_locals_Type         , zap_dead_Java_locals_C          ,    0 , false, true , false );
@@ -1716,12 +1720,10 @@ JRT_END
 //-----------------------------------------------------------------------------
 // JFR support.
 const TypeFunc *OptoRuntime::jfr_fast_object_alloc_Type() {
-  const Type **fields = TypeTuple::fields(3);
+  const Type **fields = TypeTuple::fields(1);
   fields[TypeFunc::Parms+0] = TypeRawPtr::BOTTOM;   // newly allocated object
-  fields[TypeFunc::Parms+1] = TypeInt::INT;         // bci
-  fields[TypeFunc::Parms+2] = TypeRawPtr::BOTTOM;   // tls
 
-  const TypeTuple *domain = TypeTuple::make(TypeFunc::Parms+3, fields);
+  const TypeTuple *domain = TypeTuple::make(TypeFunc::Parms+1, fields);
 
   // create result type (range)
   fields = TypeTuple::fields(1);
@@ -1732,13 +1734,11 @@ const TypeFunc *OptoRuntime::jfr_fast_object_alloc_Type() {
   return TypeFunc::make(domain, range);
 }
 
-void OptoRuntime::jfr_fast_object_alloc_C(oopDesc* obj, jint top_frame_bci, JavaThread* thread) {
+JRT_LEAF(void, OptoRuntime::jfr_fast_object_alloc_C(oopDesc* obj, JavaThread* thread))
   KlassHandle kh(thread, obj->klass());
   assert(obj != NULL, "invariant");
   assert(obj->klass() != NULL, "invariant");
-  thread->jfr_thread_local()->set_cached_top_frame_bci(top_frame_bci);
   AllocTracer::send_opto_fast_allocation_event(kh, obj, obj->size() * HeapWordSize, thread);
-  thread->jfr_thread_local()->clear_cached_top_frame_bci();
   thread->set_vm_result(obj);
-}
+JRT_END
 #endif // INCLUDE_JFR

@@ -226,41 +226,13 @@ void JfrStackTrace::resolve_linenos() const {
   _lineno = true;
 }
 
-bool JfrStackTrace::record_safe(JavaThread* thread, int skip, StackWalkMode mode) {
-  bool success = false;
-  switch(mode) {
-    case WALK_BY_DEFAULT:
-      {
-        vframeStream vfs(thread);
-        success = fill_in(vfs, skip, mode);
-        break;
-      }
-    case WALK_BY_CURRENT_FRAME:
-      {
-        vframeStream vfs(thread, os::current_frame());
-        success = fill_in(vfs, skip, mode);
-        break;
-      }
-    default:
-      ShouldNotReachHere();
-  }
-  return success;
-}
-
-bool JfrStackTrace::fill_in(vframeStream& vfs, int skip, StackWalkMode mode) {
+bool JfrStackTrace::record_safe(JavaThread* thread, int skip) {
+  vframeStream vfs(thread);
   u4 count = 0;
   _reached_root = true;
-  // Indicates whether the top frame is visited in this frames iteration.
-  // Top frame bci may be invalid and fill_in() will fix the top frame bci in a conservative way.
-  bool top_frame_visited = false;
   for (int i = 0; i < skip; i++) {
     if (vfs.at_end()) {
       break;
-    }
-    // The top frame is in skip list.
-    // Mark top_frame_visited to avoid unnecessary top frame bci fixing.
-    if (!top_frame_visited) {
-      top_frame_visited = true;
     }
     vfs.next();
   }
@@ -277,26 +249,9 @@ bool JfrStackTrace::fill_in(vframeStream& vfs, int skip, StackWalkMode mode) {
     int bci = 0;
     if (method->is_native()) {
       type = JfrStackFrame::FRAME_NATIVE;
-      // The top frame is in native.
-      // Mark top_frame_visited to avoid unnecessary top frame bci fixing.
-      if (!top_frame_visited) {
-        top_frame_visited = true;
-      }
     }
     else {
       bci = vfs.bci();
-      // Hit the top frame and fix bci here.
-      if (!top_frame_visited) {
-        if (mode == WALK_BY_CURRENT_FRAME) {
-          // Only fix opto fast path allocation.
-          // All fast path allocations do not have cached event id.
-          if (!vfs.thread_ref()->jfr_thread_local()->has_cached_event_id()) {
-            assert(vfs.thread_ref()->jfr_thread_local()->has_cached_top_frame_bci(), "Invariant");
-            bci = vfs.thread_ref()->jfr_thread_local()->cached_top_frame_bci();
-          }
-        }
-        top_frame_visited = true;
-      }
     }
     // Can we determine if it's inlined?
     _hash = (_hash * 31) + mid;

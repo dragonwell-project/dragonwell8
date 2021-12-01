@@ -121,7 +121,7 @@ static traceid get_thread_id(JavaThread* thread) {
 static void record_stacktrace(JavaThread* thread) {
   assert(thread != NULL, "invariant");
   if (JfrEventSetting::has_stacktrace(EventOldObjectSample::eventId)) {
-    JfrStackTraceRepository::record_and_cache(thread, 0, WALK_BY_DEFAULT);
+    JfrStackTraceRepository::record_and_cache(thread, 0);
   }
 }
 

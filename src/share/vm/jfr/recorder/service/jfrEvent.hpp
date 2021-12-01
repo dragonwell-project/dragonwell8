@@ -177,7 +177,7 @@ class JfrEvent {
         if (tl->has_cached_stack_trace()) {
           writer.write(tl->cached_stack_trace_id());
         } else {
-          writer.write(JfrStackTraceRepository::record(event_thread, 0, JfrEventSetting::stack_walk_mode(T::eventId)));
+          writer.write(JfrStackTraceRepository::record(event_thread, 0));
         }
       } else {
         writer.write<traceid>(0);

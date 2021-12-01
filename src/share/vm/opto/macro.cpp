@@ -67,7 +67,7 @@ int PhaseMacroExpand::replace_input(Node *use, Node *oldref, Node *newref) {
   return nreplacements;
 }
 
-void PhaseMacroExpand::copy_call_debug_info(CallNode *oldcall, CallNode * newcall) {
+void PhaseMacroExpand::copy_call_debug_info(CallNode *oldcall, CallNode * newcall, bool clone_jvms) {
   // Copy debug information and adjust JVMState information
   uint old_dbg_start = oldcall->tf()->domain()->cnt();
   uint new_dbg_start = newcall->tf()->domain()->cnt();
@@ -93,7 +93,7 @@ void PhaseMacroExpand::copy_call_debug_info(CallNode *oldcall, CallNode * newcal
     newcall->add_req(old_in);
   }
 
-  newcall->set_jvms(oldcall->jvms());
+  newcall->set_jvms(clone_jvms ? oldcall->jvms()->clone_deep(C) : oldcall->jvms());
   for (JVMState *jvms = newcall->jvms(); jvms != NULL; jvms = jvms->caller()) {
     jvms->set_map(newcall);
     jvms->set_locoff(jvms->locoff()+jvms_adj);
@@ -1639,18 +1639,6 @@ void PhaseMacroExpand::expand_allocate_common(
 }
 
 #if INCLUDE_JFR
-static jint bottom_java_frame_bci(JVMState* state) {
-  assert(state != NULL, "Invariant");
-
-  JVMState* last = NULL;
-  JVMState* current = state;
-  while (current != NULL) {
-    last = current;
-    current = current->caller();
-  }
-  return last->bci();
-}
-
 //
 // Pseudo code:
 //
@@ -1678,74 +1666,59 @@ void PhaseMacroExpand::jfr_sample_fast_object_allocation(
   Node* alloc_sample_enabled_mem = fast_oop_rawmem;
   Node* alloc_sample_disabled_ctrl = transform_later(new (C) IfFalseNode(alloc_sample_enabled_if));
   Node* alloc_sample_disabled_mem = fast_oop_rawmem;
-  Node* alloc_sample_enabled_region = transform_later(new (C) RegionNode(3));
-  Node* alloc_sample_enabled_region_phi_mem = transform_later(new (C) PhiNode(alloc_sample_enabled_region, Type::MEMORY, TypeRawPtr::BOTTOM));
-  enum { enabled_idx = 1,  disabled_idx = 2 };
 
-  // if _enabled then
-  {
-    const int alloc_count_offset = in_bytes(TRACE_THREAD_ALLOC_COUNT_OFFSET);
-    Node* alloc_count = make_load(alloc_sample_enabled_ctrl, alloc_sample_enabled_mem, tls, alloc_count_offset, TypeLong::LONG, T_LONG);
-    Node* alloc_count_new = transform_later(new (C) AddLNode(alloc_count, longcon(1)));
-    alloc_sample_enabled_mem = make_store(alloc_sample_enabled_ctrl, alloc_sample_enabled_mem, tls, alloc_count_offset, alloc_count_new, T_LONG);
-    const int alloc_count_until_sample_offset = in_bytes(TRACE_THREAD_ALLOC_COUNT_UNTIL_SAMPLE_OFFSET);
-    Node* alloc_count_until_sample = make_load(alloc_sample_enabled_ctrl, alloc_sample_enabled_mem, tls, alloc_count_until_sample_offset, TypeLong::LONG, T_LONG);
-    Node* alloc_count_until_sample_cmp = transform_later(new (C) CmpLNode(alloc_count_until_sample, alloc_count_new));
-    Node* alloc_sample_hit_bool = transform_later(new (C) BoolNode(alloc_count_until_sample_cmp, BoolTest::eq));
-    IfNode* alloc_sample_hit_if = (IfNode*)transform_later(new (C) IfNode(alloc_sample_enabled_ctrl, alloc_sample_hit_bool, PROB_MIN, COUNT_UNKNOWN));
-    Node* alloc_sample_hit_ctrl = transform_later(new (C) IfTrueNode(alloc_sample_hit_if));
-    Node* alloc_sample_hit_mem = alloc_sample_enabled_mem;
-    Node* alloc_sample_miss_ctrl = transform_later(new (C) IfFalseNode(alloc_sample_hit_if));
-    Node* alloc_sample_miss_mem = alloc_sample_enabled_mem;
-    Node* alloc_sample_hit_region = transform_later(new (C) RegionNode(3));
-    Node* alloc_sample_hit_region_phi_mem = transform_later(new (C) PhiNode(alloc_sample_hit_region, Type::MEMORY, TypeRawPtr::BOTTOM));
+  enum { disabled_idx = 1, hit_idx = 2, miss_idx = 3 };
+  Node* result_region = transform_later(new (C) RegionNode(4));
+  Node* result_phi_mem = transform_later(new (C) PhiNode(result_region, Type::MEMORY, TypeRawPtr::BOTTOM));
 
-    // if sample_hit then
-    {
-      CallLeafNode *call = new (C) CallLeafNode(OptoRuntime::jfr_fast_object_alloc_Type(),
-                                                CAST_FROM_FN_PTR(address, OptoRuntime::jfr_fast_object_alloc_C),
-                                                "jfr_fast_object_alloc_C",
-                                                TypeRawPtr::BOTTOM);
-      call->init_req(TypeFunc::Parms+0, fast_oop);
-      call->init_req(TypeFunc::Parms+1, intcon(bottom_java_frame_bci(alloc->jvms())));
-      call->init_req(TypeFunc::Parms+2, tls);
-      call->init_req(TypeFunc::Control, alloc_sample_hit_ctrl);
-      call->init_req(TypeFunc::I_O    , top());
-      call->init_req(TypeFunc::Memory , alloc_sample_hit_mem);
-      call->init_req(TypeFunc::ReturnAdr, alloc->in(TypeFunc::ReturnAdr));
-      call->init_req(TypeFunc::FramePtr, alloc->in(TypeFunc::FramePtr));
-      transform_later(call);
-      alloc_sample_hit_ctrl = new (C) ProjNode(call,TypeFunc::Control);
-      transform_later(alloc_sample_hit_ctrl);
-      alloc_sample_hit_mem = new (C) ProjNode(call,TypeFunc::Memory);
-      transform_later(alloc_sample_hit_mem);
+  const int alloc_count_offset = in_bytes(TRACE_THREAD_ALLOC_COUNT_OFFSET);
+  Node* alloc_count = make_load(alloc_sample_enabled_ctrl, alloc_sample_enabled_mem, tls, alloc_count_offset, TypeLong::LONG, T_LONG);
+  Node* alloc_count_new = transform_later(new (C) AddLNode(alloc_count, longcon(1)));
+  alloc_sample_enabled_mem = make_store(alloc_sample_enabled_ctrl, alloc_sample_enabled_mem, tls, alloc_count_offset, alloc_count_new, T_LONG);
+  const int alloc_count_until_sample_offset = in_bytes(TRACE_THREAD_ALLOC_COUNT_UNTIL_SAMPLE_OFFSET);
+  Node* alloc_count_until_sample = make_load(alloc_sample_enabled_ctrl, alloc_sample_enabled_mem, tls, alloc_count_until_sample_offset, TypeLong::LONG, T_LONG);
+  Node* alloc_count_until_sample_cmp = transform_later(new (C) CmpLNode(alloc_count_until_sample, alloc_count_new));
+  Node* alloc_sample_hit_bool = transform_later(new (C) BoolNode(alloc_count_until_sample_cmp, BoolTest::eq));
+  IfNode* alloc_sample_hit_if = (IfNode*)transform_later(new (C) IfNode(alloc_sample_enabled_ctrl, alloc_sample_hit_bool, PROB_MIN, COUNT_UNKNOWN));
+  Node* alloc_sample_hit_ctrl = transform_later(new (C) IfTrueNode(alloc_sample_hit_if));
+  Node* alloc_sample_hit_mem = alloc_sample_enabled_mem;
+  Node* alloc_sample_miss_ctrl = transform_later(new (C) IfFalseNode(alloc_sample_hit_if));
+  Node* alloc_sample_miss_mem = alloc_sample_enabled_mem;
 
-      alloc_sample_hit_region->init_req(enabled_idx, alloc_sample_hit_ctrl);
-      alloc_sample_hit_region_phi_mem->init_req(enabled_idx, alloc_sample_hit_mem);
-    }
+  // if sample_hit then
+  address addr = OptoRuntime::jfr_fast_object_alloc_Java();
+  CallStaticJavaNode *call = new (C) CallStaticJavaNode(OptoRuntime::jfr_fast_object_alloc_Type(),
+                                                        addr,
+                                                        OptoRuntime::stub_name(addr),
+                                                        alloc->jvms()->bci(),
+                                                        TypeRawPtr::BOTTOM);
 
-    {
-      alloc_sample_hit_region->init_req(disabled_idx, alloc_sample_miss_ctrl);
-      alloc_sample_hit_region_phi_mem->init_req(disabled_idx, alloc_sample_miss_mem);
-    }
+  call->init_req(TypeFunc::Control, alloc_sample_hit_ctrl);
+  call->init_req(TypeFunc::I_O    , alloc->in(TypeFunc::I_O));
+  call->init_req(TypeFunc::Memory , alloc_sample_hit_mem);
+  call->init_req(TypeFunc::ReturnAdr, alloc->in(TypeFunc::ReturnAdr));
+  call->init_req(TypeFunc::FramePtr, alloc->in(TypeFunc::FramePtr));
 
-    {
-      alloc_sample_enabled_ctrl = alloc_sample_hit_region;
-      alloc_sample_enabled_mem = alloc_sample_hit_region_phi_mem;
-    }
-    alloc_sample_enabled_region->init_req(enabled_idx, alloc_sample_enabled_ctrl);
-    alloc_sample_enabled_region_phi_mem->init_req(enabled_idx, alloc_sample_enabled_mem);
-  }
+  call->init_req(TypeFunc::Parms+0, fast_oop);
 
-  {
-    alloc_sample_enabled_region->init_req(disabled_idx, alloc_sample_disabled_ctrl);
-    alloc_sample_enabled_region_phi_mem->init_req(disabled_idx, alloc_sample_disabled_mem);
-  }
+  copy_call_debug_info(alloc, call, true);
+  transform_later(call);
 
-  {
-    fast_oop_ctrl = alloc_sample_enabled_region;
-    fast_oop_rawmem = alloc_sample_enabled_region_phi_mem;
-  }
+  alloc_sample_hit_ctrl = new (C) ProjNode(call,TypeFunc::Control);
+  transform_later(alloc_sample_hit_ctrl);
+  alloc_sample_hit_mem = new (C) ProjNode(call,TypeFunc::Memory);
+  transform_later(alloc_sample_hit_mem);
+
+  // fill region
+  result_region->init_req(hit_idx, alloc_sample_hit_ctrl);
+  result_phi_mem->init_req(hit_idx, alloc_sample_hit_mem);
+  result_region->init_req(disabled_idx, alloc_sample_disabled_ctrl);
+  result_phi_mem->init_req(disabled_idx, alloc_sample_disabled_mem);
+  result_region->init_req(miss_idx, alloc_sample_miss_ctrl);
+  result_phi_mem->init_req(miss_idx, alloc_sample_miss_mem);
+
+  fast_oop_ctrl = result_region;
+  fast_oop_rawmem = result_phi_mem;
 }
 #endif // INCLUDE_JFR
 

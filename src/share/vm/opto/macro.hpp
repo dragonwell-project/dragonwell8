@@ -106,7 +106,7 @@ private:
   void expand_unlock_node(UnlockNode *unlock);
 
   int replace_input(Node *use, Node *oldref, Node *newref);
-  void copy_call_debug_info(CallNode *oldcall, CallNode * newcall);
+  void copy_call_debug_info(CallNode *oldcall, CallNode * newcall, bool clone_jvms = false);
   Node* opt_bits_test(Node* ctrl, Node* region, int edge, Node* word, int mask, int bits, bool return_fast_path = false);
   void copy_predefined_input_for_runtime_call(Node * ctrl, CallNode* oldcall, CallNode* call);
   CallNode* make_slow_call(CallNode *oldcall, const TypeFunc* slow_call_type, address slow_call,

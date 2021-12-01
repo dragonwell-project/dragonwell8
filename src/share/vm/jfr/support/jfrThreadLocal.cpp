@@ -57,7 +57,6 @@ JfrThreadLocal::JfrThreadLocal() :
   _entering_suspend_flag(0),
   _excluded(false),
   _dead(false),
-  _cached_top_frame_bci(max_jint),
   _alloc_count(0),
   _alloc_count_until_sample(1),
   _cached_event_id(MaxJfrEventId) {

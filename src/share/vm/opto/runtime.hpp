@@ -143,6 +143,7 @@ class OptoRuntime : public AllStatic {
 
   static address _slow_arraycopy_Java;
   static address _register_finalizer_Java;
+  static address _jfr_fast_object_alloc_Java;
 
 # ifdef ENABLE_ZAP_DEAD_LOCALS
   static address _zap_dead_Java_locals_Java;
@@ -183,7 +184,7 @@ public:
   static void complete_wisp_proxy_monitor_unlocking_C(oopDesc* obj, BasicLock* lock);
 
   // JFR support
-  static void jfr_fast_object_alloc_C(oopDesc* obj, jint bci, JavaThread* thread);
+  static void jfr_fast_object_alloc_C(oopDesc* obj, JavaThread* thread);
 private:
 
   // Implicit exception support
@@ -246,7 +247,7 @@ private:
   static address complete_wisp_monitor_unlocking_Java()  { return _complete_wisp_monitor_unlocking_Java;   }
   static address slow_arraycopy_Java()                   { return _slow_arraycopy_Java; }
   static address register_finalizer_Java()               { return _register_finalizer_Java; }
-
+  static address jfr_fast_object_alloc_Java()            { return _jfr_fast_object_alloc_Java; }
 
 # ifdef ENABLE_ZAP_DEAD_LOCALS
   static address zap_dead_locals_stub(bool is_native)    { return is_native
