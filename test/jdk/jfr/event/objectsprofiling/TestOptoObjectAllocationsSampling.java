@@ -175,14 +175,14 @@ public class TestOptoObjectAllocationsSampling {
                     Asserts.assertTrue(!clazz.isArray());
                     Asserts.assertTrue(objectSize > 0);
                     Asserts.assertTrue(topFrame.getLineNumber() > 0);
-                    Asserts.assertTrue(topFrame.getBytecodeIndex() > 0);
+                    Asserts.assertEquals(7, topFrame.getBytecodeIndex());
                     countOfInstanceObject++;
                 } else if (className.equals(arrayObjectClassName)) {
                     Asserts.assertTrue(clazz.isArray());
                     Asserts.assertTrue(objectSize == RECORDED_ARRAY_CLASS_OBJECT_SIZE_MAGIC_CODE);
                     countOfArrayObject++;
                     Asserts.assertTrue(topFrame.getLineNumber() > 0);
-                    Asserts.assertTrue(topFrame.getBytecodeIndex() > 0);
+                    Asserts.assertEquals(1, topFrame.getBytecodeIndex());
                 }
             }
             System.out.format("Total Event Count: %d, EventOptoInstanceObjectAllocaiton Count: %d, EventOptoArrayObjectAllocation Count: %d\n", events.size(), countOfInstanceObject, countOfArrayObject);
