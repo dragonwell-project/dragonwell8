@@ -6,7 +6,6 @@
  * @run main/othervm -XX:+UnlockExperimentalVMOptions -XX:+UseWisp2 -Dcom.alibaba.wisp.carrierEngines=4 RcmRootTest
  */
 
-import com.alibaba.rcm.RcmUtils;
 import com.alibaba.rcm.ResourceContainer;
 import com.alibaba.rcm.internal.AbstractResourceContainer;
 import sun.misc.SharedSecrets;
