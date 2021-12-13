@@ -162,6 +162,7 @@ public class WispEngine extends AbstractExecutorService {
             new ConcurrentSkipListMap<>().keySet().iterator();
             WispCarrier carrier = WispCarrier.current();
             carrier.addTimer(System.nanoTime() + Integer.MAX_VALUE, TimeOut.Action.JDK_UNPARK);
+            WispCarrier.current().current.timeOut.doAction();
             carrier.cancelTimer();
             carrier.createResumeEntry(new WispTask(carrier, null, false, false));
             // preload classes used by by constraintInResourceContainer method.

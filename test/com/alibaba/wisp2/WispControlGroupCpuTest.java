@@ -46,6 +46,7 @@ public class WispControlGroupCpuTest {
         createMethod0.setAccessible(true);
         createMethod1.setAccessible(true);
 
+        taskFactory(10_000_000).call(); // warmup
         Callable<Long> task0 = taskFactory(2_000_000);
         Callable<Long> task1 = taskFactory(2_000_000);
         Callable<Long> task2 = taskFactory(2_000_000);
@@ -65,9 +66,9 @@ public class WispControlGroupCpuTest {
         Long duration1 = future1.get();
         Long duration2 = future2.get();
         Long duration3 = future3.get();
-        double ratio = (double) duration1.longValue() / duration0.longValue();
-        assertLT(Math.abs(ratio - 0.5), 0.1, "deviation is out of reasonable scope");
-        ratio = (double) duration3.longValue() / duration2.longValue();
-        assertLT(Math.abs(ratio - 0.5), 0.1, "deviation is out of reasonable scope");
+        double ratio = (double) duration1 / duration0;
+        assertLT(Math.abs(ratio - 0.5), 0.1, "deviation is out of reasonable scope " + ratio);
+        ratio = (double) duration3 / duration2;
+        assertLT(Math.abs(ratio - 0.5), 0.1, "deviation is out of reasonable scope " + ratio);
     }
 }
