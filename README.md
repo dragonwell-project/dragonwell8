@@ -64,8 +64,7 @@ Special thanks to those who have made contributions to Alibaba's internal JDK bu
 
 Technologies included in Alibaba Dragonwell have been published in following papers
 
+* ASE'21: https://conf.researchr.org/details/ase-2021/ase-2021-industry-showcase/2/Towards-a-Serverless-Java-Runtime
 * ICSE'19：https://2019.icse-conferences.org/event/icse-2019-technical-papers-safecheck-safety-enhancement-of-java-unsafe-api
-
 * ICPE'18: https://dl.acm.org/citation.cfm?id=3186295
-
 * ICSE'18 SEIP  https://www.icse2018.org/event/icse-2018-software-engineering-in-practice-java-performance-troubleshooting-and-optimization-at-alibaba
