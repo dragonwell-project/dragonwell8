@@ -68,6 +68,7 @@
 #include "runtime/sharedRuntime.hpp"
 #include "runtime/statSampler.hpp"
 #include "runtime/stubRoutines.hpp"
+#include "runtime/sweeper.hpp"
 #include "runtime/task.hpp"
 #include "runtime/thread.inline.hpp"
 #include "runtime/threadCritical.hpp"
@@ -4113,6 +4114,7 @@ jint Threads::create_vm(JavaVMInitArgs* args, bool* canTryAgain) {
     call_initializeJGroupClass(CHECK_0);
   }
 #endif
+  NMethodSweeper::periodly_sweep();
 
   create_vm_timer.end();
 #ifdef ASSERT

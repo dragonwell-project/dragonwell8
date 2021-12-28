@@ -155,7 +155,11 @@
                                                                             \
   diagnostic(ccstr, ClassLoaderModuleFieldName, "moduleName",               \
           "For distinguishing the instances of class loader")               \
-
+                                                                            \
+  product(intx, CodeSweeperTriggerTime, 0,                                  \
+          "code sweeper trigger period time (in seconds, "                  \
+          "0 means disable periodly trigger)" )                             \
+                                                                            \
   //add new AJVM specific flags here
 
 

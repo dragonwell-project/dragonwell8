@@ -95,6 +95,7 @@ class NMethodSweeper : public AllStatic {
   static const Tickspan peak_sweep_time()          { return _peak_sweep_time; }
   static const Tickspan peak_sweep_fraction_time() { return _peak_sweep_fraction_time; }
   static void log_sweep(const char* msg, const char* format = NULL, ...) ATTRIBUTE_PRINTF(2, 3);
+  static void periodly_sweep();
 
 #ifdef ASSERT
   static bool is_sweeping(nmethod* which) { return _current == which; }

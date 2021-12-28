@@ -37,6 +37,7 @@
 #include "runtime/orderAccess.inline.hpp"
 #include "runtime/os.hpp"
 #include "runtime/sweeper.hpp"
+#include "runtime/task.hpp"
 #include "runtime/thread.inline.hpp"
 #include "runtime/vm_operations.hpp"
 #include "utilities/events.hpp"
@@ -673,4 +674,23 @@ void NMethodSweeper::print() {
   tty->print_cr("  Total number of flushed methods: %ld(%ld C2 methods)", _total_nof_methods_reclaimed,
                                                     _total_nof_c2_methods_reclaimed);
   tty->print_cr("  Total size of flushed methods:   " SIZE_FORMAT "kB", _total_flushed_size/K);
+}
+
+// support trigger code cache sweeper periodly
+class SweepTask : public PeriodicTask {
+public:
+    SweepTask() : PeriodicTask(CodeSweeperTriggerTime * 1000) {}
+    void task() {
+      VM_ForceSafepoint op;
+      VMThread::execute(&op);
+    }
+};
+
+void NMethodSweeper::periodly_sweep() {
+  if (!UseCodeCacheFlushing || CodeSweeperTriggerTime <= 0) {
+    return;
+  }
+
+  SweepTask *task = new SweepTask();
+  task->enroll();
 }
