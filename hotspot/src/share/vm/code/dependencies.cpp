@@ -111,6 +111,12 @@ void Dependencies::assert_exclusive_concrete_methods(ciKlass* ctxk, ciMethod* m1
   assert_common_3(exclusive_concrete_methods_2, ctxk, m1, m2);
 }
 
+void Dependencies::assert_unique_implementor(ciInstanceKlass* ctxk, ciInstanceKlass* uniqk) {
+  check_ctxk(ctxk);
+  check_unique_implementor(ctxk, uniqk);
+  assert_common_2(unique_implementor, ctxk, uniqk);
+}
+
 void Dependencies::assert_has_no_finalizable_subclasses(ciKlass* ctxk) {
   check_ctxk(ctxk);
   assert_common_1(no_finalizable_subclasses, ctxk);
@@ -373,6 +379,7 @@ const char* Dependencies::_dep_name[TYPE_LIMIT] = {
   "unique_concrete_method",
   "abstract_with_exclusive_concrete_subtypes_2",
   "exclusive_concrete_methods_2",
+  "unique_implementor",
   "no_finalizable_subclasses",
   "call_site_target_value"
 };
@@ -387,6 +394,7 @@ int Dependencies::_dep_args[TYPE_LIMIT] = {
   2, // unique_concrete_method ctxk, m
   3, // unique_concrete_subtypes_2 ctxk, k1, k2
   3, // unique_concrete_methods_2 ctxk, m1, m2
+  2, // unique_implementor ctxk, implementor
   1, // no_finalizable_subclasses ctxk
   2  // call_site_target_value call_site, method_handle
 };
@@ -1523,6 +1531,17 @@ Klass* Dependencies::check_unique_concrete_method(Klass* ctxk,
   return NULL;
 }
 
+Klass* Dependencies::check_unique_implementor(Klass* ctxk, Klass* uniqk, KlassDepChange* changes) {
+  InstanceKlass* ctxik = InstanceKlass::cast(ctxk);
+  assert(ctxik->is_interface(), "sanity");
+  assert(ctxik->nof_implementors() > 0, "no implementors");
+  if (ctxik->nof_implementors() == 1) {
+    assert(ctxik->implementor() == uniqk, "sanity");
+    return NULL;
+  }
+  return ctxik; // no unique implementor
+}
+
 // Search for AME.
 // There are two version of checks.
 //   1) Spot checking version(Classload time). Newly added class is checked for AME.
@@ -1686,6 +1705,9 @@ Klass* Dependencies::DepStream::check_klass_dependency(KlassDepChange* changes) 
     break;
   case exclusive_concrete_methods_2:
     witness = check_exclusive_concrete_methods(context_type(), method_argument(1), method_argument(2), changes);
+    break;
+  case unique_implementor:
+    witness = check_unique_implementor(context_type(), type_argument(1), changes);
     break;
   case no_finalizable_subclasses:
     witness = check_has_no_finalizable_subclasses(context_type(), changes);
