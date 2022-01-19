@@ -58,6 +58,7 @@ import org.w3c.dom.Document;
  * @author Morten Jorgensen
  * @author G. Todd Miller
  * @author John Howard, JohnH@schemasoft.com
+ * @LastModified: Sept 2021
  */
 public abstract class AbstractTranslet implements Translet {
 
@@ -115,6 +116,9 @@ public abstract class AbstractTranslet implements Translet {
      * protocols allowed for external references set by the stylesheet processing instruction, Document() function, Import and Include element.
      */
     private String _accessExternalStylesheet = XalanConstants.EXTERNAL_ACCESS_DEFAULT;
+
+    // The error message when access to exteranl resources is rejected
+    private String _accessErr = null;
 
     /************************************************************************
      * Debugging
@@ -779,6 +783,20 @@ public abstract class AbstractTranslet implements Translet {
      */
     public void setAllowedProtocols(String protocols) {
         _accessExternalStylesheet = protocols;
+    }
+
+    /**
+     * Returns the access error.
+     */
+    public String getAccessError() {
+        return _accessErr;
+    }
+
+    /**
+     * Sets the access error.
+     */
+    public void setAccessError(String accessErr) {
+        this._accessErr = accessErr;
     }
 
     /************************************************************************

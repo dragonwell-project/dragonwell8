@@ -1,6 +1,5 @@
 /*
- * reserved comment block
- * DO NOT REMOVE OR ALTER!
+ * Copyright (c) 2021, Oracle and/or its affiliates. All rights reserved.
  */
 /*
  * Copyright 1999-2004 The Apache Software Foundation.
@@ -36,6 +35,8 @@ import com.sun.org.apache.xml.internal.utils.URI.MalformedURIException;
  * fact that it's declared to throw TransformerException.  Please
  * see code comments for details on how resolution is performed.</p>
  * @xsl.usage internal
+ *
+ * @LastModified: Sept 2021
  */
 public class SystemIDResolver
 {
@@ -276,7 +277,7 @@ public class SystemIDResolver
   public static String getAbsoluteURI(String urlString, String base)
           throws TransformerException
   {
-    if (base == null)
+    if (base == null || base.length() == 0)
       return getAbsoluteURI(urlString);
 
     String absoluteBase = getAbsoluteURI(base);
