@@ -42,6 +42,8 @@ import sun.misc.VM;
 import com.alibaba.wisp.engine.*;
 import sun.misc.SharedSecrets;
 import sun.misc.WispEngineAccess;
+
+import jdk.internal.misc.TerminatingThreadLocal;
 import sun.nio.ch.Interruptible;
 import sun.reflect.CallerSensitive;
 import sun.reflect.Reflection;
@@ -859,6 +861,9 @@ class Thread implements Runnable {
      * a chance to clean up before it actually exits.
      */
     void exit() {
+        if (TerminatingThreadLocal.REGISTRY.isPresent()) {
+            TerminatingThreadLocal.threadTerminated();
+        }
         if (group != null) {
             group.threadTerminated(this);
             group = null;
