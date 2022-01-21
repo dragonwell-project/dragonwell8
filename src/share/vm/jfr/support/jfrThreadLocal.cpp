@@ -61,7 +61,7 @@ JfrThreadLocal::JfrThreadLocal() :
   _alloc_count_until_sample(1),
   _cached_event_id(MaxJfrEventId) {
 
-  Thread* thread = ThreadLocalStorage::thread();
+  Thread* thread = Thread::current_or_null();
   _parent_trace_id = thread != NULL ? thread->jfr_thread_local()->trace_id() : (traceid)0;
 }
 
