@@ -38,13 +38,20 @@ import static jdk.test.lib.Asserts.*;
  */
 
 class ElasticHeapMTSetErrorSetter implements Runnable {
+    private int youngGenCommitPercent;
+
+    public ElasticHeapMTSetErrorSetter(int youngGenCommitPercent) {
+        this.youngGenCommitPercent = youngGenCommitPercent;
+    }
+
     public void run() {
         MBeanServer server = ManagementFactory.getPlatformMBeanServer();
         try {
             ElasticHeapMXBean elasticHeapMXBean = ManagementFactory.newPlatformMXBeanProxy(server,
                                                   "com.alibaba.management:type=ElasticHeap",
                                                   ElasticHeapMXBean.class);
-            elasticHeapMXBean.setYoungGenCommitPercent(50);
+            System.out.println(Thread.currentThread().getName() + " setYoungGenCommitPercent");
+            elasticHeapMXBean.setYoungGenCommitPercent(youngGenCommitPercent);
         } catch (Exception e) {
             System.out.println("Error: "+ e.getMessage());
         }
@@ -85,17 +92,9 @@ public class TestElasticHeapMTSetError {
                 arr = new byte[200*1024];
                 Thread.sleep(1);
             }
-            ElasticHeapMTSetErrorSetter setter = new ElasticHeapMTSetErrorSetter();
-            Thread t1 = new Thread(setter, "t1");
-            Thread t2 = new Thread(setter, "t2");
-            Thread t3 = new Thread(setter, "t3");
-            Thread t4 = new Thread(setter, "t4");
-            Thread t5 = new Thread(setter, "t5");
-            t1.start();
-            t2.start();
-            t3.start();
-            t4.start();
-            t5.start();
+            for (int i = 0; i < 10; i++) {
+                new Thread(new ElasticHeapMTSetErrorSetter(60 - i), "t" + i).start();
+            }
             for (int i = 0; i < 1000 * 5; i++) {
                 arr = new byte[200*1024];
                 Thread.sleep(1);
