@@ -5661,7 +5661,9 @@ LibraryCallKit::generate_block_arraycopy(const TypePtr* adr_type,
         ((src_off ^ dest_off) & (BytesPerLong-1)) == 0) {
       Node* sptr = basic_plus_adr(src,  src_off);
       Node* dptr = basic_plus_adr(dest, dest_off);
-      Node* sval = make_load(control(), sptr, TypeInt::INT, T_INT, adr_type, MemNode::unordered);
+      const TypePtr* s_adr_type = _gvn.type(sptr)->is_ptr();
+      assert(s_adr_type->isa_aryptr(), "impossible slice");
+      Node* sval = make_load(control(), sptr, TypeInt::INT, T_INT, s_adr_type, MemNode::unordered);
       store_to_memory(control(), dptr, sval, T_INT, adr_type, MemNode::unordered);
       src_off += BytesPerInt;
       dest_off += BytesPerInt;
