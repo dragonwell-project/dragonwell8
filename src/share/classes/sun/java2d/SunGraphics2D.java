@@ -770,6 +770,11 @@ public final class SunGraphics2D
                 }
             }
         }
+        if (FontUtilities.isMacOSX14 &&
+            (aahint == SunHints.INTVAL_TEXT_ANTIALIAS_OFF))
+        {
+             aahint =  SunHints.INTVAL_TEXT_ANTIALIAS_ON;
+        }
         info.aaHint = aahint;
         info.fontStrike = info.font2D.getStrike(font, devAt, textAt,
                                                 aahint, fmhint);

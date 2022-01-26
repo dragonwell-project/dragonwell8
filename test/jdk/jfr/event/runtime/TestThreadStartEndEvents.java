@@ -25,7 +25,7 @@
 
 package jdk.jfr.event.runtime;
 
-import static jdk.test.lib.Asserts.assertEquals;
+import static jdk.test.lib.Asserts.assertEQ;
 import static jdk.test.lib.Asserts.assertNotNull;
 
 import java.time.Duration;
@@ -87,7 +87,7 @@ public class TestThreadStartEndEvents {
                 RecordedStackTrace stackTrace = event.getValue("stackTrace");
                 assertNotNull(stackTrace);
                 RecordedMethod topMethod = stackTrace.getFrames().get(0).getMethod();
-                assertEquals(topMethod.getName(), "startThread");
+                assertEQ(topMethod.getName(), "startThread");
             }
             currThreadIndex++;
         }
