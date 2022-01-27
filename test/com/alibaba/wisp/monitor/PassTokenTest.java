@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020 Alibaba Group Holding Limited. All Rights Reserved.
+ * Copyright (c) 2022 Alibaba Group Holding Limited. All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -45,6 +45,7 @@ import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
 import static jdk.testlibrary.Asserts.assertTrue;
+import static jdk.testlibrary.Asserts.fail;
 
 public class PassTokenTest {
     private final static boolean needCheckStealEnable = Boolean.getBoolean("checkStealEnable");
@@ -133,11 +134,13 @@ public class PassTokenTest {
                                 cond.await();
                                 checkStealEnable(task);
                             } catch (InterruptedException e) {
-                                e.printStackTrace();
+                                fail(e.getMessage());
                             }
                         }
-                        if (++current % 10000 == 0) // pass the token
+                        if (++current % 10000 == 0) {// pass the token
                             System.out.println(SharedSecrets.getJavaLangAccess().currentThread0().getName() + "\t" + current);
+                        }
+                        cond.signalAll();
                     } finally {
                         lock.unlock();
                     }
@@ -148,23 +151,12 @@ public class PassTokenTest {
                                 lock.wait();
                                 checkStealEnable(task);
                             } catch (InterruptedException e) {
-                                e.printStackTrace();
+                                fail(e.getMessage());
                             }
                         }
-                        if (++current % 10000 == 0) // pass the token
+                        if (++current % 10000 == 0) {// pass the token
                             System.out.println(SharedSecrets.getJavaLangAccess().currentThread0().getName() + "\t" + current);
-                    }
-                }
-
-                if (JUC) {
-                    lock.lock();
-                    try {
-                        cond.signalAll();
-                    } finally {
-                        lock.unlock();
-                    }
-                } else {
-                    synchronized (lock) {
+                        }
                         lock.notifyAll();
                     }
                 }
