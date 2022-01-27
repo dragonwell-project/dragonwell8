@@ -109,18 +109,6 @@ void JfrCheckpointThreadClosure::do_thread(Thread* t) {
 void JfrThreadConstantSet::serialize(JfrCheckpointWriter& writer) {
   JfrCheckpointThreadClosure tc(writer);
   MutexLockerEx ml(Threads_lock);
-#ifdef ASSERT
-  // OpenJDK8 doesn't support ThreadSMR, so it's necessary to acquire
-  // the Threads_lock here.
-  // And JfrCheckpointThreadClosure acquires JNIGlobalHandle_lock, whose
-  // rank is greater than Threads_lock's rank, this will cause the
-  // mutex rank checking failure.
-  // A workaround is to skipping the checking logic.
-  // But we need to be aware that if there is a thread that acquires
-  // JNIGlobalHandle_lock first, and then acquires Threads_lock, it will
-  // cause a deadlock. At present, there is no such situation.
-  Thread::current()->set_skip_rank_order_check(true);
-#endif
   JfrJavaThreadIterator javathreads;
   while (javathreads.has_next()) {
     tc.do_thread(javathreads.next());
@@ -129,10 +117,6 @@ void JfrThreadConstantSet::serialize(JfrCheckpointWriter& writer) {
   while (nonjavathreads.has_next()) {
     tc.do_thread(nonjavathreads.next());
   }
-#ifdef ASSERT
-  // enable checking again
-  Thread::current()->set_skip_rank_order_check(false);
-#endif
 }
 
 void JfrThreadGroupConstant::serialize(JfrCheckpointWriter& writer) {
