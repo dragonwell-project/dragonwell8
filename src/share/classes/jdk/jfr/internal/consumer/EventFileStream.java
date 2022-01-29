@@ -50,7 +50,7 @@ public final class EventFileStream extends AbstractEventStream {
     private RecordedEvent[] cacheSorted;
 
     public EventFileStream(AccessControlContext acc, Path path) throws IOException {
-        super(acc, null);
+        super(acc, false);
         Objects.requireNonNull(path);
         this.input = new RecordingInput(path.toFile(), FileAccess.UNPRIVILIGED);
     }

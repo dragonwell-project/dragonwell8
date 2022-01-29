@@ -39,10 +39,8 @@ public final class ChunkHeader {
     private static final long CHUNK_SIZE_POSITION = 8;
     private static final long DURATION_NANOS_POSITION = 40;
     private static final long FILE_STATE_POSITION = 64;
-    private static final long FLAG_BYTE_POSITION = 67;
     private static final long METADATA_TYPE_ID = 0;
     private static final byte[] FILE_MAGIC = { 'F', 'L', 'R', '\0' };
-    private static final int MASK_FINAL_CHUNK = 1 << 1;
 
     private final short major;
     private final short minor;
@@ -60,7 +58,6 @@ public final class ChunkHeader {
     private long absoluteChunkEnd;
     private boolean isFinished;
     private boolean finished;
-    private boolean finalChunk;
 
     public ChunkHeader(RecordingInput input) throws IOException {
         this(input, 0, 0);
@@ -104,7 +101,8 @@ public final class ChunkHeader {
         Logger.log(LogTag.JFR_SYSTEM_PARSER, LogLevel.INFO, "Chunk: startTicks=" + chunkStartTicks);
         ticksPerSecond = input.readRawLong();
         Logger.log(LogTag.JFR_SYSTEM_PARSER, LogLevel.INFO, "Chunk: ticksPerSecond=" + ticksPerSecond);
-        input.readRawInt(); // ignore file state and flag bits
+        input.readRawInt(); // features, not used
+
         refresh();
         input.position(absoluteEventStart);
     }
@@ -125,8 +123,6 @@ public final class ChunkHeader {
             long durationNanos = input.readPhysicalLong();
             input.positionPhysical(absoluteChunkStart + FILE_STATE_POSITION);
             byte fileState2 =  input.readPhysicalByte();
-            input.positionPhysical(absoluteChunkStart + FLAG_BYTE_POSITION);
-            int flagByte = input.readPhysicalByte();
             if (fileState1 == fileState2) { // valid header
                 finished = fileState1 == 0;
                 if (metadataPosition != 0) {
@@ -154,8 +150,6 @@ public final class ChunkHeader {
                     Logger.log(LogTag.JFR_SYSTEM_PARSER, LogLevel.INFO, "Chunk: generation=" + fileState2);
                     Logger.log(LogTag.JFR_SYSTEM_PARSER, LogLevel.INFO, "Chunk: finished=" + isFinished);
                     Logger.log(LogTag.JFR_SYSTEM_PARSER, LogLevel.INFO, "Chunk: fileSize=" + input.size());
-                    this.finalChunk = (flagByte & MASK_FINAL_CHUNK) != 0;
-                    Logger.log(LogTag.JFR_SYSTEM_PARSER, LogLevel.INFO, "Chunk: finalChunk=" + finalChunk);
                     absoluteChunkEnd = absoluteChunkStart + chunkSize;
                     return;
                 }
@@ -188,10 +182,6 @@ public final class ChunkHeader {
         // streaming files only have one chunk
         return input.getFileSize() == absoluteChunkEnd;
    }
-
-    public boolean isFinalChunk() {
-        return finalChunk;
-    }
 
     public boolean isFinished() throws IOException {
         return isFinished;

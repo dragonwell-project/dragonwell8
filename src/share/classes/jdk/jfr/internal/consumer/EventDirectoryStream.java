@@ -35,7 +35,6 @@ import java.util.Objects;
 
 import jdk.jfr.consumer.RecordedEvent;
 import jdk.jfr.internal.JVM;
-import jdk.jfr.internal.PlatformRecording;
 import jdk.jfr.internal.Utils;
 import jdk.jfr.internal.consumer.ChunkParser.ParserConfiguration;
 
@@ -44,12 +43,12 @@ import jdk.jfr.internal.consumer.ChunkParser.ParserConfiguration;
  * with chunk files.
  *
  */
-public class EventDirectoryStream extends AbstractEventStream {
+public final class EventDirectoryStream extends AbstractEventStream {
 
     private final static Comparator<? super RecordedEvent> EVENT_COMPARATOR = JdkJfrConsumer.instance().eventComparator();
 
     private final RepositoryFiles repositoryFiles;
-    private final PlatformRecording recording;
+    private final boolean active;
     private final FileAccess fileAccess;
 
     private ChunkParser currentParser;
@@ -57,10 +56,10 @@ public class EventDirectoryStream extends AbstractEventStream {
     private RecordedEvent[] sortedCache;
     private int threadExclusionLevel = 0;
 
-    public EventDirectoryStream(AccessControlContext acc, Path p, FileAccess fileAccess, PlatformRecording recording) throws IOException {
-        super(acc, recording);
+    public EventDirectoryStream(AccessControlContext acc, Path p, FileAccess fileAccess, boolean active) throws IOException {
+        super(acc, active);
         this.fileAccess = Objects.requireNonNull(fileAccess);
-        this.recording = recording;
+        this.active = active;
         this.repositoryFiles = new RepositoryFiles(fileAccess, p);
     }
 
@@ -105,7 +104,7 @@ public class EventDirectoryStream extends AbstractEventStream {
         Dispatcher disp = dispatcher();
 
         Path path;
-        boolean validStartTime = recording != null || disp.startTime != null;
+        boolean validStartTime = active || disp.startTime != null;
         if (validStartTime) {
             path = repositoryFiles.firstPath(disp.startNanos);
         } else {
@@ -140,17 +139,8 @@ public class EventDirectoryStream extends AbstractEventStream {
                         return;
                     }
                 }
-                if (isLastChunk()) {
-                    // Recording was stopped/closed externally, and no more data to process.
-                    return;
-                }
 
-                if (repositoryFiles.hasFixedPath() && currentParser.isFinalChunk()) {
-                    // JVM process exited/crashed, or repository migrated to an unknown location
-                    return;
-                }
                 if (isClosed()) {
-                    // Stream was closed
                     return;
                 }
                 long durationNanos = currentParser.getChunkDuration();
@@ -170,13 +160,6 @@ public class EventDirectoryStream extends AbstractEventStream {
                 // Could set start = 0;
             }
         }
-    }
-
-    private boolean isLastChunk() {
-        if (recording == null) {
-            return false;
-        }
-        return recording.getFinalChunkStartNanos() >= currentParser.getStartNanos();
     }
 
     private boolean processOrdered(Dispatcher c, boolean awaitNewEvents) throws IOException {
@@ -223,5 +206,4 @@ public class EventDirectoryStream extends AbstractEventStream {
             }
         }
     }
-
 }

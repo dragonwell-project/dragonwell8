@@ -227,8 +227,4 @@ public final class RepositoryFiles {
             waitObject.notify();
         }
     }
-
-    public boolean hasFixedPath() {
-        return repository != null;
-    }
 }
