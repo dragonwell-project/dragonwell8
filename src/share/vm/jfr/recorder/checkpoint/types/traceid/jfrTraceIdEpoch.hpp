@@ -41,33 +41,13 @@
 #define METHOD_AND_CLASS_IN_USE_EPOCH_1_BITS (METHOD_AND_CLASS_IN_USE_BITS << EPOCH_1_SHIFT)
 #define METHOD_AND_CLASS_IN_USE_EPOCH_2_BITS (METHOD_AND_CLASS_IN_USE_BITS << EPOCH_2_SHIFT)
 
- // Epoch alternation on each rotation allow for concurrent tagging.
- // The epoch shift happens only during a safepoint.
- //
- // _synchronizing is a transition state, the purpose of which is to
- // have JavaThreads that run _thread_in_native (i.e. Compiler threads)
- // respect the current epoch shift in-progress during a safepoint.
- //
- // _changed_tag_state == true signals an incremental modification to artifact tagging
- // (klasses, methods, CLDs, etc), used to request collection of artifacts.
- //
 class JfrTraceIdEpoch : AllStatic {
   friend class JfrCheckpointManager;
  private:
   static bool _epoch_state;
-  static bool _synchronizing;
-  static volatile bool _changed_tag_state;
+  static bool volatile _tag_state;
 
-  static void begin_epoch_shift();
-  static void end_epoch_shift();
-
-  static bool changed_tag_state() {
-    return OrderAccess::load_acquire(&_changed_tag_state);
-  }
-
-  static void set_tag_state(bool value) {
-    OrderAccess::release_store(&_changed_tag_state, value);
-  }
+  static void shift_epoch();
 
  public:
   static u1 epoch() {
@@ -84,10 +64,6 @@ class JfrTraceIdEpoch : AllStatic {
 
   static u1 previous() {
     return _epoch_state ? (u1)0 : (u1)1;
-  }
-
-  static bool is_synchronizing() {
-    return OrderAccess::load_acquire(&_synchronizing);
   }
 
   static traceid in_use_this_epoch_bit() {
@@ -115,16 +91,16 @@ class JfrTraceIdEpoch : AllStatic {
   }
 
   static bool has_changed_tag_state() {
-    if (changed_tag_state()) {
-      set_tag_state(false);
+    if ((bool)OrderAccess::load_acquire((volatile jubyte*)&_tag_state)) {
+      OrderAccess::release_store((volatile jubyte*)&_tag_state, (jubyte)false);
       return true;
     }
     return false;
   }
 
   static void set_changed_tag_state() {
-    if (!changed_tag_state()) {
-      set_tag_state(true);
+    if (!(bool)OrderAccess::load_acquire((volatile jubyte*)&_tag_state)) {
+      OrderAccess::release_store((volatile jubyte*)&_tag_state, (jubyte)true);
     }
   }
 };
