@@ -202,7 +202,7 @@ public final class ChunkParser {
             long lastValid = absoluteChunkEnd;
             long metadataPoistion = chunkHeader.getMetataPosition();
             long contantPosition = chunkHeader.getConstantPoolPosition();
-            chunkFinished = awaitUpdatedHeader(absoluteChunkEnd, configuration.filterEnd);
+            chunkFinished = awaitUpdatedHeader(absoluteChunkEnd);
             if (chunkFinished) {
                 Logger.log(LogTag.JFR_SYSTEM_PARSER, LogLevel.INFO, "At chunk end");
                 return null;
@@ -279,14 +279,11 @@ public final class ChunkParser {
         }
     }
 
-    private boolean awaitUpdatedHeader(long absoluteChunkEnd, long filterEnd) throws IOException {
+    private boolean awaitUpdatedHeader(long absoluteChunkEnd) throws IOException {
         if (Logger.shouldLog(LogTag.JFR_SYSTEM_PARSER, LogLevel.INFO)) {
             Logger.log(LogTag.JFR_SYSTEM_PARSER, LogLevel.INFO, "Waiting for more data (streaming). Read so far: " + chunkHeader.getChunkSize() + " bytes");
         }
         while (true) {
-            if (chunkHeader.getLastNanos() > filterEnd)  {
-              return true;
-            }
             chunkHeader.refresh();
             if (absoluteChunkEnd != chunkHeader.getEnd()) {
                 return false;
