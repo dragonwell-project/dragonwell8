@@ -155,7 +155,6 @@ static void set_serialized(const T* ptr) {
   assert(ptr != NULL, "invariant");
   SET_SERIALIZED(ptr);
   assert(IS_SERIALIZED(ptr), "invariant");
-  CLEAR_THIS_EPOCH_CLEARED_BIT(ptr);
 }
 
 /*
@@ -389,26 +388,6 @@ static void do_previous_epoch_artifact(JfrArtifactClosure* callback, T* value) {
   assert(IS_NOT_SERIALIZED(value), "invariant");
 }
 
-typedef JfrArtifactCallbackHost<KlassPtr, KlassArtifactRegistrator> RegistrationCallback;
-
-static void register_klass(Klass* klass) {
-  assert(klass != NULL, "invariant");
-  assert(_subsystem_callback != NULL, "invariant");
-  do_previous_epoch_artifact(_subsystem_callback, klass);
-}
-
-static void do_register_klasses() {
-  ClassLoaderDataGraph::classes_do(&register_klass);
-}
-
-static void register_klasses() {
-  assert(!_artifacts->has_klass_entries(), "invariant");
-  KlassArtifactRegistrator reg(_artifacts);
-  RegistrationCallback callback(&reg);
-  _subsystem_callback = &callback;
-  do_register_klasses();
-}
-
 static int write_classloader(JfrCheckpointWriter* writer, CldPtr cld, bool leakp) {
   assert(cld != NULL, "invariant");
   assert(!cld->is_anonymous(), "invariant");
@@ -536,15 +515,6 @@ static void write_classloaders() {
   _artifacts->tally(cldw);
 }
 
-typedef JfrArtifactCallbackHost<CldPtr, ClearArtifact<CldPtr> > ClearCLDCallback;
-
-static void clear_classloaders() {
-  ClearArtifact<CldPtr> clear;
-  ClearCLDCallback callback(&clear);
-  _subsystem_callback = &callback;
-  do_class_loaders();
-}
-
 static u1 get_visibility(MethodPtr method) {
   assert(method != NULL, "invariant");
   return const_cast<Method*>(method)->is_hidden() ? (u1)1 : (u1)0;
@@ -555,7 +525,6 @@ void set_serialized<Method>(MethodPtr method) {
   assert(method != NULL, "invariant");
   SET_METHOD_SERIALIZED(method);
   assert(IS_METHOD_SERIALIZED(method), "invariant");
-  CLEAR_THIS_EPOCH_METHOD_CLEARED_BIT(method);
 }
 
 static int write_method(JfrCheckpointWriter* writer, MethodPtr method, bool leakp) {
@@ -788,23 +757,24 @@ static void write_symbols() {
   _artifacts->tally(sw);
 }
 
+static bool clear_artifacts = false;
+
+void JfrTypeSet::clear() {
+  clear_artifacts = true;
+}
+
 typedef Wrapper<KlassPtr, ClearArtifact> ClearKlassBits;
 typedef Wrapper<MethodPtr, ClearArtifact> ClearMethodFlag;
 typedef MethodIteratorHost<ClearMethodFlag, ClearKlassBits, AlwaysTrue, false> ClearKlassAndMethods;
-
-static bool clear_artifacts = false;
-
-static void clear_klasses_and_methods() {
-  ClearKlassAndMethods clear(_writer);
-  _artifacts->iterate_klasses(clear);
-}
 
 static size_t teardown() {
   assert(_artifacts != NULL, "invariant");
   const size_t total_count = _artifacts->total_count();
   if (previous_epoch()) {
-    clear_klasses_and_methods();
-    clear_artifacts = true;
+    assert(_writer != NULL, "invariant");
+    ClearKlassAndMethods clear(_writer);
+    _artifacts->iterate_klasses(clear);
+    JfrTypeSet::clear();
     ++checkpoint_id;
   }
   return total_count;
@@ -842,17 +812,4 @@ size_t JfrTypeSet::serialize(JfrCheckpointWriter* writer, JfrCheckpointWriter* l
   write_methods();
   write_symbols();
   return teardown();
-}
-
-/**
- * Clear all tags from the previous epoch.
- */
-void JfrTypeSet::clear() {
-  clear_artifacts = true;
-  setup(NULL, NULL, false, false);
-  register_klasses();
-  // clear_packages();
-  // clear_modules();
-  clear_classloaders();
-  clear_klasses_and_methods();
 }

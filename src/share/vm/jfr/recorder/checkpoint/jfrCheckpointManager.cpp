@@ -372,7 +372,7 @@ size_t JfrCheckpointManager::flush() {
 
 typedef DiscardOp<DefaultDiscarder<JfrBuffer> > DiscardOperation;
 size_t JfrCheckpointManager::clear() {
-  clear_type_set();
+  JfrTypeSet::clear();
   DiscardOperation discarder(mutexed); // mutexed discard mode
   process_free_list(discarder, _free_list_mspace);
   process_free_list(discarder, _epoch_transition_mspace);
@@ -456,16 +456,6 @@ void JfrCheckpointManager::on_rotation() {
   assert(SafepointSynchronize::is_at_safepoint(), "invariant");
   JfrTypeManager::on_rotation();
   notify_threads();
-}
-
-void JfrCheckpointManager::clear_type_set() {
-  assert(!SafepointSynchronize::is_at_safepoint(), "invariant");
-  assert(!JfrRecorder::is_recording(), "invariant");
-  // can safepoint here
-  // MutexLocker cld_lock(ClassLoaderDataGraph_lock);
-  // MutexLocker module_lock(Module_lock);
-  MutexLocker package_table_lock(PackageTable_lock);
-  JfrTypeSet::clear();
 }
 
 void JfrCheckpointManager::write_type_set() {
