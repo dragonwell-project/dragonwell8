@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,36 +22,26 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+package jdk.jfr.internal.consumer;
 
-package jdk.jfr.api.consumer.recordingstream;
+import java.io.IOException;
+import java.util.List;
 
-import jdk.jfr.consumer.RecordingStream;
-import jdk.test.lib.jfr.EventNames;
+import jdk.jfr.consumer.RecordedEvent;
+import jdk.jfr.consumer.RecordedObject;
+import jdk.jfr.consumer.RecordingFile;
+import jdk.jfr.internal.Type;
 
-/**
-* @test
-* @summary Tests RecordingStrream::setMaxSize
-* @key jfr
-* @library /lib /
-* @run main/othervm jdk.jfr.api.consumer.recordingstream.TestSetMaxSize
-*/
-public class TestSetMaxSize {
+public abstract class RecordingInternals {
 
-   public static void main(String... args) throws Exception {
-       long testSize = 123456789;
-       try (RecordingStream r = new RecordingStream()) {
-           r.setMaxSize(123456789);
-           r.enable(EventNames.ActiveRecording);
-           r.onEvent(e -> {
-               System.out.println(e);
-               long size= e.getLong("maxSize");
-               if (size == testSize) {
-                   r.close();
-                   return;
-               }
-               System.out.println("Max size not set, was " + size + ", but expected " + testSize);
-           });
-           r.start();
-       }
-   }
+    public static RecordingInternals INSTANCE;
+
+    public abstract boolean isLastEventInChunk(RecordingFile file);
+
+    public abstract Object getOffsetDataTime(RecordedObject event, String name);
+
+    public abstract List<Type> readTypes(RecordingFile file) throws IOException;
+
+    public abstract void sort(List<RecordedEvent> events);
+
 }

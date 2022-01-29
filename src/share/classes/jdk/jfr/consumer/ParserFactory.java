@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,19 +23,18 @@
  * questions.
  */
 
-package jdk.jfr.internal.consumer;
+package jdk.jfr.consumer;
 
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 import jdk.jfr.EventType;
 import jdk.jfr.ValueDescriptor;
-import jdk.jfr.internal.LongMap;
 import jdk.jfr.internal.MetadataDescriptor;
 import jdk.jfr.internal.PrivateAccess;
 import jdk.jfr.internal.Type;
-import jdk.jfr.internal.consumer.Parser;
 import jdk.jfr.internal.consumer.RecordingInput;
 
 /**
@@ -45,25 +44,21 @@ final class ParserFactory {
     private final LongMap<Parser> parsers = new LongMap<>();
     private final TimeConverter timeConverter;
     private final LongMap<Type> types = new LongMap<>();
-    private final LongMap<ConstantLookup> constantLookups;
+    private final LongMap<ConstantMap> constantPools;
 
-    public ParserFactory(MetadataDescriptor metadata, LongMap<ConstantLookup> constantLookups, TimeConverter timeConverter) throws IOException {
-        this.constantLookups = constantLookups;
+    public ParserFactory(MetadataDescriptor metadata, TimeConverter timeConverter) throws IOException {
+        this.constantPools = new LongMap<>();
         this.timeConverter = timeConverter;
         for (Type t : metadata.getTypes()) {
             types.put(t.getId(), t);
         }
-        // Add to separate list
-        // so createCompositeParser can throw
-        // IOException outside lambda
-        List<Type> typeList = new ArrayList<>();
-        types.forEach(typeList::add);
-        for (Type t : typeList) {
+        for (Type t : types) {
             if (!t.getFields().isEmpty()) { // Avoid primitives
-                CompositeParser cp = createCompositeParser(t, false);
+                CompositeParser cp = createCompositeParser(t);
                 if (t.isSimpleType()) { // Reduce to nested parser
-                    parsers.put(t.getId(), cp.parsers[0]);
+                   parsers.put(t.getId(), cp.parsers[0]);
                 }
+
             }
         }
         // Override event types with event parsers
@@ -76,6 +71,10 @@ final class ParserFactory {
         return parsers;
     }
 
+    public LongMap<ConstantMap> getConstantPools() {
+        return constantPools;
+    }
+
     public LongMap<Type> getTypeMap() {
         return types;
     }
@@ -83,17 +82,17 @@ final class ParserFactory {
     private EventParser createEventParser(EventType eventType) throws IOException {
         List<Parser> parsers = new ArrayList<Parser>();
         for (ValueDescriptor f : eventType.getFields()) {
-            parsers.add(createParser(f, true));
+            parsers.add(createParser(f));
         }
         return new EventParser(timeConverter, eventType, parsers.toArray(new Parser[0]));
     }
 
-    private Parser createParser(ValueDescriptor v, boolean event) throws IOException {
+    private Parser createParser(ValueDescriptor v) throws IOException {
         boolean constantPool = PrivateAccess.getInstance().isConstantPool(v);
         if (v.isArray()) {
             Type valueType = PrivateAccess.getInstance().getType(v);
             ValueDescriptor element = PrivateAccess.getInstance().newValueDescriptor(v.getName(), valueType, v.getAnnotationElements(), 0, constantPool, null);
-            return new ArrayParser(createParser(element, event));
+            return new ArrayParser(createParser(element));
         }
         long id = v.getTypeId();
         Type type = types.get(id);
@@ -101,29 +100,25 @@ final class ParserFactory {
             throw new IOException("Type '" + v.getTypeName() + "' is not defined");
         }
         if (constantPool) {
-            ConstantLookup lookup = constantLookups.get(id);
-            if (lookup == null) {
-                ConstantMap pool = new ConstantMap(ObjectFactory.create(type, timeConverter), type.getName());
-                lookup = new ConstantLookup(pool, type);
-                constantLookups.put(id, lookup);
+            ConstantMap pool = constantPools.get(id);
+            if (pool == null) {
+                pool = new ConstantMap(ObjectFactory.create(type, timeConverter), type.getName());
+                constantPools.put(id, pool);
             }
-            if (event) {
-                return new EventValueConstantParser(lookup);
-            }
-            return new ConstantValueParser(lookup);
+            return new ConstantMapValueParser(pool);
         }
         Parser parser = parsers.get(id);
         if (parser == null) {
             if (!v.getFields().isEmpty()) {
-                return createCompositeParser(type, event);
+                return createCompositeParser(type);
             } else {
-                return registerParserType(type, createPrimitiveParser(type, constantPool));
+                return registerParserType(type, createPrimitiveParser(type));
             }
         }
         return parser;
     }
 
-    private Parser createPrimitiveParser(Type type, boolean event) throws IOException {
+    private Parser createPrimitiveParser(Type type) throws IOException {
         switch (type.getName()) {
         case "int":
             return new IntegerParser();
@@ -143,9 +138,8 @@ final class ParserFactory {
             return new ByteParser();
         case "java.lang.String":
             ConstantMap pool = new ConstantMap(ObjectFactory.create(type, timeConverter), type.getName());
-            ConstantLookup lookup = new ConstantLookup(pool, type);
-            constantLookups.put(type.getId(), lookup);
-            return new StringParser(lookup, event);
+            constantPools.put(type.getId(), pool);
+            return new StringParser(pool);
         default:
             throw new IOException("Unknown primitive type " + type.getName());
         }
@@ -161,7 +155,7 @@ final class ParserFactory {
         return parser;
     }
 
-    private CompositeParser createCompositeParser(Type type, boolean event) throws IOException {
+    private CompositeParser createCompositeParser(Type type) throws IOException {
         List<ValueDescriptor> vds = type.getFields();
         Parser[] parsers = new Parser[vds.size()];
         CompositeParser composite = new CompositeParser(parsers);
@@ -170,7 +164,7 @@ final class ParserFactory {
 
         int index = 0;
         for (ValueDescriptor vd : vds) {
-            parsers[index++] = createParser(vd, event);
+            parsers[index++] = createParser(vd);
         }
         return composite;
     }
@@ -180,11 +174,6 @@ final class ParserFactory {
         public Object parse(RecordingInput input) throws IOException {
             return input.readBoolean() ? Boolean.TRUE : Boolean.FALSE;
         }
-
-        @Override
-        public void skip(RecordingInput input) throws IOException {
-            input.skipBytes(1);
-        }
     }
 
     private static final class ByteParser extends Parser {
@@ -192,51 +181,19 @@ final class ParserFactory {
         public Object parse(RecordingInput input) throws IOException {
             return Byte.valueOf(input.readByte());
         }
-
-        @Override
-        public void skip(RecordingInput input) throws IOException {
-            input.skipBytes(1);
-        }
     }
 
     private static final class LongParser extends Parser {
-        private Object lastLongObject = Long.valueOf(0);
-        private long last = 0;
-
         @Override
         public Object parse(RecordingInput input) throws IOException {
-            long l = input.readLong();
-            if (l == last) {
-                return lastLongObject;
-            }
-            last = l;
-            lastLongObject = Long.valueOf(l);
-            return lastLongObject;
-        }
-
-        @Override
-        public void skip(RecordingInput input) throws IOException {
-            input.readLong();
+            return Long.valueOf(input.readLong());
         }
     }
 
     private static final class IntegerParser extends Parser {
-        private Integer lastIntegergObject = Integer.valueOf(0);
-        private int last = 0;
-
         @Override
         public Object parse(RecordingInput input) throws IOException {
-            int i = input.readInt();
-            if (i != last) {
-                last = i;
-                lastIntegergObject = Integer.valueOf(i);
-            }
-            return lastIntegergObject;
-        }
-
-        @Override
-        public void skip(RecordingInput input) throws IOException {
-            input.readInt();
+            return Integer.valueOf(input.readInt());
         }
     }
 
@@ -245,22 +202,12 @@ final class ParserFactory {
         public Object parse(RecordingInput input) throws IOException {
             return Short.valueOf(input.readShort());
         }
-
-        @Override
-        public void skip(RecordingInput input) throws IOException {
-            input.readShort();
-        }
     }
 
     private static final class CharacterParser extends Parser {
         @Override
         public Object parse(RecordingInput input) throws IOException {
             return Character.valueOf(input.readChar());
-        }
-
-        @Override
-        public void skip(RecordingInput input) throws IOException {
-            input.readChar();
         }
     }
 
@@ -269,11 +216,6 @@ final class ParserFactory {
         public Object parse(RecordingInput input) throws IOException {
             return Float.valueOf(input.readFloat());
         }
-
-        @Override
-        public void skip(RecordingInput input) throws IOException {
-            input.skipBytes(Float.SIZE);
-        }
     }
 
     private static final class DoubleParser extends Parser {
@@ -281,10 +223,33 @@ final class ParserFactory {
         public Object parse(RecordingInput input) throws IOException {
             return Double.valueOf(input.readDouble());
         }
+    }
+
+    private static final class StringParser extends Parser {
+        private final ConstantMap stringConstantMap;
+        private String last;
+
+        StringParser(ConstantMap stringConstantMap) {
+            this.stringConstantMap = stringConstantMap;
+        }
 
         @Override
-        public void skip(RecordingInput input) throws IOException {
-            input.skipBytes(Double.SIZE);
+        public Object parse(RecordingInput input) throws IOException {
+            String s = parseEncodedString(input);
+            if (!Objects.equals(s, last)) {
+                last = s;
+            }
+            return last;
+        }
+
+        private String parseEncodedString(RecordingInput input) throws IOException {
+            byte encoding = input.readByte();
+            if (encoding == RecordingInput.STRING_ENCODING_CONSTANT_POOL) {
+                long id = input.readLong();
+                return (String) stringConstantMap.get(id);
+            } else {
+                return input.readEncodedString(encoding);
+            }
         }
     }
 
@@ -304,14 +269,6 @@ final class ParserFactory {
             }
             return array;
         }
-
-        @Override
-        public void skip(RecordingInput input) throws IOException {
-            final int size = input.readInt();
-            for (int i = 0; i < size; i++) {
-                elementParser.skip(input);
-            }
-        }
     }
 
     private final static class CompositeParser extends Parser {
@@ -329,54 +286,18 @@ final class ParserFactory {
             }
             return values;
         }
-
-        @Override
-        public void skip(RecordingInput input) throws IOException {
-            for (int i = 0; i < parsers.length; i++) {
-                parsers[i].skip(input);
-            }
-        }
     }
 
-    private static final class EventValueConstantParser extends Parser {
-        private final ConstantLookup lookup;
-        private Object lastValue = 0;
-        private long lastKey = -1;
-        EventValueConstantParser(ConstantLookup lookup) {
-            this.lookup = lookup;
+    private static final class ConstantMapValueParser extends Parser {
+        private final ConstantMap pool;
+
+        ConstantMapValueParser(ConstantMap pool) {
+            this.pool = pool;
         }
 
         @Override
         public Object parse(RecordingInput input) throws IOException {
-            long key = input.readLong();
-            if (key == lastKey) {
-                return lastValue;
-            }
-            lastKey = key;
-            lastValue = lookup.getCurrentResolved(key);
-            return lastValue;
-        }
-
-        @Override
-        public void skip(RecordingInput input) throws IOException {
-            input.readLong();
-        }
-    }
-
-    private static final class ConstantValueParser extends Parser {
-        private final ConstantLookup lookup;
-        ConstantValueParser(ConstantLookup lookup) {
-            this.lookup = lookup;
-        }
-
-        @Override
-        public Object parse(RecordingInput input) throws IOException {
-            return lookup.getCurrent(input.readLong());
-        }
-
-        @Override
-        public void skip(RecordingInput input) throws IOException {
-            input.readLong();
+            return pool.get(input.readLong());
         }
     }
 }

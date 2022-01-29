@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,6 +25,7 @@
 
 package jdk.jfr.internal;
 
+import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -34,7 +35,6 @@ import java.util.Locale;
 import java.util.TimeZone;
 
 import jdk.jfr.EventType;
-import jdk.jfr.internal.consumer.RecordingInput;
 
 /**
  * Metadata about a chunk
@@ -214,7 +214,6 @@ public final class MetadataDescriptor {
     long gmtOffset;
     String locale;
     Element root;
-    public long metadataId;
 
     // package private
     MetadataDescriptor() {
@@ -253,7 +252,7 @@ public final class MetadataDescriptor {
         return locale;
     }
 
-    public static MetadataDescriptor read(RecordingInput input) throws IOException {
+    public static MetadataDescriptor read(DataInput input) throws IOException {
         MetadataReader r = new MetadataReader(input);
         return r.getDescriptor();
     }

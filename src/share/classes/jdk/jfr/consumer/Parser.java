@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,32 +23,23 @@
  * questions.
  */
 
-package jdk.jfr.startupargs;
+package jdk.jfr.consumer;
 
-import java.time.Duration;
+import java.io.IOException;
 
-import jdk.jfr.FlightRecorder;
-import jdk.jfr.Recording;
+import jdk.jfr.internal.consumer.RecordingInput;
 
 /**
- * @test
- * @summary Start a recording with a flush interval
- * @key jfr
- * @library /lib /
- * @run main/othervm -XX:StartFlightRecording=flush-interval=1s jdk.jfr.startupargs.TestFlushInterval
+ * Base class for parsing data from a {@link RecordingInput}.
  */
-public class TestFlushInterval {
-
-    public static void main(String[] args) throws Exception {
-        for (Recording r : FlightRecorder.getFlightRecorder().getRecordings()) {
-            Duration d = r.getFlushInterval();
-            if (d.equals(Duration.ofSeconds(1))) {
-                return; //OK
-            } else {
-                throw new Exception("Unexpected flush-interval " + d);
-            }
-        }
-        throw new Exception("No recording found");
-    }
-
+abstract class Parser {
+    /**
+     * Parses data from a {@link RecordingInput} and return an object.
+     *
+     * @param input input to read from
+     * @return an object
+     * @throws IOException if operation couldn't be completed due to I/O
+     *         problems
+     */
+    abstract Object parse(RecordingInput input) throws IOException;
 }

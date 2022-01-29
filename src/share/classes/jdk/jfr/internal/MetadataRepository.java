@@ -45,7 +45,6 @@ import jdk.jfr.StackTrace;
 import jdk.jfr.Threshold;
 import jdk.jfr.ValueDescriptor;
 import jdk.jfr.internal.RequestEngine.RequestHook;
-import jdk.jfr.internal.consumer.RepositoryFiles;
 import jdk.jfr.internal.handlers.EventHandler;
 
 public final class MetadataRepository {
@@ -185,14 +184,10 @@ public final class MetadataRepository {
     }
 
     public synchronized List<EventControl> getEventControls() {
-        List<Class<? extends Event>> eventClasses = jvm.getAllEventClasses();
-        ArrayList<EventControl> controls = new ArrayList<>(eventClasses.size() + nativeControls.size());
+        List<EventControl> controls = new ArrayList<>();
         controls.addAll(nativeControls);
-        for (Class<? extends Event> clazz : eventClasses) {
-            EventHandler eh = Utils.getHandler(clazz);
-            if (eh != null) {
-                controls.add(eh.getEventControl());
-            }
+        for (EventHandler eh : getEventHandlers()) {
+            controls.add(eh.getEventControl());
         }
         return controls;
     }
@@ -245,9 +240,7 @@ public final class MetadataRepository {
             storeDescriptorInJVM();
         }
         jvm.setOutput(filename);
-        if (filename != null) {
-            RepositoryFiles.notifyNewFile();
-        }
+
         unregisterUnloaded();
         if (unregistered) {
             if (typeLibrary.clearUnregistered()) {
@@ -281,13 +274,6 @@ public final class MetadataRepository {
 
     synchronized public void setUnregistered() {
        unregistered = true;
-    }
-
-    public synchronized void flush() {
-        if (staleMetadata) {
-            storeDescriptorInJVM();
-        }
-        jvm.flush();
     }
 
 }

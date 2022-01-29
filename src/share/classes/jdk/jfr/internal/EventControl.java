@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -32,7 +32,11 @@ import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
+import java.util.Set;
 
 import jdk.jfr.AnnotationElement;
 import jdk.jfr.Enabled;
@@ -55,14 +59,7 @@ import jdk.jfr.internal.settings.ThresholdSetting;
 // holds SettingControl instances that need to be released
 // when a class is unloaded (to avoid memory leaks).
 public final class EventControl {
-    final static class NamedControl {
-        public final String name;
-        public final Control control;
-        NamedControl(String name, Control control) {
-            this.name = name;
-            this.control = control;
-        }
-    }
+
     static final String FIELD_SETTING_PREFIX = "setting";
     private static final Type TYPE_ENABLED = TypeLibrary.createType(EnabledSetting.class);
     private static final Type TYPE_THRESHOLD = TypeLibrary.createType(ThresholdSetting.class);
@@ -70,24 +67,24 @@ public final class EventControl {
     private static final Type TYPE_PERIOD = TypeLibrary.createType(PeriodSetting.class);
     private static final Type TYPE_CUTOFF = TypeLibrary.createType(CutoffSetting.class);
 
-    private final ArrayList<SettingInfo> settingInfos = new ArrayList<>();
-    private final ArrayList<NamedControl> namedControls = new ArrayList<>(5);
+    private final List<SettingInfo> settingInfos = new ArrayList<>();
+    private final Map<String, Control> eventControls = new HashMap<>(5);
     private final PlatformEventType type;
     private final String idName;
 
     EventControl(PlatformEventType eventType) {
-        addControl(Enabled.NAME, defineEnabled(eventType));
+        eventControls.put(Enabled.NAME, defineEnabled(eventType));
         if (eventType.hasDuration()) {
-            addControl(Threshold.NAME, defineThreshold(eventType));
+            eventControls.put(Threshold.NAME, defineThreshold(eventType));
         }
         if (eventType.hasStackTrace()) {
-            addControl(StackTrace.NAME, defineStackTrace(eventType));
+            eventControls.put(StackTrace.NAME, defineStackTrace(eventType));
         }
         if (eventType.hasPeriod()) {
-            addControl(Period.NAME, definePeriod(eventType));
+            eventControls.put(Period.NAME, definePeriod(eventType));
         }
         if (eventType.hasCutoff()) {
-            addControl(Cutoff.NAME, defineCutoff(eventType));
+            eventControls.put(Cutoff.NAME, defineCutoff(eventType));
         }
 
         ArrayList<AnnotationElement> aes = new ArrayList<>(eventType.getAnnotationElements());
@@ -100,19 +97,6 @@ public final class EventControl {
         eventType.setAnnotations(aes);
         this.type = eventType;
         this.idName = String.valueOf(eventType.getId());
-    }
-
-    private boolean hasControl(String name) {
-        for (NamedControl nc : namedControls) {
-            if (name.equals(nc.name)) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    private void addControl(String name, Control control) {
-        namedControls.add(new NamedControl(name, control));
     }
 
     static void remove(PlatformEventType type, List<AnnotationElement> aes, Class<? extends java.lang.annotation.Annotation> clazz) {
@@ -147,8 +131,7 @@ public final class EventControl {
                             if (n != null) {
                                 name = n.value();
                             }
-
-                            if (!hasControl(name)) {
+                            if (!eventControls.containsKey(name)) {
                                 defineSetting((Class<? extends SettingControl>) settingClass, m, type, name);
                             }
                         }
@@ -178,7 +161,7 @@ public final class EventControl {
                     }
                 }
                 aes.trimToSize();
-                addControl(settingName, si.settingControl);
+                eventControls.put(settingName, si.settingControl);
                 eventType.add(PrivateAccess.getInstance().newSettingDescriptor(settingType, settingName, defaultValue, aes));
                 settingInfos.add(si);
             }
@@ -262,9 +245,9 @@ public final class EventControl {
     }
 
     void disable() {
-        for (NamedControl nc : namedControls) {
-            if (nc.control instanceof EnabledSetting) {
-                nc.control.setValueSafe("false");
+        for (Control c : eventControls.values()) {
+            if (c instanceof EnabledSetting) {
+                c.setValueSafe("false");
                 return;
             }
         }
@@ -274,23 +257,24 @@ public final class EventControl {
         if (!type.isRegistered()) {
             return;
         }
-        ActiveSettingEvent event = ActiveSettingEvent.EVENT.get();
-        for (NamedControl nc : namedControls) {
-            if (Utils.isSettingVisible(nc.control, type.hasEventHook())) {
-                String value = nc.control.getLastValue();
+        for (Map.Entry<String, Control> entry : eventControls.entrySet()) {
+            Control c = entry.getValue();
+            if (Utils.isSettingVisible(c, type.hasEventHook())) {
+                String value = c.getLastValue();
                 if (value == null) {
-                    value = nc.control.getDefaultValue();
+                    value = c.getDefaultValue();
                 }
-                event.id = type.getId();
-                event.name = nc.name;
-                event.value = value;
-                event.commit();
+                ActiveSettingEvent ase = new ActiveSettingEvent();
+                ase.id = type.getId();
+                ase.name = entry.getKey();
+                ase.value = value;
+                ase.commit();
             }
         }
     }
 
-    public ArrayList<NamedControl> getNamedControls() {
-        return namedControls;
+    public Set<Entry<String, Control>> getEntries() {
+        return eventControls.entrySet();
     }
 
     public PlatformEventType getEventType() {

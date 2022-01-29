@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -84,7 +84,6 @@ public final class PlatformRecording implements AutoCloseable {
     private TimerTask startTask;
     private AccessControlContext noDestinationDumpOnExitAccessControlContext;
     private boolean shuoldWriteActiveRecordingEvent = true;
-    private Duration flushInterval = Duration.ofSeconds(1);
 
     PlatformRecording(PlatformRecorder recorder, long id) {
         // Typically the access control context is taken
@@ -99,10 +98,9 @@ public final class PlatformRecording implements AutoCloseable {
         this.name = String.valueOf(id);
     }
 
-    public long start() {
+    public void start() {
         RecordingState oldState;
         RecordingState newState;
-        long startNanos = -1;
         synchronized (recorder) {
             oldState = getState();
             if (!Utils.isBefore(state, RecordingState.RUNNING)) {
@@ -113,7 +111,7 @@ public final class PlatformRecording implements AutoCloseable {
                 startTask = null;
                 startTime = null;
             }
-            startNanos = recorder.start(this);
+            recorder.start(this);
             Logger.log(LogTag.JFR, LogLevel.INFO, () -> {
                 // Only print non-default values so it easy to see
                 // which options were added
@@ -145,8 +143,6 @@ public final class PlatformRecording implements AutoCloseable {
             newState = getState();
         }
         notifyIfStateChanged(oldState, newState);
-
-        return startNanos;
     }
 
     public boolean stop(String reason) {
@@ -781,29 +777,5 @@ public final class PlatformRecording implements AutoCloseable {
 
     public boolean isRecorderEnabled(String eventName) {
         return recorder.isEnabled(eventName);
-    }
-
-    public void setFlushInterval(Duration interval) {
-        synchronized (recorder) {
-            if (getState() == RecordingState.CLOSED) {
-                throw new IllegalStateException("Can't set stream interval when recording is closed");
-            }
-            this.flushInterval = interval;
-        }
-    }
-
-    public Duration getFlushInterval() {
-        synchronized (recorder) {
-            return flushInterval;
-        }
-    }
-
-    public long getStreamIntervalMillis() {
-        synchronized (recorder) {
-            if (flushInterval != null) {
-                return flushInterval.toMillis();
-            }
-            return Long.MAX_VALUE;
-        }
     }
 }

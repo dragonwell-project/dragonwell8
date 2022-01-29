@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,7 +26,7 @@
 package jdk.jfr.internal;
 
 import sun.misc.Unsafe;
-import jdk.jfr.internal.consumer.StringParser;
+import jdk.jfr.internal.consumer.RecordingInput;
 
 /**
  * Class must reside in a package with package restriction.
@@ -115,18 +115,18 @@ public final class EventWriter {
 
     public void putString(String s, StringPool pool) {
         if (s == null) {
-            putByte(StringParser.Encoding.NULL.byteValue());
+            putByte(RecordingInput.STRING_ENCODING_NULL);
             return;
         }
         int length = s.length();
         if (length == 0) {
-            putByte(StringParser.Encoding.EMPTY_STRING.byteValue());
+            putByte(RecordingInput.STRING_ENCODING_EMPTY_STRING);
             return;
         }
         if (length > StringPool.MIN_LIMIT && length < StringPool.MAX_LIMIT) {
             long l = StringPool.addString(s);
             if (l > 0) {
-                putByte(StringParser.Encoding.CONSTANT_POOL.byteValue());
+                putByte(RecordingInput.STRING_ENCODING_CONSTANT_POOL);
                 putLong(l);
                 return;
             }
@@ -138,7 +138,7 @@ public final class EventWriter {
     private void putStringValue(String s) {
         int length = s.length();
         if (isValidForSize(1 + 5 + 3 * length)) {
-            putUncheckedByte(StringParser.Encoding.CHAR_ARRAY.byteValue()); // 1 byte
+            putUncheckedByte(RecordingInput.STRING_ENCODING_CHAR_ARRAY); // 1 byte
             putUncheckedInt(length); // max 5 bytes
             for (int i = 0; i < length; i++) {
                 putUncheckedChar(s.charAt(i)); // max 3 bytes
@@ -197,7 +197,11 @@ public final class EventWriter {
         if (currentPosition + requestedSize > maxPosition) {
             flushOnEnd = flush(usedSize(), requestedSize);
             // retry
-            if (!valid) {
+            if (currentPosition + requestedSize > maxPosition) {
+                Logger.log(LogTag.JFR_SYSTEM,
+                           LogLevel.WARN, () ->
+                               "Unable to commit. Requested size " + requestedSize + " too large");
+                valid = false;
                 return false;
             }
         }

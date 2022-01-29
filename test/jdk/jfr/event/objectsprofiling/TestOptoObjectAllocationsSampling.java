@@ -157,11 +157,8 @@ public class TestOptoObjectAllocationsSampling {
             final String arrayObjectClassName = InstanceObject[].class.getName();
 
             for (RecordedEvent event : events) {
-                System.out.println(event);
                 RecordedStackTrace stackTrace = event.getStackTrace();
-                if (stackTrace == null) {
-                  continue;
-                }
+                Asserts.assertTrue(stackTrace !=  null);
                 List<RecordedFrame> frames = stackTrace.getFrames();
                 Asserts.assertTrue(frames != null && frames.size() > 0);
                 RecordedFrame topFrame = frames.get(0);

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,9 +23,10 @@
  * questions.
  */
 
-package jdk.jfr.internal.consumer;
+package jdk.jfr.consumer;
 
-import jdk.jfr.internal.LongMap;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Holds mapping between a set of keys and their corresponding object.
@@ -34,15 +35,6 @@ import jdk.jfr.internal.LongMap;
  * {@link ObjectFactory} can be supplied which will instantiate a typed object.
  */
 final class ConstantMap {
-
-    private static final int RESOLUTION_FINISHED = 0;
-    private static final int RESOLUTION_STARTED = 1;
-    public static final ConstantMap EMPTY = new ConstantMap();
-
-    // A temporary placeholder, so objects can
-    // reference themselves (directly, or indirectly),
-    // when making a transition from numeric id references
-    // to normal Java references.
     private final static class Reference {
         private final long key;
         private final ConstantMap pool;
@@ -55,28 +47,18 @@ final class ConstantMap {
         Object resolve() {
             return pool.get(key);
         }
-
-        public String toString() {
-            return "ref: " + pool.name + "[" + key + "]";
-        }
     }
 
-    final ObjectFactory<?> factory;
-    final String name;
-
+    private final ObjectFactory<?> factory;
     private final LongMap<Object> objects;
 
-    private boolean resolving;
+    private LongMap<Boolean> isResolving;
     private boolean allResolved;
-
-    private ConstantMap() {
-        this(null, "<empty>");
-        allResolved = true;
-    }
+    private String name;
 
     ConstantMap(ObjectFactory<?> factory, String name) {
         this.name = name;
-        this.objects = new LongMap<>(2);
+        this.objects = new LongMap<>();
         this.factory = factory;
     }
 
@@ -86,42 +68,26 @@ final class ConstantMap {
             return objects.get(id);
         }
         // referenced from a pool, deal with this later
-        if (!resolving) {
+        if (isResolving == null) {
             return new Reference(this, id);
         }
 
-        // should always have a value
-        Object value = objects.get(id);
-        if (value == null) {
-            // unless is 0 which is used to represent null
-            if (id == 0) {
-                return null;
-            }
-            throw new InternalError("Missing object id=" + id + " in pool " + name + ". All ids should reference object");
-        }
+        Boolean beingResolved = isResolving.get(id);
 
-        // id is resolved (but not the whole pool)
-        if (objects.isSetId(id, RESOLUTION_FINISHED)) {
-            return value;
+        // we are resolved (but not the whole pool)
+        if (Boolean.FALSE.equals(beingResolved)) {
+            return objects.get(id);
         }
 
         // resolving ourself, abort to avoid infinite recursion
-        if (objects.isSetId(id, RESOLUTION_STARTED)) {
+        if (Boolean.TRUE.equals(beingResolved)) {
             return null;
         }
 
-        // mark id as STARTED if we should
-        // come back during object resolution
-        objects.setId(id, RESOLUTION_STARTED);
-
-        // resolve object!
-        Object resolved = resolve(value);
-
-        // mark id as FINISHED
-        objects.setId(id, RESOLUTION_FINISHED);
-
-        // if a factory exists, convert to RecordedThread.
-        // RecordedClass etc. and store back results
+        // resolve me!
+        isResolving.put(id, Boolean.TRUE);
+        Object resolved = resolve(objects.get(id));
+        isResolving.put(id, Boolean.FALSE);
         if (factory != null) {
             Object factorized = factory.createObject(id, resolved);
             objects.put(id, factorized);
@@ -139,8 +105,7 @@ final class ConstantMap {
         if (o != null && o.getClass().isArray()) {
             final Object[] array = (Object[]) o;
             for (int i = 0; i < array.length; i++) {
-                Object element = array[i];
-                array[i] = resolve(element);
+                array[i] = resolve(array[i]);
             }
             return array;
         }
@@ -148,37 +113,27 @@ final class ConstantMap {
     }
 
     public void resolve() {
-        objects.forEachKey(k -> get(k));
+        List<Long> keyList = new ArrayList<>();
+        objects.keys().forEachRemaining(keyList::add);
+        for (Long l : keyList) {
+            get(l);
+        }
     }
 
     public void put(long key, Object value) {
         objects.put(key, value);
     }
 
-    public void setResolving() {
-        resolving = true;
-        allResolved = false;
+    public void setIsResolving() {
+        isResolving = new LongMap<>();
     }
 
     public void setResolved() {
         allResolved = true;
-        resolving = false;
+        isResolving = null; // pool finished, release memory
     }
 
     public String getName() {
         return name;
-    }
-
-    public Object getResolved(long id) {
-        return objects.get(id);
-    }
-
-    public void putResolved(long id, Object object) {
-        objects.put(id, object);
-        objects.setId(id, RESOLUTION_FINISHED);
-    }
-
-    public void setAllResolved(boolean allResolved) {
-        this.allResolved = allResolved;
     }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -210,12 +210,12 @@ public class TestRecordingFile {
            assertHasEventType(types, "Event2");
            assertMissingEventType(types, "Event3");
        }
-       try (RecordingFile f = new RecordingFile(threeEventTypes)) {
+       try (RecordingFile f = new RecordingFile(twoEventTypes)) {
            List<EventType> types = f.readEventTypes();
            assertUniqueEventTypes(types);
            assertHasEventType(types, "Event1");
            assertHasEventType(types, "Event2");
-           assertHasEventType(types, "Event3");
+           assertMissingEventType(types, "Event3");
        }
 
     }
