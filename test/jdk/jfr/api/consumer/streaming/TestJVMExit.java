@@ -41,18 +41,17 @@ import jdk.jfr.consumer.EventStream;
 public class TestJVMExit {
 
     public static void main(String... args) throws Exception {
-        try (TestProcess process = new TestProcess("exit-application")) {
-            AtomicInteger eventCounter = new AtomicInteger();
-            try (EventStream es = EventStream.openRepository(process.getRepository())) {
-                // Start from first event in repository
-                es.setStartTime(Instant.EPOCH);
-                es.onEvent(e -> {
-                    if (eventCounter.incrementAndGet() == TestProcess.NUMBER_OF_EVENTS) {
-                        process.exit();
-                    }
-                });
-                es.start();
-            }
+        TestProcess process = new TestProcess("exit-application");
+        AtomicInteger eventCounter = new AtomicInteger();
+        try (EventStream es = EventStream.openRepository(process.getRepository())) {
+            // Start from first event in repository
+            es.setStartTime(Instant.EPOCH);
+            es.onEvent(e -> {
+                if (eventCounter.incrementAndGet() == TestProcess.NUMBER_OF_EVENTS) {
+                    process.exit();
+                }
+            });
+            es.start();
         }
     }
 }

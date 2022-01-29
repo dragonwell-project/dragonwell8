@@ -33,7 +33,6 @@ import java.io.FileOutputStream;
 import java.io.OutputStream;
 import java.io.RandomAccessFile;
 import java.nio.file.Files;
-import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Properties;
@@ -50,7 +49,7 @@ import com.sun.tools.attach.VirtualMachine;
  * Requires jdk.attach module.
  *
  */
-public final class TestProcess implements AutoCloseable {
+public final class TestProcess {
 
     private static class TestEvent extends Event {
     }
@@ -173,22 +172,5 @@ public final class TestProcess implements AutoCloseable {
 
     public long pid() {
         return pid;
-    }
-
-    @Override
-    public void close() throws Exception {
-        try  {
-            if (path != null)  {
-                Files.delete(path);
-            }
-        } catch(NoSuchFileException nfe)  {
-            // ignore
-        }
-    }
-
-    public void awaitDeath() {
-        while (process.isAlive())  {
-            takeNap();
-        }
     }
 }
