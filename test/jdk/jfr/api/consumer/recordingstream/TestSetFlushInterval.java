@@ -23,32 +23,39 @@
  * questions.
  */
 
-package jdk.jfr.startupargs;
+package jdk.jfr.api.consumer.recordingstream;
 
 import java.time.Duration;
 
-import jdk.jfr.FlightRecorder;
-import jdk.jfr.Recording;
+import jdk.jfr.consumer.RecordingStream;
+import jdk.test.lib.jfr.EventNames;
 
 /**
  * @test
- * @summary Start a recording with a flush interval
+ * @summary Tests RecordingStream::setFlushInterval
  * @key jfr
  * @library /lib /
- * @run main/othervm -XX:StartFlightRecording=flush-interval=1s jdk.jfr.startupargs.TestFlushInterval
+ * @run main/othervm jdk.jfr.api.consumer.recordingstream.TestSetFlushInterval
  */
-public class TestFlushInterval {
+public class TestSetFlushInterval {
 
-    public static void main(String[] args) throws Exception {
-        for (Recording r : FlightRecorder.getFlightRecorder().getRecordings()) {
-            Duration d = r.getFlushInterval();
-            if (d.equals(Duration.ofSeconds(1))) {
-                return; //OK
-            } else {
-                throw new Exception("Unexpected flush-interval " + d);
-            }
+    public static void main(String... args) throws Exception {
+        Duration expectedDuration = Duration.ofMillis(1001);
+        try (RecordingStream r = new RecordingStream()) {
+            r.setFlushInterval(expectedDuration);
+            r.enable(EventNames.ActiveRecording);
+            r.onEvent(e -> {
+                System.out.println(e);
+                Duration duration = e.getDuration("flushInterval");
+                if (expectedDuration.equals(duration)) {
+                    System.out.println("Closing recording");
+                    r.close();
+                    return;
+                }
+                System.out.println("Flush interval not set, was " + duration +
+                                   ", but expected " + expectedDuration);
+            });
+            r.start();
         }
-        throw new Exception("No recording found");
     }
-
 }
