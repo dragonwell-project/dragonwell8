@@ -58,12 +58,13 @@
 // incremented on each flushpoint
 static u8 flushpoint_id = 0;
 
-template <typename Instance, size_t(Instance::*func)()>
+template <typename E, typename Instance, size_t(Instance::*func)()>
 class Content {
  private:
   Instance& _instance;
   u4 _elements;
  public:
+  typedef E EventType;
   Content(Instance& instance) : _instance(instance), _elements(0) {}
   bool process() {
     _elements = (u4)(_instance.*func)();
@@ -81,6 +82,7 @@ class WriteContent : public StackObj {
   Content& _content;
   const int64_t _start_offset;
  public:
+  typedef typename Content::EventType EventType;
 
   WriteContent(JfrChunkWriter& cw, Content& content) :
     _start_time(JfrTicks::now()),
@@ -124,6 +126,14 @@ class WriteContent : public StackObj {
 
   u4 size() const {
     return (u4)(end_offset() - start_offset());
+  }
+
+  static bool is_event_enabled() {
+    return EventType::is_enabled();
+  }
+
+  static u8 event_id() {
+    return EventType::eventId;
   }
 
   void write_elements(int64_t offset) {
@@ -189,15 +199,22 @@ static u4 invoke(Functor& f) {
 }
 
 template <typename Functor>
+static void write_flush_event(Functor& f) {
+  if (Functor::is_event_enabled()) {
+    typename Functor::EventType e(UNTIMED);
+    e.set_starttime(f.start_time());
+    e.set_endtime(f.end_time());
+    e.set_flushId(flushpoint_id);
+    e.set_elements(f.elements());
+    e.set_size(f.size());
+    e.commit();
+  }
+}
+
+template <typename Functor>
 static u4 invoke_with_flush_event(Functor& f) {
   const u4 elements = invoke(f);
-  EventFlush e(UNTIMED);
-  e.set_starttime(f.start_time());
-  e.set_endtime(f.end_time());
-  e.set_flushId(flushpoint_id);
-  e.set_elements(f.elements());
-  e.set_size(f.size());
-  e.commit();
+  write_flush_event(f);
   return elements;
 }
 
@@ -209,6 +226,7 @@ class StackTraceRepository : public StackObj {
   bool _clear;
 
  public:
+  typedef EventFlushStacktrace EventType;
   StackTraceRepository(JfrStackTraceRepository& repo, JfrChunkWriter& cw, bool clear) :
     _repo(repo), _cw(cw), _elements(0), _clear(clear) {}
   bool process() {
@@ -224,7 +242,7 @@ typedef WriteCheckpointEvent<StackTraceRepository> WriteStackTrace;
 static u4 flush_stacktrace(JfrStackTraceRepository& stack_trace_repo, JfrChunkWriter& chunkwriter) {
   StackTraceRepository str(stack_trace_repo, chunkwriter, false);
   WriteStackTrace wst(chunkwriter, str, TYPE_STACKTRACE);
-  return invoke(wst);
+  return invoke_with_flush_event(wst);
 }
 
 static u4 write_stacktrace(JfrStackTraceRepository& stack_trace_repo, JfrChunkWriter& chunkwriter, bool clear) {
@@ -233,14 +251,14 @@ static u4 write_stacktrace(JfrStackTraceRepository& stack_trace_repo, JfrChunkWr
   return invoke(wst);
 }
 
-typedef Content<JfrStorage, &JfrStorage::write> Storage;
+typedef Content<EventFlushStorage, JfrStorage, &JfrStorage::write> Storage;
 typedef WriteContent<Storage> WriteStorage;
 
 static size_t flush_storage(JfrStorage& storage, JfrChunkWriter& chunkwriter) {
   assert(chunkwriter.is_valid(), "invariant");
   Storage fsf(storage);
   WriteStorage fs(chunkwriter, fsf);
-  return invoke(fs);
+  return invoke_with_flush_event(fs);
 }
 
 static size_t write_storage(JfrStorage& storage, JfrChunkWriter& chunkwriter) {
@@ -250,15 +268,15 @@ static size_t write_storage(JfrStorage& storage, JfrChunkWriter& chunkwriter) {
   return invoke(fs);
 }
 
-typedef Content<JfrStringPool, &JfrStringPool::write> StringPool;
-typedef Content<JfrStringPool, &JfrStringPool::write_at_safepoint> StringPoolSafepoint;
+typedef Content<EventFlushStringPool, JfrStringPool, &JfrStringPool::write> StringPool;
+typedef Content<EventFlushStringPool, JfrStringPool, &JfrStringPool::write_at_safepoint> StringPoolSafepoint;
 typedef WriteCheckpointEvent<StringPool> WriteStringPool;
 typedef WriteCheckpointEvent<StringPoolSafepoint> WriteStringPoolSafepoint;
 
 static u4 flush_stringpool(JfrStringPool& string_pool, JfrChunkWriter& chunkwriter) {
   StringPool sp(string_pool);
   WriteStringPool wsp(chunkwriter, sp, TYPE_STRING);
-  return invoke(wsp);
+  return invoke_with_flush_event(wsp);
 }
 
 static u4 write_stringpool(JfrStringPool& string_pool, JfrChunkWriter& chunkwriter) {
@@ -273,19 +291,20 @@ static u4 write_stringpool_safepoint(JfrStringPool& string_pool, JfrChunkWriter&
   return invoke(wsps);
 }
 
-typedef Content<JfrCheckpointManager, &JfrCheckpointManager::flush_type_set> FlushTypeSetFunctor;
+typedef Content<EventFlushTypeSet, JfrCheckpointManager, &JfrCheckpointManager::flush_type_set> FlushTypeSetFunctor;
 typedef WriteContent<FlushTypeSetFunctor> FlushTypeSet;
 
 static u4 flush_typeset(JfrCheckpointManager& checkpoint_manager, JfrChunkWriter& chunkwriter) {
   FlushTypeSetFunctor flush_type_set(checkpoint_manager);
   FlushTypeSet fts(chunkwriter, flush_type_set);
-  return invoke(fts);
+  return invoke_with_flush_event(fts);
 }
 
 class MetadataEvent : public StackObj {
  private:
   JfrChunkWriter& _cw;
  public:
+  typedef EventFlushMetadata EventType;
   MetadataEvent(JfrChunkWriter& cw) : _cw(cw) {}
   bool process() {
     JfrMetadataEvent::write(_cw);
@@ -300,7 +319,7 @@ static u4 flush_metadata(JfrChunkWriter& chunkwriter) {
   assert(chunkwriter.is_valid(), "invariant");
   MetadataEvent me(chunkwriter);
   WriteMetadata wm(chunkwriter, me);
-  return invoke(wm);
+  return invoke_with_flush_event(wm);
 }
 
 static u4 write_metadata(JfrChunkWriter& chunkwriter) {
@@ -586,7 +605,7 @@ size_t JfrRecorderService::flush() {
   return total_elements;
 }
 
-typedef Content<JfrRecorderService, &JfrRecorderService::flush> FlushFunctor;
+typedef Content<EventFlush, JfrRecorderService, &JfrRecorderService::flush> FlushFunctor;
 typedef WriteContent<FlushFunctor> Flush;
 
 void JfrRecorderService::invoke_flush() {
