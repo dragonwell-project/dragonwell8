@@ -25,10 +25,6 @@
 
 package jdk.jfr.internal.consumer;
 
-import jdk.jfr.internal.LogLevel;
-import jdk.jfr.internal.LogTag;
-import jdk.jfr.internal.Logger;
-
 import jdk.jfr.internal.LongMap;
 
 /**
@@ -94,14 +90,14 @@ final class ConstantMap {
             return new Reference(this, id);
         }
 
-        // should ideally always have a value
+        // should always have a value
         Object value = objects.get(id);
         if (value == null) {
-            // unless id is 0 which is used to represent null
-            if (id != 0) {
-                Logger.log(LogTag.JFR_SYSTEM_PARSER, LogLevel.INFO, "Missing object id=" + id + " in pool " + name + ". All ids should reference an object");
+            // unless is 0 which is used to represent null
+            if (id == 0) {
+                return null;
             }
-            return null;
+            throw new InternalError("Missing object id=" + id + " in pool " + name + ". All ids should reference object");
         }
 
         // id is resolved (but not the whole pool)
