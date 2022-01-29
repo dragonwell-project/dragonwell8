@@ -77,10 +77,9 @@ abstract class AbstractEventStream implements EventStream {
     abstract public void close();
 
     protected final Dispatcher dispatcher() {
-        if (configuration.hasChanged()) { // quick check
+        if (configuration.hasChanged()) {
             synchronized (configuration) {
                 dispatcher = new Dispatcher(configuration);
-                configuration.setChanged(false);
             }
         }
         return dispatcher;

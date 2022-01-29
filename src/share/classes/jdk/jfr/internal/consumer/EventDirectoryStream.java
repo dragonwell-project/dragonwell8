@@ -105,8 +105,8 @@ public class EventDirectoryStream extends AbstractEventStream {
     }
 
     protected void processRecursionSafe() throws IOException {
-        Dispatcher lastDisp = null;
         Dispatcher disp = dispatcher();
+
         Path path;
         boolean validStartTime = recording != null || disp.startTime != null;
         if (validStartTime) {
@@ -125,20 +125,18 @@ public class EventDirectoryStream extends AbstractEventStream {
             long filterEnd = disp.endTime != null ? disp.endNanos: Long.MAX_VALUE;
 
             while (!isClosed()) {
+                boolean awaitnewEvent = false;
                 while (!isClosed() && !currentParser.isChunkFinished()) {
                     disp = dispatcher();
-                    if (disp != lastDisp) {
-                        ParserConfiguration pc = disp.parserConfiguration;
-                        pc.filterStart = filterStart;
-                        pc.filterEnd = filterEnd;
-                        currentParser.updateConfiguration(pc, true);
-                        currentParser.setFlushOperation(getFlushOperation());
-                        lastDisp = disp;
-                    }
-                    if (disp.parserConfiguration.isOrdered()) {
-                        processOrdered(disp);
+                    ParserConfiguration pc = disp.parserConfiguration;
+                    pc.filterStart = filterStart;
+                    pc.filterEnd = filterEnd;
+                    currentParser.updateConfiguration(pc, true);
+                    currentParser.setFlushOperation(getFlushOperation());
+                    if (pc.isOrdered()) {
+                        awaitnewEvent = processOrdered(disp, awaitnewEvent);
                     } else {
-                        processUnordered(disp);
+                        awaitnewEvent = processUnordered(disp, awaitnewEvent);
                     }
                     if (currentParser.getStartNanos() + currentParser.getChunkDuration() > filterEnd) {
                         close();
@@ -184,24 +182,29 @@ public class EventDirectoryStream extends AbstractEventStream {
         return recording.getFinalChunkStartNanos() >= currentParser.getStartNanos();
     }
 
-    private void processOrdered(Dispatcher c) throws IOException {
+    private boolean processOrdered(Dispatcher c, boolean awaitNewEvents) throws IOException {
         if (sortedCache == null) {
             sortedCache = new RecordedEvent[100_000];
         }
         int index = 0;
         while (true) {
-            RecordedEvent e = currentParser.readStreamingEvent();
+            RecordedEvent e = currentParser.readStreamingEvent(awaitNewEvents);
             if (e == null) {
+                // wait for new event with next call to
+                // readStreamingEvent()
+                awaitNewEvents = true;
                 break;
             }
+            awaitNewEvents = false;
             if (index == sortedCache.length) {
                 sortedCache = Arrays.copyOf(sortedCache, sortedCache.length * 2);
             }
             sortedCache[index++] = e;
         }
+
         // no events found
         if (index == 0 && currentParser.isChunkFinished()) {
-            return;
+            return awaitNewEvents;
         }
         // at least 2 events, sort them
         if (index > 1) {
@@ -210,12 +213,12 @@ public class EventDirectoryStream extends AbstractEventStream {
         for (int i = 0; i < index; i++) {
             c.dispatch(sortedCache[i]);
         }
-        return;
+        return awaitNewEvents;
     }
 
-    private boolean processUnordered(Dispatcher c) throws IOException {
+    private boolean processUnordered(Dispatcher c, boolean awaitNewEvents) throws IOException {
         while (true) {
-            RecordedEvent e = currentParser.readStreamingEvent();
+            RecordedEvent e = currentParser.readStreamingEvent(awaitNewEvents);
             if (e == null) {
                 return true;
             } else {

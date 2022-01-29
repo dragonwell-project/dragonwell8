@@ -121,8 +121,4 @@ final class StreamConfiguration {
     public boolean hasChanged() {
         return changed;
     }
-
-    public void setChanged(boolean changed) {
-        this.changed = changed;
-    }
 }

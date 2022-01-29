@@ -57,7 +57,6 @@ public class TestOnEvent {
         testOnEvent();
         testNamedEvent();
         testTwoEventWithSameName();
-        testOnEventAfterStart();
     }
 
     private static void testOnEventNull() {
@@ -148,29 +147,6 @@ public class TestOnEvent {
         }
         log("Leaving testOnEvent()");
     }
-
-    private static void testOnEventAfterStart() {
-        try (RecordingStream r = new RecordingStream()) {
-            EventProducer p = new EventProducer();
-            p.start();
-            Thread addHandler = new Thread(() ->  {
-                r.onEvent(e -> {
-                    // Got event, close stream
-                    r.close();
-                });
-            });
-            r.onFlush(() ->  {
-                // Only add handler once
-                if (!"started".equals(addHandler.getName()))  {
-                    addHandler.setName("started");
-                    addHandler.start();
-                }
-            });
-            r.start();
-            p.kill();
-        }
-    }
-
 
     private static void log(String msg) {
         System.out.println(msg);
