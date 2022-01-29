@@ -59,7 +59,6 @@ class JfrChunkWriter : public JfrChunkWriterBase {
 
   bool has_metadata() const;
   void set_time_stamp();
-  void mark_chunk_final();
 };
 
 #endif // SHARE_VM_JFR_RECORDER_REPOSITORY_JFRCHUNKWRITER_HPP
