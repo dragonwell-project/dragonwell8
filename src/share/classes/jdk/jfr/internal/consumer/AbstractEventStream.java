@@ -49,7 +49,7 @@ import jdk.jfr.internal.SecuritySupport;
  */
 @Deprecated
 abstract class AbstractEventStream implements EventStream {
-    private final static AtomicLong counter = new AtomicLong(0);
+    private final static AtomicLong counter = new AtomicLong(1);
 
     private final Object terminated = new Object();
     private final Runnable flushOperation = () -> dispatcher().runFlushActions();

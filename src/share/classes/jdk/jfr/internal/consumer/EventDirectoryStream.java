@@ -69,9 +69,6 @@ public class EventDirectoryStream extends AbstractEventStream {
         setClosed(true);
         dispatcher().runCloseActions();
         repositoryFiles.close();
-        if (currentParser != null) {
-            currentParser.close();
-        }
     }
 
     @Override
