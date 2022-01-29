@@ -256,7 +256,7 @@ class JfrSymbolId : public JfrCHeapObj {
   void clear();
   void set_class_unload(bool class_unload);
 
-  traceid markPackage(const char* name, uintptr_t hash, bool leakp);
+  traceid markPackage(const char* name, uintptr_t hash);
 
   template <typename T>
   void iterate_packages(T& functor) {
@@ -318,7 +318,7 @@ class JfrArtifactSet : public JfrCHeapObj {
   traceid mark_unsafe_anonymous_klass_name(const Klass* klass, bool leakp);
   traceid bootstrap_name(bool leakp);
 
-  traceid markPackage(const char* const name, uintptr_t hash, bool leakp);
+  traceid markPackage(const char* const name, uintptr_t hash);
 
   bool has_klass_entries() const;
   int entries() const;

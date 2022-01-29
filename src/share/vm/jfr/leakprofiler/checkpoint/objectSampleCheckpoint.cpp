@@ -37,7 +37,6 @@
 #include "jfr/recorder/stacktrace/jfrStackTraceRepository.hpp"
 #include "jfr/utilities/jfrHashtable.hpp"
 #include "jfr/utilities/jfrTypes.hpp"
-#include "runtime/mutexLocker.hpp"
 #include "runtime/safepoint.hpp"
 #include "runtime/semaphore.hpp"
 #include "runtime/thread.hpp"
@@ -273,7 +272,7 @@ void StackTraceBlobInstaller::install(ObjectSample* sample) {
   }
   const JfrStackTrace* const stack_trace = resolve(sample);
   DEBUG_ONLY(validate_stack_trace(sample, stack_trace));
-  JfrCheckpointWriter writer;
+  JfrCheckpointWriter writer(false, true, Thread::current());
   writer.write_type(TYPE_STACKTRACE);
   writer.write_count(1);
   ObjectSampleCheckpoint::write_stacktrace(stack_trace, writer);
@@ -293,7 +292,6 @@ static void install_stack_traces(const ObjectSampler* sampler, JfrStackTraceRepo
 
 // caller needs ResourceMark
 void ObjectSampleCheckpoint::on_rotation(const ObjectSampler* sampler, JfrStackTraceRepository& stack_trace_repo) {
-  assert(JfrStream_lock->owned_by_self(), "invariant");
   assert(sampler != NULL, "invariant");
   assert(LeakProfiler::is_running(), "invariant");
   install_stack_traces(sampler, stack_trace_repo);
@@ -391,7 +389,7 @@ class BlobWriter {
 static void write_sample_blobs(const ObjectSampler* sampler, bool emit_all, Thread* thread) {
   // sample set is predicated on time of last sweep
   const jlong last_sweep = emit_all ? max_jlong : sampler->last_sweep().value();
-  JfrCheckpointWriter writer(thread, false);
+  JfrCheckpointWriter writer(false, false, thread);
   BlobWriter cbw(sampler, writer, last_sweep);
   iterate_samples(cbw, true);
   // reset blob write states
@@ -400,14 +398,13 @@ static void write_sample_blobs(const ObjectSampler* sampler, bool emit_all, Thre
 }
 
 void ObjectSampleCheckpoint::write(const ObjectSampler* sampler, EdgeStore* edge_store, bool emit_all, Thread* thread) {
-  assert_locked_or_safepoint(JfrStream_lock);
   assert(sampler != NULL, "invariant");
   assert(edge_store != NULL, "invariant");
   assert(thread != NULL, "invariant");
   write_sample_blobs(sampler, emit_all, thread);
   // write reference chains
   if (!edge_store->is_empty()) {
-    JfrCheckpointWriter writer(thread);
+    JfrCheckpointWriter writer(false, true, thread);
     ObjectSampleWriter osw(writer, edge_store);
     edge_store->iterate(osw);
   }

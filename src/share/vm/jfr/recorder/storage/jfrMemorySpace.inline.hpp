@@ -141,7 +141,6 @@ inline void JfrMemorySpace<T, RetrievalType, Callback>::release_free(T* t) {
   }
   assert(t->empty(), "invariant");
   assert(!t->retired(), "invariant");
-  assert(!t->excluded(), "invariant");
   assert(t->identity() == NULL, "invariant");
   if (!should_populate_cache()) {
     remove_free(t);

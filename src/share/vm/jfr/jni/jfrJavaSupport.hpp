@@ -29,21 +29,18 @@
 #include "utilities/exceptions.hpp"
 
 class Klass;
+class JavaThread;
 class outputStream;
 
 class JfrJavaSupport : public AllStatic {
  public:
   static jobject local_jni_handle(const oop obj, Thread* t);
   static jobject local_jni_handle(const jobject handle, Thread* t);
-  static void destroy_local_jni_handle(jobject handle);
+  static void destroy_local_jni_handle(const jobject handle);
 
   static jobject global_jni_handle(const oop obj, Thread* t);
   static jobject global_jni_handle(const jobject handle, Thread* t);
-  static void destroy_global_jni_handle(jobject handle);
-
-  static jweak global_weak_jni_handle(const oop obj, Thread* t);
-  static jweak global_weak_jni_handle(const jobject handle, Thread* t);
-  static void destroy_global_weak_jni_handle(jweak handle);
+  static void destroy_global_jni_handle(const jobject handle);
 
   static oop resolve_non_null(jobject obj);
   static void notify_all(jobject obj, TRAPS);
@@ -86,11 +83,7 @@ class JfrJavaSupport : public AllStatic {
   static void throw_class_format_error(const char* message, TRAPS);
   static void throw_runtime_exception(const char* message, TRAPS);
 
-  static jlong jfr_thread_id(jobject thread);
-  static void exclude(jobject thread);
-  static void include(jobject thread);
-  static bool is_excluded(jobject thread);
-  static void on_thread_start(Thread* t);
+  static jlong jfr_thread_id(jobject target_thread);
 
   // critical
   static void abort(jstring errorMsg, TRAPS);

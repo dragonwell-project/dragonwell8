@@ -334,7 +334,7 @@ void mutex_init() {
   def(JfrMsg_lock                  , Monitor, leaf,        true);
   def(JfrBuffer_lock               , Mutex,   leaf,        true);
   def(JfrThreadGroups_lock         , Mutex,   leaf,        true);
-  def(JfrStream_lock               , Mutex,   nonleaf + 1, false);
+  def(JfrStream_lock               , Mutex,   nonleaf,     true);
   def(JfrStacktrace_lock           , Mutex,   special,     true);
 
 #ifndef SUPPORTS_NATIVE_CX8

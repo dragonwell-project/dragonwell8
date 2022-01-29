@@ -32,7 +32,7 @@ class JfrCheckpointWriter;
 class JfrTypeSet : AllStatic {
  public:
   static void clear();
-  static size_t serialize(JfrCheckpointWriter* writer, JfrCheckpointWriter* leakp_writer, bool class_unload, bool flushpoint);
+  static size_t serialize(JfrCheckpointWriter* writer, JfrCheckpointWriter* leakp_writer, bool class_unload);
 };
 
 #endif // SHARE_VM_JFR_RECORDER_CHECKPOINT_TYPES_JFRTYPESET_HPP

@@ -33,6 +33,7 @@
 #include "oops/method.hpp"
 #include "oops/oop.inline.hpp"
 #include "runtime/atomic.inline.hpp"
+#include "runtime/orderAccess.inline.hpp"
 #include "runtime/vm_version.hpp"
 #include "runtime/jniHandles.hpp"
 #include "runtime/thread.inline.hpp"

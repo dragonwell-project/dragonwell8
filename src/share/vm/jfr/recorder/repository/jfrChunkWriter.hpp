@@ -29,36 +29,29 @@
 #include "jfr/writers/jfrStreamWriterHost.inline.hpp"
 #include "jfr/writers/jfrWriterHost.inline.hpp"
 
-typedef MallocAdapter<M> JfrChunkBuffer; // 1 mb buffered writes
-typedef StreamWriterHost<JfrChunkBuffer, JfrCHeapObj> JfrBufferedChunkWriter;
-typedef WriterHost<BigEndianEncoder, CompressedIntegerEncoder, JfrBufferedChunkWriter> JfrChunkWriterBase;
+typedef MallocAdapter<M> JfrStreamBuffer; // 1 mb buffered writes
+typedef StreamWriterHost<JfrStreamBuffer, JfrCHeapObj> JfrBufferedStreamWriter;
+typedef WriterHost<BigEndianEncoder, CompressedIntegerEncoder, JfrBufferedStreamWriter> JfrChunkWriterBase;
 
-class JfrChunk;
-class JfrChunkHeadWriter;
+class JfrChunkState;
 
 class JfrChunkWriter : public JfrChunkWriterBase {
-  friend class JfrChunkHeadWriter;
   friend class JfrRepository;
  private:
-  JfrChunk* _chunk;
-  void set_path(const char* path);
-  int64_t flush_chunk(bool flushpoint);
+  JfrChunkState* _chunkstate;
+
   bool open();
-  int64_t close();
-  int64_t current_chunk_start_nanos() const;
-  int64_t write_chunk_header_checkpoint(bool flushpoint);
+  size_t close(intptr_t metadata_offset);
+  void write_header(intptr_t metadata_offset);
+  void set_chunk_path(const char* chunk_path);
 
  public:
   JfrChunkWriter();
-  ~JfrChunkWriter();
-
+  bool initialize();
   int64_t size_written() const;
   int64_t last_checkpoint_offset() const;
   void set_last_checkpoint_offset(int64_t offset);
-  void set_last_metadata_offset(int64_t offset);
-
-  bool has_metadata() const;
-  void set_time_stamp();
+  void time_stamp_chunk_now();
 };
 
 #endif // SHARE_VM_JFR_RECORDER_REPOSITORY_JFRCHUNKWRITER_HPP

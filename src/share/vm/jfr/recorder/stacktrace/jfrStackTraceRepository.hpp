@@ -41,7 +41,7 @@ class JfrStackTraceRepository : public JfrCHeapObj {
   friend class ObjectSampleCheckpoint;
   friend class ObjectSampler;
   friend class StackTraceBlobInstaller;
-  friend class StackTraceRepository;
+  friend class WriteStackTraceRepository;
 
  private:
   static const u4 TABLE_SIZE = 2053;
@@ -52,18 +52,19 @@ class JfrStackTraceRepository : public JfrCHeapObj {
   JfrStackTraceRepository();
   static JfrStackTraceRepository& instance();
   static JfrStackTraceRepository* create();
-  static void destroy();
   bool initialize();
+  static void destroy();
 
-  bool is_modified() const;
+  size_t write_impl(JfrChunkWriter& cw, bool clear);
+  static void write_metadata(JfrCheckpointWriter& cpw);
+  traceid write(JfrCheckpointWriter& cpw, traceid id, unsigned int hash);
   size_t write(JfrChunkWriter& cw, bool clear);
   size_t clear();
-
-  const JfrStackTrace* lookup(unsigned int hash, traceid id) const;
 
   traceid add_trace(const JfrStackTrace& stacktrace);
   static traceid add(const JfrStackTrace& stacktrace);
   traceid record_for(JavaThread* thread, int skip, JfrStackFrame* frames, u4 max_frames);
+  const JfrStackTrace* lookup(unsigned int hash, traceid id) const;
 
  public:
   static traceid record(Thread* thread, int skip);

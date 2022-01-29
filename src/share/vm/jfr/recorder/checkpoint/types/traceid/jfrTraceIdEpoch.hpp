@@ -25,19 +25,18 @@
 #ifndef SHARE_VM_JFR_CHECKPOINT_TYPES_TRACEID_JFRTRACEIDEPOCH_HPP
 #define SHARE_VM_JFR_CHECKPOINT_TYPES_TRACEID_JFRTRACEIDEPOCH_HPP
 
-#include "jfr/utilities/jfrTypes.hpp"
 #include "memory/allocation.hpp"
-#include "runtime/orderAccess.hpp"
+#include "jfr/utilities/jfrTypes.hpp"
 
-#define USED_BIT                             1
-#define METHOD_USED_BIT                      (USED_BIT << 2)
-#define EPOCH_1_SHIFT                        0
-#define EPOCH_2_SHIFT                        1
-#define USED_EPOCH_1_BIT                     (USED_BIT << EPOCH_1_SHIFT)
-#define USED_EPOCH_2_BIT                     (USED_BIT << EPOCH_2_SHIFT)
-#define METHOD_USED_EPOCH_1_BIT              (METHOD_USED_BIT << EPOCH_1_SHIFT)
-#define METHOD_USED_EPOCH_2_BIT              (METHOD_USED_BIT << EPOCH_2_SHIFT)
-#define METHOD_AND_CLASS_IN_USE_BITS         (METHOD_USED_BIT | USED_BIT)
+#define USED_BIT 1
+#define METHOD_USED_BIT (USED_BIT << 2)
+#define EPOCH_1_SHIFT 0
+#define EPOCH_2_SHIFT 1
+#define USED_EPOCH_1_BIT (USED_BIT << EPOCH_1_SHIFT)
+#define USED_EPOCH_2_BIT (USED_BIT << EPOCH_2_SHIFT)
+#define METHOD_USED_EPOCH_1_BIT (METHOD_USED_BIT << EPOCH_1_SHIFT)
+#define METHOD_USED_EPOCH_2_BIT (METHOD_USED_BIT << EPOCH_2_SHIFT)
+#define METHOD_AND_CLASS_IN_USE_BITS (METHOD_USED_BIT | USED_BIT)
 #define METHOD_AND_CLASS_IN_USE_EPOCH_1_BITS (METHOD_AND_CLASS_IN_USE_BITS << EPOCH_1_SHIFT)
 #define METHOD_AND_CLASS_IN_USE_EPOCH_2_BITS (METHOD_AND_CLASS_IN_USE_BITS << EPOCH_2_SHIFT)
 
@@ -45,8 +44,6 @@ class JfrTraceIdEpoch : AllStatic {
   friend class JfrCheckpointManager;
  private:
   static bool _epoch_state;
-  static bool volatile _tag_state;
-
   static void shift_epoch();
 
  public:
@@ -88,20 +85,6 @@ class JfrTraceIdEpoch : AllStatic {
 
   static traceid method_and_class_in_use_prev_epoch_bits() {
     return _epoch_state ? METHOD_AND_CLASS_IN_USE_EPOCH_1_BITS :  METHOD_AND_CLASS_IN_USE_EPOCH_2_BITS;
-  }
-
-  static bool has_changed_tag_state() {
-    if ((bool)OrderAccess::load_acquire((volatile jubyte*)&_tag_state)) {
-      OrderAccess::release_store((volatile jubyte*)&_tag_state, (jubyte)false);
-      return true;
-    }
-    return false;
-  }
-
-  static void set_changed_tag_state() {
-    if (!(bool)OrderAccess::load_acquire((volatile jubyte*)&_tag_state)) {
-      OrderAccess::release_store((volatile jubyte*)&_tag_state, (jubyte)true);
-    }
   }
 };
 

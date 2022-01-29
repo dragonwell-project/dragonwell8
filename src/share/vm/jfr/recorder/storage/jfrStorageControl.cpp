@@ -33,7 +33,7 @@ static jlong atomic_add(size_t value, size_t volatile* const dest) {
   size_t compare_value;
   size_t exchange_value;
   do {
-    compare_value = *dest;
+    compare_value = OrderAccess::load_ptr_acquire((intptr_t*)dest);
     exchange_value = compare_value + value;
   } while ((unsigned long)Atomic::cmpxchg_ptr((intptr_t)exchange_value, (volatile intptr_t*)dest, (intptr_t)compare_value) != compare_value);
   return exchange_value;
@@ -43,7 +43,7 @@ static jlong atomic_dec(size_t volatile* const dest) {
   size_t compare_value;
   size_t exchange_value;
   do {
-    compare_value = *dest;
+    compare_value = OrderAccess::load_ptr_acquire((intptr_t*)dest);
     assert(compare_value >= 1, "invariant");
     exchange_value = compare_value - 1;
   } while ((unsigned long)Atomic::cmpxchg_ptr((intptr_t)exchange_value, (volatile intptr_t*)dest, (intptr_t)compare_value) != compare_value);

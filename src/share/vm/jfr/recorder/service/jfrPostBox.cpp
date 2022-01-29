@@ -33,8 +33,7 @@
                              (MSGBIT(MSG_STOP))   |          \
                              (MSGBIT(MSG_START))  |          \
                              (MSGBIT(MSG_CLONE_IN_MEMORY)) | \
-                             (MSGBIT(MSG_VM_ERROR))        | \
-                             (MSGBIT(MSG_FLUSHPOINT))        \
+                             (MSGBIT(MSG_VM_ERROR))          \
                            )
 
 static JfrPostBox* _instance = NULL;

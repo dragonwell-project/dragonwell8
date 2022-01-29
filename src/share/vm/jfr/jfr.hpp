@@ -56,9 +56,6 @@ class Jfr : AllStatic {
   static void weak_oops_do(BoolObjectClosure* is_alive, OopClosure* f);
   static void weak_oops_do(OopClosure* f);
   static Thread* sampler_thread();
-  static void exclude_thread(Thread* thread);
-  static bool is_excluded(Thread* thread);
-  static void include_thread(Thread* thread);
 };
 
 #endif // SHARE_VM_JFR_JFR_HPP
