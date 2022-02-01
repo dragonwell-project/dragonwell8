@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,6 +25,7 @@
 
 package java.util.jar;
 
+import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
@@ -370,7 +371,7 @@ public class Attributes implements Map<Object,Object>, Cloneable {
      */
     void read(Manifest.FastInputStream is, byte[] lbuf) throws IOException {
         String name = null, value = null;
-        byte[] lastline = null;
+        ByteArrayOutputStream fullLine = new ByteArrayOutputStream();
 
         int len;
         while ((len = is.readLine(lbuf)) != -1) {
@@ -391,15 +392,12 @@ public class Attributes implements Map<Object,Object>, Cloneable {
                     throw new IOException("misplaced continuation line");
                 }
                 lineContinued = true;
-                byte[] buf = new byte[lastline.length + len - 1];
-                System.arraycopy(lastline, 0, buf, 0, lastline.length);
-                System.arraycopy(lbuf, 1, buf, lastline.length, len - 1);
+                fullLine.write(lbuf, 1, len - 1);
                 if (is.peek() == ' ') {
-                    lastline = buf;
                     continue;
                 }
-                value = new String(buf, 0, buf.length, "UTF8");
-                lastline = null;
+                value = fullLine.toString("UTF8");
+                fullLine.reset();
             } else {
                 while (lbuf[i++] != ':') {
                     if (i >= len) {
@@ -411,8 +409,8 @@ public class Attributes implements Map<Object,Object>, Cloneable {
                 }
                 name = new String(lbuf, 0, 0, i - 2);
                 if (is.peek() == ' ') {
-                    lastline = new byte[len - i];
-                    System.arraycopy(lbuf, i, lastline, 0, len - i);
+                    fullLine.reset();
+                    fullLine.write(lbuf, i, len - i);
                     continue;
                 }
                 value = new String(lbuf, i, len - i, "UTF8");

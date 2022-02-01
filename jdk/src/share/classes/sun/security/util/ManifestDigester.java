@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2011, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -68,29 +68,31 @@ public class ManifestDigester {
     private boolean findSection(int offset, Position pos)
     {
         int i = offset, len = rawBytes.length;
-        int last = offset;
+        int last = offset - 1;
         int next;
         boolean allBlank = true;
 
-        pos.endOfFirstLine = -1;
+        /* denotes that a position is not yet assigned.
+         * As a primitive type int it cannot be null
+         * and -1 would be confused with (i - 1) when i == 0 */
+        final int UNASSIGNED = Integer.MIN_VALUE;
+
+        pos.endOfFirstLine = UNASSIGNED;
 
         while (i < len) {
             byte b = rawBytes[i];
             switch(b) {
             case '\r':
-                if (pos.endOfFirstLine == -1)
+                if (pos.endOfFirstLine == UNASSIGNED)
                     pos.endOfFirstLine = i-1;
-                if ((i < len) &&  (rawBytes[i+1] == '\n'))
+                if (i < len - 1 && rawBytes[i + 1] == '\n')
                     i++;
                 /* fall through */
             case '\n':
-                if (pos.endOfFirstLine == -1)
+                if (pos.endOfFirstLine == UNASSIGNED)
                     pos.endOfFirstLine = i-1;
                 if (allBlank || (i == len-1)) {
-                    if (i == len-1)
-                        pos.endOfSection = i;
-                    else
-                        pos.endOfSection = last;
+                    pos.endOfSection = allBlank ? last : i;
                     pos.startOfNext = i+1;
                     return true;
                 }

@@ -26,6 +26,7 @@
 #define SHARE_VM_CODE_DEPENDENCIES_HPP
 
 #include "ci/ciCallSite.hpp"
+#include "ci/ciInstanceKlass.hpp"
 #include "ci/ciKlass.hpp"
 #include "ci/ciMethodHandle.hpp"
 #include "classfile/systemDictionary.hpp"
@@ -153,6 +154,9 @@ class Dependencies: public ResourceObj {
     // This dependency asserts that MM(CX, M1) is no greater than {M1,M2}.
     exclusive_concrete_methods_2,
 
+    // This dependency asserts that interface CX has a unique implementor class.
+    unique_implementor, // one unique implementor under CX
+
     // This dependency asserts that no instances of class or it's
     // subclasses require finalization registration.
     no_finalizable_subclasses,
@@ -259,6 +263,9 @@ class Dependencies: public ResourceObj {
     check_ctxk(ctxk);
     assert(!is_concrete_klass(ctxk->as_instance_klass()), "must be abstract");
   }
+  static void check_unique_implementor(ciInstanceKlass* ctxk, ciInstanceKlass* uniqk) {
+    assert(ctxk->implementor() == uniqk, "not a unique implementor");
+  }
 
   void assert_common_1(DepType dept, ciBaseObject* x);
   void assert_common_2(DepType dept, ciBaseObject* x0, ciBaseObject* x1);
@@ -274,6 +281,7 @@ class Dependencies: public ResourceObj {
   void assert_unique_concrete_method(ciKlass* ctxk, ciMethod* uniqm);
   void assert_abstract_with_exclusive_concrete_subtypes(ciKlass* ctxk, ciKlass* k1, ciKlass* k2);
   void assert_exclusive_concrete_methods(ciKlass* ctxk, ciMethod* m1, ciMethod* m2);
+  void assert_unique_implementor(ciInstanceKlass* ctxk, ciInstanceKlass* uniqk);
   void assert_has_no_finalizable_subclasses(ciKlass* ctxk);
   void assert_call_site_target_value(ciCallSite* call_site, ciMethodHandle* method_handle);
 
@@ -324,6 +332,7 @@ class Dependencies: public ResourceObj {
                                                           KlassDepChange* changes = NULL);
   static Klass* check_concrete_with_no_concrete_subtype(Klass* ctxk,
                                                           KlassDepChange* changes = NULL);
+  static Klass* check_unique_implementor(Klass* ctxk, Klass* uniqk, KlassDepChange* changes = NULL);
   static Klass* check_unique_concrete_method(Klass* ctxk, Method* uniqm,
                                                KlassDepChange* changes = NULL);
   static Klass* check_abstract_with_exclusive_concrete_subtypes(Klass* ctxk, Klass* k1, Klass* k2,

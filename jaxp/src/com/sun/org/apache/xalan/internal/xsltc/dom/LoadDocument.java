@@ -46,6 +46,7 @@ import org.xml.sax.XMLReader;
 
 /**
  * @author Morten Jorgensen
+ * @LastModified: Sept 2021
  */
 public final class LoadDocument {
 
@@ -196,6 +197,9 @@ public final class LoadDocument {
         if (cache != null) {
             newdom = cache.retrieveDocument(base, originalUri, translet);
             if (newdom == null) {
+                if (translet.getAccessError() != null) {
+                    throw new Exception(translet.getAccessError());
+                }
                 final Exception e = new FileNotFoundException(originalUri);
                 throw new TransletException(e);
             }

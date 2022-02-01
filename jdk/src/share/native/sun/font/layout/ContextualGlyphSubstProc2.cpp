@@ -49,6 +49,11 @@ ContextualGlyphSubstitutionProcessor2::ContextualGlyphSubstitutionProcessor2(
 {
     if(LE_FAILURE(success)) return;
     le_uint32 perGlyphTableOffset = SWAPL(contextualGlyphHeader->perGlyphTableOffset);
+    if (perGlyphTableOffset & 0x03) { // incorrect alignment for 32 bit tables
+        LE_DEBUG_BAD_FONT("perGlyphTableOffset: incorrect alignment");
+        success = LE_MEMORY_ALLOCATION_ERROR;
+        return;
+    }
     perGlyphTable = LEReferenceToArrayOf<le_uint32> (stHeader, success, perGlyphTableOffset, LE_UNBOUNDED_ARRAY);
     entryTable = LEReferenceToArrayOf<ContextualGlyphStateEntry2>(stHeader, success, entryTableOffset, LE_UNBOUNDED_ARRAY);
 }

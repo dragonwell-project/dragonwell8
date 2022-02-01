@@ -1991,10 +1991,8 @@ void GraphBuilder::invoke(Bytecodes::Code code) {
       if (singleton) {
         cha_monomorphic_target = target->find_monomorphic_target(calling_klass, target->holder(), singleton);
         if (cha_monomorphic_target != NULL) {
-          // If CHA is able to bind this invoke then update the class
-          // to match that class, otherwise klass will refer to the
-          // interface.
-          klass = cha_monomorphic_target->holder();
+          ciInstanceKlass* holder = cha_monomorphic_target->holder();
+          klass = (holder->is_subtype_of(singleton) ? holder : singleton); // avoid upcasts
           actual_recv = target->holder();
 
           // insert a check it's really the expected class.
@@ -2004,6 +2002,8 @@ void GraphBuilder::invoke(Bytecodes::Code code) {
           // pass the result of the checkcast so that the compiler has
           // more accurate type info in the inlinee
           better_receiver = append_split(c);
+
+          dependency_recorder()->assert_unique_implementor(target->holder(), singleton);
         }
       }
     }
