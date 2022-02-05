@@ -391,7 +391,7 @@ GetJavaProperties(JNIEnv* env)
             GetVersionEx((OSVERSIONINFO *) &ver);
             majorVersion = ver.dwMajorVersion;
             minorVersion = ver.dwMinorVersion;
-            /* distinguish Windows Server 2016 and 2019 by build number */
+            /* distinguish Windows Server 2016+ by build number */
             buildNumber = ver.dwBuildNumber;
             is_workstation = (ver.wProductType == VER_NT_WORKSTATION);
             platformId = ver.dwPlatformId;
@@ -476,6 +476,8 @@ GetJavaProperties(JNIEnv* env)
          * Windows Server 2016          10              0  (!VER_NT_WORKSTATION)
          * Windows Server 2019          10              0  (!VER_NT_WORKSTATION)
          *       where (buildNumber > 17762)
+         * Windows Server 2022          10              0  (!VER_NT_WORKSTATION)
+         *       where (buildNumber > 20347)
          *
          * This mapping will presumably be augmented as new Windows
          * versions are released.
@@ -551,7 +553,10 @@ GetJavaProperties(JNIEnv* env)
                     switch (minorVersion) {
                     case  0:
                         /* Windows server 2019 GA 10/2018 build number is 17763 */
-                        if (buildNumber > 17762) {
+                        /* Windows server 2022 build number is 20348 */
+                        if (buildNumber > 20347) {
+                            sprops.os_name = "Windows Server 2022";
+                        } else if (buildNumber > 17676) {
                             sprops.os_name = "Windows Server 2019";
                         } else {
                             sprops.os_name = "Windows Server 2016";
