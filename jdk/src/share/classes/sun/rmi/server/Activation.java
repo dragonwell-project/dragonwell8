@@ -535,7 +535,6 @@ public class Activation implements Serializable {
         public ActivationGroupID registerGroup(ActivationGroupDesc desc)
             throws ActivationException, RemoteException
         {
-            Thread.dumpStack();
             checkShutdown();
             // RegistryImpl.checkAccess() is done in the SameHostOnlyServerRef
             // during unmarshallCustomData and is not applicable to local access.
