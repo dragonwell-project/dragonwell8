@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1996, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -741,6 +741,10 @@ class ObjectIdentifier implements Serializable
     }
 
     private static void checkOidSize(int oidLength) throws IOException {
+        if (oidLength < 0) {
+            throw new IOException("ObjectIdentifier encoded length was " +
+                    "negative: " + oidLength);
+        }
         if (oidLength > MAXIMUM_OID_SIZE) {
             throw new IOException(
                     "ObjectIdentifier encoded length exceeds " +
