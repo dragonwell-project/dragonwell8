@@ -96,11 +96,17 @@ jobs:
           TEST_JDK_HOME=build/linux-x86_64-normal-server-release/images/j2sdk-image
           ${TEST_JDK_HOME}/bin/java -version
 
-          #- name: Tier1 test
-          #run: |
-          #make test TEST="hotspot_tier1 jdk_tier1"
+      - name: Tier1 test
+        run: |
+          cd dragonwell8
+          make test TEST="hotspot_tier1"
 
-  build_fastdebug_jdk:
+      - name: Check test result
+        run: |
+          cd dragonwell8
+          if [ "$(cat $(find build -iname hotspot_tier1)/faillist.txt | wc -l)" -eq 0 ];then exit 0 ;else exit 1; fi;
+
+  build_fastdebug_jdk_jre:
     runs-on: ubuntu-latest
     container:
       image: docker.io/dragonwelljdk/build_jdk:8u
@@ -164,11 +170,165 @@ jobs:
           TEST_JDK_HOME=build/linux-x86_64-normal-server-fastdebug/images/j2sdk-image
           ${TEST_JDK_HOME}/bin/java -version
 
-          #- name: Tier1 test
-          #run: |
-          #make test TEST="hotspot_tier1 jdk_tier1"
+      - name: Tier1 test part1
+        run: |
+          cd dragonwell8
+          make test TEST="hotspot_jre"
 
-  build_slowdebug_jdk:
+      - name: Check test result
+        run: |
+          cd dragonwell8
+          if [ "$(grep -i 'failed\|error' build/*/testoutput/*/faillist.txt  | wc -l)" -eq 0 ] ;then exit 0 ;else exit 1; fi;
+
+  build_fastdebug_jdk_needs_jdk:
+    runs-on: ubuntu-latest
+    container:
+      image: docker.io/dragonwelljdk/build_jdk:8u
+    steps:
+      - name: Check out alibaba/dragonwell8_hotspot
+        uses: actions/checkout@v2
+        with:
+            path: 'hotspot'
+      - name: Check out alibaba/dragonwell8_corba
+        uses: actions/checkout@v2
+        with:
+          repository: 'alibaba/dragonwell8_corba'
+          path: 'corba'
+      - name: Check out alibaba/dragonwell8_langtools
+        uses: actions/checkout@v2
+        with:
+          repository: 'alibaba/dragonwell8_langtools'
+          path: 'langtools'
+      - name: Check out alibaba/dragonwell8
+        uses: actions/checkout@v2
+        with:
+          repository: 'alibaba/dragonwell8'
+          path: 'dragonwell8'
+      - name: Check out alibaba/dragonwell8_jdk
+        uses: actions/checkout@v2
+        with:
+          repository: 'alibaba/dragonwell8_jdk'
+          path: 'jdk'
+      - name: Check out alibaba/dragonwell8_jaxws
+        uses: actions/checkout@v2
+        with:
+          repository: 'alibaba/dragonwell8_jaxws'
+          path: 'jaxws'
+      - name: Check out alibaba/dragonwell8_jaxp
+        uses: actions/checkout@v2
+        with:
+          repository: 'alibaba/dragonwell8_jaxp'
+          path: 'jaxp'
+      - name: Check out alibaba/dragonwell8_nashorn
+        uses: actions/checkout@v2
+        with:
+          repository: 'alibaba/dragonwell8_nashorn'
+          path: 'nashorn'
+
+      - name: Compile fastdebug mode
+        run: |
+          mv hotspot dragonwell8
+          mv langtools dragonwell8
+          mv jdk dragonwell8
+          mv corba dragonwell8
+          mv jaxp dragonwell8
+          mv jaxws dragonwell8
+          mv nashorn dragonwell8
+          cd dragonwell8
+          sh configure --with-debug-level=fastdebug --with-cacerts-file=${PWD}/common/security/cacerts --with-milestone=fcs --enable-unlimited-crypto
+          make LOG=trace images
+
+      - name: Sanity test
+        run: |
+          cd dragonwell8
+          TEST_JDK_HOME=build/linux-x86_64-normal-server-fastdebug/images/j2sdk-image
+          ${TEST_JDK_HOME}/bin/java -version
+
+      - name: Tier1 test part2
+        run: |
+          cd dragonwell8
+          make test TEST="hotspot_needs_jdk"
+
+      - name: Check test result
+        run: |
+          cd dragonwell8
+          if [ "$(grep -i 'failed\|error' build/*/testoutput/*/faillist.txt  | wc -l)" -eq 0 ] ;then exit 0 ;else exit 1; fi;
+
+  build_fastdebug_jdk_part3:
+    runs-on: ubuntu-latest
+    container:
+      image: docker.io/dragonwelljdk/build_jdk:8u
+    steps:
+      - name: Check out alibaba/dragonwell8_hotspot
+        uses: actions/checkout@v2
+        with:
+            path: 'hotspot'
+      - name: Check out alibaba/dragonwell8_corba
+        uses: actions/checkout@v2
+        with:
+          repository: 'alibaba/dragonwell8_corba'
+          path: 'corba'
+      - name: Check out alibaba/dragonwell8_langtools
+        uses: actions/checkout@v2
+        with:
+          repository: 'alibaba/dragonwell8_langtools'
+          path: 'langtools'
+      - name: Check out alibaba/dragonwell8
+        uses: actions/checkout@v2
+        with:
+          repository: 'alibaba/dragonwell8'
+          path: 'dragonwell8'
+      - name: Check out alibaba/dragonwell8_jdk
+        uses: actions/checkout@v2
+        with:
+          repository: 'alibaba/dragonwell8_jdk'
+          path: 'jdk'
+      - name: Check out alibaba/dragonwell8_jaxws
+        uses: actions/checkout@v2
+        with:
+          repository: 'alibaba/dragonwell8_jaxws'
+          path: 'jaxws'
+      - name: Check out alibaba/dragonwell8_jaxp
+        uses: actions/checkout@v2
+        with:
+          repository: 'alibaba/dragonwell8_jaxp'
+          path: 'jaxp'
+      - name: Check out alibaba/dragonwell8_nashorn
+        uses: actions/checkout@v2
+        with:
+          repository: 'alibaba/dragonwell8_nashorn'
+          path: 'nashorn'
+
+      - name: Compile fastdebug mode
+        run: |
+          mv hotspot dragonwell8
+          mv langtools dragonwell8
+          mv jdk dragonwell8
+          mv corba dragonwell8
+          mv jaxp dragonwell8
+          mv jaxws dragonwell8
+          mv nashorn dragonwell8
+          cd dragonwell8
+          sh configure --with-debug-level=fastdebug --with-cacerts-file=${PWD}/common/security/cacerts --with-milestone=fcs --enable-unlimited-crypto
+          make LOG=trace images
+
+      - name: Sanity test
+        run: |
+          cd dragonwell8
+          TEST_JDK_HOME=build/linux-x86_64-normal-server-fastdebug/images/j2sdk-image
+          ${TEST_JDK_HOME}/bin/java -version
+
+      - name: Tier1 test part2
+        run: |
+          cd dragonwell8
+          make test TEST="hotspot_jwarmup hotspot_elastic_heap hotspot_multi_tenant"
+
+      - name: Check test result
+        run: |
+          cd dragonwell8
+          if [ "$(grep -i 'failed\|error' build/*/testoutput/*/faillist.txt  | wc -l)" -eq 0 ] ;then exit 0 ;else exit 1; fi;
+
+  build_slowdebug_jdk_jre_part1:
     runs-on: ubuntu-latest
     container:
       image: docker.io/dragonwelljdk/build_jdk:8u
@@ -233,6 +393,538 @@ jobs:
           TEST_JDK_HOME=build/linux-x86_64-normal-server-slowdebug/images/j2sdk-image
           ${TEST_JDK_HOME}/bin/java -version
 
-          # - name: Tier1 test
-          #  run: |
-          #    make test TEST="hotspot_tier1 jdk_tier1"
+      - name: Tier1 test part1
+        run: |
+          cd dragonwell8
+          make test TEST="hotspot_needs_jre"
+
+      - name: Check test result
+        run: |
+          cd dragonwell8
+          if [ "$(grep -i 'failed\|error' build/*/testoutput/*/faillist.txt  | wc -l)" -eq 0 ] ;then exit 0 ;else exit 1; fi;
+
+  build_slowdebug_jdk_jre_part2:
+    runs-on: ubuntu-latest
+    container:
+      image: docker.io/dragonwelljdk/build_jdk:8u
+    steps:
+      - name: Check out alibaba/dragonwell8_hotspot
+        uses: actions/checkout@v2
+        with:
+          path: 'hotspot'
+      - name: Check out alibaba/dragonwell8_corba
+        uses: actions/checkout@v2
+        with:
+          repository: 'alibaba/dragonwell8_corba'
+          path: 'corba'
+      - name: Check out alibaba/dragonwell8_langtools
+        uses: actions/checkout@v2
+        with:
+          repository: 'alibaba/dragonwell8_langtools'
+          path: 'langtools'
+      - name: Check out alibaba/dragonwell8
+        uses: actions/checkout@v2
+        with:
+          repository: 'alibaba/dragonwell8'
+          path: 'dragonwell8'
+      - name: Check out alibaba/dragonwell8_jdk
+        uses: actions/checkout@v2
+        with:
+          repository: 'alibaba/dragonwell8_jdk'
+          path: 'jdk'
+      - name: Check out alibaba/dragonwell8_jaxws
+        uses: actions/checkout@v2
+        with:
+          repository: 'alibaba/dragonwell8_jaxws'
+          path: 'jaxws'
+      - name: Check out alibaba/dragonwell8_jaxp
+        uses: actions/checkout@v2
+        with:
+          repository: 'alibaba/dragonwell8_jaxp'
+          path: 'jaxp'
+      - name: Check out alibaba/dragonwell8_nashorn
+        uses: actions/checkout@v2
+        with:
+          repository: 'alibaba/dragonwell8_nashorn'
+          path: 'nashorn'
+
+      - name: Compile slowdebug mode
+        run: |
+          mv hotspot dragonwell8
+          mv langtools dragonwell8
+          mv jdk dragonwell8
+          mv corba dragonwell8
+          mv jaxp dragonwell8
+          mv jaxws dragonwell8
+          mv nashorn dragonwell8
+          cd dragonwell8
+          sh configure --with-debug-level=slowdebug --with-cacerts-file=${PWD}/common/security/cacerts --with-milestone=fcs --enable-unlimited-crypto
+
+          make LOG=trace images
+
+      - name: Sanity test
+        run: |
+          cd dragonwell8
+          TEST_JDK_HOME=build/linux-x86_64-normal-server-slowdebug/images/j2sdk-image
+          ${TEST_JDK_HOME}/bin/java -version
+
+      - name: Tier1 test part2
+        run: |
+          cd dragonwell8
+          make test TEST="hotspot_needs_compact3"
+
+      - name: Check test result
+        run: |
+          cd dragonwell8
+          if [ "$(grep -i 'failed\|error' build/*/testoutput/*/faillist.txt  | wc -l)" -eq 0 ] ;then exit 0 ;else exit 1; fi;
+
+  build_slowdebug_jdk_jre_part3:
+    runs-on: ubuntu-latest
+    container:
+      image: docker.io/dragonwelljdk/build_jdk:8u
+    steps:
+      - name: Check out alibaba/dragonwell8_hotspot
+        uses: actions/checkout@v2
+        with:
+          path: 'hotspot'
+      - name: Check out alibaba/dragonwell8_corba
+        uses: actions/checkout@v2
+        with:
+          repository: 'alibaba/dragonwell8_corba'
+          path: 'corba'
+      - name: Check out alibaba/dragonwell8_langtools
+        uses: actions/checkout@v2
+        with:
+          repository: 'alibaba/dragonwell8_langtools'
+          path: 'langtools'
+      - name: Check out alibaba/dragonwell8
+        uses: actions/checkout@v2
+        with:
+          repository: 'alibaba/dragonwell8'
+          path: 'dragonwell8'
+      - name: Check out alibaba/dragonwell8_jdk
+        uses: actions/checkout@v2
+        with:
+          repository: 'alibaba/dragonwell8_jdk'
+          path: 'jdk'
+      - name: Check out alibaba/dragonwell8_jaxws
+        uses: actions/checkout@v2
+        with:
+          repository: 'alibaba/dragonwell8_jaxws'
+          path: 'jaxws'
+      - name: Check out alibaba/dragonwell8_jaxp
+        uses: actions/checkout@v2
+        with:
+          repository: 'alibaba/dragonwell8_jaxp'
+          path: 'jaxp'
+      - name: Check out alibaba/dragonwell8_nashorn
+        uses: actions/checkout@v2
+        with:
+          repository: 'alibaba/dragonwell8_nashorn'
+          path: 'nashorn'
+
+      - name: Compile slowdebug mode
+        run: |
+          mv hotspot dragonwell8
+          mv langtools dragonwell8
+          mv jdk dragonwell8
+          mv corba dragonwell8
+          mv jaxp dragonwell8
+          mv jaxws dragonwell8
+          mv nashorn dragonwell8
+          cd dragonwell8
+          sh configure --with-debug-level=slowdebug --with-cacerts-file=${PWD}/common/security/cacerts --with-milestone=fcs --enable-unlimited-crypto
+
+          make LOG=trace images
+
+      - name: Sanity test
+        run: |
+          cd dragonwell8
+          TEST_JDK_HOME=build/linux-x86_64-normal-server-slowdebug/images/j2sdk-image
+          ${TEST_JDK_HOME}/bin/java -version
+
+      - name: Tier1 test part3
+        run: |
+          cd dragonwell8
+          make test TEST="hotspot_compact2_minimal"
+
+      - name: Check test result
+        run: |
+          cd dragonwell8
+          if [ "$(grep -i 'failed\|error' build/*/testoutput/*/faillist.txt  | wc -l)" -eq 0 ] ;then exit 0 ;else exit 1; fi;
+
+  build_slowdebug_jdk_jre_part4:
+    runs-on: ubuntu-latest
+    container:
+      image: docker.io/dragonwelljdk/build_jdk:8u
+    steps:
+      - name: Check out alibaba/dragonwell8_hotspot
+        uses: actions/checkout@v2
+        with:
+          path: 'hotspot'
+      - name: Check out alibaba/dragonwell8_corba
+        uses: actions/checkout@v2
+        with:
+          repository: 'alibaba/dragonwell8_corba'
+          path: 'corba'
+      - name: Check out alibaba/dragonwell8_langtools
+        uses: actions/checkout@v2
+        with:
+          repository: 'alibaba/dragonwell8_langtools'
+          path: 'langtools'
+      - name: Check out alibaba/dragonwell8
+        uses: actions/checkout@v2
+        with:
+          repository: 'alibaba/dragonwell8'
+          path: 'dragonwell8'
+      - name: Check out alibaba/dragonwell8_jdk
+        uses: actions/checkout@v2
+        with:
+          repository: 'alibaba/dragonwell8_jdk'
+          path: 'jdk'
+      - name: Check out alibaba/dragonwell8_jaxws
+        uses: actions/checkout@v2
+        with:
+          repository: 'alibaba/dragonwell8_jaxws'
+          path: 'jaxws'
+      - name: Check out alibaba/dragonwell8_jaxp
+        uses: actions/checkout@v2
+        with:
+          repository: 'alibaba/dragonwell8_jaxp'
+          path: 'jaxp'
+      - name: Check out alibaba/dragonwell8_nashorn
+        uses: actions/checkout@v2
+        with:
+          repository: 'alibaba/dragonwell8_nashorn'
+          path: 'nashorn'
+
+      - name: Compile slowdebug mode
+        run: |
+          mv hotspot dragonwell8
+          mv langtools dragonwell8
+          mv jdk dragonwell8
+          mv corba dragonwell8
+          mv jaxp dragonwell8
+          mv jaxws dragonwell8
+          mv nashorn dragonwell8
+          cd dragonwell8
+          sh configure --with-debug-level=slowdebug --with-cacerts-file=${PWD}/common/security/cacerts --with-milestone=fcs --enable-unlimited-crypto
+
+          make LOG=trace images
+
+      - name: Sanity test
+        run: |
+          cd dragonwell8
+          TEST_JDK_HOME=build/linux-x86_64-normal-server-slowdebug/images/j2sdk-image
+          ${TEST_JDK_HOME}/bin/java -version
+
+      - name: Tier1 test part4
+        run: |
+          cd dragonwell8
+          make test TEST="hotspot_compact1 hotspot_needs_full_vm_compact2"
+
+      - name: Check test result
+        run: |
+          cd dragonwell8
+          if [ "$(grep -i 'failed\|error' build/*/testoutput/*/faillist.txt  | wc -l)" -eq 0 ] ;then exit 0 ;else exit 1; fi;
+
+  build_slowdebug_jdk_needs_jdk:
+    runs-on: ubuntu-latest
+    container:
+      image: docker.io/dragonwelljdk/build_jdk:8u
+    steps:
+      - name: Check out alibaba/dragonwell8_hotspot
+        uses: actions/checkout@v2
+        with:
+          path: 'hotspot'
+      - name: Check out alibaba/dragonwell8_corba
+        uses: actions/checkout@v2
+        with:
+          repository: 'alibaba/dragonwell8_corba'
+          path: 'corba'
+      - name: Check out alibaba/dragonwell8_langtools
+        uses: actions/checkout@v2
+        with:
+          repository: 'alibaba/dragonwell8_langtools'
+          path: 'langtools'
+      - name: Check out alibaba/dragonwell8
+        uses: actions/checkout@v2
+        with:
+          repository: 'alibaba/dragonwell8'
+          path: 'dragonwell8'
+      - name: Check out alibaba/dragonwell8_jdk
+        uses: actions/checkout@v2
+        with:
+          repository: 'alibaba/dragonwell8_jdk'
+          path: 'jdk'
+      - name: Check out alibaba/dragonwell8_jaxws
+        uses: actions/checkout@v2
+        with:
+          repository: 'alibaba/dragonwell8_jaxws'
+          path: 'jaxws'
+      - name: Check out alibaba/dragonwell8_jaxp
+        uses: actions/checkout@v2
+        with:
+          repository: 'alibaba/dragonwell8_jaxp'
+          path: 'jaxp'
+      - name: Check out alibaba/dragonwell8_nashorn
+        uses: actions/checkout@v2
+        with:
+          repository: 'alibaba/dragonwell8_nashorn'
+          path: 'nashorn'
+
+      - name: Compile slowdebug mode
+        run: |
+          mv hotspot dragonwell8
+          mv langtools dragonwell8
+          mv jdk dragonwell8
+          mv corba dragonwell8
+          mv jaxp dragonwell8
+          mv jaxws dragonwell8
+          mv nashorn dragonwell8
+          cd dragonwell8
+          sh configure --with-debug-level=slowdebug --with-cacerts-file=${PWD}/common/security/cacerts --with-milestone=fcs --enable-unlimited-crypto
+
+          make LOG=trace images
+
+      - name: Sanity test
+        run: |
+          cd dragonwell8
+          TEST_JDK_HOME=build/linux-x86_64-normal-server-slowdebug/images/j2sdk-image
+          ${TEST_JDK_HOME}/bin/java -version
+
+      - name: Tier1 test
+        run: |
+          cd dragonwell8
+          make test TEST="hotspot_needs_jdk"
+
+      - name: Check test result
+        run: |
+          cd dragonwell8
+          if [ "$(grep -i 'failed\|error' build/*/testoutput/*/faillist.txt  | wc -l)" -eq 0 ] ;then exit 0 ;else exit 1; fi;
+
+  build_slowdebug_jdk_jwarmup:
+    runs-on: ubuntu-latest
+    container:
+      image: docker.io/dragonwelljdk/build_jdk:8u
+    steps:
+      - name: Check out alibaba/dragonwell8_hotspot
+        uses: actions/checkout@v2
+        with:
+          path: 'hotspot'
+      - name: Check out alibaba/dragonwell8_corba
+        uses: actions/checkout@v2
+        with:
+          repository: 'alibaba/dragonwell8_corba'
+          path: 'corba'
+      - name: Check out alibaba/dragonwell8_langtools
+        uses: actions/checkout@v2
+        with:
+          repository: 'alibaba/dragonwell8_langtools'
+          path: 'langtools'
+      - name: Check out alibaba/dragonwell8
+        uses: actions/checkout@v2
+        with:
+          repository: 'alibaba/dragonwell8'
+          path: 'dragonwell8'
+      - name: Check out alibaba/dragonwell8_jdk
+        uses: actions/checkout@v2
+        with:
+          repository: 'alibaba/dragonwell8_jdk'
+          path: 'jdk'
+      - name: Check out alibaba/dragonwell8_jaxws
+        uses: actions/checkout@v2
+        with:
+          repository: 'alibaba/dragonwell8_jaxws'
+          path: 'jaxws'
+      - name: Check out alibaba/dragonwell8_jaxp
+        uses: actions/checkout@v2
+        with:
+          repository: 'alibaba/dragonwell8_jaxp'
+          path: 'jaxp'
+      - name: Check out alibaba/dragonwell8_nashorn
+        uses: actions/checkout@v2
+        with:
+          repository: 'alibaba/dragonwell8_nashorn'
+          path: 'nashorn'
+
+      - name: Compile slowdebug mode
+        run: |
+          mv hotspot dragonwell8
+          mv langtools dragonwell8
+          mv jdk dragonwell8
+          mv corba dragonwell8
+          mv jaxp dragonwell8
+          mv jaxws dragonwell8
+          mv nashorn dragonwell8
+          cd dragonwell8
+          sh configure --with-debug-level=slowdebug --with-cacerts-file=${PWD}/common/security/cacerts --with-milestone=fcs --enable-unlimited-crypto
+
+          make LOG=trace images
+
+      - name: Sanity test
+        run: |
+          cd dragonwell8
+          TEST_JDK_HOME=build/linux-x86_64-normal-server-slowdebug/images/j2sdk-image
+          ${TEST_JDK_HOME}/bin/java -version
+
+      - name: Tier1 test
+        run: |
+          cd dragonwell8
+          make test TEST="hotspot_jwarmup"
+
+      - name: Check test result
+        run: |
+          cd dragonwell8
+          if [ "$(grep -i 'failed\|error' build/*/testoutput/*/faillist.txt  | wc -l)" -eq 0 ] ;then exit 0 ;else exit 1; fi;
+
+  build_slowdebug_jdk_elastic-heap:
+    runs-on: ubuntu-latest
+    container:
+      image: docker.io/dragonwelljdk/build_jdk:8u
+    steps:
+      - name: Check out alibaba/dragonwell8_hotspot
+        uses: actions/checkout@v2
+        with:
+          path: 'hotspot'
+      - name: Check out alibaba/dragonwell8_corba
+        uses: actions/checkout@v2
+        with:
+          repository: 'alibaba/dragonwell8_corba'
+          path: 'corba'
+      - name: Check out alibaba/dragonwell8_langtools
+        uses: actions/checkout@v2
+        with:
+          repository: 'alibaba/dragonwell8_langtools'
+          path: 'langtools'
+      - name: Check out alibaba/dragonwell8
+        uses: actions/checkout@v2
+        with:
+          repository: 'alibaba/dragonwell8'
+          path: 'dragonwell8'
+      - name: Check out alibaba/dragonwell8_jdk
+        uses: actions/checkout@v2
+        with:
+          repository: 'alibaba/dragonwell8_jdk'
+          path: 'jdk'
+      - name: Check out alibaba/dragonwell8_jaxws
+        uses: actions/checkout@v2
+        with:
+          repository: 'alibaba/dragonwell8_jaxws'
+          path: 'jaxws'
+      - name: Check out alibaba/dragonwell8_jaxp
+        uses: actions/checkout@v2
+        with:
+          repository: 'alibaba/dragonwell8_jaxp'
+          path: 'jaxp'
+      - name: Check out alibaba/dragonwell8_nashorn
+        uses: actions/checkout@v2
+        with:
+          repository: 'alibaba/dragonwell8_nashorn'
+          path: 'nashorn'
+
+      - name: Compile slowdebug mode
+        run: |
+          mv hotspot dragonwell8
+          mv langtools dragonwell8
+          mv jdk dragonwell8
+          mv corba dragonwell8
+          mv jaxp dragonwell8
+          mv jaxws dragonwell8
+          mv nashorn dragonwell8
+          cd dragonwell8
+          sh configure --with-debug-level=slowdebug --with-cacerts-file=${PWD}/common/security/cacerts --with-milestone=fcs --enable-unlimited-crypto
+
+          make LOG=trace images
+
+      - name: Sanity test
+        run: |
+          cd dragonwell8
+          TEST_JDK_HOME=build/linux-x86_64-normal-server-slowdebug/images/j2sdk-image
+          ${TEST_JDK_HOME}/bin/java -version
+
+      - name: Tier1 test
+        run: |
+          cd dragonwell8
+          make test TEST="hotspot_elastic_heap"
+
+      - name: Check test result
+        run: |
+          cd dragonwell8
+          if [ "$(grep -i 'failed\|error' build/*/testoutput/*/faillist.txt  | wc -l)" -eq 0 ] ;then exit 0 ;else exit 1; fi;
+
+  build_slowdebug_jdk_multi-tenant:
+    runs-on: ubuntu-latest
+    container:
+      image: docker.io/dragonwelljdk/build_jdk:8u
+    steps:
+      - name: Check out alibaba/dragonwell8_hotspot
+        uses: actions/checkout@v2
+        with:
+          path: 'hotspot'
+      - name: Check out alibaba/dragonwell8_corba
+        uses: actions/checkout@v2
+        with:
+          repository: 'alibaba/dragonwell8_corba'
+          path: 'corba'
+      - name: Check out alibaba/dragonwell8_langtools
+        uses: actions/checkout@v2
+        with:
+          repository: 'alibaba/dragonwell8_langtools'
+          path: 'langtools'
+      - name: Check out alibaba/dragonwell8
+        uses: actions/checkout@v2
+        with:
+          repository: 'alibaba/dragonwell8'
+          path: 'dragonwell8'
+      - name: Check out alibaba/dragonwell8_jdk
+        uses: actions/checkout@v2
+        with:
+          repository: 'alibaba/dragonwell8_jdk'
+          path: 'jdk'
+      - name: Check out alibaba/dragonwell8_jaxws
+        uses: actions/checkout@v2
+        with:
+          repository: 'alibaba/dragonwell8_jaxws'
+          path: 'jaxws'
+      - name: Check out alibaba/dragonwell8_jaxp
+        uses: actions/checkout@v2
+        with:
+          repository: 'alibaba/dragonwell8_jaxp'
+          path: 'jaxp'
+      - name: Check out alibaba/dragonwell8_nashorn
+        uses: actions/checkout@v2
+        with:
+          repository: 'alibaba/dragonwell8_nashorn'
+          path: 'nashorn'
+
+      - name: Compile slowdebug mode
+        run: |
+          mv hotspot dragonwell8
+          mv langtools dragonwell8
+          mv jdk dragonwell8
+          mv corba dragonwell8
+          mv jaxp dragonwell8
+          mv jaxws dragonwell8
+          mv nashorn dragonwell8
+          cd dragonwell8
+          sh configure --with-debug-level=slowdebug --with-cacerts-file=${PWD}/common/security/cacerts --with-milestone=fcs --enable-unlimited-crypto
+
+          make LOG=trace images
+
+      - name: Sanity test
+        run: |
+          cd dragonwell8
+          TEST_JDK_HOME=build/linux-x86_64-normal-server-slowdebug/images/j2sdk-image
+          ${TEST_JDK_HOME}/bin/java -version
+
+      - name: Tier1 test
+        run: |
+          cd dragonwell8
+          make test TEST="hotspot_multi_tenant"
+
+      - name: Check test result
+        run: |
+          cd dragonwell8
+          if [ "$(grep -i 'failed\|error' build/*/testoutput/*/faillist.txt  | wc -l)" -eq 0 ] ;then exit 0 ;else exit 1; fi;
+

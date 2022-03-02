@@ -64,3 +64,34 @@ compiler/rtm/locking/TestRTMSpinLoopCount.java 8183263 generic-x64
 compiler/rtm/locking/TestUseRTMDeopt.java 8183263 generic-x64
 compiler/rtm/locking/TestUseRTMXendForLockBusy.java 8183263 generic-x64
 compiler/rtm/print/TestPrintPreciseRTMLockingStatistics.java 8183263 generic-x64
+
+# :temporary_disabled
+
+compiler/6792161/Test6792161.java generic-all
+compiler/ciReplay/TestSA.sh generic-all
+compiler/rtm/locking/TestRTMTotalCountIncrRate.java generic-all
+compiler/rtm/locking/TestUseRTMAfterLockInflation.java generic-all
+compiler/rtm/locking/TestUseRTMForInflatedLocks.java generic-all
+compiler/rtm/locking/TestUseRTMForStackLocks.java generic-all
+compiler/rtm/method_options/TestUseRTMLockElidingOption.java generic-all
+gc/metaspace/CompressedClassSpaceSizeInJmapHeap.java  generic-all
+gc/metaspace/CompressedClassSpaceSizeInJmapHeap.java generic-all
+gc/survivorAlignment/TestPromotionFromSurvivorToTenuredAfterMinorGC.java generic-all
+gc/TestDefaultGC.sh generic-all
+runtime/coroutine/DirectUnparkTest.java generic-all
+runtime/coroutine/jniDetachThreadHoldingMonitorTest.sh generic-all
+runtime/coroutine/jniMonitorExitTest.sh generic-all
+runtime/coroutine/MemLeakTest.java generic-all
+runtime/coroutine/PreemptWispInternalBugTest.java generic-all
+runtime/coroutine/PremainWithWispMonitorTest.java generic-all
+runtime/coroutine/PremainWithWispMonitorTest.java generic-all
+runtime/coroutine/WispStealMonitorC2Test.java generic-all
+serviceability/sa/jmap-hashcode/Test8028623.java generic-all
+jwarmup/issue9780156.sh generic-all
+jwarmup/TestCheckIfCompilationIsComplete.sh generic-all
+jwarmup/TestDisableMethodData.sh generic-all
+jwarmup/TestNotDeoptJITMethod.sh generic-all
+jwarmup/TestNotifyDeopt.sh generic-all
+jwarmup/TestTieredCompilationInRecording.sh generic-all
+multi-tenant/TestParGCAllocatorLeak.sh generic-all
+multi-tenant/TestTenantJVMOptions.sh generic-all

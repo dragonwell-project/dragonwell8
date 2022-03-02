@@ -267,3 +267,36 @@ compact1_minimal = \
  -:needs_compact3 \
  -:needs_jre \
  -:needs_jdk
+
+hotspot_needs_compact3 = \
+  :needs_compact3
+
+hotspot_needs_jre =\
+  :needs_jre \
+ -:needs_jdk
+
+hotspot_needs_jdk: \
+  :needs_jdk
+
+hotspot_compact2_minimal = \
+  :compact1_minimal \
+  :needs_compact2 \
+ -:needs_full_vm_compact2 \
+ -:needs_compact3 \
+ -:needs_jre \
+ -:needs_jdk
+
+hotspot_compact1 =\
+  :compact1
+
+hotspot_needs_full_vm_compact2 = \
+  :needs_full_vm_compact2
+
+hotspot_jwarmup =\
+  jwarmup/
+
+hotspot_elastic_heap =\
+  elastic-heap/
+
+hotspot_multi_tenant =\
+  multi-tenant/
