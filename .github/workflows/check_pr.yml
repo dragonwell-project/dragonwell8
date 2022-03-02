@@ -94,9 +94,9 @@ jobs:
           TEST_JDK_HOME=build/linux-x86_64-normal-server-release/images/j2sdk-image
           ${TEST_JDK_HOME}/bin/java -version
 
-          #- name: Tier1 test
-          #run: |
-          #make test TEST="hotspot_tier1 jdk_tier1"
+      - name: Tier1 test
+        run: |
+          make test TEST="hotspot_tier1 jdk_tier1"
 
   build_fastdebug_jdk:
     runs-on: ubuntu-latest
@@ -162,9 +162,9 @@ jobs:
           TEST_JDK_HOME=build/linux-x86_64-normal-server-fastdebug/images/j2sdk-image
           ${TEST_JDK_HOME}/bin/java -version
 
-          #- name: Tier1 test
-          #run: |
-          #make test TEST="hotspot_tier1 jdk_tier1"
+      - name: Tier1 test
+        run: |
+          make test TEST="hotspot_tier1 jdk_tier1"
 
   build_slowdebug_jdk:
     runs-on: ubuntu-latest
@@ -231,6 +231,6 @@ jobs:
           TEST_JDK_HOME=build/linux-x86_64-normal-server-slowdebug/images/j2sdk-image
           ${TEST_JDK_HOME}/bin/java -version
 
-          # - name: Tier1 test
-          #  run: |
-          #    make test TEST="hotspot_tier1 jdk_tier1"
+      - name: Tier1 test
+        run: |
+          make test TEST="hotspot_tier1 jdk_tier1"
