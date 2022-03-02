@@ -389,3 +389,50 @@ sun/tools/jps/TestJpsJarRelative.java				generic-all
 
 sample/mergesort/MergeSortTest.java				8178912 generic-all
 sample/chatserver/ChatTest.java					8178912 generic-all
+
+# temporary_exclude
+
+############################################################################
+
+com/sun/jdi/RedefineCrossEvent.java generic-all
+com/sun/jndi/ldap/LdapTimeoutTest.java generic-all
+com/sun/management/DiagnosticCommandMBean/DcmdMBeanPermissionsTest.java generic-all
+java/lang/invoke/MethodHandles/CatchExceptionTest.java generic-all
+java/net/Inet4Address/LookUpAllAddrsTest.sh generic-all
+java/security/KeyPairGenerator/FinalizeHalf.java generic-all
+java/security/Security/SynchronizedAccess.java generic-all
+java/text/BreakIterator/BreakIteratorTest.java generic-all
+java/util/stream/boottest/java/util/stream/SpinedBufferTest.java generic-all
+jdk/asm/AsmSanity.java generic-all
+jdk/net/rsocket/Exceptions.java generic-all
+jdk/net/rsocket/NullBind.java generic-all
+jdk/net/rsocket/RsocketTest.java generic-all
+jdk/net/rsocket/Selector/BasicAccept.java generic-all
+jdk/net/rsocket/Selector/BasicConnect.java generic-all
+jdk/net/rsocket/Selector/Connect.java generic-all
+jdk/net/rsocket/Selector/SelectorTest.java generic-all
+jdk/net/rsocket/ServerSocketChannel/Basic.java generic-all
+jdk/net/rsocket/ServerSocketChannel/SocketOptionTests.java generic-all
+jdk/net/rsocket/ServerSocketChannel/SSCConfigureBlocking.java generic-all
+jdk/net/rsocket/Socket/BasicSocketTest.java generic-all
+jdk/net/rsocket/SocketChannel/BasicSocketChannelTest.java generic-all
+jdk/net/rsocket/SocketChannel/CloseDuringWrite.java generic-all
+jdk/net/rsocket/SocketChannel/Connect.java generic-all
+jdk/net/rsocket/SocketChannel/FinishConnect.java generic-all
+jdk/net/rsocket/SocketChannel/IOExchanges.java generic-all
+jdk/net/rsocket/SocketChannel/SCConfigureBlocking.java generic-all
+jdk/net/rsocket/SocketChannel/SocketOptionTests.java generic-all
+jdk/net/rsocket/SocketChannel/Stream.java generic-all
+jdk/net/rsocket/SocketChannel/VectorIO.java generic-all
+jdk/net/rsocket/Socket/GetLocalAddress.java generic-all
+jdk/net/rsocket/SocketOption/OptionsTest.java generic-all
+jdk/net/rsocket/SocketOption/UnsupportedOptionsTest.java generic-all
+sun/net/www/http/ChunkedOutputStream/checkError.java generic-all
+sun/security/krb5/auto/ReplayCacheTestProc.java generic-all
+sun/security/krb5/auto/ReplayCacheTestProc.java generic-all
+sun/security/lib/cacerts/VerifyCACerts.java generic-all
+sun/security/pkcs11/Secmod/TestNssDbSqlite.java generic-all
+sun/security/ssl/X509TrustManagerImpl/Symantec/Distrust.java generic-all
+sun/tools/jstatd/TestJstatdExternalRegistry.java generic-all
+sun/tools/jstatd/TestJstatdPortAndServer.java generic-all
+sun/tools/jstatd/TestJstatdPort.java generic-all
