@@ -1,0 +1,176 @@
+#
+# Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
+# DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
+#
+# This code is free software; you can redistribute it and/or modify it
+# under the terms of the GNU General Public License version 2 only, as
+# published by the Free Software Foundation.  Oracle designates this
+# particular file as subject to the "Classpath" exception as provided
+# by Oracle in the LICENSE file that accompanied this code.
+#
+# This code is distributed in the hope that it will be useful, but WITHOUT
+# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+# FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+# version 2 for more details (a copy is included in the LICENSE file that
+# accompanied this code).
+#
+# You should have received a copy of the GNU General Public License version
+# 2 along with this work; if not, write to the Free Software Foundation,
+# Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.
+#
+# Please contact Oracle, 500 Oracle Parkway, Redwood Shores, CA 94065 USA
+# or visit www.oracle.com if you need additional information or have any
+# questions.
+#
+
+include ProfileNames.gmk
+
+################################################################################
+# Install the launcher name, release version string, full version
+# string and the runtime name into the Version.java file.
+# To be printed by java -version
+
+$(JDK_OUTPUTDIR)/gensrc/sun/misc/Version.java \
+$(PROFILE_VERSION_JAVA_TARGETS): \
+    $(JDK_TOPDIR)/src/share/classes/sun/misc/Version.java.template
+	$(MKDIR) -p $(@D)
+	$(RM) $@ $@.tmp
+	$(ECHO) Generating sun/misc/Version.java $(call profile_version_name, $@)
+	$(SED) -e 's/@@launcher_name@@/$(LAUNCHER_NAME)/g' \
+	    -e 's/@@java_version@@/$(RELEASE)/g' \
+	    -e 's/@@java_runtime_version@@/$(FULL_VERSION)/g' \
+	    -e 's/@@java_runtime_name@@/$(RUNTIME_NAME)/g' \
+	    -e 's/@@java_profile_name@@/$(call profile_version_name, $@)/g' \
+        -e 's/@@java_distro_name@@/$(DISTRO_NAME)/g' \
+        -e 's/@@java_distro_version@@/$(DISTRO_VERSION)/g' \
+	    $< > $@.tmp
+	$(MV) $@.tmp $@
+
+GENSRC_MISC += $(JDK_OUTPUTDIR)/gensrc/sun/misc/Version.java \
+    $(PROFILE_VERSION_JAVA_TARGETS)
+
+##########################################################################################
+# Version file for jconsole
+
+$(JDK_OUTPUTDIR)/gensrc/sun/tools/jconsole/Version.java: \
+    $(JDK_TOPDIR)/src/share/classes/sun/tools/jconsole/Version.java.template
+	$(MKDIR) -p $(@D)
+	$(RM) $@ $@.tmp
+	$(ECHO) $(LOG_INFO) Generating sun/tools/jconsole/Version.java
+	$(SED) -e 's/@@jconsole_version@@/$(FULL_VERSION)/g' $< > $@.tmp
+	$(MV) $@.tmp $@
+
+GENSRC_MISC += $(JDK_OUTPUTDIR)/gensrc/sun/tools/jconsole/Version.java
+
+################################################################################
+
+ifneq ($(filter $(TOOLCHAIN_TYPE), gcc clang), )
+  # Need to specify language since the template file has a non standard
+  # extension.
+  CPP_FLAGS += -x c
+else ifeq ($(TOOLCHAIN_TYPE), microsoft)
+  CPP_FLAGS += -nologo
+endif
+
+# Generate a java source file from a template through the C preprocessor for the
+# target system. First extract the copyright notice at the start of the file.
+# Run the preprocessor. Filter out the default compiler stderr output on
+# Windows. Filter out all the header files output. Remove all "PREFIX_" strings
+# that were added to variable references in the template files to avoid being
+# matched by the preprocessor. Remove any #line directives left by the
+# preprocessor.
+define generate-preproc-src
+	$(eval $(call MakeDir, $(@D)))
+	( $(NAWK) '/@@END_COPYRIGHT@@/{exit}1' $< && \
+	  $(CPP) $(CPP_FLAGS) $(SYSROOT_CFLAGS) $< \
+	      | $(GREP) -v '^$(<F)$$'  \
+	      | $(NAWK) '/@@START_HERE@@/,0' \
+	      | $(SED) -e 's/@@START_HERE@@/\/\/ AUTOMATICALLY GENERATED FILE - DO NOT EDIT/' \
+	      -e 's/PREFIX_//' -e 's/^#.*//' \
+	) > $@
+endef
+
+GENSRC_SOR_FILE += $(JDK_OUTPUTDIR)/gensrc/sun/nio/ch/SocketOptionRegistry.java
+
+$(GENSRC_SOR_FILE): \
+    $(JDK_TOPDIR)/src/share/classes/sun/nio/ch/SocketOptionRegistry.java.template
+	$(generate-preproc-src)
+
+GENSRC_MISC += $(GENSRC_SOR_FILE)
+
+################################################################################
+GENSRC_MISC += $(JDK_OUTPUTDIR)/gensrc/sun/nio/ch/SocketOptionRegistry.java
+
+
+##########################################################################################
+
+ifneq ($(OPENJDK_TARGET_OS), windows)
+
+  GENSRC_UC_FILE := $(JDK_OUTPUTDIR)/gensrc/sun/nio/fs/UnixConstants.java
+  $(GENSRC_UC_FILE): \
+      $(JDK_TOPDIR)/src/unix/classes/sun/nio/fs/UnixConstants.java.template
+	$(generate-preproc-src)
+
+  GENSRC_MISC += $(GENSRC_UC_FILE)
+
+endif
+
+##########################################################################################
+
+ifeq ($(OPENJDK_TARGET_OS), solaris)
+
+  GENSRC_SC_FILE := $(JDK_OUTPUTDIR)/gensrc/sun/nio/fs/SolarisConstants.java
+
+  $(GENSRC_SC_FILE): \
+      $(JDK_TOPDIR)/src/solaris/classes/sun/nio/fs/SolarisConstants.java.template
+	$(generate-preproc-src)
+
+  GENSRC_MISC += $(GENSRC_SC_FILE)
+
+endif
+
+##########################################################################################
+
+  ifeq ($(OPENJDK_TARGET_OS), windows)
+
+    AB_GENSRC_DIR := $(JDK_OUTPUTDIR)/gensrc_ab
+  AB_SRC_DIR := $(JDK_TOPDIR)/src/windows/classes/com/sun/java/accessibility
+
+    ifeq ($(OPENJDK_TARGET_CPU_BITS), 32)
+      $(AB_GENSRC_DIR)/32bit/com/sun/java/accessibility/AccessBridgeLoader.java: \
+          $(AB_SRC_DIR)/32bit/AccessBridgeLoader.java
+		$(install-file)
+
+      $(AB_GENSRC_DIR)/32bit/com/sun/java/accessibility/AccessBridge.java: \
+          $(AB_SRC_DIR)/AccessBridge.java
+		$(install-file)
+
+      $(AB_GENSRC_DIR)/legacy/com/sun/java/accessibility/AccessBridgeLoader.java: \
+          $(AB_SRC_DIR)/legacy/AccessBridgeLoader.java
+		$(install-file)
+
+      $(AB_GENSRC_DIR)/legacy/com/sun/java/accessibility/AccessBridge.java: \
+          $(AB_SRC_DIR)/AccessBridge.java
+		$(install-file)
+
+      GENSRC_MISC += $(AB_GENSRC_DIR)/32bit/com/sun/java/accessibility/AccessBridgeLoader.java \
+          $(AB_GENSRC_DIR)/legacy/com/sun/java/accessibility/AccessBridgeLoader.java \
+          $(AB_GENSRC_DIR)/32bit/com/sun/java/accessibility/AccessBridge.java \
+          $(AB_GENSRC_DIR)/legacy/com/sun/java/accessibility/AccessBridge.java
+
+    else
+      $(AB_GENSRC_DIR)/64bit/com/sun/java/accessibility/AccessBridgeLoader.java: \
+          $(AB_SRC_DIR)/64bit/AccessBridgeLoader.java
+		$(install-file)
+
+      $(AB_GENSRC_DIR)/64bit/com/sun/java/accessibility/AccessBridge.java: \
+          $(AB_SRC_DIR)/AccessBridge.java
+		$(install-file)
+
+      GENSRC_MISC += $(AB_GENSRC_DIR)/64bit/com/sun/java/accessibility/AccessBridgeLoader.java \
+          $(AB_GENSRC_DIR)/64bit/com/sun/java/accessibility/AccessBridge.java
+
+    endif
+  endif
+
+##########################################################################################

@@ -1,0 +1,48 @@
+<?xml version="1.0"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+           xmlns:hy="http://www.test.com/Service/"
+           targetNamespace="http://www.test.com/Service/">
+
+    <xs:simpleType name="   size   ">
+        <xs:restriction base="   xs:string">
+            <xs:enumeration value="small" />
+            <xs:enumeration value="medium" />
+            <xs:enumeration value="large" />
+        </xs:restriction>
+    </xs:simpleType>
+
+    <xs:complexType name="jeans">
+        <xs:simpleContent>
+            <xs:restriction base="    hy:size">
+                <xs:attribute name="sex">
+                    <xs:simpleType>
+                        <xs:restriction base="   xs:string    ">
+                            <xs:enumeration value="male" />
+                            <xs:enumeration value="female" />
+                        </xs:restriction>
+                    </xs:simpleType>
+                </xs:attribute>
+            </xs:restriction>
+        </xs:simpleContent>
+    </xs:complexType>
+
+    <xs:complexType name="customer   ">
+        <xs:sequence>
+            <xs:element name=" firstname" type="xs:string"/>
+            <xs:element name="  lastname  " type="xs:string"/>
+            <xs:element name="   country   " type="xs:string"/>
+        </xs:sequence>
+    </xs:complexType>
+
+    <xs:complexType name="Norwegian_customer">
+        <xs:complexContent>
+            <xs:restriction base="   hy:customer   ">
+                <xs:sequence>
+                    <xs:element name="   firstname" type="  xs:string  "/>
+                    <xs:element name="lastname  " type="xs:string   "/>
+                    <xs:element name="country" type="xs:string   " fixed="Norway"/>
+                </xs:sequence>
+            </xs:restriction>
+        </xs:complexContent>
+    </xs:complexType>
+</xs:schema>

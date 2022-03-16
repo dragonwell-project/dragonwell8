@@ -1,0 +1,426 @@
+#
+# Copyright (c) 2012, 2016, Oracle and/or its affiliates. All rights reserved.
+# DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
+#
+# This code is free software; you can redistribute it and/or modify it
+# under the terms of the GNU General Public License version 2 only, as
+# published by the Free Software Foundation.  Oracle designates this
+# particular file as subject to the "Classpath" exception as provided
+# by Oracle in the LICENSE file that accompanied this code.
+#
+# This code is distributed in the hope that it will be useful, but WITHOUT
+# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+# FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+# version 2 for more details (a copy is included in the LICENSE file that
+# accompanied this code).
+#
+# You should have received a copy of the GNU General Public License version
+# 2 along with this work; if not, write to the Free Software Foundation,
+# Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.
+#
+# Please contact Oracle, 500 Oracle Parkway, Redwood Shores, CA 94065 USA
+# or visit www.oracle.com if you need additional information or have any
+# questions.
+#
+
+# These lists define where a file belongs if it exists. It is perfectly fine
+# if a file does not exist on some platforms - we do not have to produce exact
+# per-platform lists. However, for clarity, platform-unique files are handled
+# in platform-specific conditionals.
+
+# On different platforms the libraries are placed into different locations in the
+# JRE:
+ifeq (, $(findstring $(OPENJDK_TARGET_OS), windows macosx))
+    # On non-windows/OSX libraries go into jre/lib/<arch>
+    LIBS_PREFIX := $(OPENJDK_TARGET_CPU_LEGACY_LIB)/
+else
+    # On OSX they go into jre/lib/ - on Windows they go into jre/bin/ and we won't use this
+    LIBS_PREFIX :=
+endif
+
+# Debug info files are tricky to deal with due to all the different platform variants
+# and because they can be zipped.
+ifeq ($(ZIP_DEBUGINFO_FILES), true)
+    # Common case and 'just works' on all platforms
+    DEBUG_SUFFIX := .diz
+else
+    # It gets complicated ...
+    ifeq ($(OPENJDK_TARGET_OS), macosx)
+        # This is a directory, not a simple file, so
+        # it needs expanding explicitly later on
+        DEBUG_SUFFIX := $(SHARED_LIBRARY_SUFFIX).dSYM
+    else
+        ifeq ($(OPENJDK_TARGET_OS), windows)
+            DEBUG_SUFFIX := .map .pdb
+        else
+            DEBUG_SUFFIX := .debuginfo
+        endif
+    endif
+endif
+
+# Expand the contents of the .dSYM directories on macosx.
+# Param 1 - debug files list eg libFoo.dylib.dSYM or libFoo.diz (if zipped)
+# Param 2 - libraries list eg Foo
+# On macosx if not zipping debuginfo files we expand the contents of the .dSYM directories,
+# else we return the original list of .diz files.
+# On other OS we return the original list of debuginfo files (whether zipped or not)
+#
+define expand-debuginfo
+  $(if $(and $(filter-out true, $(ZIP_DEBUGINFO_FILES)), $(filter macosx, $(OPENJDK_TARGET_OS))), \
+      $(foreach i, $1, $(addsuffix /Contents/Info.plist, $i)) \
+          $(foreach i, $2, $(addsuffix /Contents/Resources/DWARF/$i, $(filter $i.%, $1))), \
+      $1)
+endef
+
+# Common executable files
+PROFILE_1_JRE_BIN_FILES := \
+    java$(EXE_SUFFIX) \
+    keytool$(EXE_SUFFIX)
+
+ifeq ($(OPENJDK_TARGET_OS), windows)
+    PROFILE_1_JRE_BIN_FILES += javaw$(EXE_SUFFIX)
+endif
+
+PROFILE_1_LIBRARIES := \
+    j2pkcs11 \
+    java  \
+    jsig \
+    net \
+    nio \
+    sunec \
+    verify \
+    zip
+
+ifeq ($(OPENJDK_TARGET_OS), windows)
+    PROFILE_1_LIBRARIES += msvcrt100
+endif
+
+PROFILE_1_LIBRARIES := $(addprefix $(LIBRARY_PREFIX), $(PROFILE_1_LIBRARIES))
+PROFILE_1_DEBUG_FILES := $(foreach i, $(DEBUG_SUFFIX), $(addsuffix $i, $(PROFILE_1_LIBRARIES)))
+PROFILE_1_LIBRARIES := $(addsuffix $(SHARED_LIBRARY_SUFFIX), $(PROFILE_1_LIBRARIES))
+PROFILE_1_DEBUG_FILES := $(call expand-debuginfo, $(PROFILE_1_DEBUG_FILES), $(PROFILE_1_LIBRARIES))
+PROFILE_1_LIBRARIES += $(PROFILE_1_DEBUG_FILES)
+
+# Note: libjsig exists as both the real file and a symlink in the VM directory
+#       so we have to treat it with care when looking for the debuginfo files
+VM_LIBRARIES := \
+    jvm 
+
+ifeq ($(OPENJDK_TARGET_OS), solaris)
+    VM_LIBRARIES += jvm_db jvm_dtrace
+endif
+
+VM_SYMLINKS := \
+    jsig
+
+VM_LIBRARIES := $(addprefix $(LIBRARY_PREFIX), $(VM_LIBRARIES))
+VM_DEBUG_FILES := $(foreach i, $(DEBUG_SUFFIX), $(addsuffix $i, $(VM_LIBRARIES)))
+VM_SYMLINKS := $(addprefix $(LIBRARY_PREFIX), $(VM_SYMLINKS))
+VM_LIBRARIES := $(addsuffix $(SHARED_LIBRARY_SUFFIX), $(VM_LIBRARIES))
+VM_DEBUG_FILES := $(call expand-debuginfo, $(VM_DEBUG_FILES), $(VM_LIBRARIES))
+VM_DEBUG_FILES +=  $(foreach i, $(DEBUG_SUFFIX), $(addsuffix $i, $(VM_SYMLINKS)))
+VM_SYMLINKS := $(addsuffix $(SHARED_LIBRARY_SUFFIX), $(VM_SYMLINKS))
+VM_LIBRARIES += $(VM_SYMLINKS)
+
+VM_FILES := \
+    Xusage.txt
+
+VM_DIRS := client server minimal
+
+VM_FILES := $(foreach i, $(VM_DIRS), $(addprefix $i/, $(VM_LIBRARIES) $(VM_FILES) $(VM_DEBUG_FILES)))
+
+JLI_LIBRARIES := \
+    jli
+
+ifneq ($(OPENJDK_TARGET_OS), windows)
+    JLI_SUBDIR := jli/
+else
+    JLI_SUBDIR :=
+endif
+
+JLI_LIBRARIES := $(addprefix $(JLI_SUBDIR)$(LIBRARY_PREFIX), $(JLI_LIBRARIES))
+JLI_DEBUG_FILES := $(foreach i, $(DEBUG_SUFFIX), $(addsuffix $i, $(JLI_LIBRARIES)))
+JLI_LIBRARIES := $(addsuffix $(SHARED_LIBRARY_SUFFIX), $(JLI_LIBRARIES))
+JLI_DEBUG_FILES := $(call expand-debuginfo, $(JLI_DEBUG_FILES), $(JLI_LIBRARIES))
+JLI_LIBRARIES += $(JLI_DEBUG_FILES)
+
+ifneq ($(OPENJDK_TARGET_OS), windows)
+    PROFILE_1_JRE_LIB_FILES := \
+        $(addprefix $(LIBS_PREFIX), $(PROFILE_1_LIBRARIES) $(VM_FILES) $(JLI_LIBRARIES))
+else
+    # On windows libraries go into jre/bin
+    PROFILE_1_JRE_BIN_FILES += $(PROFILE_1_LIBRARIES) $(VM_FILES) $(JLI_LIBRARIES)
+endif
+
+# Remaining jre/lib contents
+# OSX doesn't use <arch> directory
+#
+ifeq ($(OPENJDK_TARGET_OS), macosx)
+    PROFILE_1_JRE_LIB_FILES += \
+        jvm.cfg \
+        jspawnhelper
+else
+    PROFILE_1_JRE_LIB_FILES += \
+        $(OPENJDK_TARGET_CPU_LEGACY_LIB)/jvm.cfg \
+        $(OPENJDK_TARGET_CPU_LEGACY_LIB)/jspawnhelper
+endif
+
+PROFILE_1_JRE_LIB_FILES += \
+    calendars.properties \
+    classlist \
+    content-types.properties \
+    currency.data \
+    ext/localedata.jar \
+    ext/meta-index \
+    ext/sunec.jar \
+    ext/sunjce_provider.jar \
+    ext/sunpkcs11.jar \
+    hijrah-config-umalqura.properties \
+    jce.jar \
+    jsse.jar \
+    logging.properties \
+    meta-index \
+    net.properties \
+    resources.jar \
+    rt.jar \
+    security/policy/limited/US_export_policy.jar \
+    security/policy/unlimited/US_export_policy.jar \
+    security/blacklist \
+    security/blacklisted.certs \
+    security/cacerts \
+    security/java.policy \
+    security/java.security \
+    security/policy/limited/local_policy.jar \
+    security/policy/unlimited/local_policy.jar \
+    security/trusted.libraries \
+    tzdb.dat
+
+ifeq ($(OPENJDK_TARGET_OS), windows)
+    PROFILE_1_JRE_LIB_FILES += tzmappings
+else
+    ifeq ($(OPENJDK_TARGET_OS), solaris)
+        PROFILE_1_JRE_LIB_FILES += sdp/sdp.conf
+    endif
+endif
+
+PROFILE_1_JRE_OTHER_FILES := \
+    COPYRIGHT \
+    LICENSE \
+    README \
+    THIRDPARTYLICENSEREADME.txt \
+    Welcome.html \
+    release
+
+PROFILE_1_JRE_JAR_FILES := \
+    ext/localedata.jar \
+    ext/sunec.jar \
+    ext/sunjce_provider.jar \
+    ext/sunpkcs11.jar \
+    jce.jar \
+    jsse.jar \
+    resources.jar \
+    rt.jar \
+    security/policy/limited/US_export_policy.jar \
+    security/policy/unlimited/US_export_policy.jar \
+    security/policy/limited/local_policy.jar \
+    security/policy/unlimited/local_policy.jar
+
+
+PROFILE_2_JRE_BIN_FILES := \
+    rmid$(EXE_SUFFIX) \
+    rmiregistry$(EXE_SUFFIX)
+
+ifeq ($(OPENJDK_TARGET_OS), windows)
+    PROFILE_2_JRE_BIN_FILES += java-rmi$(EXE_SUFFIX)
+endif
+
+# If you add libraries here, make sure you use the same techniques
+# as used for the other profile's libraries regarding debug files etc
+PROFILE_2_JRE_LIB_FILES :=
+
+PROFILE_2_JRE_OTHER_FILES :=
+
+PROFILE_2_JRE_JAR_FILES :=
+
+ifeq ($(OPENJDK_TARGET_OS), windows)
+    PROFILE_3_JRE_BIN_FILES := \
+        kinit$(EXE_SUFFIX) \
+        klist$(EXE_SUFFIX) \
+        ktab$(EXE_SUFFIX)
+else
+    PROFILE_3_JRE_BIN_FILES :=
+endif
+
+PROFILE_3_LIBRARIES := \
+    hprof \
+    instrument \
+    j2gss \
+    j2pcsc \
+    jaas_unix \
+    jaas_nt \
+    java_crw_demo \
+    jsdt \
+    management \
+    npt \
+    sctp
+
+ifeq ($(OPENJDK_TARGET_OS), windows)
+    PROFILE_3_LIBRARIES += w2k_lsa_auth
+else
+    ifeq ($(OPENJDK_TARGET_OS), macosx)
+        PROFILE_3_LIBRARIES += osxkrb5
+    endif
+endif
+
+PROFILE_3_LIBRARIES := $(addprefix $(LIBRARY_PREFIX), $(PROFILE_3_LIBRARIES))
+PROFILE_3_DEBUG_FILES := $(foreach i, $(DEBUG_SUFFIX), $(addsuffix $i, $(PROFILE_3_LIBRARIES)))
+PROFILE_3_LIBRARIES := $(addsuffix $(SHARED_LIBRARY_SUFFIX), $(PROFILE_3_LIBRARIES))
+PROFILE_3_DEBUG_FILES := $(call expand-debuginfo, $(PROFILE_3_DEBUG_FILES), $(PROFILE_3_LIBRARIES))
+PROFILE_3_LIBRARIES += $(PROFILE_3_DEBUG_FILES)
+
+ifneq ($(OPENJDK_TARGET_OS), windows)
+    PROFILE_3_JRE_LIB_FILES := \
+        $(addprefix $(LIBS_PREFIX), $(PROFILE_3_LIBRARIES))
+else
+    # On windows libraries go into jre/bin
+    PROFILE_3_JRE_BIN_FILES += $(PROFILE_3_LIBRARIES)
+endif
+
+PROFILE_3_JRE_LIB_FILES += \
+    jvm.hprof.txt \
+    management-agent.jar \
+    management/jmxremote.access \
+    management/jmxremote.password.template \
+    management/management.properties \
+    management/snmp.acl.template
+
+PROFILE_3_JRE_OTHER_FILES :=
+
+PROFILE_3_JRE_JAR_FILES := \
+    management-agent.jar
+
+
+FULL_JRE_BIN_FILES := \
+    orbd$(EXE_SUFFIX) \
+    pack200$(EXE_SUFFIX) \
+    policytool$(EXE_SUFFIX) \
+    servertool$(EXE_SUFFIX) \
+    tnameserv$(EXE_SUFFIX) \
+    unpack200$(EXE_SUFFIX)
+
+JRE_LIBRARIES := \
+    awt \
+    awt_headless \
+    awt_xawt \
+    dcpr \
+    dt_socket \
+    fontmanager \
+    jawt \
+    jdwp \
+    jfr \
+    jpeg \
+    jsound \
+    jsoundalsa \
+    mlib_image \
+    splashscreen \
+    t2k \
+    unpack
+
+JRE_LIBRARIES := $(addprefix $(LIBRARY_PREFIX), $(JRE_LIBRARIES))
+JRE_DEBUG_FILES := $(foreach i, $(DEBUG_SUFFIX), $(addsuffix $i, $(JRE_LIBRARIES)))
+JRE_LIBRARIES := $(addsuffix $(SHARED_LIBRARY_SUFFIX), $(JRE_LIBRARIES))
+JRE_DEBUG_FILES := $(call expand-debuginfo, $(JRE_DEBUG_FILES), $(JRE_LIBRARIES))
+JRE_LIBRARIES += $(JRE_DEBUG_FILES)
+
+ifneq ($(OPENJDK_TARGET_OS), windows)
+    FULL_JRE_LIB_FILES := \
+        $(addprefix $(LIBS_PREFIX), $(JRE_LIBRARIES))
+else
+    # On windows libraries go into jre/bin
+    FULL_JRE_BIN_FILES += $(JRE_LIBRARIES)
+endif
+
+FULL_JRE_LIB_FILES += \
+    charsets.jar \
+    cmm/CIEXYZ.pf \
+    cmm/GRAY.pf \
+    cmm/LINEAR_RGB.pf \
+    cmm/PYCC.pf \
+    cmm/sRGB.pf \
+    ext/cldrdata.jar \
+    ext/dnsns.jar \
+    ext/nashorn.jar \
+    ext/zipfs.jar \
+    flavormap.properties \
+    fontconfig.RedHat.5.bfc \
+    fontconfig.RedHat.5.properties.src \
+    fontconfig.RedHat.6.bfc \
+    fontconfig.RedHat.6.properties.src \
+    fontconfig.SuSE.10.bfc \
+    fontconfig.SuSE.10.properties.src \
+    fontconfig.SuSE.11.bfc \
+    fontconfig.SuSE.11.properties.src \
+    fontconfig.Turbo.bfc \
+    fontconfig.Turbo.properties.src \
+    fontconfig.bfc \
+    fontconfig.properties.src \
+    fonts/LucidaBrightDemiBold.ttf \
+    fonts/LucidaBrightDemiItalic.ttf \
+    fonts/LucidaBrightItalic.ttf \
+    fonts/LucidaBrightRegular.ttf \
+    fonts/LucidaSansDemiBold.ttf \
+    fonts/LucidaSansRegular.ttf \
+    fonts/LucidaTypewriterBold.ttf \
+    fonts/LucidaTypewriterRegular.ttf \
+    fonts/fonts.dir \
+    images/cursors/cursors.properties \
+    images/cursors/invalid32x32.gif \
+    images/cursors/motif_CopyDrop32x32.gif \
+    images/cursors/motif_CopyNoDrop32x32.gif \
+    images/cursors/motif_LinkDrop32x32.gif \
+    images/cursors/motif_LinkNoDrop32x32.gif \
+    images/cursors/motif_MoveDrop32x32.gif \
+    images/cursors/motif_MoveNoDrop32x32.gif \
+    jexec \
+    jfr.jar \
+    oblique-fonts/LucidaSansDemiOblique.ttf \
+    oblique-fonts/LucidaSansOblique.ttf \
+    oblique-fonts/LucidaTypewriterBoldOblique.ttf \
+    oblique-fonts/LucidaTypewriterOblique.ttf \
+    oblique-fonts/fonts.dir \
+    psfont.properties.ja \
+    psfontj2d.properties \
+    sound.properties
+
+FULL_JRE_OTHER_FILES := \
+    man/ja_JP.UTF-8/man1/java.1 \
+    man/ja_JP.UTF-8/man1/javaws.1 \
+    man/ja_JP.UTF-8/man1/keytool.1 \
+    man/ja_JP.UTF-8/man1/orbd.1 \
+    man/ja_JP.UTF-8/man1/pack200.1 \
+    man/ja_JP.UTF-8/man1/policytool.1 \
+    man/ja_JP.UTF-8/man1/rmid.1 \
+    man/ja_JP.UTF-8/man1/rmiregistry.1 \
+    man/ja_JP.UTF-8/man1/servertool.1 \
+    man/ja_JP.UTF-8/man1/tnameserv.1 \
+    man/ja_JP.UTF-8/man1/unpack200.1 \
+    man/man1/java.1 \
+    man/man1/javaws.1 \
+    man/man1/keytool.1 \
+    man/man1/orbd.1 \
+    man/man1/pack200.1 \
+    man/man1/policytool.1 \
+    man/man1/rmid.1 \
+    man/man1/rmiregistry.1 \
+    man/man1/servertool.1 \
+    man/man1/tnameserv.1 \
+    man/man1/unpack200.1
+
+FULL_JRE_JAR_FILES := \
+    charsets.jar \
+    ext/cldrdata.jar \
+    ext/dnsns.jar \
+    ext/nashorn.jar \
+    ext/zipfs.jar \
+    jfr.jar
+
