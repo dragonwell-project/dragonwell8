@@ -707,7 +707,19 @@ public final class SunJCE extends Provider {
                     put("Alg.Alias.Mac.1.2.840.113549.2.11", "HmacSHA512");
 
                     put("Mac.HmacPBESHA1",
-                        "com.sun.crypto.provider.HmacPKCS12PBESHA1");
+                        "com.sun.crypto.provider.HmacPKCS12PBECore$HmacPKCS12PBE_SHA1");
+                    put("Mac.HmacPBESHA224",
+                        "com.sun.crypto.provider.HmacPKCS12PBECore$HmacPKCS12PBE_SHA224");
+                    put("Mac.HmacPBESHA256",
+                        "com.sun.crypto.provider.HmacPKCS12PBECore$HmacPKCS12PBE_SHA256");
+                    put("Mac.HmacPBESHA384",
+                        "com.sun.crypto.provider.HmacPKCS12PBECore$HmacPKCS12PBE_SHA384");
+                    put("Mac.HmacPBESHA512",
+                        "com.sun.crypto.provider.HmacPKCS12PBECore$HmacPKCS12PBE_SHA512");
+                    put("Mac.HmacPBESHA512/224",
+                        "com.sun.crypto.provider.HmacPKCS12PBECore$HmacPKCS12PBE_SHA512_224");
+                    put("Mac.HmacPBESHA512/256",
+                        "com.sun.crypto.provider.HmacPKCS12PBECore$HmacPKCS12PBE_SHA512_256");
 
                     // PBMAC1
 
@@ -734,6 +746,12 @@ public final class SunJCE extends Provider {
                     put("Mac.HmacSHA384 SupportedKeyFormats", "RAW");
                     put("Mac.HmacSHA512 SupportedKeyFormats", "RAW");
                     put("Mac.HmacPBESHA1 SupportedKeyFormats", "RAW");
+                    put("Mac.HmacPBESHA224 SupportedKeyFormats", "RAW");
+                    put("Mac.HmacPBESHA256 SupportedKeyFormats", "RAW");
+                    put("Mac.HmacPBESHA384 SupportedKeyFormats", "RAW");
+                    put("Mac.HmacPBESHA512 SupportedKeyFormats", "RAW");
+                    put("Mac.HmacPBESHA512/224 SupportedKeyFormats", "RAW");
+                    put("Mac.HmacPBESHA512/256 SupportedKeyFormats", "RAW");
                     put("Mac.PBEWithHmacSHA1 SupportedKeyFormatS", "RAW");
                     put("Mac.PBEWithHmacSHA224 SupportedKeyFormats", "RAW");
                     put("Mac.PBEWithHmacSHA256 SupportedKeyFormats", "RAW");
