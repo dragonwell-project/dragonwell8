@@ -1,0 +1,29 @@
+Neg02.java:20:13: compiler.err.not.within.bounds: java.lang.String, X
+Neg02.java:20:26: compiler.err.cant.apply.diamond: (compiler.misc.diamond: Neg02.Foo), null
+Neg02.java:21:13: compiler.err.not.within.bounds: ? extends java.lang.String, X
+Neg02.java:21:36: compiler.err.cant.apply.diamond: (compiler.misc.diamond: Neg02.Foo), null
+Neg02.java:22:21: compiler.err.cant.apply.diamond: (compiler.misc.diamond: Neg02.Foo), null
+Neg02.java:23:13: compiler.err.not.within.bounds: ? super java.lang.String, X
+Neg02.java:23:34: compiler.err.cant.apply.diamond: (compiler.misc.diamond: Neg02.Foo), null
+Neg02.java:25:13: compiler.err.not.within.bounds: java.lang.String, X
+Neg02.java:25:26: compiler.err.cant.apply.diamond: (compiler.misc.diamond: Neg02.Foo), null
+Neg02.java:26:13: compiler.err.not.within.bounds: ? extends java.lang.String, X
+Neg02.java:26:36: compiler.err.cant.apply.diamond: (compiler.misc.diamond: Neg02.Foo), null
+Neg02.java:27:21: compiler.err.cant.apply.diamond: (compiler.misc.diamond: Neg02.Foo), null
+Neg02.java:28:13: compiler.err.not.within.bounds: ? super java.lang.String, X
+Neg02.java:28:34: compiler.err.cant.apply.diamond: (compiler.misc.diamond: Neg02.Foo), null
+Neg02.java:32:13: compiler.err.not.within.bounds: java.lang.String, X
+Neg02.java:32:26: compiler.err.cant.apply.diamond: (compiler.misc.diamond: Neg02.Foo), null
+Neg02.java:33:13: compiler.err.not.within.bounds: ? extends java.lang.String, X
+Neg02.java:33:36: compiler.err.cant.apply.diamond: (compiler.misc.diamond: Neg02.Foo), null
+Neg02.java:34:21: compiler.err.cant.apply.diamond: (compiler.misc.diamond: Neg02.Foo), null
+Neg02.java:35:13: compiler.err.not.within.bounds: ? super java.lang.String, X
+Neg02.java:35:34: compiler.err.cant.apply.diamond: (compiler.misc.diamond: Neg02.Foo), null
+Neg02.java:37:13: compiler.err.not.within.bounds: java.lang.String, X
+Neg02.java:37:26: compiler.err.cant.apply.diamond: (compiler.misc.diamond: Neg02.Foo), null
+Neg02.java:38:13: compiler.err.not.within.bounds: ? extends java.lang.String, X
+Neg02.java:38:36: compiler.err.cant.apply.diamond: (compiler.misc.diamond: Neg02.Foo), null
+Neg02.java:39:21: compiler.err.cant.apply.diamond: (compiler.misc.diamond: Neg02.Foo), null
+Neg02.java:40:13: compiler.err.not.within.bounds: ? super java.lang.String, X
+Neg02.java:40:34: compiler.err.cant.apply.diamond: (compiler.misc.diamond: Neg02.Foo), null
+28 errors

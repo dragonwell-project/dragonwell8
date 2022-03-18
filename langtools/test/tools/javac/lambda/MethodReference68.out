@@ -1,0 +1,3 @@
+MethodReference68.java:21:10: compiler.err.cant.apply.symbol: kindname.method, g, MethodReference68.F<Z>,Z[], @501,int, kindname.class, MethodReference68, (compiler.misc.incompatible.upper.lower.bounds: Z, MethodReference68.Foo,java.lang.Object, java.lang.Integer)
+MethodReference68.java:21:12: compiler.err.invalid.mref: kindname.method, (compiler.misc.non-static.cant.be.ref: kindname.method, getName())
+2 errors

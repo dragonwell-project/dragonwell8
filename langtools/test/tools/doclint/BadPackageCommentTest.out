@@ -1,0 +1,14 @@
+BadPackageCommentTest.java:13: warning: documentation comment not expected here
+package p;
+^
+BadPackageCommentTest.java:11: error: no tag name after @
+ * @@@
+   ^
+BadPackageCommentTest.java:11: error: no tag name after @
+ * @@@
+    ^
+BadPackageCommentTest.java:11: error: no tag name after @
+ * @@@
+     ^
+3 errors
+1 warning
