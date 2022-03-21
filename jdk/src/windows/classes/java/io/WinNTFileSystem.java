@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2012, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -40,6 +40,7 @@ class WinNTFileSystem extends FileSystem {
     private final char slash;
     private final char altSlash;
     private final char semicolon;
+    private final String userDir;
 
     public WinNTFileSystem() {
         slash = AccessController.doPrivileged(
@@ -47,6 +48,8 @@ class WinNTFileSystem extends FileSystem {
         semicolon = AccessController.doPrivileged(
             new GetPropertyAction("path.separator")).charAt(0);
         altSlash = (this.slash == '\\') ? '/' : '\\';
+        userDir = AccessController.doPrivileged(
+            new GetPropertyAction("user.dir"));
     }
 
     private boolean isSlash(char c) {
@@ -343,7 +346,11 @@ class WinNTFileSystem extends FileSystem {
     private String getUserPath() {
         /* For both compatibility and security,
            we must look this up every time */
-        return normalize(System.getProperty("user.dir"));
+        SecurityManager sm = System.getSecurityManager();
+        if (sm != null) {
+            sm.checkPropertyAccess("user.dir");
+        }
+        return normalize(userDir);
     }
 
     private String getDrive(String path) {

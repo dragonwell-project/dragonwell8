@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2010, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -34,6 +34,7 @@ class UnixFileSystem extends FileSystem {
     private final char slash;
     private final char colon;
     private final String javaHome;
+    private final String userDir;
 
     public UnixFileSystem() {
         slash = AccessController.doPrivileged(
@@ -42,6 +43,8 @@ class UnixFileSystem extends FileSystem {
             new GetPropertyAction("path.separator")).charAt(0);
         javaHome = AccessController.doPrivileged(
             new GetPropertyAction("java.home"));
+        userDir = AccessController.doPrivileged(
+            new GetPropertyAction("user.dir"));
     }
 
 
@@ -130,7 +133,11 @@ class UnixFileSystem extends FileSystem {
 
     public String resolve(File f) {
         if (isAbsolute(f)) return f.getPath();
-        return resolve(System.getProperty("user.dir"), f.getPath());
+        SecurityManager sm = System.getSecurityManager();
+        if (sm != null) {
+            sm.checkPropertyAccess("user.dir");
+        }
+        return resolve(userDir, f.getPath());
     }
 
     // Caches for canonicalization results to improve startup performance.
