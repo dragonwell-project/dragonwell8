@@ -296,11 +296,9 @@ Node* PhaseIdealLoop::clone_loop_predicates(Node* old_entry, Node* new_entry,
   // Search original predicates
   Node* entry = old_entry;
   ProjNode* limit_check_proj = NULL;
-  if (LoopLimitCheck) {
-    limit_check_proj = find_predicate_insertion_point(entry, Deoptimization::Reason_loop_limit_check);
-    if (limit_check_proj != NULL) {
-      entry = entry->in(0)->in(0);
-    }
+  limit_check_proj = find_predicate_insertion_point(entry, Deoptimization::Reason_loop_limit_check);
+  if (limit_check_proj != NULL) {
+    entry = entry->in(0)->in(0);
   }
   if (UseLoopPredicate) {
     ProjNode* predicate_proj = find_predicate_insertion_point(entry, Deoptimization::Reason_predicate);
@@ -336,11 +334,9 @@ Node* PhaseIdealLoop::clone_loop_predicates(Node* old_entry, Node* new_entry,
 // Skip related predicates.
 Node* PhaseIdealLoop::skip_loop_predicates(Node* entry) {
   Node* predicate = NULL;
-  if (LoopLimitCheck) {
-    predicate = find_predicate_insertion_point(entry, Deoptimization::Reason_loop_limit_check);
-    if (predicate != NULL) {
-      entry = entry->in(0)->in(0);
-    }
+  predicate = find_predicate_insertion_point(entry, Deoptimization::Reason_loop_limit_check);
+  if (predicate != NULL) {
+    entry = entry->in(0)->in(0);
   }
   if (UseLoopPredicate) {
     predicate = find_predicate_insertion_point(entry, Deoptimization::Reason_predicate);
@@ -376,11 +372,9 @@ ProjNode* PhaseIdealLoop::find_predicate_insertion_point(Node* start_c, Deoptimi
 // Find a predicate
 Node* PhaseIdealLoop::find_predicate(Node* entry) {
   Node* predicate = NULL;
-  if (LoopLimitCheck) {
-    predicate = find_predicate_insertion_point(entry, Deoptimization::Reason_loop_limit_check);
-    if (predicate != NULL) { // right pattern that can be used by loop predication
-      return entry;
-    }
+  predicate = find_predicate_insertion_point(entry, Deoptimization::Reason_loop_limit_check);
+  if (predicate != NULL) { // right pattern that can be used by loop predication
+    return entry;
   }
   if (UseLoopPredicate) {
     predicate = find_predicate_insertion_point(entry, Deoptimization::Reason_predicate);
@@ -805,11 +799,9 @@ bool PhaseIdealLoop::loop_predication_impl(IdealLoopTree *loop) {
   Node* entry = head->in(LoopNode::EntryControl);
   ProjNode *predicate_proj = NULL;
   // Loop limit check predicate should be near the loop.
-  if (LoopLimitCheck) {
-    predicate_proj = find_predicate_insertion_point(entry, Deoptimization::Reason_loop_limit_check);
-    if (predicate_proj != NULL)
-      entry = predicate_proj->in(0)->in(0);
-  }
+  predicate_proj = find_predicate_insertion_point(entry, Deoptimization::Reason_loop_limit_check);
+  if (predicate_proj != NULL)
+    entry = predicate_proj->in(0)->in(0);
 
   predicate_proj = find_predicate_insertion_point(entry, Deoptimization::Reason_predicate);
   if (!predicate_proj) {

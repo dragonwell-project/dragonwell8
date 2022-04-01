@@ -465,7 +465,6 @@ bool PhaseIdealLoop::is_counted_loop( Node *x, IdealLoopTree *loop ) {
 
   Node *hook = new (C) Node(6);
 
-  if (LoopLimitCheck) {
 
   // ===================================================
   // Generate loop limit check to avoid integer overflow
@@ -596,102 +595,6 @@ bool PhaseIdealLoop::is_counted_loop( Node *x, IdealLoopTree *loop ) {
   }
   set_subtree_ctrl( limit );
 
-  } else { // LoopLimitCheck
-
-  // If compare points to incr, we are ok.  Otherwise the compare
-  // can directly point to the phi; in this case adjust the compare so that
-  // it points to the incr by adjusting the limit.
-  if (cmp->in(1) == phi || cmp->in(2) == phi)
-    limit = gvn->transform(new (C) AddINode(limit,stride));
-
-  // trip-count for +-tive stride should be: (limit - init_trip + stride - 1)/stride.
-  // Final value for iterator should be: trip_count * stride + init_trip.
-  Node *one_p = gvn->intcon( 1);
-  Node *one_m = gvn->intcon(-1);
-
-  Node *trip_count = NULL;
-  switch( bt ) {
-  case BoolTest::eq:
-    ShouldNotReachHere();
-  case BoolTest::ne:            // Ahh, the case we desire
-    if (stride_con == 1)
-      trip_count = gvn->transform(new (C) SubINode(limit,init_trip));
-    else if (stride_con == -1)
-      trip_count = gvn->transform(new (C) SubINode(init_trip,limit));
-    else
-      ShouldNotReachHere();
-    set_subtree_ctrl(trip_count);
-    //_loop.map(trip_count->_idx,loop(limit));
-    break;
-  case BoolTest::le:            // Maybe convert to '<' case
-    limit = gvn->transform(new (C) AddINode(limit,one_p));
-    set_subtree_ctrl( limit );
-    hook->init_req(4, limit);
-
-    bt = BoolTest::lt;
-    // Make the new limit be in the same loop nest as the old limit
-    //_loop.map(limit->_idx,limit_loop);
-    // Fall into next case
-  case BoolTest::lt: {          // Maybe convert to '!=' case
-    if (stride_con < 0) // Count down loop rolls through MAXINT
-      ShouldNotReachHere();
-    Node *range = gvn->transform(new (C) SubINode(limit,init_trip));
-    set_subtree_ctrl( range );
-    hook->init_req(0, range);
-
-    Node *bias  = gvn->transform(new (C) AddINode(range,stride));
-    set_subtree_ctrl( bias );
-    hook->init_req(1, bias);
-
-    Node *bias1 = gvn->transform(new (C) AddINode(bias,one_m));
-    set_subtree_ctrl( bias1 );
-    hook->init_req(2, bias1);
-
-    trip_count  = gvn->transform(new (C) DivINode(0,bias1,stride));
-    set_subtree_ctrl( trip_count );
-    hook->init_req(3, trip_count);
-    break;
-  }
-
-  case BoolTest::ge:            // Maybe convert to '>' case
-    limit = gvn->transform(new (C) AddINode(limit,one_m));
-    set_subtree_ctrl( limit );
-    hook->init_req(4 ,limit);
-
-    bt = BoolTest::gt;
-    // Make the new limit be in the same loop nest as the old limit
-    //_loop.map(limit->_idx,limit_loop);
-    // Fall into next case
-  case BoolTest::gt: {          // Maybe convert to '!=' case
-    if (stride_con > 0) // count up loop rolls through MININT
-      ShouldNotReachHere();
-    Node *range = gvn->transform(new (C) SubINode(limit,init_trip));
-    set_subtree_ctrl( range );
-    hook->init_req(0, range);
-
-    Node *bias  = gvn->transform(new (C) AddINode(range,stride));
-    set_subtree_ctrl( bias );
-    hook->init_req(1, bias);
-
-    Node *bias1 = gvn->transform(new (C) AddINode(bias,one_p));
-    set_subtree_ctrl( bias1 );
-    hook->init_req(2, bias1);
-
-    trip_count  = gvn->transform(new (C) DivINode(0,bias1,stride));
-    set_subtree_ctrl( trip_count );
-    hook->init_req(3, trip_count);
-    break;
-  }
-  } // switch( bt )
-
-  Node *span = gvn->transform(new (C) MulINode(trip_count,stride));
-  set_subtree_ctrl( span );
-  hook->init_req(5, span);
-
-  limit = gvn->transform(new (C) AddINode(span,init_trip));
-  set_subtree_ctrl( limit );
-
-  } // LoopLimitCheck
 
   if (!UseCountedLoopSafepoints) {
     // Check for SafePoint on backedge and remove
@@ -827,7 +730,7 @@ Node* PhaseIdealLoop::exact_limit( IdealLoopTree *loop ) {
   CountedLoopNode *cl = loop->_head->as_CountedLoop();
   assert(cl->is_valid_counted_loop(), "");
 
-  if (!LoopLimitCheck || ABS(cl->stride_con()) == 1 ||
+  if (ABS(cl->stride_con()) == 1 ||
       cl->limit()->Opcode() == Op_LoopLimit) {
     // Old code has exact limit (it could be incorrect in case of int overflow).
     // Loop limit is exact with stride == 1. And loop may already have exact limit.
@@ -1907,12 +1810,10 @@ void IdealLoopTree::dump_head( ) const {
   tty->print("Loop: N%d/N%d ",_head->_idx,_tail->_idx);
   if (_irreducible) tty->print(" IRREDUCIBLE");
   Node* entry = _head->in(LoopNode::EntryControl);
-  if (LoopLimitCheck) {
-    Node* predicate = PhaseIdealLoop::find_predicate_insertion_point(entry, Deoptimization::Reason_loop_limit_check);
-    if (predicate != NULL ) {
-      tty->print(" limit_check");
-      entry = entry->in(0)->in(0);
-    }
+  Node* predicate = PhaseIdealLoop::find_predicate_insertion_point(entry, Deoptimization::Reason_loop_limit_check);
+  if (predicate != NULL ) {
+    tty->print(" limit_check");
+    entry = entry->in(0)->in(0);
   }
   if (UseLoopPredicate) {
     entry = PhaseIdealLoop::find_predicate_insertion_point(entry, Deoptimization::Reason_predicate);
@@ -2332,7 +2233,7 @@ void PhaseIdealLoop::build_and_optimize(bool do_split_ifs, bool skip_loop_opts) 
   // Some parser-inserted loop predicates could never be used by loop
   // predication or they were moved away from loop during some optimizations.
   // For example, peeling. Eliminate them before next loop optimizations.
-  if (UseLoopPredicate || LoopLimitCheck) {
+  if (UseLoopPredicate) {
     eliminate_useless_predicates();
   }
 
