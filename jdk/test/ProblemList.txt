@@ -364,6 +364,8 @@ tools/launcher/FXLauncherTest.java                     windows-all,linux-all
 
 # jdk_jdi
 
+# 6951287
+com/sun/jdi/PopAndInvokeTest.java                                generic-all
 ############################################################################
 
 # jdk_util
@@ -395,15 +397,6 @@ sample/chatserver/ChatTest.java					8178912 generic-all
 ############################################################################
 
 com/sun/jdi/RedefineCrossEvent.java generic-all
-com/sun/jndi/ldap/LdapTimeoutTest.java generic-all
-com/sun/management/DiagnosticCommandMBean/DcmdMBeanPermissionsTest.java generic-all
-java/lang/invoke/MethodHandles/CatchExceptionTest.java generic-all
-java/net/Inet4Address/LookUpAllAddrsTest.sh generic-all
-java/security/KeyPairGenerator/FinalizeHalf.java generic-all
-java/security/Security/SynchronizedAccess.java generic-all
-java/text/BreakIterator/BreakIteratorTest.java generic-all
-java/util/stream/boottest/java/util/stream/SpinedBufferTest.java generic-all
-jdk/asm/AsmSanity.java generic-all
 jdk/net/rsocket/Exceptions.java generic-all
 jdk/net/rsocket/NullBind.java generic-all
 jdk/net/rsocket/RsocketTest.java generic-all
@@ -427,12 +420,24 @@ jdk/net/rsocket/SocketChannel/VectorIO.java generic-all
 jdk/net/rsocket/Socket/GetLocalAddress.java generic-all
 jdk/net/rsocket/SocketOption/OptionsTest.java generic-all
 jdk/net/rsocket/SocketOption/UnsupportedOptionsTest.java generic-all
-sun/net/www/http/ChunkedOutputStream/checkError.java generic-all
-sun/security/krb5/auto/ReplayCacheTestProc.java generic-all
-sun/security/krb5/auto/ReplayCacheTestProc.java generic-all
-sun/security/lib/cacerts/VerifyCACerts.java generic-all
-sun/security/pkcs11/Secmod/TestNssDbSqlite.java generic-all
-sun/security/ssl/X509TrustManagerImpl/Symantec/Distrust.java generic-all
-sun/tools/jstatd/TestJstatdExternalRegistry.java generic-all
-sun/tools/jstatd/TestJstatdPortAndServer.java generic-all
-sun/tools/jstatd/TestJstatdPort.java generic-all
+com/alibaba/wisp/bug/TestThreadStackTrace.sh generic-all
+com/alibaba/wisp/bug/WispSocketLeakWhenConnectTimeoutTest.java generic-all
+com/alibaba/wisp2/Wisp2StackSizeTest.java generic-all
+com/alibaba/wisp2/Wisp2WorkStealTest.java generic-all
+com/alibaba/wisp/monitor/PassTokenTest.java generic-all
+com/alibaba/wisp/bug/WispSelectorReadyOpsTest.java generic-all
+com/alibaba/wisp2/NmtTracingWispTaskRecycleTest.java generic-all
+com/alibaba/wisp2/WispControlGroupCpuTest.java generic-all
+
+# resource limit
+
+############################################################################
+
+java/util/WeakHashMap/GCDuringIteration.java
+java/util/zip/3GBZipFiles.sh generic-all
+java/util/ResourceBundle/Test4300693.java generic-all
+java/util/ResourceBundle/RestrictedBundleTest.java generic-all
+java/lang/invoke/LFCaching/LFGarbageCollectedTest.java generic-all
+java/util/AbstractList/CheckForComodification.java generic-all
+java/lang/StringBuilder/HugeCapacity.java generic-all
+
