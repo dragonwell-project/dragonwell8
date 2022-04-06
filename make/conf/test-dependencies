@@ -1,0 +1,51 @@
+#
+# Copyright (c) 2020, 2021, Oracle and/or its affiliates. All rights reserved.
+# DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
+#
+# This code is free software; you can redistribute it and/or modify it
+# under the terms of the GNU General Public License version 2 only, as
+# published by the Free Software Foundation.  Oracle designates this
+# particular file as subject to the "Classpath" exception as provided
+# by Oracle in the LICENSE file that accompanied this code.
+#
+# This code is distributed in the hope that it will be useful, but WITHOUT
+# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+# FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+# version 2 for more details (a copy is included in the LICENSE file that
+# accompanied this code).
+#
+# You should have received a copy of the GNU General Public License version
+# 2 along with this work; if not, write to the Free Software Foundation,
+# Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.
+#
+# Please contact Oracle, 500 Oracle Parkway, Redwood Shores, CA 94065 USA
+# or visit www.oracle.com if you need additional information or have any
+# questions.
+#
+
+# Versions and download locations for dependencies used by pre-submit testing.
+
+BOOT_JDK_VERSION=8
+JTREG_VERSION=5.1
+JTREG_BUILD=b01
+
+VS2010_FILENAME=VS2010Express1.iso
+VS2010_DIR=VS2010Express1
+VS2010_URL=https://web.archive.org/web/20140227220734if_/http://download.microsoft.com/download/1/E/5/1E5F1C0A-0D5B-426A-A603-1798B951DDAE/VS2010Express1.iso
+VS2010_SHA256=a9d5dcdf55e539a06547a8ebbc63d55dc167113e09ee9e42096ab9098313039b
+
+VS2017_FILENAME=vs2017.exe
+VS2017_URL=https://github.com/akashche/msvs_2017_installer_bootstrap/raw/master/vs_community__7955ddbf8a9b49dda0f8d18876e93bd2.exe
+VS2017_SHA256=ca4ebbc3bee27caa44ef91b21bc30837a028c23a046c009600038316e5976b5b
+
+WINDOWS_X64_BOOT_JDK_FILENAME=openjdk-8_windows-x64_bin.zip
+WINDOWS_X64_BOOT_JDK_URL=https://github.com/adoptium/temurin8-binaries/releases/download/jdk8u322-b06/OpenJDK8U-jdk_x64_windows_hotspot_8u322b06.zip
+WINDOWS_X64_BOOT_JDK_SHA256=c9e06afb5df850e90a4da9da31c2edf10bd6da9962c4b253e91b41237f8fb2fb
+
+WINDOWS_X86_BOOT_JDK_FILENAME=openjdk-8_windows-x32_bin.zip
+WINDOWS_X86_BOOT_JDK_URL=https://github.com/adoptium/temurin8-binaries/releases/download/jdk8u322-b06/OpenJDK8U-jdk_x86-32_windows_hotspot_8u322b06.zip
+WINDOWS_X86_BOOT_JDK_SHA256=ec96bf3ff707e91924ffe09227dcab85d78bfd565dd85b9c4eace41a7d5f4e6e
+
+MACOS_X64_BOOT_JDK_FILENAME=openjdk-8_osx-x64_bin.tar.gz
+MACOS_X64_BOOT_JDK_URL=https://github.com/adoptium/temurin8-binaries/releases/download/jdk8u322-b06/OpenJDK8U-jdk_x64_mac_hotspot_8u322b06.tar.gz
+MACOS_X64_BOOT_JDK_SHA256=96a3124bf0f5ca777954239893cc89ea34c4bc9a9b7c1559aa2c69baa0ee84e3
