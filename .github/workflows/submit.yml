@@ -1,0 +1,111 @@
+#
+# Copyright (c) 2022 Alibaba Group Holding Limited. All Rights Reserved.
+# DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
+#
+# This code is free software; you can redistribute it and/or modify it
+# under the terms of the GNU General Public License version 2 only, as
+# published by the Free Software Foundation. Alibaba designates this
+# particular file as subject to the "Classpath" exception as provided
+# by Oracle in the LICENSE file that accompanied this code.
+#
+# This code is distributed in the hope that it will be useful, but WITHOUT
+# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+# FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License
+# version 2 for more details (a copy is included in the LICENSE file that
+# accompanied this code).
+#
+# You should have received a copy of the GNU General Public License version
+# 2 along with this work; if not, write to the Free Software Foundation,
+# Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.
+#
+
+name: Dragonwell_8_build_test
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  prerequisites:
+    name: Prerequisites
+    runs-on: "ubuntu-20.04"
+    outputs:
+      bundle_id: ${{ steps.check_bundle_id.outputs.bundle_id }}
+    steps:
+      - name: Determine unique bundle identifier
+        id: check_bundle_id
+        run: echo "::set-output name=bundle_id::${GITHUB_ACTOR}_${GITHUB_SHA:0:8}"
+
+  linux_x64_build:
+    needs: prerequisites
+    name: Linux x64
+    runs-on: "ubuntu-20.04"
+    container:
+      image: docker.io/dragonwelljdk/build_jdk:8u
+    steps:
+      - name: Checkout target source
+        uses: actions/checkout@v3
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+      - name: Compile debug
+        run: |
+          sh configure --with-debug-level=fastdebug --with-cacerts-file=${PWD}/common/security/cacerts --with-milestone=fcs --enable-unlimited-crypto
+          make images CONF=linux-x86_64-normal-server-fastdebug
+      - name: Compile release
+        run: |
+          make clean || true
+          [ -d build ] && rm -rf build
+          sh configure --with-debug-level=release --with-cacerts-file=${PWD}/common/security/cacerts --with-milestone=fcs --enable-unlimited-crypto
+          make images CONF=linux-x86_64-normal-server-release
+      - name: Upload Test image
+        uses: actions/upload-artifact@v2
+        with:
+          name: dragonwell8_release_image_${{ needs.prerequisites.outputs.bundle_id }}
+          path: |
+            build/linux-x86_64-normal-server-release/images/j2sdk-image
+
+  linux_x64_test:
+    name: Linux x64 Test
+    needs:
+      - prerequisites
+      - linux_x64_build
+
+    runs-on: "ubuntu-20.04"
+    container:
+      image: docker.io/dragonwelljdk/build_jdk:8u
+    strategy:
+      fail-fast: false
+      matrix:
+        test:
+          - jdk/test/:jdk_tier1
+          - jdk/test/:dragonwell_jdk_features
+          - hotspot/test/:hotspot_tier1
+          - hotspot/test/:hotspot_jwarmup
+          - hotspot/test/:hotspot_elastic_heap
+          - hotspot/test/:hotspot_multi_tenant
+    steps:
+      - name: Checkout target source
+        uses: actions/checkout@v3
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+      - name: Download image
+        id: jtreg_restore
+        uses: actions/download-artifact@v2
+        with:
+          name: dragonwell8_release_image_${{ needs.prerequisites.outputs.bundle_id }}
+          path: /opt/dragonwell8
+        continue-on-error: false
+      - name: Test image version
+        run: |
+          ls /opt/dragonwell8
+          chmod -R 777 /opt/dragonwell8
+          /opt/dragonwell8/bin/java -version
+      - name: Test
+        run: |
+          jtreg -agentvm -a -ea -esa -v:fail,error,time,nopass -jdk:/opt/dragonwell8 -exclude:"/__w/dragonwell8/dragonwell8/hotspot/test/ProblemList.txt" -exclude:"/__w/dragonwell8/dragonwell8/jdk/test/ProblemList.txt" "${{ matrix.test }}"
+      - name: Check that all tests executed successfully
+        run: >
+          if [[ egrep -q "(failed|error)" /__w/dragonwell8/dragonwell8/JTreport/text/stats.txt ]]; then
+            cat /__w/dragonwell8/dragonwell8/JTreport/newfailures.txt /__w/dragonwell8/dragonwell8/JTreport/other_errors.txt;
+            exit 1 ;
+          fi

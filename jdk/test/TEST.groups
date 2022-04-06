@@ -685,3 +685,8 @@ compact1_minimal = \
  -:needs_compact3 \
  -:needs_jre \
  -:needs_jdk
+
+
+ # Alibaba Feature Related Tests
+dragonwell_jdk_features = \
+  com/alibaba/
