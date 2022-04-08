@@ -73,6 +73,9 @@ jobs:
     runs-on: "ubuntu-20.04"
     container:
       image: docker.io/dragonwelljdk/build_jdk:8u
+    defaults:
+      run:
+        shell: bash
     strategy:
       fail-fast: false
       matrix:
@@ -100,12 +103,14 @@ jobs:
           ls /opt/dragonwell8
           chmod -R 777 /opt/dragonwell8
           /opt/dragonwell8/bin/java -version
+          echo "Current shell $SHELL"
+          csh
+          echo "Current shell $SHELL"
+          ps
       - name: Test
         run: |
-          jtreg -agentvm -a -ea -esa -v:fail,error,time,nopass -jdk:/opt/dragonwell8 -exclude:"/__w/dragonwell8/dragonwell8/hotspot/test/ProblemList.txt" -exclude:"/__w/dragonwell8/dragonwell8/jdk/test/ProblemList.txt" "${{ matrix.test }}"
+          SHELL=/bin/bash jtreg -agentvm -a -ea -esa -v:fail,error,time,nopass -jdk:/opt/dragonwell8 -exclude:"/__w/dragonwell8/dragonwell8/hotspot/test/ProblemList.txt" -exclude:"/__w/dragonwell8/dragonwell8/jdk/test/ProblemList.txt" "${{ matrix.test }}"
       - name: Check that all tests executed successfully
         run: >
-          if [[ egrep -q "(failed|error)" /__w/dragonwell8/dragonwell8/JTreport/text/stats.txt ]]; then
-            cat /__w/dragonwell8/dragonwell8/JTreport/newfailures.txt /__w/dragonwell8/dragonwell8/JTreport/other_errors.txt;
-            exit 1 ;
-          fi
+          cat /__w/dragonwell8/dragonwell8/JTreport/newfailures.txt /__w/dragonwell8/dragonwell8/JTreport/other_errors.txt
+          egrep -q "(failed|error)" /__w/dragonwell8/dragonwell8/JTreport/text/stats.txt &&  exit 1 ;

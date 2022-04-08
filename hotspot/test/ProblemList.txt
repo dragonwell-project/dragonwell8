@@ -87,11 +87,3 @@ runtime/coroutine/PremainWithWispMonitorTest.java generic-all
 runtime/coroutine/PremainWithWispMonitorTest.java generic-all
 runtime/coroutine/WispStealMonitorC2Test.java generic-all
 serviceability/sa/jmap-hashcode/Test8028623.java generic-all
-jwarmup/issue9780156.sh generic-all
-jwarmup/TestCheckIfCompilationIsComplete.sh generic-all
-jwarmup/TestDisableMethodData.sh generic-all
-jwarmup/TestNotDeoptJITMethod.sh generic-all
-jwarmup/TestNotifyDeopt.sh generic-all
-jwarmup/TestTieredCompilationInRecording.sh generic-all
-multi-tenant/TestParGCAllocatorLeak.sh generic-all
-multi-tenant/TestTenantJVMOptions.sh generic-all
