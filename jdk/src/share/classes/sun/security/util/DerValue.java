@@ -307,6 +307,34 @@ public class DerValue {
     }
 
     /**
+     * Wraps a byte array as a single DerValue.
+     *
+     * Attention: no cloning is made.
+     *
+     * @param buf the byte array containing the DER-encoded datum
+     * @returns a new DerValue
+     */
+    public static DerValue wrap(byte[] buf)
+            throws IOException {
+        return wrap(buf, 0, buf.length);
+    }
+
+    /**
+     * Wraps a byte array as a single DerValue.
+     *
+     * Attention: no cloning is made.
+     *
+     * @param buf the byte array containing the DER-encoded datum
+     * @param offset where the encoded datum starts inside {@code buf}
+     * @param len length of bytes to parse inside {@code buf}
+     * @returns a new DerValue
+     */
+    public static DerValue wrap(byte[] buf, int offset, int len)
+            throws IOException {
+        return new DerValue(buf, offset, len);
+    }
+
+    /**
      * Get an ASN.1/DER encoded datum from part of a buffer.
      * That part of the buffer must hold exactly one datum, including
      * its tag and length.
