@@ -172,6 +172,11 @@ public final class ErrorMsg {
 
     public static final String DESERIALIZE_TRANSLET_ERR = "DESERIALIZE_TEMPLATES_ERR";
 
+    public static final String XPATH_LIMIT = "XPATH_LIMIT";
+    public static final String XPATH_GROUP_LIMIT = "XPATH_GROUP_LIMIT";
+    public static final String XPATH_OPERATOR_LIMIT = "XPATH_OPERATOR_LIMIT";
+    public static final String XPATH_TOTAL_OPERATOR_LIMIT = "XPATH_TOTAL_OPERATOR_LIMIT";
+
     // All error messages are localized and are stored in resource bundles.
     // This array and the following 4 strings are read from that bundle.
     private static ResourceBundle _bundle;
@@ -208,7 +213,11 @@ public final class ErrorMsg {
     public ErrorMsg(String code, int line, Object param) {
         _code = code;
         _line = line;
-        _params = new Object[] { param };
+        if (param instanceof Object[]) {
+            _params = (Object[])param;
+        } else {
+            _params = new Object[] { param };
+        }
     }
 
     public ErrorMsg(String code, Object param) {

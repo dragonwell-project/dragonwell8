@@ -6,6 +6,8 @@
 
 package com.sun.org.apache.xalan.internal.xsltc.compiler;
 
+import java.util.Arrays;
+
 /** CUP generated class containing symbol constants. */
 public class sym {
   /* terminals */
@@ -63,4 +65,12 @@ public class sym {
   public static final int ATTRIBUTE = 41;
   public static final int GT = 19;
   public static final int NODE = 31;
+  /*
+    AXES: count once at DCOLON,
+          these axes names are therefore not counted:
+            NAMESPACE, FOLLOWINGSIBLING, CHILD, DESCENDANTORSELF, DESCENDANT
+          , PRECEDINGSIBLING, SELF, ANCESTORORSELF, PRECEDING, ANCESTOROR, PARENT, FOLLOWING, ATTRIBUTE
+  */
+  public static final int[] OPERATORS = {GE, SLASH, ATSIGN, LPAREN, DCOLON,
+      MINUS, STAR, LT, OR, DIV, PLUS, LE, VBAR, MOD, EQ, LBRACK, DOLLAR, NE, GT};
 }

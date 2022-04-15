@@ -175,6 +175,21 @@ public final class XalanConstants {
      */
     public static final String JDK_EXTENSION_CLASSLOADER = "jdk.xml.transform.extensionClassLoader";
 
+    /**
+     * JDK XPath Expression group limit
+     */
+    public static final String XPATH_GROUP_LIMIT = "jdk.xml.xpathExprGrpLimit";
+
+    /**
+     * JDK XPath Expression operators limit
+     */
+    public static final String XPATH_OP_LIMIT = "jdk.xml.xpathExprOpLimit";
+
+    /**
+     * JDK XSL XPath limit or Total Number of Operators Permitted in an XSL Stylesheet
+     */
+    public static final String XPATH_TOTALOP_LIMIT = "jdk.xml.xpathTotalOpLimit";
+
     //legacy System Properties
     public final static String ENTITY_EXPANSION_LIMIT = "entityExpansionLimit";
     public static final String ELEMENT_ATTRIBUTE_LIMIT = "elementAttributeLimit" ;

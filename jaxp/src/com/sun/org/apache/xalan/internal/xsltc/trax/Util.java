@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2022, Oracle and/or its affiliates. All rights reserved.
  */
 /*
  * Copyright 2001-2004 The Apache Software Foundation.
@@ -39,7 +39,7 @@ import javax.xml.transform.stax.StAXSource;
 import javax.xml.transform.stream.StreamSource;
 import jdk.xml.internal.JdkXmlFeatures;
 import jdk.xml.internal.JdkXmlUtils;
-import com.sun.org.apache.xalan.internal.utils.XMLSecurityManager;
+import jdk.xml.internal.XMLSecurityManager;
 import com.sun.org.apache.xalan.internal.xsltc.compiler.XSLTC;
 import com.sun.org.apache.xalan.internal.xsltc.compiler.util.ErrorMsg;
 
@@ -118,9 +118,11 @@ public final class Util {
                                 (XMLSecurityManager)xsltc.getProperty(XalanConstants.SECURITY_MANAGER);
                         if (securityManager != null) {
                             for (XMLSecurityManager.Limit limit : XMLSecurityManager.Limit.values()) {
-                                lastProperty = limit.apiProperty();
-                                reader.setProperty(lastProperty,
-                                        securityManager.getLimitValueAsString(limit));
+                                if (limit.isSupported(XMLSecurityManager.Processor.PARSER)) {
+                                    lastProperty = limit.apiProperty();
+                                    reader.setProperty(lastProperty,
+                                            securityManager.getLimitValueAsString(limit));
+                                }
                             }
                             if (securityManager.printEntityCountInfo()) {
                                 lastProperty = XalanConstants.JDK_ENTITY_COUNT_INFO;
