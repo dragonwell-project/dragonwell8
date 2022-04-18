@@ -389,7 +389,12 @@ public abstract class lr_parser {
   }
 
   private boolean contains(final int[] arr, final int key) {
-    return Arrays.stream(arr).anyMatch(i -> i == key);
+    for (int i = 0 ; i < arr.length ; ++i) {
+      if (arr[i] == key) {
+        return true;
+      }
+    }
+    return false;
   }
 
   /*. . . . . . . . . . . . . . . . . . . . . . . . . . . . . .*/

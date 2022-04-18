@@ -67,7 +67,12 @@ public final class Token {
         DDOT, DCOLON, ATTR, CHILD};
 
     public static boolean contains(String str) {
-        return Arrays.stream(OPERATORS).anyMatch(str::equals);
+      for (String op : OPERATORS) {
+        if (op.equals(str)) {
+          return true;
+        }
+      }
+      return false;
     }
 
     private Token() {
