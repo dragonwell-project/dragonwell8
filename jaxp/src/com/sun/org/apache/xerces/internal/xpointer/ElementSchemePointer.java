@@ -3,11 +3,12 @@
  * DO NOT REMOVE OR ALTER!
  */
 /*
- * Copyright 2005 The Apache Software Foundation.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
  *
  *      http://www.apache.org/licenses/LICENSE-2.0
  *
@@ -19,7 +20,7 @@
  */
 package com.sun.org.apache.xerces.internal.xpointer;
 
-import java.util.Hashtable;
+import java.util.HashMap;
 
 import com.sun.org.apache.xerces.internal.impl.XMLErrorReporter;
 import com.sun.org.apache.xerces.internal.util.SymbolTable;
@@ -38,7 +39,7 @@ import com.sun.org.apache.xerces.internal.xni.parser.XMLErrorHandler;
  * @xerces.internal
  *
  */
-class ElementSchemePointer implements XPointerPart {
+final class ElementSchemePointer implements XPointerPart {
 
     // Fields
 
@@ -344,15 +345,17 @@ class ElementSchemePointer implements XPointerPart {
 
                 // Donot check for empty elements if the empty element is
                 // a child of a found parent element
-                //if (!fIsElementFound) {
-                    if (checkMatch()) {
-                        fIsElementFound = true;
+                if (checkMatch()) {
+                    if (!fIsElementFound) {
                         fWasOnlyEmptyElementFound = true;
                     } else {
-                        fIsElementFound = false;
+                        fWasOnlyEmptyElementFound = false;
                     }
-                //}
-
+                    fIsElementFound = true;
+                } else {
+                    fIsElementFound = false;
+                    fWasOnlyEmptyElementFound = false;
+                }
             }
         }
 
@@ -523,7 +526,7 @@ class ElementSchemePointer implements XPointerPart {
 
         private SymbolTable fSymbolTable;
 
-        private Hashtable fTokenNames = new Hashtable();
+        private HashMap<Integer, String> fTokenNames = new HashMap<>();
 
         /**
          * Constructor
@@ -545,16 +548,7 @@ class ElementSchemePointer implements XPointerPart {
          * @return String The token string
          */
         private String getTokenString(int token) {
-            return (String) fTokenNames.get(new Integer(token));
-        }
-
-        /**
-         * Returns the token String
-         * @param token The index of the token
-         * @return String The token string
-         */
-        private Integer getToken(int token) {
-            return (Integer) fTokenNames.get(new Integer(token));
+            return fTokenNames.get(new Integer(token));
         }
 
         /**
@@ -563,7 +557,8 @@ class ElementSchemePointer implements XPointerPart {
          * @param token The token string
          */
         private void addToken(String tokenStr) {
-            Integer tokenInt = (Integer) fTokenNames.get(tokenStr);
+            String str = fTokenNames.get(tokenStr);
+            Integer tokenInt = str == null ? null : Integer.parseInt(str);
             if (tokenInt == null) {
                 tokenInt = new Integer(fTokenNames.size());
                 fTokenNames.put(tokenInt, tokenStr);

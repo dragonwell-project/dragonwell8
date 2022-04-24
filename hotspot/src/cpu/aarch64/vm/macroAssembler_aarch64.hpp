@@ -27,7 +27,7 @@
 #ifndef CPU_AARCH64_VM_MACROASSEMBLER_AARCH64_HPP
 #define CPU_AARCH64_VM_MACROASSEMBLER_AARCH64_HPP
 
-#include "asm/assembler.hpp"
+#include "asm/assembler.inline.hpp"
 
 // MacroAssembler extends Assembler by frequently used macros.
 //
@@ -135,6 +135,20 @@ class MacroAssembler: public Assembler {
     InstructionMark im(this);
     code_section()->relocate(inst_mark(), a.rspec());
     a.lea(this, r);
+  }
+
+  /* Sometimes we get misaligned loads and stores, usually from Unsafe
+     accesses, and these can exceed the offset range. */
+  Address legitimize_address(const Address &a, int size, Register scratch) {
+    if (a.getMode() == Address::base_plus_offset) {
+      if (! Address::offset_ok_for_immed(a.offset(), exact_log2(size))) {
+        block_comment("legitimize_address {");
+        lea(scratch, a);
+        block_comment("} legitimize_address");
+        return Address(scratch);
+      }
+    }
+    return a;
   }
 
   void addmw(Address a, Register incr, Register scratch) {

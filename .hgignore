@@ -7,3 +7,4 @@ nbproject/private/
 .DS_Store
 # Default ignored files
 .idea/workspace.xml
+.*/.git/.*

@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2013, Red Hat Inc.
- * Copyright (c) 1997, 2012, Oracle and/or its affiliates.
+ * Copyright (c) 1997, 2021, Oracle and/or its affiliates.
  * All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -195,6 +195,7 @@
   intptr_t*   fp() const { return _fp; }
 
   inline address* sender_pc_addr() const;
+  inline address  sender_pc_maybe_signed() const;
 
   // return address of param, zero origin index.
   inline address* native_param_addr(int idx) const;

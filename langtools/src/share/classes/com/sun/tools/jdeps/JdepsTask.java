@@ -560,7 +560,7 @@ class JdepsTask {
                     }
                 }
                 for (String name : a.reader().skippedEntries()) {
-                    warning("warn.skipped.entry", name, a.getPathName());
+                    warning("warn.skipped.entry", name);
                 }
             }
         }

@@ -2,13 +2,14 @@
  * Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
  */
 /*
- * Copyright 1999-2004 The Apache Software Foundation.
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
+ *      http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -16,7 +17,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-// $Id: XPathFactoryImpl.java,v 1.2 2005/08/16 22:41:13 jeffsuttor Exp $
 
 package com.sun.org.apache.xpath.internal.jaxp;
 
@@ -30,6 +30,7 @@ import javax.xml.xpath.XPathFactoryConfigurationException;
 import javax.xml.xpath.XPathFunctionResolver;
 import javax.xml.xpath.XPathVariableResolver;
 import jdk.xml.internal.JdkXmlFeatures;
+import jdk.xml.internal.XMLSecurityManager;
 
 /**
  * The XPathFactory builds XPaths.
@@ -67,6 +68,12 @@ public  class XPathFactoryImpl extends XPathFactory {
          */
         private final JdkXmlFeatures _featureManager;
 
+
+        /**
+         * The XML security manager
+         */
+        private XMLSecurityManager _xmlSecMgr;
+
         /**
          * javax.xml.xpath.XPathFactory implementation.
          */
@@ -77,6 +84,7 @@ public  class XPathFactoryImpl extends XPathFactory {
                 _isNotSecureProcessing = false;
             }
             _featureManager = new JdkXmlFeatures(!_isNotSecureProcessing);
+            _xmlSecMgr = new XMLSecurityManager(true);
         }
         /**
          * <p>Is specified object model supported by this
@@ -126,7 +134,7 @@ public  class XPathFactoryImpl extends XPathFactory {
         public javax.xml.xpath.XPath newXPath() {
             return new com.sun.org.apache.xpath.internal.jaxp.XPathImpl(
                     xPathVariableResolver, xPathFunctionResolver,
-                    !_isNotSecureProcessing, _featureManager );
+                    !_isNotSecureProcessing, _featureManager, _xmlSecMgr);
         }
 
         /**

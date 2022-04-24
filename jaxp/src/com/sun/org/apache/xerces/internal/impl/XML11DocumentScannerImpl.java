@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2021, Oracle and/or its affiliates. All rights reserved.
  */
 /*
  * Licensed to the Apache Software Foundation (ASF) under one or more
@@ -53,7 +53,7 @@ import java.io.IOException;
  * @author Andy Clark, IBM
  * @author Arnaud  Le Hors, IBM
  * @author Eric Ye, IBM
- *
+ * @LastModified: Aug 2021
  */
 public class XML11DocumentScannerImpl
     extends XMLDocumentScannerImpl {
@@ -275,16 +275,6 @@ public class XML11DocumentScannerImpl
                     if (DEBUG_ATTR_NORMALIZATION) {
                         System.out.println("** valueF: \""
                                            + fStringBuffer.toString() + "\"");
-                    }
-                }
-                // note that none of these characters should ever get through
-                // XML11EntityScanner.  Not sure why
-                // this check was originally necessary.  - NG
-                else if (c == '\n' || c == '\r' || c == 0x85 || c == 0x2028) {
-                    fEntityScanner.scanChar(null);
-                    fStringBuffer.append(' ');
-                    if (entityDepth == fEntityDepth) {
-                        fStringBuffer2.append('\n');
                     }
                 }
                 else if (c != -1 && XMLChar.isHighSurrogate(c)) {

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,6 +24,7 @@
  */
 
 #import "apple_security_KeychainStore.h"
+#import "jni_util.h"
 
 #import <Security/Security.h>
 #import <Security/SecImportExport.h>
@@ -32,7 +33,7 @@
 
 
 static JNF_CLASS_CACHE(jc_KeychainStore, "apple/security/KeychainStore");
-static JNF_MEMBER_CACHE(jm_createTrustedCertEntry, jc_KeychainStore, "createTrustedCertEntry", "(Ljava/lang/String;JJ[B)V");
+static JNF_MEMBER_CACHE(jm_createTrustedCertEntry, jc_KeychainStore, "createTrustedCertEntry", "(Ljava/lang/String;Ljava/util/List;JJ[B)V");
 static JNF_MEMBER_CACHE(jm_createKeyEntry, jc_KeychainStore, "createKeyEntry", "(Ljava/lang/String;JJ[J[[B)V");
 
 static jstring getLabelFromItem(JNIEnv *env, SecKeychainItemRef inItem)
@@ -362,6 +363,14 @@ errOut:
     }
 }
 
+#define ADD(list, str) { \
+    jobject localeObj = (*env)->NewStringUTF(env, [str UTF8String]); \
+    (*env)->CallBooleanMethod(env, list, jm_listAdd, localeObj); \
+    (*env)->DeleteLocalRef(env, localeObj); \
+}
+
+#define ADDNULL(list) (*env)->CallBooleanMethod(env, list, jm_listAdd, NULL)
+
 static void addCertificatesToKeystore(JNIEnv *env, jobject keyStore)
 {
     // Search the user keychain list for all X509 certificates.
@@ -369,6 +378,13 @@ static void addCertificatesToKeystore(JNIEnv *env, jobject keyStore)
     OSStatus err = SecKeychainSearchCreateFromAttributes(NULL, kSecCertificateItemClass, NULL, &keychainItemSearch);
     SecKeychainItemRef theItem = NULL;
     OSErr searchResult = noErr;
+
+    jclass jc_arrayListClass = (*env)->FindClass(env, "java/util/ArrayList");
+    CHECK_NULL(jc_arrayListClass);
+    jmethodID jm_arrayListCons = (*env)->GetMethodID(env, jc_arrayListClass, "<init>", "()V");
+    CHECK_NULL(jm_arrayListCons);
+    jmethodID jm_listAdd = (*env)->GetMethodID(env, jc_arrayListClass, "add", "(Ljava/lang/Object;)Z");
+    CHECK_NULL(jm_listAdd);
 
     do {
         searchResult = SecKeychainSearchCopyNext(keychainItemSearch, &theItem);
@@ -390,12 +406,50 @@ static void addCertificatesToKeystore(JNIEnv *env, jobject keyStore)
                 goto errOut;
             }
 
+            // Only add certificates with trusted settings
+            CFArrayRef trustSettings;
+            if (SecTrustSettingsCopyTrustSettings(certRef, kSecTrustSettingsDomainUser, &trustSettings)
+                    == errSecItemNotFound) {
+                continue;
+            }
+
+            // See KeychainStore::createTrustedCertEntry for content of inputTrust
+            jobject inputTrust = (*env)->NewObject(env, jc_arrayListClass, jm_arrayListCons);
+            CHECK_NULL(inputTrust);
+
+            // Dump everything inside trustSettings into inputTrust
+            CFIndex count = CFArrayGetCount(trustSettings);
+            for (int i = 0; i < count; i++) {
+                CFDictionaryRef oneTrust = (CFDictionaryRef) CFArrayGetValueAtIndex(trustSettings, i);
+                CFIndex size = CFDictionaryGetCount(oneTrust);
+                const void * keys [size];
+                const void * values [size];
+                CFDictionaryGetKeysAndValues(oneTrust, keys, values);
+                for (int j = 0; j < size; j++) {
+                    NSString* s = [NSString stringWithFormat:@"%@", keys[j]];
+                    ADD(inputTrust, s);
+                    s = [NSString stringWithFormat:@"%@", values[j]];
+                    ADD(inputTrust, s);
+                }
+                SecPolicyRef certPolicy;
+                certPolicy = (SecPolicyRef)CFDictionaryGetValue(oneTrust, kSecTrustSettingsPolicy);
+                if (certPolicy != NULL) {
+                    CFDictionaryRef policyDict = SecPolicyCopyProperties(certPolicy);
+                    ADD(inputTrust, @"SecPolicyOid");
+                    NSString* s = [NSString stringWithFormat:@"%@", CFDictionaryGetValue(policyDict, @"SecPolicyOid")];
+                    ADD(inputTrust, s);
+                    CFRelease(policyDict);
+                }
+                ADDNULL(inputTrust);
+            }
+            CFRelease(trustSettings);
+
             // Find the creation date.
             jlong creationDate = getModDateFromItem(env, theItem);
 
             // Call back to the Java object to create Java objects corresponding to this security object.
             jlong nativeRef = ptr_to_jlong(certRef);
-            JNFCallVoidMethod(env, keyStore, jm_createTrustedCertEntry, alias, nativeRef, creationDate, certData);
+            JNFCallVoidMethod(env, keyStore, jm_createTrustedCertEntry, alias, inputTrust, nativeRef, creationDate, certData);
         }
     } while (searchResult == noErr);
 
@@ -494,8 +548,8 @@ JNIEXPORT void JNICALL Java_apple_security_KeychainStore__1scanKeychain
 /*
  * Class:     apple_security_KeychainStore
  * Method:    _addItemToKeychain
- * Signature: (Ljava/lang/String;[B)I
-*/
+ * Signature: (Ljava/lang/String;Z[B[C)J
+ */
 JNIEXPORT jlong JNICALL Java_apple_security_KeychainStore__1addItemToKeychain
 (JNIEnv *env, jobject this, jstring alias, jboolean isCertificate, jbyteArray rawDataObj, jcharArray passwordObj)
 {
