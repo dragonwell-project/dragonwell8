@@ -707,6 +707,7 @@ public:
   // "n_threads" is the number of threads to be terminated.  "queue_set" is a
   // queue sets of work queues of other threads.
   ParallelTaskTerminator(int n_threads, TaskQueueSetSuper* queue_set);
+  virtual ~ParallelTaskTerminator() {} // Subclass destruction requires "virtual"
 
   // The current thread has no work, and is ready to terminate if everyone
   // else is.  If returns "true", all threads are terminated.  If returns
