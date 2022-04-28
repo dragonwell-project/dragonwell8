@@ -30,6 +30,7 @@ import javax.xml.xpath.XPathFactoryConfigurationException;
 import javax.xml.xpath.XPathFunctionResolver;
 import javax.xml.xpath.XPathVariableResolver;
 import jdk.xml.internal.JdkXmlFeatures;
+import jdk.xml.internal.XMLSecurityManager;
 
 /**
  * The XPathFactory builds XPaths.
@@ -67,6 +68,12 @@ public  class XPathFactoryImpl extends XPathFactory {
          */
         private final JdkXmlFeatures _featureManager;
 
+
+        /**
+         * The XML security manager
+         */
+        private XMLSecurityManager _xmlSecMgr;
+
         /**
          * javax.xml.xpath.XPathFactory implementation.
          */
@@ -77,6 +84,7 @@ public  class XPathFactoryImpl extends XPathFactory {
                 _isNotSecureProcessing = false;
             }
             _featureManager = new JdkXmlFeatures(!_isNotSecureProcessing);
+            _xmlSecMgr = new XMLSecurityManager(true);
         }
         /**
          * <p>Is specified object model supported by this
@@ -126,7 +134,7 @@ public  class XPathFactoryImpl extends XPathFactory {
         public javax.xml.xpath.XPath newXPath() {
             return new com.sun.org.apache.xpath.internal.jaxp.XPathImpl(
                     xPathVariableResolver, xPathFunctionResolver,
-                    !_isNotSecureProcessing, _featureManager );
+                    !_isNotSecureProcessing, _featureManager, _xmlSecMgr);
         }
 
         /**

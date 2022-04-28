@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2007, 2022, Oracle and/or its affiliates. All rights reserved.
  */
 /*
  * Copyright 1999-2004 The Apache Software Foundation.
@@ -23,11 +23,11 @@ package com.sun.org.apache.xml.internal.utils;
 
 import com.sun.org.apache.xalan.internal.XalanConstants;
 import com.sun.org.apache.xalan.internal.utils.SecuritySupport;
-import com.sun.org.apache.xalan.internal.utils.XMLSecurityManager;
 import java.util.HashMap;
 
 import javax.xml.XMLConstants;
 import jdk.xml.internal.JdkXmlUtils;
+import jdk.xml.internal.XMLSecurityManager;
 import org.xml.sax.SAXException;
 import org.xml.sax.XMLReader;
 
@@ -133,9 +133,11 @@ public class XMLReaderManager {
         try {
             if (_xmlSecurityManager != null) {
                 for (XMLSecurityManager.Limit limit : XMLSecurityManager.Limit.values()) {
-                    lastProperty = limit.apiProperty();
-                    reader.setProperty(lastProperty,
-                            _xmlSecurityManager.getLimitValueAsString(limit));
+                    if (limit.isSupported(XMLSecurityManager.Processor.PARSER)) {
+                        lastProperty = limit.apiProperty();
+                        reader.setProperty(lastProperty,
+                                _xmlSecurityManager.getLimitValueAsString(limit));
+                    }
                 }
                 if (_xmlSecurityManager.printEntityCountInfo()) {
                     lastProperty = XalanConstants.JDK_ENTITY_COUNT_INFO;

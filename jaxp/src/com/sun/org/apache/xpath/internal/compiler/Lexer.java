@@ -23,8 +23,12 @@ package com.sun.org.apache.xpath.internal.compiler;
 
 import java.util.Vector;
 
+import com.sun.org.apache.xalan.internal.res.XSLMessages;
 import com.sun.org.apache.xml.internal.utils.PrefixResolver;
 import com.sun.org.apache.xpath.internal.res.XPATHErrorResources;
+import javax.xml.transform.TransformerException;
+import jdk.xml.internal.XMLSecurityManager;
+import jdk.xml.internal.XMLSecurityManager.Limit;
 
 /**
  * This class is in charge of lexical processing of the XPath
@@ -70,6 +74,24 @@ class Lexer
    */
   private int m_patternMapSize;
 
+  // XML security manager
+  XMLSecurityManager m_xmlSecMgr;
+
+  // operator limit
+  private int m_opCountLimit;
+
+  // group limit
+  private int m_grpCountLimit;
+
+  // count of operators
+  private int m_opCount;
+
+  // count of groups
+  private int m_grpCount;
+
+  // indicate whether the current token is a literal
+  private boolean isLiteral = false;
+
   /**
    * Create a Lexer object.
    *
@@ -77,14 +99,22 @@ class Lexer
    * @param resolver The prefix resolver for mapping qualified name prefixes
    *                 to namespace URIs.
    * @param xpathProcessor The parser that is processing strings to opcodes.
+   * @param xmlSecMgr the XML security manager
    */
   Lexer(Compiler compiler, PrefixResolver resolver,
-        XPathParser xpathProcessor)
+        XPathParser xpathProcessor, XMLSecurityManager xmlSecMgr)
   {
-
     m_compiler = compiler;
     m_namespaceContext = resolver;
     m_processor = xpathProcessor;
+    m_xmlSecMgr = xmlSecMgr;
+    /**
+     * No limits if XML Security Manager is null. Applications using XPath through
+     * the public API always have a XMLSecurityManager. Applications invoking
+     * the internal XPath API shall consider using the public API instead.
+     */
+    m_opCountLimit = (xmlSecMgr != null) ? xmlSecMgr.getLimit(Limit.XPATH_OP_LIMIT) : 0;
+    m_grpCountLimit = (xmlSecMgr != null) ? xmlSecMgr.getLimit(Limit.XPATH_GROUP_LIMIT) : 0;
   }
 
   /**
@@ -135,7 +165,7 @@ class Lexer
 
       switch (c)
       {
-      case '\"' :
+      case Token.DQ :
       {
         if (startSubstring != -1)
         {
@@ -170,7 +200,7 @@ class Lexer
         }
       }
       break;
-      case '\'' :
+      case Token.SQ :
         if (startSubstring != -1)
         {
           isNum = false;
@@ -189,9 +219,9 @@ class Lexer
 
         startSubstring = i;
 
-        for (i++; (i < nChars) && ((c = pat.charAt(i)) != '\''); i++);
+        for (i++; (i < nChars) && ((c = pat.charAt(i)) != Token.SQ); i++);
 
-        if (c == '\'' && i < nChars)
+        if (c == Token.SQ && i < nChars)
         {
           addToTokenQueue(pat.substring(startSubstring, i + 1));
 
@@ -219,18 +249,24 @@ class Lexer
           }
           else
           {
-            addToTokenQueue(pat.substring(startSubstring, i));
+            // check operator symbol
+            String s = pat.substring(startSubstring, i);
+            if (Token.contains(s)) {
+                m_opCount++;
+                isLiteral = false;
+            }
+            addToTokenQueue(s);
           }
 
           startSubstring = -1;
         }
         break;
-      case '@' :
+      case Token.AT :
         isAttrName = true;
 
       // fall-through on purpose
-      case '-' :
-        if ('-' == c)
+      case Token.MINUS :
+        if (Token.MINUS == c)
         {
           if (!(isNum || (startSubstring == -1)))
           {
@@ -241,22 +277,22 @@ class Lexer
         }
 
       // fall-through on purpose
-      case '(' :
-      case '[' :
-      case ')' :
-      case ']' :
-      case '|' :
-      case '/' :
-      case '*' :
-      case '+' :
-      case '=' :
-      case ',' :
+      case Token.LPAREN :
+      case Token.LBRACK :
+      case Token.RPAREN :
+      case Token.RBRACK :
+      case Token.VBAR :
+      case Token.SLASH :
+      case Token.STAR :
+      case Token.PLUS :
+      case Token.EQ :
+      case Token.COMMA :
       case '\\' :  // Unused at the moment
       case '^' :  // Unused at the moment
-      case '!' :  // Unused at the moment
-      case '$' :
-      case '<' :
-      case '>' :
+      case Token.EM :  // Unused at the moment
+      case Token.DOLLAR :
+      case Token.LT :
+      case Token.GT :
         if (startSubstring != -1)
         {
           isNum = false;
@@ -274,11 +310,11 @@ class Lexer
 
           startSubstring = -1;
         }
-        else if (('/' == c) && isStartOfPat)
+        else if ((Token.SLASH == c) && isStartOfPat)
         {
           isStartOfPat = mapPatternElemPos(nesting, isStartOfPat, isAttrName);
         }
-        else if ('*' == c)
+        else if (Token.STAR == c)
         {
           isStartOfPat = mapPatternElemPos(nesting, isStartOfPat, isAttrName);
           isAttrName = false;
@@ -286,7 +322,7 @@ class Lexer
 
         if (0 == nesting)
         {
-          if ('|' == c)
+          if (Token.VBAR == c)
           {
             if (null != targetStrings)
             {
@@ -297,18 +333,32 @@ class Lexer
           }
         }
 
-        if ((')' == c) || (']' == c))
+        if ((Token.RPAREN == c) || (Token.RBRACK == c))
         {
           nesting--;
         }
-        else if (('(' == c) || ('[' == c))
+        else if ((Token.LPAREN == c) || (Token.LBRACK == c))
         {
           nesting++;
+          if (!isLiteral && (Token.LPAREN == c)) {
+            m_grpCount++;
+            m_opCount++;
+            isLiteral = false;
+          }
+        }
+
+        if ((Token.GT == c || Token.LT == c || Token.EQ == c) && Token.EQ != peekNext(pat, i)) {
+            m_opCount++;
+            isLiteral = false;
+        }
+        else if ((Token.LPAREN != c) && (Token.RPAREN != c) && (Token.RBRACK != c)) {
+            m_opCount++;
+            isLiteral = false;
         }
 
         addToTokenQueue(pat.substring(i, i + 1));
         break;
-      case ':' :
+      case Token.COLON_CHAR:
         if (i>0)
         {
           if (posOfNSSep == (i - 1))
@@ -323,7 +373,7 @@ class Lexer
             isAttrName = false;
             startSubstring = -1;
             posOfNSSep = -1;
-
+            m_opCount++;
             addToTokenQueue(pat.substring(i - 1, i + 1));
 
             break;
@@ -336,6 +386,7 @@ class Lexer
 
       // fall through on purpose
       default :
+        isLiteral = true;
         if (-1 == startSubstring)
         {
           startSubstring = i;
@@ -345,6 +396,20 @@ class Lexer
         {
           isNum = Character.isDigit(c);
         }
+      }
+      if (m_grpCountLimit > 0 && m_grpCount > m_grpCountLimit) {
+          throw new TransformerException(XSLMessages.createXPATHMessage(
+            XPATHErrorResources.ER_XPATH_GROUP_LIMIT,
+            new Object[]{Integer.toString(m_grpCount),
+                Integer.toString(m_grpCountLimit),
+                m_xmlSecMgr.getStateLiteral(Limit.XPATH_GROUP_LIMIT)}));
+      }
+      if (m_opCountLimit > 0 && m_opCount > m_opCountLimit) {
+          throw new TransformerException(XSLMessages.createXPATHMessage(
+            XPATHErrorResources.ER_XPATH_OPERATOR_LIMIT,
+            new Object[]{Integer.toString(m_opCount),
+                Integer.toString(m_opCountLimit),
+                m_xmlSecMgr.getStateLiteral(Limit.XPATH_OP_LIMIT)}));
       }
     }
 
@@ -374,6 +439,19 @@ class Lexer
     }
 
     m_processor.m_queueMark = 0;
+  }
+
+  /**
+   * Peeks at the next character without advancing the index.
+   * @param s the input string
+   * @param index the current index
+   * @return the next char
+   */
+  private char peekNext(String s, int index) {
+      if (index >= 0 && index < s.length() - 1) {
+          return s.charAt(index + 1);
+      }
+      return 0;
   }
 
   /**
@@ -498,7 +576,7 @@ class Lexer
 
     resetTokenMark(tokPos + 1);
 
-    if (m_processor.lookahead('(', 1))
+    if (m_processor.lookahead(Token.LPAREN, 1))
     {
       int tok = getKeywordToken(m_processor.m_token);
 
@@ -528,14 +606,14 @@ class Lexer
     }
     else
     {
-      if (m_processor.tokenIs('@'))
+      if (m_processor.tokenIs(Token.AT))
       {
         tokPos++;
 
         resetTokenMark(tokPos + 1);
       }
 
-      if (m_processor.lookahead(':', 1))
+      if (m_processor.lookahead(Token.COLON_CHAR, 1))
       {
         tokPos += 2;
       }
@@ -564,13 +642,13 @@ class Lexer
    * @param posOfNSSep The position of the namespace seperator (':').
    * @param posOfScan The end of the name index.
    *
-   * @throws javax.xml.transform.TransformerException
+   * @throws TransformerException
    *
    * @return -1 always.
    */
   private int mapNSTokens(String pat, int startSubstring, int posOfNSSep,
                           int posOfScan)
-           throws javax.xml.transform.TransformerException
+           throws TransformerException
  {
 
     String prefix = "";

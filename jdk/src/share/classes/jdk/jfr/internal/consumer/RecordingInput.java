@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -256,6 +256,7 @@ public final class RecordingInput implements DataInput, AutoCloseable {
             return "";
         }
         int size = readInt();
+        require(size, "String size %d exceeds available data");
         if (encoding == STRING_ENCODING_CHAR_ARRAY) {
             char[] c = new char[size];
             for (int i = 0; i < size; i++) {
@@ -335,5 +336,14 @@ public final class RecordingInput implements DataInput, AutoCloseable {
         }
         int b8 = readByte(); // read last byte raw
         return ret + (((long) (b8 & 0XFF)) << 56);
+    }
+
+    // Purpose of this method is to prevent OOM by sanity check
+    // the minimum required number of bytes against what is available in
+    // segment/chunk/file
+    public void require(int minimumBytes, String errorMessage) throws IOException {
+        if (position + minimumBytes > size) {
+            throw new IOException(String.format(errorMessage, minimumBytes));
+        }
     }
 }
