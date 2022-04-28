@@ -160,7 +160,7 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install openjdk-8-jdk gcc-9=9.3.0-17ubuntu1~20.04 g++-9=9.3.0-17ubuntu1~20.04 libxrandr-dev libxtst-dev libcups2-dev libasound2-dev
+          sudo apt-get install openjdk-8-jdk gcc-9 g++-9 libxrandr-dev libxtst-dev libcups2-dev libasound2-dev
           sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-9 100 --slave /usr/bin/g++ g++ /usr/bin/g++-9
 
       - name: Configure
@@ -439,12 +439,12 @@ jobs:
 
       - name: Install native host dependencies
         run: |
-          sudo apt-get install openjdk-8-jdk gcc-9=9.3.0-17ubuntu1~20.04 g++-9=9.3.0-17ubuntu1~20.04 libxrandr-dev libxtst-dev libcups2-dev libasound2-dev
+          sudo apt-get install openjdk-8-jdk gcc-9 g++-9 libxrandr-dev libxtst-dev libcups2-dev libasound2-dev
           sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-9 100 --slave /usr/bin/g++ g++ /usr/bin/g++-9
         if: matrix.debian-arch == ''
 
       - name: Install cross-compilation host dependencies
-        run: sudo apt-get install gcc-9-${{ matrix.gnu-arch }}-linux-gnu${{ matrix.gnu-flavor}}=9.3.0-17ubuntu1~20.04cross2 g++-9-${{ matrix.gnu-arch }}-linux-gnu${{ matrix.gnu-flavor}}=9.3.0-17ubuntu1~20.04cross2
+        run: sudo apt-get install gcc-9-${{ matrix.gnu-arch }}-linux-gnu${{ matrix.gnu-flavor}} g++-9-${{ matrix.gnu-arch }}-linux-gnu${{ matrix.gnu-flavor}}
         if: matrix.debian-arch != ''
 
       - name: Cache sysroot
