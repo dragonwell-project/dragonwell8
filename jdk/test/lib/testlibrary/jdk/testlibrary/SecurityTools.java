@@ -23,12 +23,15 @@
 
 package jdk.testlibrary;
 
+import java.io.Closeable;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -123,5 +126,67 @@ public class SecurityTools {
 
     public static OutputAnalyzer jarsigner(String... args) throws Exception {
         return jarsigner(Arrays.asList(args));
+    }
+
+    // Create a temporary keychain in macOS and use it. The original
+    // keychains will be restored when the object is closed.
+    public static class TemporaryKeychain implements Closeable {
+        // name of new keychain
+        private final String newChain;
+        // names of the original keychains
+        private final List<String> oldChains;
+
+        public TemporaryKeychain(String name) {
+            File f = new File(name + ".keychain-db");
+            newChain = f.getAbsolutePath();
+            try {
+                oldChains = new ArrayList<String>();
+                List<String> ls = ProcessTools.executeProcess("security", "list-keychains")
+                        .shouldHaveExitValue(0)
+                        .asLines();
+                for (String l: ls) {
+                    l = l.trim();
+                    if (l.startsWith("\"")) {
+                        oldChains.add(l.substring(1, l.length() - 1));
+                    } else {
+                        oldChains.add(l);
+                    }
+                }
+                if (!f.exists()) {
+                    ProcessTools.executeProcess("security", "create-keychain", "-p", "changeit", newChain)
+                            .shouldHaveExitValue(0);
+                }
+                ProcessTools.executeProcess("security", "unlock-keychain", "-p", "changeit", newChain)
+                        .shouldHaveExitValue(0);
+                ProcessTools.executeProcess("security", "list-keychains", "-s", newChain)
+                        .shouldHaveExitValue(0);
+            } catch (Throwable t) {
+                if (t instanceof RuntimeException) {
+                    throw (RuntimeException)t;
+                } else {
+                    throw new RuntimeException(t);
+                }
+            }
+        }
+
+        public String chain() {
+            return newChain;
+        }
+
+        @Override
+        public void close() throws IOException {
+            List<String> cmds = new ArrayList<String>(Arrays.asList("security", "list-keychains", "-s"));
+            cmds.addAll(Collections.unmodifiableList(oldChains));
+            try {
+                ProcessTools.executeProcess(cmds.toArray(new String[0]))
+                        .shouldHaveExitValue(0);
+            } catch (Throwable t) {
+                if (t instanceof RuntimeException) {
+                    throw (RuntimeException)t;
+                } else {
+                    throw new RuntimeException(t);
+                }
+            }
+        }
     }
 }

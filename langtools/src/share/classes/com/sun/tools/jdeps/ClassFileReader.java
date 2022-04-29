@@ -337,7 +337,10 @@ public class ClassFileReader {
                     cf = reader.readClassFile(jf, nextEntry);
                     return true;
                 } catch (ClassFileError | IOException ex) {
-                    skippedEntries.add(nextEntry.getName());
+                    skippedEntries.add(String.format("%s: %s (%s)",
+                                                     ex.getMessage(),
+                                                     nextEntry.getName(),
+                                                     jf.getName()));
                 }
                 nextEntry = nextEntry();
             }

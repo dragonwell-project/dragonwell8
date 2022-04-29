@@ -24,6 +24,7 @@ import java.util.ListResourceBundle;
 
 /**
  * @author Morten Jorgensen
+ * @LastModified: Jan 2022
  */
 public class ErrorMessages extends ListResourceBundle {
 
@@ -1011,12 +1012,22 @@ public class ErrorMessages extends ListResourceBundle {
          "smaller templates."
         },
 
-         {ErrorMsg.DESERIALIZE_TRANSLET_ERR, "When Java security is enabled, " +
-                        "support for deserializing TemplatesImpl is disabled." +
-                        "This can be overridden by setting the jdk.xml.enableTemplatesImplDeserialization" +
-                        " system property to true."}
+        {ErrorMsg.DESERIALIZE_TRANSLET_ERR, "When Java security is enabled, "
+              + "support for deserializing TemplatesImpl is disabled. This can be "
+              + "overridden by setting the jdk.xml.enableTemplatesImplDeserialization"
+              + " system property to true."},
 
-    };
+        {ErrorMsg.XPATH_GROUP_LIMIT,
+            "JAXP0801001: the compiler encountered an XPath expression containing "
+              + "''{0}'' groups that exceeds the ''{1}'' limit set by ''{2}''."},
+
+        {ErrorMsg.XPATH_OPERATOR_LIMIT,
+            "JAXP0801002: the compiler encountered an XPath expression containing "
+              + "''{0}'' operators that exceeds the ''{1}'' limit set by ''{2}''."},
+        {ErrorMsg.XPATH_TOTAL_OPERATOR_LIMIT,
+            "JAXP0801003: the compiler encountered XPath expressions with an accumulated "
+              + "''{0}'' operators that exceeds the ''{1}'' limit set by ''{2}''."},
+      };
 
     }
 }

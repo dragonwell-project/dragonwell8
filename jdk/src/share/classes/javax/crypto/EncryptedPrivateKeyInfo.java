@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2011, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -78,10 +78,14 @@ public class EncryptedPrivateKeyInfo {
         throws IOException {
         if (encoded == null) {
             throw new NullPointerException("the encoded parameter " +
-                                           "must be non-null");
+                "must be non-null");
         }
+
         this.encoded = encoded.clone();
-        DerValue val = new DerValue(this.encoded);
+        DerValue val = DerValue.wrap(this.encoded);
+        if (val.tag != DerValue.tag_Sequence) {
+            throw new IOException("DER header error: no SEQ tag");
+        }
 
         DerValue[] seq = new DerValue[2];
 

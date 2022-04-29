@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2007, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2007, 2022, Oracle and/or its affiliates. All rights reserved.
  */
 /*
  * Licensed to the Apache Software Foundation (ASF) under one or more
@@ -24,7 +24,7 @@
 package com.sun.org.apache.xalan.internal.xsltc.trax;
 
 import com.sun.org.apache.xalan.internal.XalanConstants;
-import com.sun.org.apache.xalan.internal.utils.XMLSecurityManager;
+import com.sun.org.apache.xalan.internal.utils.SecuritySupport;
 import com.sun.org.apache.xalan.internal.xsltc.DOM;
 import com.sun.org.apache.xalan.internal.xsltc.DOMCache;
 import com.sun.org.apache.xalan.internal.xsltc.StripFilter;
@@ -52,12 +52,12 @@ import java.net.URI;
 import java.net.URL;
 import java.net.URLConnection;
 import java.net.UnknownServiceException;
+import java.util.ArrayList;
 import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Properties;
 import java.util.StringTokenizer;
-import java.util.Vector;
 import javax.xml.XMLConstants;
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
@@ -79,6 +79,7 @@ import javax.xml.transform.stax.StAXResult;
 import javax.xml.transform.stax.StAXSource;
 import javax.xml.transform.stream.StreamResult;
 import javax.xml.transform.stream.StreamSource;
+import jdk.xml.internal.XMLSecurityManager;
 import jdk.xml.internal.JdkXmlUtils;
 import org.xml.sax.ContentHandler;
 import org.xml.sax.InputSource;
@@ -90,6 +91,7 @@ import org.xml.sax.ext.LexicalHandler;
  * @author Morten Jorgensen
  * @author G. Todd Miller
  * @author Santiago Pericas-Geertsen
+ * @LastModified: Sept 2021
  */
 public final class TransformerImpl extends Transformer
     implements DOMCache, ErrorListener
@@ -1044,7 +1046,7 @@ public final class TransformerImpl extends Transformer
             else if (name.equals(OutputKeys.CDATA_SECTION_ELEMENTS)) {
                 if (value != null) {
                     StringTokenizer e = new StringTokenizer(value);
-                    Vector uriAndLocalNames = null;
+                    ArrayList<String> uriAndLocalNames = null;
                     while (e.hasMoreTokens()) {
                         final String token = e.nextToken();
 
@@ -1064,11 +1066,11 @@ public final class TransformerImpl extends Transformer
                         }
 
                         if (uriAndLocalNames == null) {
-                            uriAndLocalNames = new Vector();
+                            uriAndLocalNames = new ArrayList<>();
                         }
                         // add the uri/localName as a pair, in that order
-                        uriAndLocalNames.addElement(uri);
-                        uriAndLocalNames.addElement(localName);
+                        uriAndLocalNames.add(uri);
+                        uriAndLocalNames.add(localName);
                     }
                     handler.setCdataSectionElements(uriAndLocalNames);
                 }
@@ -1280,8 +1282,33 @@ public final class TransformerImpl extends Transformer
              */
             Source resolvedSource = _uriResolver.resolve(href, baseURI);
             if (resolvedSource == null)  {
-                StreamSource streamSource = new StreamSource(
-                     SystemIDResolver.getAbsoluteURI(href, baseURI));
+                /**
+                 * Uses the translet to carry over error msg.
+                 * Performs the access check without any interface changes
+                 * (e.g. Translet and DOMCache).
+                 */
+                @SuppressWarnings("unchecked") //AbstractTranslet is the sole impl.
+                AbstractTranslet t = (AbstractTranslet)translet;
+                String systemId = SystemIDResolver.getAbsoluteURI(href, baseURI);
+                String errMsg = null;
+                try {
+                    String accessError = SecuritySupport.checkAccess(systemId,
+                            t.getAllowedProtocols(),
+                            XalanConstants.ACCESS_EXTERNAL_ALL);
+                    if (accessError != null) {
+                        ErrorMsg msg = new ErrorMsg(ErrorMsg.ACCESSING_XSLT_TARGET_ERR,
+                                SecuritySupport.sanitizePath(href), accessError);
+                        errMsg = msg.toString();
+                    }
+                } catch (IOException ioe) {
+                    errMsg = ioe.getMessage();
+                }
+                if (errMsg != null) {
+                    t.setAccessError(errMsg);
+                    return null;
+                }
+
+                StreamSource streamSource = new StreamSource(systemId);
                 return getDOM(streamSource) ;
             }
 
