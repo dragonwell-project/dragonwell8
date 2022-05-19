@@ -145,7 +145,12 @@ endif
 WINDOWS_JDK_BIN_FILES = \
     $(EXE_SUFFIX) \
     $(LIBRARY_PREFIX)jli$(SHARED_LIBRARY_SUFFIX) \
-    $(notdir $(MSVCR_DLL))
+    $(notdir $(MSVCR_DLL)) \
+    $(notdir $(MSVCP_DLL))
+
+ifneq ($(UCRT_DLL_DIR), )
+  WINDOWS_JDK_BIN_FILES += $(notdir $(wildcard $(UCRT_DLL_DIR)/*.dll))
+endif
 
 WINDOWS_JDKJRE_BIN_FILES := \
     $(LIBRARY_PREFIX)attach$(SHARED_LIBRARY_SUFFIX) \
