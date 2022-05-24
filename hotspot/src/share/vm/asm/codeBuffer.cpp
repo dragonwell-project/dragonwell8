@@ -128,10 +128,10 @@ CodeBuffer::~CodeBuffer() {
     // Previous incarnations of this buffer are held live, so that internal
     // addresses constructed before expansions will not be confused.
     cb->free_blob();
+    // free any overflow storage
+    delete _overflow_arena;
   }
 
-  // free any overflow storage
-  delete _overflow_arena;
 
   // Claim is that stack allocation ensures resources are cleaned up.
   // This is resource clean up, let's hope that all were properly copied out.
@@ -937,6 +937,7 @@ void CodeBuffer::take_over_code_from(CodeBuffer* cb) {
     this_sect->take_over_code_from(cb_sect);
   }
   _overflow_arena = cb->_overflow_arena;
+  cb->_overflow_arena = NULL;
   // Make sure the old cb won't try to use it or free it.
   DEBUG_ONLY(cb->_blob = (BufferBlob*)badAddress);
 }
