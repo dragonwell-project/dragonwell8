@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -56,22 +56,24 @@ public class TestDisabledEvents {
     private static final byte[] writeBuf = { 'B', 'C', 'D' };
 
     public static void main(String[] args) throws Throwable {
-        File tmp = Utils.createTempFile("TestDisabledEvents", ".tmp").toFile();
-        Recording recording = new Recording();
-        recording.disable(IOEvent.EVENT_FILE_READ);
-        recording.disable(IOEvent.EVENT_FILE_WRITE);
-        recording.start();
+        File tmp = File.createTempFile("TestDisabledEvents", ".tmp", new File("."));
+        tmp.deleteOnExit();
+        try (Recording recording = new Recording()) {
+            recording.disable(IOEvent.EVENT_FILE_READ);
+            recording.disable(IOEvent.EVENT_FILE_WRITE);
+            recording.start();
 
-        useRandomAccessFile(tmp);
-        useFileStreams(tmp);
-        useFileChannel(tmp);
+            useRandomAccessFile(tmp);
+            useFileStreams(tmp);
+            useFileChannel(tmp);
 
-        recording.stop();
-        for (RecordedEvent event : Events.fromRecording(recording)) {
-            final String eventName = event.getEventType().getName();
-            System.out.println("Got eventName:" + eventName);
-            assertNotEquals(eventName, IOEvent.EVENT_FILE_READ, "Got disabled read event");
-            assertNotEquals(eventName, IOEvent.EVENT_FILE_WRITE, "Got disabled write event");
+            recording.stop();
+            for (RecordedEvent event : Events.fromRecording(recording)) {
+                final String eventName = event.getEventType().getName();
+                System.out.println("Got eventName:" + eventName);
+                assertNotEquals(eventName, IOEvent.EVENT_FILE_READ, "Got disabled read event");
+                assertNotEquals(eventName, IOEvent.EVENT_FILE_WRITE, "Got disabled write event");
+            }
         }
     }
 
