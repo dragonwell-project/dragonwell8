@@ -359,6 +359,9 @@ class Arguments : AllStatic {
   static exit_hook_t      _exit_hook;
   static vfprintf_hook_t  _vfprintf_hook;
 
+  // Running from java command
+  static bool _running_from_java;
+
   // System properties
   static bool add_property(const char* prop);
 
@@ -375,6 +378,7 @@ class Arguments : AllStatic {
   static void process_java_compiler_argument(char* arg);
   static jint parse_options_environment_variable(const char* name, SysClassPath* scp_p, bool* scp_assembly_required_p);
   static jint parse_java_tool_options_environment_variable(SysClassPath* scp_p, bool* scp_assembly_required_p);
+  static jint parse_dragonwell_options_environment_variable(SysClassPath* scp_p, bool* scp_assembly_required_p);
   static jint parse_java_options_environment_variable(SysClassPath* scp_p, bool* scp_assembly_required_p);
   static jint parse_vm_init_args(const JavaVMInitArgs* args);
   static jint parse_each_vm_init_arg(const JavaVMInitArgs* args, SysClassPath* scp_p, bool* scp_assembly_required_p, Flag::Flags origin);
@@ -446,7 +450,6 @@ class Arguments : AllStatic {
   static bool   CheckCompileOnly;
 
   static char*  SharedArchivePath;
-
  public:
   // Parses the arguments, first phase
   static jint parse(const JavaVMInitArgs* args);
@@ -605,6 +608,9 @@ class Arguments : AllStatic {
   // Operation modi
   static Mode mode()                { return _mode; }
   static bool is_interpreter_only() { return mode() == _int; }
+
+  static void set_running_from_java(bool running_from_java) { _running_from_java = running_from_java; }
+  static bool is_running_from_java() { return _running_from_java; }
 
 
   // Utility: copies src into buf, replacing "%%" with "%" and "%p" with pid.
