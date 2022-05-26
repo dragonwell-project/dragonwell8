@@ -167,6 +167,7 @@ static jboolean IsWildCardEnabled();
 static jlong threadStackSize    = 0;  /* stack size of the new thread */
 static jlong maxHeapSize        = 0;  /* max heap size */
 static jlong initialHeapSize    = 0;  /* inital heap size */
+static jboolean runFromJava     = JNI_FALSE; /* starts from java command */
 
 /*
  * Entry point.
@@ -203,6 +204,7 @@ JLI_Launch(int argc, char ** argv,              /* main argc, argc */
     _is_java_args = javaargs;
     _wc_enabled = cpwildcard;
     _ergo_policy = ergo;
+    runFromJava = jargc > 0;
 
     InitLauncher(javaw);
     DumpState();
@@ -1237,6 +1239,7 @@ InitializeJVM(JavaVM **pvm, JNIEnv **penv, InvocationFunctions *ifn)
                    i, args.options[i].optionString);
     }
 
+    ifn->SetRunningFromJava(!printVersion && runFromJava);
     r = ifn->CreateJavaVM(pvm, (void **)penv, &args);
     JLI_MemFree(options);
     return r == JNI_OK;
