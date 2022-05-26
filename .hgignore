@@ -2,8 +2,7 @@
 ^dist/
 nbproject/private/
 ^webrev
-^.hgtip
-^.bridge2
+^.src-rev$
 .DS_Store
 # Default ignored files
 .idea/workspace.xml
