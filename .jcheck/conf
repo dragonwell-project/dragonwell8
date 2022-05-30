@@ -1,7 +1,7 @@
 [general]
 project=jdk8u
 jbs=JDK
-version=openjdk8u342
+version=openjdk8u352
 
 [checks]
 error=author,committer,reviewers,merge,issues,executable,symlink,message,hg-tag,whitespace
