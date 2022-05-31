@@ -1,7 +1,6 @@
 //
-// Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
-// Copyright (c) 2014, 2019, Red Hat Inc.
-// All rights reserved.
+// Copyright (c) 2003, 2022, Oracle and/or its affiliates. All rights reserved.
+// Copyright (c) 2014, 2022, Red Hat, Inc. All rights reserved.
 // DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 //
 // This code is free software; you can redistribute it and/or modify it
@@ -2236,6 +2235,46 @@ typedef void (MacroAssembler::* mem_vector_insn)(FloatRegister Rt,
     }
   }
 
+  static void loadStore(MacroAssembler masm, mem_insn insn,
+                         Register reg, int opcode,
+                         Register base, int index, int size, int disp,
+                         int size_in_memory)
+  {
+    Address::extend scale;
+
+    // Hooboy, this is fugly.  We need a way to communicate to the
+    // encoder that the index needs to be sign extended, so we have to
+    // enumerate all the cases.
+    switch (opcode) {
+    case INDINDEXSCALEDOFFSETI2L:
+    case INDINDEXSCALEDI2L:
+    case INDINDEXSCALEDOFFSETI2LN:
+    case INDINDEXSCALEDI2LN:
+    case INDINDEXOFFSETI2L:
+    case INDINDEXOFFSETI2LN:
+      scale = Address::sxtw(size);
+      break;
+    default:
+      scale = Address::lsl(size);
+    }
+
+    if (index == -1) {
+      Address addr(base, disp);
+      /* Fix up any out-of-range offsets. */
+      assert_different_registers(rscratch1, base);
+      assert_different_registers(rscratch1, reg);
+      addr = masm.legitimize_address(addr, size_in_memory, rscratch1);
+      (masm.*insn)(reg, addr);
+    } else {
+      if (disp == 0) {
+        (masm.*insn)(reg, Address(base, as_Register(index), scale));
+      } else {
+        masm.lea(rscratch1, Address(base, disp));
+        (masm.*insn)(reg, Address(rscratch1, as_Register(index), scale));
+      }
+    }
+  }
+
   static void loadStore(MacroAssembler masm, mem_float_insn insn,
 			 FloatRegister reg, int opcode,
 			 Register base, int index, int size, int disp)
@@ -2324,120 +2363,160 @@ encode %{
 
   // BEGIN Non-volatile memory access
 
+  // This encoding class is generated automatically from ad_encode.m4.
+  // DO NOT EDIT ANYTHING IN THIS SECTION OF THE FILE
   enc_class aarch64_enc_ldrsbw(iRegI dst, memory mem) %{
     Register dst_reg = as_Register($dst$$reg);
     loadStore(MacroAssembler(&cbuf), &MacroAssembler::ldrsbw, dst_reg, $mem->opcode(),
                as_Register($mem$$base), $mem$$index, $mem$$scale, $mem$$disp);
   %}
 
+  // This encoding class is generated automatically from ad_encode.m4.
+  // DO NOT EDIT ANYTHING IN THIS SECTION OF THE FILE
   enc_class aarch64_enc_ldrsb(iRegI dst, memory mem) %{
     Register dst_reg = as_Register($dst$$reg);
     loadStore(MacroAssembler(&cbuf), &MacroAssembler::ldrsb, dst_reg, $mem->opcode(),
                as_Register($mem$$base), $mem$$index, $mem$$scale, $mem$$disp);
   %}
 
+  // This encoding class is generated automatically from ad_encode.m4.
+  // DO NOT EDIT ANYTHING IN THIS SECTION OF THE FILE
   enc_class aarch64_enc_ldrb(iRegI dst, memory mem) %{
     Register dst_reg = as_Register($dst$$reg);
     loadStore(MacroAssembler(&cbuf), &MacroAssembler::ldrb, dst_reg, $mem->opcode(),
                as_Register($mem$$base), $mem$$index, $mem$$scale, $mem$$disp);
   %}
 
+  // This encoding class is generated automatically from ad_encode.m4.
+  // DO NOT EDIT ANYTHING IN THIS SECTION OF THE FILE
   enc_class aarch64_enc_ldrb(iRegL dst, memory mem) %{
     Register dst_reg = as_Register($dst$$reg);
     loadStore(MacroAssembler(&cbuf), &MacroAssembler::ldrb, dst_reg, $mem->opcode(),
                as_Register($mem$$base), $mem$$index, $mem$$scale, $mem$$disp);
   %}
 
+  // This encoding class is generated automatically from ad_encode.m4.
+  // DO NOT EDIT ANYTHING IN THIS SECTION OF THE FILE
   enc_class aarch64_enc_ldrshw(iRegI dst, memory mem) %{
     Register dst_reg = as_Register($dst$$reg);
     loadStore(MacroAssembler(&cbuf), &MacroAssembler::ldrshw, dst_reg, $mem->opcode(),
                as_Register($mem$$base), $mem$$index, $mem$$scale, $mem$$disp);
   %}
 
+  // This encoding class is generated automatically from ad_encode.m4.
+  // DO NOT EDIT ANYTHING IN THIS SECTION OF THE FILE
   enc_class aarch64_enc_ldrsh(iRegI dst, memory mem) %{
     Register dst_reg = as_Register($dst$$reg);
     loadStore(MacroAssembler(&cbuf), &MacroAssembler::ldrsh, dst_reg, $mem->opcode(),
                as_Register($mem$$base), $mem$$index, $mem$$scale, $mem$$disp);
   %}
 
+  // This encoding class is generated automatically from ad_encode.m4.
+  // DO NOT EDIT ANYTHING IN THIS SECTION OF THE FILE
   enc_class aarch64_enc_ldrh(iRegI dst, memory mem) %{
     Register dst_reg = as_Register($dst$$reg);
     loadStore(MacroAssembler(&cbuf), &MacroAssembler::ldrh, dst_reg, $mem->opcode(),
                as_Register($mem$$base), $mem$$index, $mem$$scale, $mem$$disp);
   %}
 
+  // This encoding class is generated automatically from ad_encode.m4.
+  // DO NOT EDIT ANYTHING IN THIS SECTION OF THE FILE
   enc_class aarch64_enc_ldrh(iRegL dst, memory mem) %{
     Register dst_reg = as_Register($dst$$reg);
     loadStore(MacroAssembler(&cbuf), &MacroAssembler::ldrh, dst_reg, $mem->opcode(),
                as_Register($mem$$base), $mem$$index, $mem$$scale, $mem$$disp);
   %}
 
+  // This encoding class is generated automatically from ad_encode.m4.
+  // DO NOT EDIT ANYTHING IN THIS SECTION OF THE FILE
   enc_class aarch64_enc_ldrw(iRegI dst, memory mem) %{
     Register dst_reg = as_Register($dst$$reg);
     loadStore(MacroAssembler(&cbuf), &MacroAssembler::ldrw, dst_reg, $mem->opcode(),
                as_Register($mem$$base), $mem$$index, $mem$$scale, $mem$$disp);
   %}
 
+  // This encoding class is generated automatically from ad_encode.m4.
+  // DO NOT EDIT ANYTHING IN THIS SECTION OF THE FILE
   enc_class aarch64_enc_ldrw(iRegL dst, memory mem) %{
     Register dst_reg = as_Register($dst$$reg);
     loadStore(MacroAssembler(&cbuf), &MacroAssembler::ldrw, dst_reg, $mem->opcode(),
                as_Register($mem$$base), $mem$$index, $mem$$scale, $mem$$disp);
   %}
 
+  // This encoding class is generated automatically from ad_encode.m4.
+  // DO NOT EDIT ANYTHING IN THIS SECTION OF THE FILE
   enc_class aarch64_enc_ldrsw(iRegL dst, memory mem) %{
     Register dst_reg = as_Register($dst$$reg);
     loadStore(MacroAssembler(&cbuf), &MacroAssembler::ldrsw, dst_reg, $mem->opcode(),
                as_Register($mem$$base), $mem$$index, $mem$$scale, $mem$$disp);
   %}
 
+  // This encoding class is generated automatically from ad_encode.m4.
+  // DO NOT EDIT ANYTHING IN THIS SECTION OF THE FILE
   enc_class aarch64_enc_ldr(iRegL dst, memory mem) %{
     Register dst_reg = as_Register($dst$$reg);
     loadStore(MacroAssembler(&cbuf), &MacroAssembler::ldr, dst_reg, $mem->opcode(),
                as_Register($mem$$base), $mem$$index, $mem$$scale, $mem$$disp);
   %}
 
+  // This encoding class is generated automatically from ad_encode.m4.
+  // DO NOT EDIT ANYTHING IN THIS SECTION OF THE FILE
   enc_class aarch64_enc_ldrs(vRegF dst, memory mem) %{
     FloatRegister dst_reg = as_FloatRegister($dst$$reg);
     loadStore(MacroAssembler(&cbuf), &MacroAssembler::ldrs, dst_reg, $mem->opcode(),
                as_Register($mem$$base), $mem$$index, $mem$$scale, $mem$$disp);
   %}
 
+  // This encoding class is generated automatically from ad_encode.m4.
+  // DO NOT EDIT ANYTHING IN THIS SECTION OF THE FILE
   enc_class aarch64_enc_ldrd(vRegD dst, memory mem) %{
     FloatRegister dst_reg = as_FloatRegister($dst$$reg);
     loadStore(MacroAssembler(&cbuf), &MacroAssembler::ldrd, dst_reg, $mem->opcode(),
                as_Register($mem$$base), $mem$$index, $mem$$scale, $mem$$disp);
   %}
 
+  // This encoding class is generated automatically from ad_encode.m4.
+  // DO NOT EDIT ANYTHING IN THIS SECTION OF THE FILE
   enc_class aarch64_enc_ldrvS(vecD dst, memory mem) %{
     FloatRegister dst_reg = as_FloatRegister($dst$$reg);
     loadStore(MacroAssembler(&cbuf), &MacroAssembler::ldr, dst_reg, MacroAssembler::S,
        $mem->opcode(), as_Register($mem$$base), $mem$$index, $mem$$scale, $mem$$disp);
   %}
 
+  // This encoding class is generated automatically from ad_encode.m4.
+  // DO NOT EDIT ANYTHING IN THIS SECTION OF THE FILE
   enc_class aarch64_enc_ldrvD(vecD dst, memory mem) %{
     FloatRegister dst_reg = as_FloatRegister($dst$$reg);
     loadStore(MacroAssembler(&cbuf), &MacroAssembler::ldr, dst_reg, MacroAssembler::D,
        $mem->opcode(), as_Register($mem$$base), $mem$$index, $mem$$scale, $mem$$disp);
   %}
 
+  // This encoding class is generated automatically from ad_encode.m4.
+  // DO NOT EDIT ANYTHING IN THIS SECTION OF THE FILE
   enc_class aarch64_enc_ldrvQ(vecX dst, memory mem) %{
     FloatRegister dst_reg = as_FloatRegister($dst$$reg);
     loadStore(MacroAssembler(&cbuf), &MacroAssembler::ldr, dst_reg, MacroAssembler::Q,
        $mem->opcode(), as_Register($mem$$base), $mem$$index, $mem$$scale, $mem$$disp);
   %}
 
+  // This encoding class is generated automatically from ad_encode.m4.
+  // DO NOT EDIT ANYTHING IN THIS SECTION OF THE FILE
   enc_class aarch64_enc_strb(iRegI src, memory mem) %{
     Register src_reg = as_Register($src$$reg);
     loadStore(MacroAssembler(&cbuf), &MacroAssembler::strb, src_reg, $mem->opcode(),
                as_Register($mem$$base), $mem$$index, $mem$$scale, $mem$$disp);
   %}
 
+  // This encoding class is generated automatically from ad_encode.m4.
+  // DO NOT EDIT ANYTHING IN THIS SECTION OF THE FILE
   enc_class aarch64_enc_strb0(memory mem) %{
     MacroAssembler _masm(&cbuf);
     loadStore(_masm, &MacroAssembler::strb, zr, $mem->opcode(),
                as_Register($mem$$base), $mem$$index, $mem$$scale, $mem$$disp);
   %}
 
+  // This encoding class is generated automatically from ad_encode.m4.
+  // DO NOT EDIT ANYTHING IN THIS SECTION OF THE FILE
   enc_class aarch64_enc_strb0_ordered(memory mem) %{
     MacroAssembler _masm(&cbuf);
     __ membar(Assembler::StoreStore);
@@ -2445,30 +2524,40 @@ encode %{
                as_Register($mem$$base), $mem$$index, $mem$$scale, $mem$$disp);
   %}
 
+  // This encoding class is generated automatically from ad_encode.m4.
+  // DO NOT EDIT ANYTHING IN THIS SECTION OF THE FILE
   enc_class aarch64_enc_strh(iRegI src, memory mem) %{
     Register src_reg = as_Register($src$$reg);
     loadStore(MacroAssembler(&cbuf), &MacroAssembler::strh, src_reg, $mem->opcode(),
-               as_Register($mem$$base), $mem$$index, $mem$$scale, $mem$$disp);
+               as_Register($mem$$base), $mem$$index, $mem$$scale, $mem$$disp, 2);
   %}
 
+  // This encoding class is generated automatically from ad_encode.m4.
+  // DO NOT EDIT ANYTHING IN THIS SECTION OF THE FILE
   enc_class aarch64_enc_strh0(memory mem) %{
     MacroAssembler _masm(&cbuf);
     loadStore(_masm, &MacroAssembler::strh, zr, $mem->opcode(),
-               as_Register($mem$$base), $mem$$index, $mem$$scale, $mem$$disp);
+               as_Register($mem$$base), $mem$$index, $mem$$scale, $mem$$disp, 2);
   %}
 
+  // This encoding class is generated automatically from ad_encode.m4.
+  // DO NOT EDIT ANYTHING IN THIS SECTION OF THE FILE
   enc_class aarch64_enc_strw(iRegI src, memory mem) %{
     Register src_reg = as_Register($src$$reg);
     loadStore(MacroAssembler(&cbuf), &MacroAssembler::strw, src_reg, $mem->opcode(),
-               as_Register($mem$$base), $mem$$index, $mem$$scale, $mem$$disp);
+               as_Register($mem$$base), $mem$$index, $mem$$scale, $mem$$disp, 4);
   %}
 
+  // This encoding class is generated automatically from ad_encode.m4.
+  // DO NOT EDIT ANYTHING IN THIS SECTION OF THE FILE
   enc_class aarch64_enc_strw0(memory mem) %{
     MacroAssembler _masm(&cbuf);
     loadStore(_masm, &MacroAssembler::strw, zr, $mem->opcode(),
-               as_Register($mem$$base), $mem$$index, $mem$$scale, $mem$$disp);
+               as_Register($mem$$base), $mem$$index, $mem$$scale, $mem$$disp, 4);
   %}
 
+  // This encoding class is generated automatically from ad_encode.m4.
+  // DO NOT EDIT ANYTHING IN THIS SECTION OF THE FILE
   enc_class aarch64_enc_str(iRegL src, memory mem) %{
     Register src_reg = as_Register($src$$reg);
     // we sometimes get asked to store the stack pointer into the
@@ -2480,45 +2569,57 @@ encode %{
       src_reg = rscratch2;
     }
     loadStore(MacroAssembler(&cbuf), &MacroAssembler::str, src_reg, $mem->opcode(),
-               as_Register($mem$$base), $mem$$index, $mem$$scale, $mem$$disp);
+               as_Register($mem$$base), $mem$$index, $mem$$scale, $mem$$disp, 8);
   %}
 
+  // This encoding class is generated automatically from ad_encode.m4.
+  // DO NOT EDIT ANYTHING IN THIS SECTION OF THE FILE
   enc_class aarch64_enc_str0(memory mem) %{
     MacroAssembler _masm(&cbuf);
     loadStore(_masm, &MacroAssembler::str, zr, $mem->opcode(),
-               as_Register($mem$$base), $mem$$index, $mem$$scale, $mem$$disp);
+               as_Register($mem$$base), $mem$$index, $mem$$scale, $mem$$disp, 8);
   %}
 
+  // This encoding class is generated automatically from ad_encode.m4.
+  // DO NOT EDIT ANYTHING IN THIS SECTION OF THE FILE
   enc_class aarch64_enc_strs(vRegF src, memory mem) %{
     FloatRegister src_reg = as_FloatRegister($src$$reg);
     loadStore(MacroAssembler(&cbuf), &MacroAssembler::strs, src_reg, $mem->opcode(),
                as_Register($mem$$base), $mem$$index, $mem$$scale, $mem$$disp);
   %}
 
+  // This encoding class is generated automatically from ad_encode.m4.
+  // DO NOT EDIT ANYTHING IN THIS SECTION OF THE FILE
   enc_class aarch64_enc_strd(vRegD src, memory mem) %{
     FloatRegister src_reg = as_FloatRegister($src$$reg);
     loadStore(MacroAssembler(&cbuf), &MacroAssembler::strd, src_reg, $mem->opcode(),
                as_Register($mem$$base), $mem$$index, $mem$$scale, $mem$$disp);
   %}
 
+  // This encoding class is generated automatically from ad_encode.m4.
+  // DO NOT EDIT ANYTHING IN THIS SECTION OF THE FILE
   enc_class aarch64_enc_strvS(vecD src, memory mem) %{
     FloatRegister src_reg = as_FloatRegister($src$$reg);
     loadStore(MacroAssembler(&cbuf), &MacroAssembler::str, src_reg, MacroAssembler::S,
        $mem->opcode(), as_Register($mem$$base), $mem$$index, $mem$$scale, $mem$$disp);
   %}
 
+  // This encoding class is generated automatically from ad_encode.m4.
+  // DO NOT EDIT ANYTHING IN THIS SECTION OF THE FILE
   enc_class aarch64_enc_strvD(vecD src, memory mem) %{
     FloatRegister src_reg = as_FloatRegister($src$$reg);
     loadStore(MacroAssembler(&cbuf), &MacroAssembler::str, src_reg, MacroAssembler::D,
        $mem->opcode(), as_Register($mem$$base), $mem$$index, $mem$$scale, $mem$$disp);
   %}
 
+  // This encoding class is generated automatically from ad_encode.m4.
+  // DO NOT EDIT ANYTHING IN THIS SECTION OF THE FILE
   enc_class aarch64_enc_strvQ(vecX src, memory mem) %{
     FloatRegister src_reg = as_FloatRegister($src$$reg);
     loadStore(MacroAssembler(&cbuf), &MacroAssembler::str, src_reg, MacroAssembler::Q,
        $mem->opcode(), as_Register($mem$$base), $mem$$index, $mem$$scale, $mem$$disp);
   %}
-
+ 
   // END Non-volatile memory access
 
   // this encoding writes the address of the first instruction in the
