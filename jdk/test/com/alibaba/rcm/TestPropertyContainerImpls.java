@@ -2,6 +2,7 @@
  * @test
  * @summary Test ResourceType.SYSTEM_PROPERTY for tenant and wisp implementations
  * @library /lib/testlibrary
+ * @requires ( os.arch == "amd64" ) & ( os.family == "linux" )
  * @run main/othervm -Dcom.alibaba.resourceContainer.propertyIsolation=true -XX:+UnlockExperimentalVMOptions -XX:+UseWisp2 TestPropertyContainerImpls wisp
  * @run main/othervm -Dcom.alibaba.resourceContainer.propertyIsolation=true -XX:+MultiTenant TestPropertyContainerImpls tenant
  */
