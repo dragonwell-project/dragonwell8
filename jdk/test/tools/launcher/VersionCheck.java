@@ -59,6 +59,7 @@ public class VersionCheck extends TestHelper {
 
     // tools that do not accept -version
     static final String[] BLACKLIST_VERSION = {
+        "jgroup",
         "appletviewer",
         "controlpanel",
         "clhsdb",
@@ -245,10 +246,6 @@ public class VersionCheck extends TestHelper {
             }
             String name = pathname.getName().toLowerCase();
             if (isWindows && !name.endsWith(EXE_FILE_EXT)) {
-                return false;
-            }
-            // jgroup requires special permission
-            if (pathname.getName().equals("jgroup")) {
                 return false;
             }
             for (String x : exclude) {
