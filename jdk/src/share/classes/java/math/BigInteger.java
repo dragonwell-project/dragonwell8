@@ -30,9 +30,11 @@
 package java.math;
 
 import java.io.IOException;
+import java.io.InvalidObjectException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.ObjectStreamField;
+import java.io.ObjectStreamException;
 import java.util.Arrays;
 import java.util.Random;
 import java.util.concurrent.ThreadLocalRandom;
@@ -4506,17 +4508,21 @@ public class BigInteger extends Number implements Comparable<BigInteger> {
         // prepare to read the alternate persistent fields
         ObjectInputStream.GetField fields = s.readFields();
 
-        // Read the alternate persistent fields that we care about
-        int sign = fields.get("signum", -2);
-        byte[] magnitude = (byte[])fields.get("magnitude", null);
+        // Read and validate the alternate persistent fields that we
+        // care about, signum and magnitude
 
-        // Validate signum
+        // Read and validate signum
+        int sign = fields.get("signum", -2);
         if (sign < -1 || sign > 1) {
             String message = "BigInteger: Invalid signum value";
             if (fields.defaulted("signum"))
                 message = "BigInteger: Signum not present in stream";
             throw new java.io.StreamCorruptedException(message);
         }
+
+        // Read and validate magnitude
+        byte[] magnitude = (byte[])fields.get("magnitude", null);
+        magnitude = magnitude.clone(); // defensive copy
         int[] mag = stripLeadingZeroBytes(magnitude);
         if ((mag.length == 0) != (sign == 0)) {
             String message = "BigInteger: signum-magnitude mismatch";
@@ -4525,18 +4531,23 @@ public class BigInteger extends Number implements Comparable<BigInteger> {
             throw new java.io.StreamCorruptedException(message);
         }
 
-        // Commit final fields via Unsafe
-        UnsafeHolder.putSign(this, sign);
-
-        // Calculate mag field from magnitude and discard magnitude
-        UnsafeHolder.putMag(this, mag);
-        if (mag.length >= MAX_MAG_LENGTH) {
-            try {
-                checkRange();
-            } catch (ArithmeticException e) {
-                throw new java.io.StreamCorruptedException("BigInteger: Out of the supported range");
-            }
+        // Equivalent to checkRange() on mag local without assigning
+        // this.mag field
+        if (mag.length > MAX_MAG_LENGTH ||
+            (mag.length == MAX_MAG_LENGTH && mag[0] < 0)) {
+            throw new java.io.StreamCorruptedException("BigInteger: Out of the supported range");
         }
+
+        // Commit final fields via Unsafe
+        UnsafeHolder.putSignAndMag(this, sign, mag);
+    }
+
+    /**
+     * Serialization without data not supported for this class.
+     */
+    private void readObjectNoData()
+        throws ObjectStreamException {
+        throw new InvalidObjectException("Deserialized BigInteger objects need data");
     }
 
     // Support for resetting final fields while deserializing
@@ -4556,11 +4567,8 @@ public class BigInteger extends Number implements Comparable<BigInteger> {
             }
         }
 
-        static void putSign(BigInteger bi, int sign) {
+        static void putSignAndMag(BigInteger bi, int sign, int[] magnitude) {
             unsafe.putIntVolatile(bi, signumOffset, sign);
-        }
-
-        static void putMag(BigInteger bi, int[] magnitude) {
             unsafe.putObjectVolatile(bi, magOffset, magnitude);
         }
     }
