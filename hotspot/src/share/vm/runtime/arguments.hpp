@@ -609,7 +609,7 @@ class Arguments : AllStatic {
   static Mode mode()                { return _mode; }
   static bool is_interpreter_only() { return mode() == _int; }
 
-  static void set_running_from_java(bool running_from_java) { _running_from_java = running_from_java; }
+  static void set_running_from_java(jboolean running_from_java) { _running_from_java = (running_from_java == JNI_TRUE ? true : false); }
   static bool is_running_from_java() { return _running_from_java; }
 
 
