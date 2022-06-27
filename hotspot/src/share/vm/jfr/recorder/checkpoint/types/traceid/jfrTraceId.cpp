@@ -45,7 +45,7 @@ static traceid atomic_inc(traceid volatile* const dest) {
 }
 
 static traceid next_class_id() {
-  static volatile traceid class_id_counter = MaxJfrEventId + 100;
+  static volatile traceid class_id_counter = MaxJfrEventId + 101; // + 101 is for the void.class primitive;
   return atomic_inc(&class_id_counter) << TRACE_ID_SHIFT;
 }
 
@@ -107,6 +107,10 @@ void JfrTraceId::assign(const ClassLoaderData* cld) {
   cld->set_trace_id(next_class_loader_data_id());
 }
 
+traceid JfrTraceId::assign_primitive_klass_id() {
+  return next_class_id();
+}
+
 traceid JfrTraceId::assign_thread_id() {
   return next_thread_id();
 }
@@ -130,6 +134,28 @@ void JfrTraceId::restore(const Klass* k) {
   const traceid event_flags = k->trace_id();
   // get a fresh traceid and restore the original event flags
   k->set_trace_id(next_class_id() | event_flags);
+  if (k->oop_is_typeArray()) {
+    // the next id is reserved for the corresponding primitive class
+    next_class_id();
+  }
+}
+
+// A mirror representing a primitive class (e.g. int.class) has no reified Klass*,
+// instead it has an associated TypeArrayKlass* (e.g. int[].class).
+// We can use the TypeArrayKlass* as a proxy for deriving the id of the primitive class.
+// The exception is the void.class, which has neither a Klass* nor a TypeArrayKlass*.
+// It will use a reserved constant.
+static traceid load_primitive(const oop mirror) {
+  assert(java_lang_Class::is_primitive(mirror), "invariant");
+  const Klass* const tak = java_lang_Class::array_klass(mirror);
+  traceid id;
+  if (tak == NULL) {
+    // The first klass id is reserved for the void.class
+    id = MaxJfrEventId + 101;
+  } else {
+    id = JfrTraceId::get(tak) + 1;
+  }
+  return id;
 }
 
 traceid JfrTraceId::get(jclass jc) {
@@ -145,7 +171,8 @@ traceid JfrTraceId::use(jclass jc, bool leakp /* false */) {
   assert(((JavaThread*)Thread::current())->thread_state() == _thread_in_vm, "invariant");
   const oop my_oop = JNIHandles::resolve(jc);
   assert(my_oop != NULL, "invariant");
-  return use(java_lang_Class::as_Klass(my_oop), leakp);
+  const Klass* const k = java_lang_Class::as_Klass(my_oop);
+  return k != NULL ? use(k, leakp) : load_primitive(my_oop);
 }
 
 bool JfrTraceId::in_visible_set(const jclass jc) {
