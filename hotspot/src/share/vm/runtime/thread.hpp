@@ -313,6 +313,7 @@ class Thread: public ThreadShadow {
   virtual bool is_VM_thread()       const            { return false; }
   virtual bool is_Java_thread()     const            { return false; }
   virtual bool is_Compiler_thread() const            { return false; }
+  virtual bool is_service_thread() const             { return false; }
   virtual bool is_hidden_from_external_view() const  { return false; }
   virtual bool is_jvmti_agent_thread() const         { return false; }
   // True iff the thread can perform GC operations at a safepoint.
