@@ -3514,6 +3514,7 @@ bool GraphBuilder::try_inline_intrinsics(ciMethod* callee) {
 
     case vmIntrinsics::_getClass      :
     case vmIntrinsics::_isInstance    :
+    case vmIntrinsics::_isPrimitive   :
       if (!InlineClassNatives) return false;
       preserves_state = true;
       break;
