@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -631,8 +631,9 @@ public class MotifLookAndFeel extends BasicLookAndFeel
             "Menu.submenuPopupOffsetX", new Integer(-2),
             "Menu.submenuPopupOffsetY", new Integer(3),
             "Menu.shortcutKeys", new int[]{
-                SwingUtilities2.getSystemMnemonicKeyMask(),
-                KeyEvent.META_MASK
+                SwingUtilities2.getSystemMnemonicKeyMask(), KeyEvent.META_MASK,
+                SwingUtilities2.setAltGraphMask(
+                        SwingUtilities2.getSystemMnemonicKeyMask())
             },
             "Menu.cancelMode", "hideMenuTree",
 
