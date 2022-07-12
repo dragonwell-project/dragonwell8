@@ -261,27 +261,7 @@ public class DerInputStream {
             return new BitArray(0);
         }
 
-        /*
-         * First byte = number of excess bits in the last octet of the
-         * representation.
-         */
-        length--;
-        int excessBits = buffer.read();
-        if (excessBits < 0) {
-            throw new IOException("Unused bits of bit string invalid");
-        }
-        int validBits = length*8 - excessBits;
-        if (validBits < 0) {
-            throw new IOException("Valid bits of bit string invalid");
-        }
-
-        byte[] repn = new byte[length];
-
-        if ((length != 0) && (buffer.read(repn) != length)) {
-            throw new IOException("Short read of DER bit string");
-        }
-
-        return new BitArray(validBits, repn);
+        return buffer.getUnalignedBitString(length);
     }
 
     /**
