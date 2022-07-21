@@ -818,6 +818,7 @@ typedef void (*ThreadFunction)(JavaThread*, TRAPS);
 
 class JavaThread: public Thread {
   friend class VMStructs;
+  friend class WispThread;
  private:
   JavaThread*    _next;                          // The next thread in the Threads list
   oop            _threadObj;                     // The Java level thread object

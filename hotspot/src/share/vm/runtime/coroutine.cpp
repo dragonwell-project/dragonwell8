@@ -965,6 +965,10 @@ const char* WispThread::print_blocking_status(int status) {
   }
 }
 
+void WispThread::oops_do(OopClosure *f, CLDClosure *cld_f, CodeBlobClosure *cf) {
+  f->do_oop((oop*) &_threadObj);
+}
+
 void Coroutine::after_safepoint(JavaThread* thread) {
   assert(Thread::current() == thread, "sanity check");
 

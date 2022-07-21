@@ -445,6 +445,9 @@ public:
     return thread->is_Wisp_thread() ? (WispThread*) thread :
       ((JavaThread*) thread)->current_coroutine()->wisp_thread();
   }
+
+  // Memory operations
+  void oops_do(OopClosure* f, CLDClosure* cld_f, CodeBlobClosure* cf);
 };
 
 // we supported coroutine stealing for following native calls:
