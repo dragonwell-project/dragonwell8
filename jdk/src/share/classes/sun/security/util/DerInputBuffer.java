@@ -189,6 +189,28 @@ class DerInputBuffer extends ByteArrayInputStream implements Cloneable {
         return result.intValue();
     }
 
+    // check the number of pad bits, validate the pad bits in the bytes
+    // if enforcing DER (i.e. allowBER == false), and return the number of
+    // bits of the resulting BitString
+    private static int checkPaddedBits(int numOfPadBits, byte[] data, int start,
+                                       int end, boolean allowBER) throws IOException {
+        // number of pad bits should be from 0(min) to 7(max).
+        if ((numOfPadBits < 0) || (numOfPadBits > 7)) {
+            throw new IOException("Invalid number of padding bits");
+        }
+        int lenInBits = ((end - start) << 3) - numOfPadBits;
+        if (lenInBits < 0) {
+            throw new IOException("Not enough bytes in BitString");
+        }
+
+        // padding bits should be all zeros for DER
+        if (!allowBER && numOfPadBits != 0 &&
+                (data[end - 1] & (0xff >>> (8 - numOfPadBits))) != 0) {
+            throw new IOException("Invalid value of padding bits");
+        }
+        return lenInBits;
+    }
+
     /**
      * Returns the bit string which takes up the specified
      * number of bytes in this buffer.
@@ -201,18 +223,20 @@ class DerInputBuffer extends ByteArrayInputStream implements Cloneable {
             throw new IOException("Invalid encoding: zero length bit string");
         }
 
-        int numOfPadBits = buf[pos];
-        if ((numOfPadBits < 0) || (numOfPadBits > 7)) {
-            throw new IOException("Invalid number of padding bits");
-        }
+        int start = pos;
+        int end = start + len;
+        skip(len); // Compatibility.
+
+        int numOfPadBits = buf[start++];
+        checkPaddedBits(numOfPadBits, buf, start, end, allowBER);
+
         // minus the first byte which indicates the number of padding bits
         byte[] retval = new byte[len - 1];
-        System.arraycopy(buf, pos + 1, retval, 0, len - 1);
-        if (numOfPadBits != 0) {
-            // get rid of the padding bits
-            retval[len - 2] &= (0xff << numOfPadBits);
+        System.arraycopy(buf, start, retval, 0, len - 1);
+        if (allowBER && numOfPadBits != 0) {
+            // fix the potential non-zero padding bits
+            retval[retval.length - 1] &= (0xff << numOfPadBits);
         }
-        skip(len);
         return retval;
     }
 
@@ -228,26 +252,35 @@ class DerInputBuffer extends ByteArrayInputStream implements Cloneable {
      * The bit string need not be byte-aligned.
      */
     BitArray getUnalignedBitString() throws IOException {
+        return getUnalignedBitString(available());
+    }
+
+    /**
+     * Returns the bit string which takes up the specified
+     * number of bytes in this buffer.
+     * The bit string need not be byte-aligned.
+     */
+    BitArray getUnalignedBitString(int len) throws IOException {
+        if (len > available())
+            throw new IOException("short read of bit string");
+
+        if (len == 0) {
+            throw new IOException("Invalid encoding: zero length bit string");
+        }
+
         if (pos >= count)
             return null;
         /*
          * Just copy the data into an aligned, padded octet buffer,
          * and consume the rest of the buffer.
          */
-        int len = available();
-        int unusedBits = buf[pos] & 0xff;
-        if (unusedBits > 7 ) {
-            throw new IOException("Invalid value for unused bits: " + unusedBits);
-        }
-        byte[] bits = new byte[len - 1];
-        // number of valid bits
-        int length = (bits.length == 0) ? 0 : bits.length * 8 - unusedBits;
-
-        System.arraycopy(buf, pos + 1, bits, 0, len - 1);
-
-        BitArray bitArray = new BitArray(length, bits);
-        pos = count;
-        return bitArray;
+        int start = pos;
+        int end = start + len;
+        pos = count;  // Compatibility.
+        int numOfPadBits = buf[start++];
+        int lenInBits = checkPaddedBits(numOfPadBits, buf, start,
+                                        end, allowBER);
+        return new BitArray(lenInBits, buf, start);
     }
 
     /**
