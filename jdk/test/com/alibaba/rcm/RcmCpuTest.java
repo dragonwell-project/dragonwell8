@@ -64,6 +64,6 @@ public class RcmCpuTest {
         es.shutdownNow();
 
         double ratio = (double) duration1 / duration0;
-        assertLT(Math.abs(ratio - 0.5), 0.10, "deviation is out of reasonable scope");
+        assertLT(Math.abs(ratio - 0.5), 0.40, "deviation is out of reasonable scope");
     }
 }
