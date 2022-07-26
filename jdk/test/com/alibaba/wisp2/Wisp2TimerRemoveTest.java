@@ -24,6 +24,7 @@
  * @library /lib/testlibrary
  * @summary verify canceled timers are removed ASAP
  * @requires os.family == "linux"
+ * @ignore
  * @run main/othervm -XX:+UnlockExperimentalVMOptions -XX:+UseWisp2 Wisp2TimerRemoveTest
  * @run main/othervm -XX:+UnlockExperimentalVMOptions -XX:+UseWisp2 -Dcom.alibaba.wisp.highPrecisionTimer=true  Wisp2TimerRemoveTest
  */
