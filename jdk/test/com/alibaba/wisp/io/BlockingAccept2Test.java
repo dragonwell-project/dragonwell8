@@ -42,18 +42,18 @@ public class BlockingAccept2Test {
                 latch.await(1, TimeUnit.SECONDS);
                 Thread.sleep(200);
                 Socket s = new Socket();
-                s.connect(new InetSocketAddress(12388));
+                s.connect(new InetSocketAddress(12389));
                 latch2.await(1, TimeUnit.SECONDS);
                 s.close();
                 Thread.sleep(200);
                 s = new Socket();
-                s.connect(new InetSocketAddress(12388));
+                s.connect(new InetSocketAddress(12389));
             } catch (Exception e) {
             }
         });
         t.start();
         ServerSocketChannel ssc = ServerSocketChannel.open();
-        ssc.bind(new InetSocketAddress(12388));
+        ssc.bind(new InetSocketAddress(12389));
         latch.countDown();
         ssc.accept();
         latch2.countDown();

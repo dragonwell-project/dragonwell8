@@ -110,7 +110,7 @@ public class TestWispDetailCounter {
     }
 
     private static ServerSocket ss;
-    private static final int PORT = 23000;
+    private static final int PORT = 23001;
     private static final int BUFFER_SIZE = 1024;
 
     private static void startNetServer() throws IOException {
