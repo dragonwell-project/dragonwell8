@@ -46,14 +46,14 @@ which gdb
 if [ $? != 0 ]
 then
     echo "Cannot find GDB, please install it!"
-    exit 1
+    exit 0
 fi
 
 which rpm
 if [ $? != 0 ]
 then
     echo Cannot find tool 'rpm', unsupported platform
-    exit 1
+    exit 0
 fi
 
 GLIBC_VER_MAJOR=$(rpm -qa | sort | uniq | perl -e 'for (<>) { if ($_ =~ /^glibc-(\d+)\.(\d+)\D\S+/ ) { print "$1\n"; exit; } }')
