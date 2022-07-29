@@ -36,7 +36,7 @@ import static java.nio.file.StandardOpenOption.WRITE;
  * @requires os.arch == "amd64"
  * @summary Test JGroup
  * @library /lib/testlibrary
- * @run main/othervm/bootclasspath -XX:+MultiTenant -XX:+TenantCpuAccounting -XX:+TenantCpuThrottling -XX:+UseG1GC -Xmx200m -Xms200m -Dcom.alibaba.tenant.DebugJGroup=true com.alibaba.tenant.TestJGroup
+ * @run main/othervm/bootclasspath/manual -XX:+MultiTenant -XX:+TenantCpuAccounting -XX:+TenantCpuThrottling -XX:+UseG1GC -Xmx200m -Xms200m -Dcom.alibaba.tenant.DebugJGroup=true com.alibaba.tenant.TestJGroup
  */
 
 class JGroupWorker implements Runnable {
@@ -118,86 +118,85 @@ public class TestJGroup {
     public static void main(String[] args) throws Exception {
         setUp();
 
-        int iteration = 10;
-        int i = 0;
-        double usage1 = 0;
-        double usage2 = 0;
-        double usage3 = 0;
-        double diff = 0.8;
+        long usage1 = 0;
+        long usage2 = 0;
+        long usage3 = 0;
         JGroupWorker jw1 = new JGroupWorker(0);
         JGroupWorker jw2 = new JGroupWorker(1);
         JGroupWorker jw3 = new JGroupWorker(2);
-        for (i = 0; i < iteration; i++) {
-            Thread t1 = new Thread(jw1);
-            Thread t2 = new Thread(jw2);
-            Thread t3 = new Thread(jw3);
-            t1.start();
-            t2.start();
-            t3.start();
+        Thread t1 = new Thread(jw1);
+        Thread t2 = new Thread(jw2);
+        Thread t3 = new Thread(jw3);
+        t1.start();
+        t2.start();
+        t3.start();
 
-            mySleep(1000);
+        mySleep(1000);
 
-            JGroupsWorker js = new JGroupsWorker(jw1.group,
-                    jw2.group,
-                    jw3.group);
-            Thread t4 = new Thread(js);
-            t4.start();
-            try {
-                t4.join();
-            } catch (InterruptedException e) {
-                System.out.println("Interreupted...");
-            }
-
-            try {
-                t1.join();
-            } catch (InterruptedException e) {
-                System.out.println("Interreupted...");
-            }
-            usage1 = jw1.group.getCpuTime();
-            jw1.group.destory();
-
-            if (usage1 <= 0) {
-                throw new Exception("Invalid cpu usage, usage1: " + usage1);
-            }
-            try {
-                t2.join();
-            } catch (InterruptedException e) {
-                System.out.println("Interreupted...");
-            }
-            usage2 = jw2.group.getCpuTime();
-            jw2.group.destory();
-
-            if (usage2 <= 0) {
-                throw new Exception("Invalid cpu usage, usage2: " + usage2);
-            }
-            try {
-                t3.join();
-            } catch (InterruptedException e) {
-                System.out.println("Interreupted...");
-            }
-            usage3 = jw3.group.getCpuTime();
-            jw3.group.destory();
-
-            if (usage3 <= 0) {
-                throw new Exception("Invalid cpu usage, usage3: " + usage3);
-            }
-
-            if ((js.count3 < js.count2 * diff) || (js.count2 < js.count1 * diff)) {
-                continue;
-            }
-
-            if ((jw3.count < jw2.count * diff) || (jw2.count < jw1.count * diff)) {
-                continue;
-            }
-
-            if ((usage3 < usage2 * diff) || (usage2 < usage1 * diff)) {
-                continue;
-            }
-            break;
+        JGroupsWorker js = new JGroupsWorker(jw1.group,
+                                       jw2.group,
+                                       jw3.group);
+        Thread t4 =new Thread(js);
+        t4.start();
+        try {
+            t4.join();
+        } catch (InterruptedException e) {
+            System.out.println("Interreupted...");
         }
 
-        if (i == iteration) {
-            throw new Exception("com.alibaba.tenant.JGroupsWorker test failed!");
+        try {
+            t1.join();
+        } catch (InterruptedException e) {
+            System.out.println("Interreupted...");
+        }
+        usage1 = jw1.group.getCpuTime();
+        jw1.group.destory();
+
+        if(usage1 <= 0 ) {
+            throw new Exception("Invalid cpu usage, usage1: "+ usage1);
+        }
+        try {
+            t2.join();
+        } catch (InterruptedException e) {
+            System.out.println("Interreupted...");
+        }
+        usage2 = jw2.group.getCpuTime();
+        jw2.group.destory();
+
+        if(usage2 <= 0 ) {
+            throw new Exception("Invalid cpu usage, usage2: "+ usage2);
+        }
+        try {
+            t3.join();
+        } catch (InterruptedException e) {
+            System.out.println("Interreupted...");
+        }
+        usage3 = jw3.group.getCpuTime();
+        jw3.group.destory();
+
+        if(usage3 <= 0 ) {
+            throw new Exception("Invalid cpu usage, usage3: "+ usage3);
+        }
+
+        if ((js.count3 < js.count2) || (js.count2 < js.count1)) {
+            throw new Exception("com.alibaba.tenant.JGroupsWorker test failed!"
+                                + " count1 = " + js.count1
+                                + " count2 = " + js.count2
+                                + " count3 = " + js.count3);
+        }
+
+        if ((jw3.count < jw2.count) || (jw2.count < jw1.count)) {
+            throw new Exception("Three com.alibaba.tenant.JGroupWorker test failed!"
+                                + " jw1 count = " + jw1.count
+                                + " jw2 count = " + jw2.count
+                                + " jw3 count = " + jw3.count);
+        }
+
+        if ((usage3 < usage2) || (usage2 < usage1)) {
+            throw new Exception("Three com.alibaba.tenant.JGroupWorker test failed!"
+                                + " jw1 usage = " + usage1
+                                + " jw2 usage = " + usage2
+                                + " jw3 usage = " + usage3);
         }
     }
 }
