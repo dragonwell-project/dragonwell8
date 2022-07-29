@@ -110,6 +110,7 @@ case "$ARCH" in
       ARCH=arm
     else
       ARCH=aarch64
+      unset COMP_FLAG
     fi
     ;;
   i586)
@@ -151,3 +152,4 @@ $gcc_cmd -shared -o libJvmtiAgent.so libJvmtiAgent.o
 
 "$TESTJAVA/bin/java" $TESTVMOPTS -agentlib:JvmtiAgent -cp $(pwd) T > T.out
 exit $?
+
