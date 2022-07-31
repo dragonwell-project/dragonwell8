@@ -141,7 +141,7 @@ sleep 1
 ${JAVA} -XX:-Inline -XX:CompilationWarmUpDeoptTime=3 -XX:CompileCommand=exclude,*.foo -XX:-TieredCompilation -XX:-UseSharedSpaces -XX:+CompilationWarmUp -XX:+PrintCompilation -XX:+PrintCompilationWarmUpDetail -XX:CompilationWarmUpLogfile=./jitwarmup.log -cp ${TESTCLASSES} ${TEST_CLASS} compilation > output.txt  2>&1
 cat output.txt
 
-function assert()
+assert()
 {
   i=0
   notify_line_no=0
@@ -150,14 +150,16 @@ function assert()
     i=$(($i+1))
     echo $i
     echo $line
-    if [[ $line =~ "made not entrant" ]]; then
+    echo $line | grep "made not entrant"
+    if [ 0 -eq $? ]; then
       deopt_line_no=$i
     fi
-    if [[ $line =~ "re-compilation" ]]; then
+    echo $line | grep "re-compilation"
+    if [ 0 -eq $? ]; then
       recom_line_no=$i
     fi
   done < output.txt
-  if [[ $deopt_line_no > $recom_line_no ]]; then
+  if [ $deopt_line_no -gt $recom_line_no ]; then
     echo "deoptimization happens after normal c2 compilation, it is OK."
     exit 0
   else
