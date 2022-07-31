@@ -122,12 +122,12 @@ ${JAVA} -XX:-TieredCompilation -XX:+CompilationWarmUpRecording -XX:-ClassUnloadi
 sleep 1
 ${JAVA} -XX:-TieredCompilation -XX:+CompilationWarmUp -XX:-UseSharedSpaces -XX:+PrintCompilation -XX:+PrintCompilationWarmUpDetail -Xbatch -XX:CompilationWarmUpLogfile=./jitwarmup.log -XX:+CompilationWarmUpExplicitDeopt -XX:CompilationWarmUpDeoptTime=1200 -XX:-UseOnStackReplacement -cp ${TESTCLASSES} ${TEST_CLASS} compilation > output.txt  2>&1
 
-function check_output()
+check_output()
 {
   #TmpTestNotDeoptJITMethod.foo2 should be re-compiled by jit
   skip_messages=`grep "skip deoptimize TmpTestNotDeoptJITMethod.foo2" output.txt|wc -l`
-  if (( $skip_message -ne 1 )); then
-    exit -1
+  if [ 1 -ne $skip_messages ] ; then
+    exit 1
   fi
 
   exit 0

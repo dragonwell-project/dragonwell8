@@ -100,7 +100,7 @@ ${JAVA} -XX:-TieredCompilation -XX:-UseSharedSpaces -XX:+CompilationWarmUpRecord
 sleep 1
 ${JAVA} -XX:-TieredCompilation -XX:-UseSharedSpaces -XX:+CompilationWarmUp -XX:+PrintCompilation -XX:+PrintCompilationWarmUpDetail -XX:CompilationWarmUpLogfile=./jitwarmup.log -cp ${TESTCLASSES} ${TEST_CLASS} compilation > output.txt  2>&1
 
-function assert()
+assert()
 {
   i=0
   notify_line_no=0
@@ -109,15 +109,16 @@ function assert()
     i=$(($i+1))
     echo $i
     echo $line
-    if [[ $line =~ "Compilation" ]]; then
+    echo $line | grep Compilation
+    if [ 0 -eq $? ]; then
       notify_line_no=$i
       echo "notify_line_no is $notify_line_no"
     fi
   done < output.txt
-  if [[ $notify_line_no == $(($i-1)) ]]; then
+  if [ $notify_line_no -eq $(($i-1)) ]; then
     exit 0
   else
-    exit -1
+    exit 1
   fi
 }
 

@@ -107,7 +107,7 @@ ${JAVA} -XX:+CompilationWarmUpRecording -XX:-ClassUnloading -XX:-UseSharedSpaces
 sleep 1
 ${JAVA} -XX:-TieredCompilation -XX:+CompilationWarmUp -XX:-UseSharedSpaces -XX:+PrintCompilation -XX:+PrintCompilationWarmUpDetail -XX:CompilationWarmUpLogfile=./jitwarmup.log -cp ${TESTCLASSES} ${TEST_CLASS} startup > output.txt  2>&1
 
-function assert()
+assert()
 {
   i=0
   has_foo2=0
@@ -116,11 +116,12 @@ function assert()
     i=$(($i+1))
     echo $i
     echo $line
-    if [[ $line =~ "foo2" ]]; then
+    echo $line | grep foo2
+    if [ 0 -eq $? ]; then
       has_foo2=$i
     fi
   done < output.txt
-  if [[ $has_foo2 != 0 ]]; then
+  if [ $has_foo2 -ne 0 ]; then
     exit 0
   else
     exit -1

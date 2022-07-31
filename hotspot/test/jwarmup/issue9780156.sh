@@ -173,21 +173,22 @@ ${JAVA} -verbose:class -XX:-TieredCompilation -XX:-UseSharedSpaces -XX:+Compilat
 sleep 1
 ${JAVA} -verbose:class -XX:-TieredCompilation -XX:-UseSharedSpaces -XX:+CompilationWarmUp -XX:+PrintCompilation -XX:+PrintCompilationWarmUpDetail -XX:CompilationWarmUpLogfile=./jitwarmup.log -cp ${TESTCLASSES} ${TEST_MAIN_CLASS} > output.txt  2>&1
 
-function assert()
+assert()
 {
   i=0
   while read line
   do
     echo $line
-    if [[ $line =~ "Loaded TmpClassB" ]]; then
+    echo $line | grep "Loaded TmpClassB"
+    if [ 0 -eq $? ]; then
       i=$(($i+1))
       echo $i
     fi
   done < output.txt
-  if [[ $i == 3 ]]; then
+  if [ $i -eq 3 ] ; then
     exit 0
   else
-    exit -1
+    exit 1
   fi
 }
 

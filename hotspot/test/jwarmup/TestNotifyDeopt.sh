@@ -109,18 +109,18 @@ ${JAVA} -XX:-TieredCompilation -XX:-UseSharedSpaces -XX:+CompilationWarmUpRecord
 sleep 1
 ${JAVA} -XX:-TieredCompilation -XX:-UseSharedSpaces -XX:+CompilationWarmUp -XX:+PrintCompilationWarmUpDetail -XX:CompileThreshold=500000 -XX:CompilationWarmUpLogfile=./jitwarmup.log -XX:+CompilationWarmUpExplicitDeopt -XX:CompilationWarmUpDeoptTime=1200 -cp ${TESTCLASSES} ${TEST_CLASS} compilation > output.txt  2>&1
 
-function check_output()
+check_output()
 {
   # check warning for conflict CompilationWarmUpDeoptTime
   deopt_time_warning=`grep "WARNING : CompilationWarmUpDeoptTime is unused" output.txt|wc -l`
-  if [[ $deopt_time_warning -ne 1 ]]; then
+  if [ $deopt_time_warning -ne 1 ]; then
     echo "err by deopt time $deopt_time_warning"
     exit -1
   fi
 
   # check warmup method is deoptimized
   deopt_method_messages=`grep "WARNING : deoptimize warmup method" output.txt|wc -l`
-  if [[ $deopt_method_messages -eq 0 ]]; then
+  if [ $deopt_method_messages -eq 0 ]; then
     echo "err by deopt messages $deopt_method_messages"
     exit -1
   fi
@@ -135,13 +135,13 @@ function check_output()
     found=0
     for wm in $warmup_methods
     do
-      if [[ $m == $wm ]]; then
+      if [ "${m}" = "${wm}" ]; then
         found=1
       fi
     done
-    if [[ $found -ne 1 ]]; then
+    if [ $found -ne 1 ]; then
       echo "not found $m"
-      exit -1
+      exit 1
     fi
   done
   exit 0
