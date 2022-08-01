@@ -53,7 +53,6 @@ class WinNTFileSystem extends FileSystem {
     private final char slash;
     private final char altSlash;
     private final char semicolon;
-    private final String userDir;
 
     // Whether to enable alternative data streams (ADS) by suppressing
     // checking the path for invalid characters, in particular ":".
@@ -75,8 +74,6 @@ class WinNTFileSystem extends FileSystem {
         semicolon = AccessController.doPrivileged(
             new GetPropertyAction("path.separator")).charAt(0);
         altSlash = (this.slash == '\\') ? '/' : '\\';
-        userDir = AccessController.doPrivileged(
-            new GetPropertyAction("user.dir"));
     }
 
     private boolean isSlash(char c) {
@@ -403,11 +400,7 @@ class WinNTFileSystem extends FileSystem {
     private String getUserPath() {
         /* For both compatibility and security,
            we must look this up every time */
-        SecurityManager sm = System.getSecurityManager();
-        if (sm != null) {
-            sm.checkPropertyAccess("user.dir");
-        }
-        return normalize(userDir);
+        return normalize(System.getProperty("user.dir"));
     }
 
     private String getDrive(String path) {
