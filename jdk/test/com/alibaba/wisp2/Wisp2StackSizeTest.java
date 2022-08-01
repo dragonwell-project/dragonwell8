@@ -11,6 +11,11 @@ import static jdk.testlibrary.Asserts.*;
 
 public class Wisp2StackSizeTest {
     public static void main(String[] args) {
+        for (int i = 0; i < 10; i++) {
+            // warm up
+            RecTester.tryRec(1024 * 1024);
+        }
+
         int prevDepth = 0, curDepth = 0;
 
         for (int i = 128; i <= 1024; i *= 2) {

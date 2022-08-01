@@ -1,5 +1,4 @@
-#!/bin/sh
-#
+#!/bin/bash
 # Copyright (c) 2019 Alibaba Group Holding Limited. All Rights Reserved.
 # DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 #

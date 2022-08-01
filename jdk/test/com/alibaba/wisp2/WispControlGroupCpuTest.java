@@ -66,9 +66,7 @@ public class WispControlGroupCpuTest {
         Long duration1 = future1.get();
         Long duration2 = future2.get();
         Long duration3 = future3.get();
-        double ratio = (double) duration1 / duration0;
-        assertLT(Math.abs(ratio - 0.5), 0.1, "deviation is out of reasonable scope " + ratio);
-        ratio = (double) duration3 / duration2;
-        assertLT(Math.abs(ratio - 0.5), 0.1, "deviation is out of reasonable scope " + ratio);
+        assertLT(duration1, duration0, "deviation is out of reasonable scope " + duration0 + "," + duration1);
+        assertLT(duration3, duration2, "deviation is out of reasonable scope " + duration2 + "," + duration3);
     }
 }

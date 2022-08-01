@@ -420,14 +420,8 @@ jdk/net/rsocket/SocketChannel/VectorIO.java generic-all
 jdk/net/rsocket/Socket/GetLocalAddress.java generic-all
 jdk/net/rsocket/SocketOption/OptionsTest.java generic-all
 jdk/net/rsocket/SocketOption/UnsupportedOptionsTest.java generic-all
-com/alibaba/wisp/bug/TestThreadStackTrace.sh generic-all
-com/alibaba/wisp/bug/WispSocketLeakWhenConnectTimeoutTest.java generic-all
-com/alibaba/wisp2/Wisp2StackSizeTest.java generic-all
 com/alibaba/wisp2/Wisp2WorkStealTest.java generic-all
 com/alibaba/wisp/monitor/PassTokenTest.java generic-all
-com/alibaba/wisp/bug/WispSelectorReadyOpsTest.java generic-all
-com/alibaba/wisp2/NmtTracingWispTaskRecycleTest.java generic-all
-com/alibaba/wisp2/WispControlGroupCpuTest.java generic-all
 
 # resource limit
 

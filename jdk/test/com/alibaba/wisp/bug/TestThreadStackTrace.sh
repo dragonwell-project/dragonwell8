@@ -52,7 +52,6 @@ TEST_SOURCE=${TEST_CLASS}.java
 
 ###################################################################################
 
-
 cat > ${TESTCLASSES}${FS}$TEST_SOURCE << EOF
 import com.alibaba.wisp.engine.WispEngine;
 import java.util.concurrent.CountDownLatch;
@@ -76,6 +75,7 @@ public class TmpThreadStackTrace {
             }
         });
         AtomicBoolean result = new AtomicBoolean(true);
+        String[] errMsg = new String[1];
         CountDownLatch done = new CountDownLatch(1);
         Thread mainThread = Thread.currentThread();
         Thread[] ts = new Thread[1];
@@ -84,14 +84,13 @@ public class TmpThreadStackTrace {
             try {
                 if (ts[0].getStackTrace().length == 0 || mainThread.getStackTrace().length == 0
                         || Thread.currentThread().getStackTrace().length == 0) {
+                    errMsg[0] = "unexpected stacktrace length";
                     result.set(false);
                 }
                 runningCoroutine.getStackTrace();
-                result.set(false);
             } catch (Exception e) {
-                if (!(e instanceof UnsupportedOperationException)) {
-                    result.set(false);
-                }
+                errMsg[0] = "unexpected exception";
+                result.set(false);
             } finally {
                 done.countDown();
             }
@@ -101,13 +100,14 @@ public class TmpThreadStackTrace {
         System.out.println("in main");
         executor.shutdown();
         if (!result.get()) {
+            System.out.println(errMsg[0]);
             throw new Error("test failure");
         }
     }
 
     public static void main(String[] args) throws Exception {
         final CountDownLatch latch = new CountDownLatch(1);
-        WispEngine.current().execute(() -> {
+        WispEngine.dispatch(() -> {
             for (int i = 0; i < 5; i++) {
                 System.out.println(i);
                 Thread.currentThread().getStackTrace();
@@ -132,18 +132,14 @@ fi
 
 #run
 ${JAVA} -XX:+PrintSafepointStatistics  -XX:PrintSafepointStatisticsCount=1 -XX:+UnlockExperimentalVMOptions -XX:+UseWisp2 -Dcom.alibaba.wisp.carrierEngines=1 -cp ${TESTCLASSES} ${TEST_CLASS} > output.txt  2>&1
+rm -f $TEST_WISP_CONFIG
 cat output.txt
 
-function assert()
-{
-    line=`cat output.txt | grep ThreadDump | wc -l`
-    echo $line
-    if [[ $line -eq "2" ]]; then
-        echo "success"
-    else
-        echo "failure"
-        exit -1
-    fi
-}
-
-assert
+line=`cat output.txt | grep ThreadDump | wc -l`
+echo $line
+if [ $line -eq "2" ]; then
+    echo "success"
+else
+    echo "failure"
+    exit -1
+fi
