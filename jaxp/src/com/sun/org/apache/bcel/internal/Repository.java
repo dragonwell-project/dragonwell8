@@ -81,14 +81,6 @@ public abstract class Repository {
     } catch(ClassNotFoundException ex) { return null; }
   }
 
-  /** @return class file object for given Java class.
-   */
-  public static ClassPath.ClassFile lookupClassFile(String class_name) {
-    try {
-      return ClassPath.SYSTEM_CLASS_PATH.getClassFile(class_name);
-    } catch(IOException e) { return null; }
-  }
-
   /** Clear the repository.
    */
   public static void clearCache() {

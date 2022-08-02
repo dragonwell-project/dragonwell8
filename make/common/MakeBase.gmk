@@ -293,44 +293,21 @@ define ListPathsSafelyNow
 
 endef
 
-# The source ids can come from the SCM, or in the files
-# $(SCM_TIP_FILENAME) which contains the id but is also positioned in the same
-# directory as the original $(SCM_DIR) directory.
-ifneq ($(and $(HG), $(wildcard $(TOPDIR)/.hg)), )
-  SCM := hg
-  SCM_VERSION := $(shell $(HG) version 2> /dev/null)
-  SCM_DIR :=.hg
-  SCM_TIP_FILENAME := .hgtip
-  ID_COMMAND := $(PRINTF) "hg:%s" "$$( $(HG) id -i)"
-else ifneq ($(and $(GIT), $(wildcard $(TOPDIR)/.git)), )
-  SCM := git
-  SCM_VERSION := $(shell $(GIT) version 2> /dev/null)
-  SCM_DIR :=.git
-  SCM_TIP_FILENAME := .gittip
-  ID_COMMAND := $(PRINTF) "git:%s%s" \
-      "$$( $(GIT) log -n1 --format=%H | cut -c1-12)" \
-      "$$(if test -n "$$( $(GIT) status --porcelain)"; then printf '+'; fi)"
-endif
-SCM_TIP_FILECMD := $(PRINTF) "$(SCM):%s" \
-	        "$$( $(CAT) $(SCM_TIP_FILENAME) )"
 
+# A file containing a way to uniquely identify the source code revision that
+# the build was created from
+SOURCE_REVISION_TRACKER := $(OUTPUT_ROOT)/src-rev/source-revision-tracker
 
-# Emit the scm:id pair to $@
-define GetSourceTips
-	$(CD) $(SRC_ROOT) ; \
-	if [ -d $(SCM_DIR) -a "$(SCM_VERSION)" != "" ] ; then \
-	  $(ID_COMMAND) >> $@ ; \
-	elif [ -f $(SCM_TIP_FILENAME) ] ; then \
-          $(SCM_TIP_FILECMD) >> $@ ; \
-	fi;
-	$(PRINTF) "\n" >> $@
-endef
+# Locate all hg repositories included in the forest, as absolute paths
+FindAllReposAbs = \
+    $(strip $(sort $(dir $(filter-out $(SRC_ROOT)/build/%, $(wildcard \
+        $(addprefix $(SRC_ROOT)/, .hg */.hg */*/.hg */*/*/.hg) \
+        $(addprefix $(SRC_ROOT)/, .git */.git */*/.git */*/*/.git */*/*/*/.git) \
+    )))))
 
-# Create the SCM_TIP_FILENAME file
-define CreateScmTip
-	$(ID_COMMAND) > $(SCM_TIP_FILENAME); \
-	$(ECHO) $(SCM_TIP_FILENAME)
-endef
+# Locate all hg repositories included in the forest, as relative paths
+FindAllReposRel = \
+    $(strip $(subst $(SRC_ROOT)/,.,$(patsubst $(SRC_ROOT)/%/, %, $(FindAllReposAbs))))
 
 define SetupLogging
   ifeq ($$(LOG_LEVEL),trace)
