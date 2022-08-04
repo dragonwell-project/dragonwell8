@@ -36,6 +36,17 @@ define(LOAD,`
 dnl
 dnl
 dnl
+define(LOADL,`
+  // This encoding class is generated automatically from ad_encode.m4.
+  // DO NOT EDIT ANYTHING IN THIS SECTION OF THE FILE
+  enc_class aarch64_enc_$2($1 dst, memory mem) %{
+    $3Register dst_reg = as_$3Register($dst$$reg);
+    loadStore(MacroAssembler(&cbuf), &MacroAssembler::$2, dst_reg, $mem->opcode(),
+               as_Register($mem$$base), $mem$$index, $mem$$scale, $mem$$disp, $4);
+  %}')dnl
+dnl
+dnl
+dnl
 define(LOADV,`
   // This encoding class is generated automatically from ad_encode.m4.
   // DO NOT EDIT ANYTHING IN THIS SECTION OF THE FILE
@@ -106,14 +117,14 @@ LOAD(iRegI,ldrsbw)
 LOAD(iRegI,ldrsb)
 LOAD(iRegI,ldrb)
 LOAD(iRegL,ldrb)
-LOAD(iRegI,ldrshw)
-LOAD(iRegI,ldrsh)
-LOAD(iRegI,ldrh)
-LOAD(iRegL,ldrh)
-LOAD(iRegI,ldrw)
-LOAD(iRegL,ldrw)
-LOAD(iRegL,ldrsw)
-LOAD(iRegL,ldr)
+LOADL(iRegI,ldrshw,,2)
+LOADL(iRegI,ldrsh,,2)
+LOADL(iRegI,ldrh,,2)
+LOADL(iRegL,ldrh,,2)
+LOADL(iRegI,ldrw,,4)
+LOADL(iRegL,ldrw,,4)
+LOADL(iRegL,ldrsw,,4)
+LOADL(iRegL,ldr,,8)
 LOAD(vRegF,ldrs,Float)
 LOAD(vRegD,ldrd,Float)
 LOADV(vecD,ldrvS,S)

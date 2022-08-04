@@ -23,6 +23,8 @@
 
 
 import sun.misc.Unsafe;
+
+import java.util.Arrays;
 import java.util.Random;
 import java.math.BigDecimal;
 import java.math.BigInteger;
@@ -37,7 +39,7 @@ import static java.lang.String.format;
 import static java.lang.System.arraycopy;
 
 /* @test
- * @bug 8235385
+ * @bug 8235385 8287508
  * @summary Verifies non-volatile memory access with long offset
  * @requires os.arch == "aarch64"
  */
@@ -102,14 +104,14 @@ public class NonVolatileMemoryAccessWithLongOffset {
 
     private static final short precision = (short)random.nextInt(100);
     private static final short scale = (short)random.nextInt(100);
-    private static final boolean    useShortCompressFloat = random.nextInt(100) > 60;
+    private static final boolean useShortCompressFloat = random.nextInt(100) > 60;
     private static final int SHORT_SIZE = 2;
     private static final int CHAR_SIZE = 2;
     private static final int INT_SIZE = 4;
     private static final int LONG_SIZE = 8;
     private static final int FLOAT_SIZE = 4;
     private static final int DOUBLE_SIZE = 8;
-    private static final int    BOOLEAN_SIZE = 1;
+    private static final int BOOLEAN_SIZE = 1;
 
     private static void premitiveAssert(boolean flag) {
         if (flag == false) {
@@ -119,46 +121,47 @@ public class NonVolatileMemoryAccessWithLongOffset {
 
     private static long BYTE_ARRAY_OFFSET = unsafe.ARRAY_BYTE_BASE_OFFSET;
 
-
-    public static final void toBytes(short obj, byte[] rawBytes, int start) {
+    private static final void toBytes(short obj, byte[] rawBytes, int start) {
         premitiveAssert(rawBytes.length >= (start +         SHORT_SIZE));
         unsafe.putShort(rawBytes, (long) BYTE_ARRAY_OFFSET + start, obj);
     }
 
-    public static final void toBytes(int obj, byte[] rawBytes, int start) {
+    private static final short bytes2short(byte[] rawBytes, int start){
+        premitiveAssert(rawBytes.length >= (start + SHORT_SIZE));
+        return unsafe.getShort(rawBytes, (long) BYTE_ARRAY_OFFSET + start);
+    }
+
+    private static final void toBytes(int obj, byte[] rawBytes, int start) {
         premitiveAssert(rawBytes.length >= (start +         INT_SIZE));
         unsafe.putInt(rawBytes, (long) BYTE_ARRAY_OFFSET + start, obj);
     }
 
-    public static final void toBytes(long obj, byte[] rawBytes, int start) {
+    private static final int bytes2int(byte[] rawBytes, int start){
+        premitiveAssert(rawBytes.length >= (start + INT_SIZE));
+        return unsafe.getInt(rawBytes, (long) BYTE_ARRAY_OFFSET + start);
+    }
+
+    private static final void toBytes(long obj, byte[] rawBytes, int start) {
         premitiveAssert(rawBytes.length >= (start +         LONG_SIZE));
         unsafe.putLong(rawBytes, (long) BYTE_ARRAY_OFFSET + start, obj);
     }
 
-    public static final void toBytes(float obj, byte[] rawBytes, int start) {
-        premitiveAssert(rawBytes.length >= (start +         FLOAT_SIZE));
-        unsafe.putFloat(rawBytes, (long) BYTE_ARRAY_OFFSET + start, obj);
+    private static final long bytes2long(byte[] rawBytes, int start){
+        premitiveAssert(rawBytes.length >= (start + LONG_SIZE));
+        return unsafe.getLong(rawBytes, (long) BYTE_ARRAY_OFFSET + start);
     }
 
-    public static final void toBytes(double obj, byte[] rawBytes, int start) {
-        premitiveAssert(rawBytes.length >= (start +         DOUBLE_SIZE));
-        unsafe.putDouble(rawBytes, (long) BYTE_ARRAY_OFFSET + start, obj);
-    }
-
-    public static final void toBytes(char obj, byte[] rawBytes, int start) {
-        premitiveAssert(rawBytes.length >= (start +         CHAR_SIZE));
-        unsafe.putChar(rawBytes, (long) BYTE_ARRAY_OFFSET + start, obj);
-    }
-
-    public static final void toBytes(boolean obj, byte[] rawBytes, int start) {
+    private static final void toBytes(boolean obj, byte[] rawBytes, int start) {
         premitiveAssert(rawBytes.length >= (start +         1));
         unsafe.putBoolean(rawBytes, (long) BYTE_ARRAY_OFFSET + start, obj);
     }
 
-    private static int bytesSize() {
-        return MAX_LENGTH;
+    private static final boolean bytes2boolen(byte[] rawBytes, int start) {
+        premitiveAssert(rawBytes.length >= (start + 1));
+        return unsafe.getBoolean(rawBytes, (long) BYTE_ARRAY_OFFSET + start);
     }
-    static byte[] toBytesDup() {
+
+    private static final byte[] toBytesDup() {
         byte[] rawBytes = input1;
 
         int offset = 0;
@@ -273,7 +276,7 @@ public class NonVolatileMemoryAccessWithLongOffset {
     }
 
 
-    static byte[] toBytes() {
+    private static final byte[] toBytes() {
         byte[] rawBytes = input0;
 
         int offset = 0;
@@ -296,7 +299,6 @@ public class NonVolatileMemoryAccessWithLongOffset {
         toBytes(sum, rawBytes, offset);
         offset +=         LONG_SIZE;
 
-        //if (version.getVersion() < DetailColumn.VERSION_EIGHT) {
         if (version > 50) {
             System.arraycopy(maxValue, 0, rawBytes, offset, MAX_VALUE_LENGTH);
             offset += MAX_VALUE_LENGTH;
@@ -391,6 +393,131 @@ public class NonVolatileMemoryAccessWithLongOffset {
         return rawBytes;
     }
 
+    private static final void fromBytes(byte[] rawBytes) throws Throwable {
+        int offset = 0;
+
+        if (valueType != bytes2int(rawBytes, offset)) throw new RuntimeException("valueType does not match");
+        offset += INT_SIZE;
+
+        if (numNulls != bytes2int(rawBytes, offset)) throw new RuntimeException("numNulls does not match");
+        offset += INT_SIZE;
+
+        if (numRows != bytes2int(rawBytes, offset)) throw new RuntimeException("numRows does not match");
+        offset += INT_SIZE;
+
+        if (countDistinct != bytes2int(rawBytes, offset)) throw new RuntimeException("countDistinct does not match");
+        offset += INT_SIZE;
+
+        if (rawDataSize != bytes2long(rawBytes, offset)) throw new RuntimeException("rawDataSize does not match");
+        offset += LONG_SIZE;
+
+        if (sum != bytes2long(rawBytes, offset)) throw new RuntimeException("sum does not match");
+        offset += LONG_SIZE;
+
+        byte[] maxValue_ = new byte[MAX_VALUE_LENGTH];
+        byte[] minValue_ = new byte[MAX_VALUE_LENGTH];
+        if (version > 50) {
+            System.arraycopy(rawBytes, offset, maxValue_, 0, MAX_VALUE_LENGTH);
+            offset += MAX_VALUE_LENGTH;
+            if (!Arrays.equals(maxValue, maxValue_)) throw new RuntimeException("maxValue does not match");
+
+            System.arraycopy(rawBytes, offset, minValue_, 0, MAX_VALUE_LENGTH);
+            offset += MAX_VALUE_LENGTH;
+            if (!Arrays.equals(minValue, minValue_)) throw new RuntimeException("minValue does not match");
+        } else {
+            System.arraycopy(rawBytes, offset, maxValue_, 0, DECIMAL_MAX_VALUE_LENGTH);
+            offset += DECIMAL_MAX_VALUE_LENGTH;
+            if (!Arrays.equals(maxValue, maxValue_)) throw new RuntimeException("maxValue does not match");
+
+            System.arraycopy(rawBytes, offset, minValue_, 0, DECIMAL_MAX_VALUE_LENGTH);
+            offset += DECIMAL_MAX_VALUE_LENGTH;
+            if (!Arrays.equals(minValue, minValue_)) throw new RuntimeException("minValue does not match");
+        }
+
+        if (dictOffset != bytes2int(rawBytes, offset)) throw new RuntimeException("dictOffset does not match");
+        offset += INT_SIZE;
+
+        if (dictLength != bytes2int(rawBytes, offset)) throw new RuntimeException("dictLength does not match");
+        offset += INT_SIZE;
+
+        if (histOffset != bytes2int(rawBytes, offset)) throw new RuntimeException("histOffset does not match");
+        offset += INT_SIZE;
+
+        if (histLength != bytes2int(rawBytes, offset)) throw new RuntimeException("histLength does not match");
+        offset += INT_SIZE;
+
+        if (dpnOffset != bytes2int(rawBytes, offset)) throw new RuntimeException("dpnOffset does not match");
+        offset += INT_SIZE;
+
+        if (dpnCount != bytes2int(rawBytes, offset)) throw new RuntimeException("dpnCount does not match");
+        offset +=         INT_SIZE;
+
+        if (version >= 60) {
+            if (maxRowCount != bytes2long(rawBytes, offset)) throw new RuntimeException("maxRowCount does not match");
+            offset += LONG_SIZE;
+
+            if (minRowCount != bytes2long(rawBytes, offset)) throw new RuntimeException("minRowCount does not match");
+            offset += LONG_SIZE;
+
+            if (totalRowCount != bytes2long(rawBytes, offset)) throw new RuntimeException("totalRowCount does not match");
+            offset += LONG_SIZE;
+
+            if (maxMemSize != bytes2long(rawBytes, offset)) throw new RuntimeException("maxMemSize does not match");
+            offset += LONG_SIZE;
+
+            if (minMemSize != bytes2long(rawBytes, offset)) throw new RuntimeException("minMemSize does not match");
+            offset += LONG_SIZE;
+
+            if (totalMemSize != bytes2long(rawBytes, offset)) throw new RuntimeException("totalMemSize does not match");
+            offset += LONG_SIZE;
+        }
+
+        if (version >= 65) {
+            if (toastOffset != bytes2long(rawBytes, offset)) throw new RuntimeException("toastOffset does not match");
+            offset += LONG_SIZE;
+
+            if (hasToast != bytes2boolen(rawBytes, offset)) throw new RuntimeException("hasToast does not match");
+            offset += BOOLEAN_SIZE;
+        }
+
+        if (version >= 70) {
+            byte[] maxString_ = new byte[MAX_STRING_LENGTH];
+            System.arraycopy(rawBytes, offset, maxString_, 0, MAX_STRING_LENGTH);
+            offset += MAX_STRING_LENGTH;
+            if (!Arrays.equals(maxString, maxString_)) throw new RuntimeException("maxString does not match");
+
+            byte[] minString_ = new byte[MAX_STRING_LENGTH];
+            System.arraycopy(rawBytes, offset, minString_, 0, MAX_STRING_LENGTH);
+            offset += MAX_STRING_LENGTH;
+            if (!Arrays.equals(minString, minString_)) throw new RuntimeException("minString does not match");
+
+            if (maxStringLength != bytes2int(rawBytes, offset)) throw new RuntimeException("maxStringLength does not match");
+            offset += INT_SIZE;
+
+            if (minStringLength != bytes2int(rawBytes, offset)) throw new RuntimeException("minStringLength does not match");
+            offset += INT_SIZE;
+
+            if (maxStringIsNull != bytes2boolen(rawBytes, offset)) throw new RuntimeException("maxStringIsNull does not match");
+            offset += BOOLEAN_SIZE;
+
+            if (minStringIsNull != bytes2boolen(rawBytes, offset)) throw new RuntimeException("minStringIsNull does not match");
+            offset += BOOLEAN_SIZE;
+        }
+
+        if (version >= 75) {
+            if (precision != bytes2short(rawBytes, offset)) throw new RuntimeException("precision does not match");
+            offset += SHORT_SIZE;
+
+            if (scale != bytes2short(rawBytes, offset)) throw new RuntimeException("scale does not match");
+            offset += SHORT_SIZE;
+        }
+
+        if (version >= 80) {
+            if (useShortCompressFloat != bytes2boolen(rawBytes, offset)) throw new RuntimeException("useShortCompressFloat does not match");
+            offset += BOOLEAN_SIZE;
+        }
+    }
+
     public static void main(String[] args) throws Throwable {
         long s = 0, s1 = 0;
         for (int i = 0; i < input0.length; i++) {
@@ -405,6 +532,15 @@ public class NonVolatileMemoryAccessWithLongOffset {
                     throw new RuntimeException("not match!");
                 }
             }
+            fromBytes(input0);
+            fromBytes(input1);
         }
     }
 }
+
+
+
+
+
+
+
