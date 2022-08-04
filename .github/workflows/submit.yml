@@ -1276,7 +1276,7 @@ jobs:
 
   macos_x64_build:
     name: macOS x64
-    runs-on: "macos-10.15"
+    runs-on: "macos-11"
     needs: prerequisites
     if: needs.prerequisites.outputs.should_run != 'false' && needs.prerequisites.outputs.platform_macos_x64 != 'false'
 
@@ -1343,7 +1343,7 @@ jobs:
         run: brew install make
 
       - name: Select Xcode version
-        run: sudo xcode-select --switch /Applications/Xcode_11.3.1.app/Contents/Developer
+        run: sudo xcode-select --switch /Applications/Xcode_11.7.app/Contents/Developer
 
       - name: Configure
         run: >
@@ -1371,7 +1371,7 @@ jobs:
 
   macos_x64_test:
     name: macOS x64
-    runs-on: "macos-10.15"
+    runs-on: "macos-11"
     if: false
     needs:
       - prerequisites
@@ -1486,7 +1486,7 @@ jobs:
         run: brew install make
 
       - name: Select Xcode version
-        run: sudo xcode-select --switch /Applications/Xcode_11.3.1.app/Contents/Developer
+        run: sudo xcode-select --switch /Applications/Xcode_11.7.app/Contents/Developer
 
       - name: Find root of jdk image dir
         run: |
