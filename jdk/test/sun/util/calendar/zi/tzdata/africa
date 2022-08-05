@@ -941,6 +941,10 @@ Zone Indian/Mauritius	3:50:00 -	LMT	1907 # Port Louis
 #         (car (cdr (cdr a))) (calendar-month-name (car a) t) (car (cdr a))
 #         (car (cdr (cdr b))) (calendar-month-name (car b) t) (car (cdr b)))))
 #     (setq islamic-year (+ 1 islamic-year))))
+#
+# From Milamber (2021-03-31, 2022-03-10), confirming these predictions:
+# https://www.mmsp.gov.ma/fr/actualites.aspx?id=2076
+# https://www.ecoactu.ma/horaires-administration-ramadan-gmtheure-gmt-a-partir-de-dimanche-27-mars/
 
 # Rule	NAME	FROM	TO	-	IN	ON	AT	SAVE	LETTER/S
 Rule	Morocco	1939	only	-	Sep	12	 0:00	1:00	-
@@ -1136,7 +1140,8 @@ Zone Africa/Casablanca	-0:30:20 -	LMT	1913 Oct 26
 			 0:00	Morocco	+00/+01	1984 Mar 16
 			 1:00	-	+01	1986
 			 0:00	Morocco	+00/+01	2018 Oct 28  3:00
-			 0:00	Morocco	+00/+01
+			 0:00	Morocco	+00/+01	2087 May 11  2:00
+			 1:00	-	+01
 
 # Western Sahara
 #
@@ -1152,7 +1157,8 @@ Zone Africa/Casablanca	-0:30:20 -	LMT	1913 Oct 26
 Zone Africa/El_Aaiun	-0:52:48 -	LMT	1934 Jan # El Aaiún
 			-1:00	-	-01	1976 Apr 14
 			 0:00	Morocco	+00/+01	2018 Oct 28  3:00
-			 0:00	Morocco	+00/+01
+			 0:00	Morocco	+00/+01	2087 May 11  2:00
+			 1:00	-	+01
 
 # Mozambique
 #

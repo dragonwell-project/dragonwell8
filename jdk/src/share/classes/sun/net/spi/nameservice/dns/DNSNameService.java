@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -366,7 +366,11 @@ public final class DNSNameService implements NameService {
         int count = 0;
         for (int i=0; i<results.size(); i++) {
             String addrString = results.get(i);
-            byte addr[] = IPAddressUtil.textToNumericFormatV4(addrString);
+            byte[] addr = null;
+            try {
+                addr = IPAddressUtil.validateNumericFormatV4(addrString);
+            } catch (IllegalArgumentException ignored) {
+            }
             if (addr == null) {
                 addr = IPAddressUtil.textToNumericFormatV6(addrString);
             }

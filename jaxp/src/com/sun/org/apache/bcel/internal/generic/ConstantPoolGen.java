@@ -1,6 +1,5 @@
 /*
- * reserved comment block
- * DO NOT REMOVE OR ALTER!
+ * Copyright (c) 2022, Oracle and/or its affiliates. All rights reserved.
  */
 /*
  * Licensed to the Apache Software Foundation (ASF) under one or more
@@ -38,8 +37,10 @@ import java.util.HashMap;
  *
  * @author  <A HREF="mailto:markus.dahm@berlin.de">M. Dahm</A>
  * @see Constant
+ * @LastModified: May 2022
  */
 public class ConstantPoolGen implements java.io.Serializable {
+  public static final int CONSTANT_POOL_SIZE = 65536;
   protected int        size      = 1024; // Inital size, sufficient in most cases
   protected Constant[] constants = new Constant[size];
   protected int        index     = 1; // First entry (0) used by JVM
@@ -61,7 +62,7 @@ public class ConstantPoolGen implements java.io.Serializable {
    */
   public ConstantPoolGen(Constant[] cs) {
     if(cs.length > size) {
-      size      = cs.length;
+      size      = Math.min(cs.length, CONSTANT_POOL_SIZE);
       constants = new Constant[size];
     }
 
@@ -134,10 +135,19 @@ public class ConstantPoolGen implements java.io.Serializable {
   /** Resize internal array of constants.
    */
   protected void adjustSize() {
+    // 3 extra spaces are needed as some entries may take 3 slots
+    if (index + 3 >= CONSTANT_POOL_SIZE) {
+      throw new RuntimeException("The number of constants " + (index + 3) +
+                                 " is over the size of the constant pool: " +
+                                 (CONSTANT_POOL_SIZE - 1));
+    }
+
     if(index + 3 >= size) {
       Constant[] cs = constants;
 
       size      *= 2;
+      // the constant array shall not exceed the size of the constant pool
+      size       = Math.min(size, CONSTANT_POOL_SIZE);
       constants  = new Constant[size];
       System.arraycopy(cs, 0, constants, 0, index);
     }

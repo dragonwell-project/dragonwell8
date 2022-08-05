@@ -1580,22 +1580,41 @@ void LinkResolver::resolve_invokehandle(CallInfo& result, constantPoolHandle poo
     ResourceMark rm(THREAD);
     tty->print_cr("resolve_invokehandle %s %s", method_name->as_C_string(), method_signature->as_C_string());
   }
-  resolve_handle_call(result, resolved_klass, method_name, method_signature, current_klass, CHECK);
+  resolve_handle_call(result, resolved_klass, method_name, method_signature, current_klass, true, CHECK);
 }
 
 void LinkResolver::resolve_handle_call(CallInfo& result, KlassHandle resolved_klass,
                                        Symbol* method_name, Symbol* method_signature,
-                                       KlassHandle current_klass,
+                                       KlassHandle current_klass, bool check_access,
                                        TRAPS) {
   // JSR 292:  this must be an implicitly generated method MethodHandle.invokeExact(*...) or similar
   assert(resolved_klass() == SystemDictionary::MethodHandle_klass(), "");
   assert(MethodHandles::is_signature_polymorphic_name(method_name), "");
   methodHandle resolved_method;
-  Handle       resolved_appendix;
-  Handle       resolved_method_type;
+  Handle resolved_appendix;
+  Handle resolved_method_type;
   lookup_polymorphic_method(resolved_method, resolved_klass,
                             method_name, method_signature,
                             current_klass, &resolved_appendix, &resolved_method_type, CHECK);
+  if (check_access) {
+    vmIntrinsics::ID iid = MethodHandles::signature_polymorphic_name_id(method_name);
+    if (MethodHandles::is_signature_polymorphic_intrinsic(iid)) {
+      // Check if method can be accessed by the referring class.
+      // MH.linkTo* invocations are not rewritten to invokehandle.
+      assert(iid == vmIntrinsics::_invokeBasic, err_msg("%s", vmIntrinsics::name_at(iid)));
+
+      assert(current_klass.not_null(), "current_klass should not be null");
+      check_method_accessability(current_klass,
+                                 resolved_klass,
+                                 resolved_method->method_holder(),
+                                 resolved_method,
+                                 CHECK);
+    } else {
+      // Java code is free to arbitrarily link signature-polymorphic invokers.
+      assert(iid == vmIntrinsics::_invokeGeneric, err_msg("not an invoker: %s", vmIntrinsics::name_at(iid)));
+      assert(MethodHandles::is_signature_polymorphic_public_name(resolved_klass(), method_name), "not public");
+    }
+  }
   result.set_handle(resolved_method, resolved_appendix, resolved_method_type, CHECK);
 }
 

@@ -131,19 +131,19 @@ demos-only: start-make
 
 # Note: This double-colon rule is intentional, to support
 # custom make file integration.
-images:: source-tips demos nashorn images-only
+images:: create-source-revision-tracker demos nashorn images-only
 images-only: start-make
 	@$(call TargetEnter)
 	@($(CD) $(JDK_TOPDIR)/make && $(BUILD_LOG_WRAPPER) $(MAKE) $(MAKE_ARGS) -f BuildJdk.gmk images)
 	@$(call TargetExit)
 
-overlay-images: source-tips demos overlay-images-only
+overlay-images: create-source-revision-tracker demos overlay-images-only
 overlay-images-only: start-make
 	@$(call TargetEnter)
 	@($(CD) $(JDK_TOPDIR)/make && $(BUILD_LOG_WRAPPER) $(MAKE) $(MAKE_ARGS) -f BuildJdk.gmk overlay-images)
 	@$(call TargetExit)
 
-profiles: source-tips jdk hotspot profiles-only
+profiles: create-source-revision-tracker jdk hotspot profiles-only
 profiles-only: start-make
 	@$(call TargetEnter)
 	@($(CD) $(JDK_TOPDIR)/make && $(BUILD_LOG_WRAPPER) $(MAKE) $(MAKE_ARGS) -f BuildJdk.gmk profiles)
@@ -196,18 +196,15 @@ test-only: start-make
 		exit $${EXIT}; \
 	  fi)
 
-# Stores the tips for each repository. This file is be used when constructing the jdk image and can be
-# used to track the exact sources used to build that image.
-source-tips: $(OUTPUT_ROOT)/source_tips
-$(OUTPUT_ROOT)/source_tips: FRC
-	@$(MKDIR) -p $(@D)
-	@$(RM) $@
-	@$(call GetSourceTips)
+store-source-revision:
+	+($(CD) $(SRC_ROOT)/make && $(MAKE) $(MAKE_ARGS) -f SourceRevision.gmk store-source-revision)
 
+create-source-revision-tracker:
+	+($(CD) $(SRC_ROOT)/make && $(MAKE) $(MAKE_ARGS) -f SourceRevision.gmk create-source-revision-tracker)
 
 # Remove everything, except the output from configure.
 clean: clean-langtools clean-corba clean-jaxp clean-jaxws clean-hotspot clean-jdk clean-nashorn clean-images clean-overlay-images clean-bootcycle-build clean-docs clean-test
-	@($(CD) $(OUTPUT_ROOT) && $(RM) -r tmp source_tips build.log* build-trace*.log*)
+	@($(CD) $(OUTPUT_ROOT) && $(RM) -r tmp $(wildcard $(patsubst $(OUTPUT_ROOT)/%,%,$(SOURCE_REVISION_TRACKER))) build.log* build-trace*.log*)
 	@$(ECHO) Cleaned all build artifacts.
 
 # Remove everything, including configure configuration.
@@ -265,6 +262,7 @@ reconfigure:
 .PHONY: default all clean dist-clean bootcycle-images start-make
 .PHONY: clean-langtools clean-corba clean-jaxp clean-jaxws clean-hotspot clean-jdk clean-nashorn clean-images clean-docs clean-docs-zip clean-test clean-overlay-images clean-bootcycle-build
 .PHONY: profiles profiles-only
+.PHONY: store-source-revision create-source-revision-tracker
 
 include $(root_dir)/make/Jprt.gmk
 

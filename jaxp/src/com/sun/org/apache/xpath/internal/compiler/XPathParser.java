@@ -38,7 +38,7 @@ import jdk.xml.internal.XMLSecurityManager.Limit;
  * Tokenizes and parses XPath expressions. This should really be named
  * XPathParserImpl, and may be renamed in the future.
  * @xsl.usage general
- * @LastModified: Jan 2022
+ * @LastModified: Apr 2022
  */
 public class XPathParser
 {
@@ -1461,7 +1461,7 @@ public class XPathParser
 
       matchFound = true;
     }
-    else if (lookahead(Token.LPAREN, 1) || (lookahead(Token.COLON_CHAR, 1) && lookahead(Token.LPAREN, 3)))
+    else if (lookahead(Token.LPAREN, 1) || (lookahead(Token.COLON, 1) && lookahead(Token.LPAREN, 3)))
     {
       matchFound = FunctionCall();
     }
@@ -1505,7 +1505,7 @@ public class XPathParser
 
     int opPos = m_ops.getOp(OpMap.MAPINDEX_LENGTH);
 
-    if (lookahead(Token.COLON_CHAR, 1))
+    if (lookahead(Token.COLON, 1))
     {
       appendOp(4, OpCodes.OP_EXTFUNCTION);
 
@@ -1709,7 +1709,7 @@ public class XPathParser
       opPos = m_ops.getOp(OpMap.MAPINDEX_LENGTH);
     }
 
-    if (tokenIs(Token.DOT))
+    if (tokenIs(Token.DOT_STR))
     {
       nextToken();
 
@@ -1889,7 +1889,7 @@ public class XPathParser
       m_ops.setOp(m_ops.getOp(OpMap.MAPINDEX_LENGTH), OpCodes.NODENAME);
       m_ops.setOp(OpMap.MAPINDEX_LENGTH, m_ops.getOp(OpMap.MAPINDEX_LENGTH) + 1);
 
-      if (lookahead(Token.COLON_CHAR, 1))
+      if (lookahead(Token.COLON, 1))
       {
         if (tokenIs(Token.STAR))
         {
@@ -1992,7 +1992,7 @@ public class XPathParser
   protected void QName() throws TransformerException
   {
     // Namespace
-    if(lookahead(Token.COLON_CHAR, 1))
+    if(lookahead(Token.COLON, 1))
     {
       m_ops.setOp(m_ops.getOp(OpMap.MAPINDEX_LENGTH), m_queueMark - 1);
       m_ops.setOp(OpMap.MAPINDEX_LENGTH, m_ops.getOp(OpMap.MAPINDEX_LENGTH) + 1);

@@ -612,7 +612,7 @@ public final class Utils {
      * @param runnable what we run
      * @param expectedException expected exception
      */
-    public static void runAndCheckException(Runnable runnable, Class<? extends Throwable> expectedException) {
+    public static void runAndCheckException(ThrowingRunnable runnable, Class<? extends Throwable> expectedException) {
         runAndCheckException(runnable, t -> {
             if (t == null) {
                 if (expectedException != null) {
@@ -635,13 +635,14 @@ public final class Utils {
      * @param runnable what we run
      * @param checkException a consumer which checks that we got expected exception and raises a new exception otherwise
      */
-    public static void runAndCheckException(Runnable runnable, Consumer<Throwable> checkException) {
+    public static void runAndCheckException(ThrowingRunnable runnable, Consumer<Throwable> checkException) {
+        Throwable throwable = null;
         try {
             runnable.run();
-            checkException.accept(null);
         } catch (Throwable t) {
-            checkException.accept(t);
+            throwable = t;
         }
+        checkException.accept(throwable);
     }
 
     /**
@@ -807,5 +808,25 @@ public final class Utils {
     public static Path createTempFile(String prefix, String suffix, FileAttribute<?>... attrs) throws IOException {
         Path dir = Paths.get(System.getProperty("user.dir", "."));
         return Files.createTempFile(dir, prefix, suffix);
+    }
+
+    /**
+     * Creates an empty directory in "user.dir" or "."
+     * <p>
+     * This method is meant as a replacement for {@code Files#createTempDirectory(String, String, FileAttribute...)}
+     * that doesn't leave files behind in /tmp directory of the test machine
+     * <p>
+     * If the property "user.dir" is not set, "." will be used.
+     *
+     * @param prefix
+     * @param attrs
+     * @return the path to the newly created directory
+     * @throws IOException
+     *
+     * @see {@link Files#createTempDirectory(String, String, FileAttribute...)}
+     */
+    public static Path createTempDirectory(String prefix, FileAttribute<?>... attrs) throws IOException {
+        Path dir = Paths.get(System.getProperty("user.dir", "."));
+        return Files.createTempDirectory(dir, prefix);
     }
 }
