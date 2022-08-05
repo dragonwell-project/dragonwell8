@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2020, Oracle and/or its affiliates. All rights reserved
+ * Copyright (c) 1997, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -433,16 +433,6 @@ JVM_END
 // java.lang.Runtime /////////////////////////////////////////////////////////////////////////
 
 extern volatile jint vm_created;
-
-JVM_ENTRY_NO_ENV(void, JVM_Exit(jint code))
-  if (vm_created != 0 && (code == 0)) {
-    // The VM is about to exit. We call back into Java to check whether finalizers should be run
-    Universe::run_finalizers_on_exit();
-  }
-  before_exit(thread);
-  vm_exit(code);
-JVM_END
-
 
 JVM_ENTRY_NO_ENV(void, JVM_BeforeHalt())
   JVMWrapper("JVM_BeforeHalt");

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1995, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1995, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -67,38 +67,32 @@ public class Runtime {
      * serves as a status code; by convention, a nonzero status code indicates
      * abnormal termination.
      *
-     * <p> The virtual machine's shutdown sequence consists of two phases.  In
-     * the first phase all registered {@link #addShutdownHook shutdown hooks},
-     * if any, are started in some unspecified order and allowed to run
-     * concurrently until they finish.  In the second phase all uninvoked
-     * finalizers are run if {@link #runFinalizersOnExit finalization-on-exit}
-     * has been enabled.  Once this is done the virtual machine {@link #halt
-     * halts}.
+     * <p> All registered {@linkplain #addShutdownHook shutdown hooks}, if any,
+     * are started in some unspecified order and allowed to run concurrently
+     * until they finish.  Once this is done the virtual machine
+     * {@linkplain #halt halts}.
      *
-     * <p> If this method is invoked after the virtual machine has begun its
-     * shutdown sequence then if shutdown hooks are being run this method will
-     * block indefinitely.  If shutdown hooks have already been run and on-exit
-     * finalization has been enabled then this method halts the virtual machine
-     * with the given status code if the status is nonzero; otherwise, it
+     * <p> If this method is invoked after all shutdown hooks have already
+     * been run and the status is nonzero then this method halts the
+     * virtual machine with the given status code. Otherwise, this method
      * blocks indefinitely.
      *
-     * <p> The <tt>{@link System#exit(int) System.exit}</tt> method is the
-     * conventional and convenient means of invoking this method. <p>
+     * <p> The {@link System#exit(int) System.exit} method is the
+     * conventional and convenient means of invoking this method.
      *
      * @param  status
      *         Termination status.  By convention, a nonzero status code
      *         indicates abnormal termination.
      *
      * @throws SecurityException
-     *         If a security manager is present and its <tt>{@link
-     *         SecurityManager#checkExit checkExit}</tt> method does not permit
+     *         If a security manager is present and its
+     *         {@link SecurityManager#checkExit checkExit} method does not permit
      *         exiting with the specified status
      *
      * @see java.lang.SecurityException
      * @see java.lang.SecurityManager#checkExit(int)
      * @see #addShutdownHook
      * @see #removeShutdownHook
-     * @see #runFinalizersOnExit
      * @see #halt(int)
      */
     public void exit(int status) {
@@ -118,11 +112,11 @@ public class Runtime {
      *   <ul>
      *
      *   <li> The program <i>exits</i> normally, when the last non-daemon
-     *   thread exits or when the <tt>{@link #exit exit}</tt> (equivalently,
+     *   thread exits or when the {@link #exit exit} (equivalently,
      *   {@link System#exit(int) System.exit}) method is invoked, or
      *
      *   <li> The virtual machine is <i>terminated</i> in response to a
-     *   user interrupt, such as typing <tt>^C</tt>, or a system-wide event,
+     *   user interrupt, such as typing {@code ^C}, or a system-wide event,
      *   such as user logoff or system shutdown.
      *
      *   </ul>
@@ -131,20 +125,18 @@ public class Runtime {
      * thread.  When the virtual machine begins its shutdown sequence it will
      * start all registered shutdown hooks in some unspecified order and let
      * them run concurrently.  When all the hooks have finished it will then
-     * run all uninvoked finalizers if finalization-on-exit has been enabled.
-     * Finally, the virtual machine will halt.  Note that daemon threads will
-     * continue to run during the shutdown sequence, as will non-daemon threads
-     * if shutdown was initiated by invoking the <tt>{@link #exit exit}</tt>
-     * method.
+     * halt. Note that daemon threads will continue to run during the shutdown
+     * sequence, as will non-daemon threads if shutdown was initiated by
+     * invoking the {@link #exit exit} method.
      *
      * <p> Once the shutdown sequence has begun it can be stopped only by
-     * invoking the <tt>{@link #halt halt}</tt> method, which forcibly
+     * invoking the {@link #halt halt} method, which forcibly
      * terminates the virtual machine.
      *
      * <p> Once the shutdown sequence has begun it is impossible to register a
      * new shutdown hook or de-register a previously-registered hook.
      * Attempting either of these operations will cause an
-     * <tt>{@link IllegalStateException}</tt> to be thrown.
+     * {@link IllegalStateException} to be thrown.
      *
      * <p> Shutdown hooks run at a delicate time in the life cycle of a virtual
      * machine and should therefore be coded defensively.  They should, in
@@ -156,7 +148,7 @@ public class Runtime {
      * deadlocks.
      *
      * <p> Shutdown hooks should also finish their work quickly.  When a
-     * program invokes <tt>{@link #exit exit}</tt> the expectation is
+     * program invokes {@link #exit exit} the expectation is
      * that the virtual machine will promptly shut down and exit.  When the
      * virtual machine is terminated due to user logoff or system shutdown the
      * underlying operating system may only allow a fixed amount of time in
@@ -165,25 +157,25 @@ public class Runtime {
      * hook.
      *
      * <p> Uncaught exceptions are handled in shutdown hooks just as in any
-     * other thread, by invoking the <tt>{@link ThreadGroup#uncaughtException
-     * uncaughtException}</tt> method of the thread's <tt>{@link
-     * ThreadGroup}</tt> object.  The default implementation of this method
-     * prints the exception's stack trace to <tt>{@link System#err}</tt> and
+     * other thread, by invoking the
+     * {@link ThreadGroup#uncaughtException uncaughtException} method of the
+     * thread's {@link ThreadGroup} object. The default implementation of this
+     * method prints the exception's stack trace to {@link System#err} and
      * terminates the thread; it does not cause the virtual machine to exit or
      * halt.
      *
      * <p> In rare circumstances the virtual machine may <i>abort</i>, that is,
      * stop running without shutting down cleanly.  This occurs when the
      * virtual machine is terminated externally, for example with the
-     * <tt>SIGKILL</tt> signal on Unix or the <tt>TerminateProcess</tt> call on
+     * {@code SIGKILL} signal on Unix or the {@code TerminateProcess} call on
      * Microsoft Windows.  The virtual machine may also abort if a native
      * method goes awry by, for example, corrupting internal data structures or
      * attempting to access nonexistent memory.  If the virtual machine aborts
      * then no guarantee can be made about whether or not any shutdown hooks
-     * will be run. <p>
+     * will be run.
      *
      * @param   hook
-     *          An initialized but unstarted <tt>{@link Thread}</tt> object
+     *          An initialized but unstarted {@link Thread} object
      *
      * @throws  IllegalArgumentException
      *          If the specified hook has already been registered,
@@ -196,7 +188,7 @@ public class Runtime {
      *
      * @throws  SecurityException
      *          If a security manager is present and it denies
-     *          <tt>{@link RuntimePermission}("shutdownHooks")</tt>
+     *          {@link RuntimePermission}{@code ("shutdownHooks")}
      *
      * @see #removeShutdownHook
      * @see #halt(int)
@@ -244,23 +236,22 @@ public class Runtime {
      * method never returns normally.
      *
      * <p> This method should be used with extreme caution.  Unlike the
-     * <tt>{@link #exit exit}</tt> method, this method does not cause shutdown
-     * hooks to be started and does not run uninvoked finalizers if
-     * finalization-on-exit has been enabled.  If the shutdown sequence has
-     * already been initiated then this method does not wait for any running
-     * shutdown hooks or finalizers to finish their work. <p>
+     * {@link #exit exit} method, this method does not cause shutdown
+     * hooks to be started.  If the shutdown sequence has already been
+     * initiated then this method does not wait for any running
+     * shutdown hooks to finish their work.
      *
      * @param  status
-     *         Termination status.  By convention, a nonzero status code
-     *         indicates abnormal termination.  If the <tt>{@link Runtime#exit
-     *         exit}</tt> (equivalently, <tt>{@link System#exit(int)
-     *         System.exit}</tt>) method has already been invoked then this
-     *         status code will override the status code passed to that method.
+     *         Termination status. By convention, a nonzero status code
+     *         indicates abnormal termination. If the {@link Runtime#exit exit}
+     *         (equivalently, {@link System#exit(int) System.exit}) method
+     *         has already been invoked then this status code
+     *         will override the status code passed to that method.
      *
      * @throws SecurityException
-     *         If a security manager is present and its <tt>{@link
-     *         SecurityManager#checkExit checkExit}</tt> method does not permit
-     *         an exit with the specified status
+     *         If a security manager is present and its
+     *         {@link SecurityManager#checkExit checkExit} method
+     *         does not permit an exit with the specified status
      *
      * @see #exit
      * @see #addShutdownHook
@@ -277,42 +268,23 @@ public class Runtime {
     }
 
     /**
-     * Enable or disable finalization on exit; doing so specifies that the
-     * finalizers of all objects that have finalizers that have not yet been
-     * automatically invoked are to be run before the Java runtime exits.
-     * By default, finalization on exit is disabled.
+     * Throws {@code UnsupportedOperationException}.
      *
-     * <p>If there is a security manager,
-     * its <code>checkExit</code> method is first called
-     * with 0 as its argument to ensure the exit is allowed.
-     * This could result in a SecurityException.
+     * @param value ignored
      *
-     * @param value true to enable finalization on exit, false to disable
-     * @deprecated  This method is inherently unsafe.  It may result in
-     *      finalizers being called on live objects while other threads are
-     *      concurrently manipulating those objects, resulting in erratic
-     *      behavior or deadlock.
+     * @deprecated This method was originally designed to enable or disable
+     * running finalizers on exit. Running finalizers on exit was disabled by default.
+     * If enabled, then the finalizers of all objects whose finalizers had not
+     * yet been automatically invoked were to be run before the Java runtime exits.
+     * That behavior is inherently unsafe. It may result in finalizers being called
+     * on live objects while other threads are concurrently manipulating those objects,
+     * resulting in erratic behavior or deadlock.
      *
-     * @throws  SecurityException
-     *        if a security manager exists and its <code>checkExit</code>
-     *        method doesn't allow the exit.
-     *
-     * @see     java.lang.Runtime#exit(int)
-     * @see     java.lang.Runtime#gc()
-     * @see     java.lang.SecurityManager#checkExit(int)
-     * @since   JDK1.1
+     * @since JDK1.1
      */
     @Deprecated
     public static void runFinalizersOnExit(boolean value) {
-        SecurityManager security = System.getSecurityManager();
-        if (security != null) {
-            try {
-                security.checkExit(0);
-            } catch (SecurityException e) {
-                throw new SecurityException("runFinalizersOnExit");
-            }
-        }
-        Shutdown.setRunFinalizersOnExit(value);
+        throw new UnsupportedOperationException();
     }
 
     /**

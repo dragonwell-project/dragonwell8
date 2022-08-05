@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -333,7 +333,6 @@
   template(reference_lock_name,                       "lock")                                     \
   template(reference_discovered_name,                 "discovered")                               \
   template(run_finalization_name,                     "runFinalization")                          \
-  template(run_finalizers_on_exit_name,               "runFinalizersOnExit")                      \
   template(uncaughtException_name,                    "uncaughtException")                        \
   template(dispatchUncaughtException_name,            "dispatchUncaughtException")                \
   template(initializeSystemClass_name,                "initializeSystemClass")                    \

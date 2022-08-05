@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2010, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,16 +21,26 @@
  * questions.
  */
 
-/* @test
-   @bug 4119554
-   @summary runFinalizersOnExit(true) causes JIT to be unloaded and
-            crashes the VM.  Interim fix for 1.2 beta4 -- don't unload
-            native libraries loaded by system classes.
-   @run main/othervm ExitFinalizersAndJIT
-*/
+/*
+ * @test
+ * @bug 8287132
+ * @summary Ensure that System.runFinalizersOnExit throws
+ *          UnsupportedOperationException
+ */
+public class RunFinalizersOnExit {
+    public static void main(String[] args) {
+        try {
+            System.runFinalizersOnExit(true);
+            throw new Error("UnsupportedOperationException was not thrown");
+        }
+        catch (UnsupportedOperationException expected) {
+        }
 
-public class ExitFinalizersAndJIT {
-    public static void main(String[] args) throws Exception {
-        System.runFinalizersOnExit(true);
+        try {
+            System.runFinalizersOnExit(false);
+            throw new Error("UnsupportedOperationException was not thrown");
+        }
+        catch (UnsupportedOperationException expected) {
+        }
     }
 }
