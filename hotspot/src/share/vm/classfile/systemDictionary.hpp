@@ -127,7 +127,6 @@ class SymbolPropertyTable;
   do_klass(WeakReference_klass,                         java_lang_ref_WeakReference,               Pre                 ) \
   do_klass(FinalReference_klass,                        java_lang_ref_FinalReference,              Pre                 ) \
   do_klass(PhantomReference_klass,                      java_lang_ref_PhantomReference,            Pre                 ) \
-  do_klass(Cleaner_klass,                               sun_misc_Cleaner,                          Pre                 ) \
   do_klass(Finalizer_klass,                             java_lang_ref_Finalizer,                   Pre                 ) \
   do_klass(ReferenceQueue_klass,                        java_lang_ref_ReferenceQueue,              Pre                 ) \
                                                                                                                          \
