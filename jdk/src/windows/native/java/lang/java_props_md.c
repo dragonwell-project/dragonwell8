@@ -546,7 +546,14 @@ GetJavaProperties(JNIEnv* env)
             } else if (majorVersion == 10) {
                 if (is_workstation) {
                     switch (minorVersion) {
-                    case  0: sprops.os_name = "Windows 10";           break;
+                    case  0:
+                        /* Windows 11 build number is 22000 */
+                        if (buildNumber >= 22000) {
+                            sprops.os_name = "Windows 11"; 
+                        } else {
+                            sprops.os_name = "Windows 10";           
+                        }
+                        break;
                     default: sprops.os_name = "Windows NT (unknown)";
                     }
                 } else {
