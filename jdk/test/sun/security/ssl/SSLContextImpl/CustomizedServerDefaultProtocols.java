@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -52,10 +52,10 @@ public class CustomizedServerDefaultProtocols {
     enum ContextVersion {
         TLS_CV_01("SSL",
                 new String[]{"SSLv3", "TLSv1", "TLSv1.1"},
-                new String[]{"SSLv3", "TLSv1", "TLSv1.1", "TLSv1.2"}),
+                new String[]{"SSLv3", "TLSv1", "TLSv1.1", "TLSv1.2", "TLSv1.3"}),
         TLS_CV_02("TLS",
                 new String[]{"SSLv3", "TLSv1", "TLSv1.1"},
-                new String[]{"SSLv3", "TLSv1", "TLSv1.1", "TLSv1.2"}),
+                new String[]{"SSLv3", "TLSv1", "TLSv1.1", "TLSv1.2", "TLSv1.3"}),
         TLS_CV_03("SSLv3",
                 supportedProtocols,
                 new String[]{"SSLv3", "TLSv1"}),
@@ -73,7 +73,7 @@ public class CustomizedServerDefaultProtocols {
                 new String[]{"SSLv3", "TLSv1", "TLSv1.1", "TLSv1.2", "TLSv1.3"}),
         TLS_CV_08("Default",
                 new String[]{"SSLv3", "TLSv1", "TLSv1.1"},
-                new String[]{"SSLv3", "TLSv1", "TLSv1.1", "TLSv1.2"});
+                new String[]{"SSLv3", "TLSv1", "TLSv1.1", "TLSv1.2", "TLSv1.3"});
 
         final String contextVersion;
         final String[] serverEnabledProtocols;

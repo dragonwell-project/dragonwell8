@@ -30,7 +30,7 @@
  * @summary SSLContextImpl.statusResponseManager should be generated if required
  * @library ../../../../java/security/testlibrary
  * @build CertificateBuilder SimpleOCSPServer
- * @run main/othervm -Djdk.tls.client.protocols="TLSv1.3,TLSv1.2,TLSv1.1,TLSv1,SSLv3" StapleEnableProps
+ * @run main/othervm StapleEnableProps
  */
 
 import javax.net.ssl.*;
