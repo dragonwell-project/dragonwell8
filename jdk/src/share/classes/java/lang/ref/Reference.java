@@ -296,6 +296,23 @@ public abstract class Reference<T> {
         return this.queue.enqueue(this);
     }
 
+
+    /**
+     * Throws {@link CloneNotSupportedException}. A {@code Reference} cannot be
+     * meaningfully cloned. Construct a new {@code Reference} instead.
+     *
+     * @apiNote This method is defined in Java SE 8 Maintenance Release 4.
+     *
+     * @return  never returns normally
+     * @throws  CloneNotSupportedException always
+     *
+     * @since 8
+     */
+    @Override
+    protected Object clone() throws CloneNotSupportedException {
+        throw new CloneNotSupportedException();
+    }
+
     /* -- Constructors -- */
 
     Reference(T referent) {
