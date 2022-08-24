@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1994, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1994, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -559,6 +559,10 @@ public final class System {
      *     <td>Java installation directory</td></tr>
      * <tr><td><code>java.vm.specification.version</code></td>
      *     <td>Java Virtual Machine specification version</td></tr>
+     * <tr><td><code>java.specification.maintenance.version</code></td>
+     *     <td>Java Runtime Environment specification maintenance
+     *     version, may be interpreted as a positive integer
+     *     <em>(optional, see below)</em></td></tr>
      * <tr><td><code>java.vm.specification.vendor</code></td>
      *     <td>Java Virtual Machine specification vendor</td></tr>
      * <tr><td><code>java.vm.specification.name</code></td>
@@ -609,6 +613,16 @@ public final class System {
      * <tr><td><code>user.dir</code></td>
      *     <td>User's current working directory</td></tr>
      * </table>
+     * <p>
+     * The {@code java.specification.maintenance.version} property is
+     * defined if the specification implemented by this runtime at the
+     * time of its construction had undergone a <a
+     * href="https://jcp.org/en/procedures/jcp2#3.6.4">maintenance
+     * release</a>. When defined, its value identifies that
+     * maintenance release. To indicate the first maintenance release
+     * this property will have the value {@code "1"}, to indicate the
+     * second maintenance release this property will have the value
+     * {@code "2"}, and so on.
      * <p>
      * Multiple paths in a system property value are separated by the path
      * separator character of the platform.
