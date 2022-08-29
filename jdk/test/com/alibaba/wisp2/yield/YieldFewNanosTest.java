@@ -24,7 +24,7 @@
  * @library /lib/testlibrary
  * @summary Verify park not happened for a very small interval
  * @requires os.family == "linux"
- * @run main/othervm/manual -XX:+UnlockExperimentalVMOptions -XX:+UseWisp2 YieldFewNanosTest
+ * @run main/othervm -XX:+UnlockExperimentalVMOptions -XX:+UseWisp2 YieldFewNanosTest
  */
 
 import com.alibaba.wisp.engine.WispEngine;
