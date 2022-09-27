@@ -90,8 +90,8 @@ fi
 set -x
 
 ${JAVA} -cp . -XX:+UseG1GC -XX:+MultiTenant -XX:+TenantHeapIsolation -XX:NativeMemoryTracking=detail -XX:+PrintGCDetails -Xloggc:gc.log -Xmx1g -Xmn32m ${TEST_CLASS} > ${TEST_CLASS}.log 2>&1 &
+PID=$!
 sleep 5
-PID=$(ps ax | grep ${TEST_CLASS} | grep -v grep | awk '{print $1}')
 if [ -z "$PID" ] && [ "$(echo $PID | wc -w)" -gt 1 ] ; then
   echo "BAD pid!"
   exit 1
@@ -104,9 +104,7 @@ $JCMD $PID VM.native_memory baseline
 sleep 30
 
 # check differences of below sections
-NMT_SECTIONS=("Internal" "Tenant")
-
-for MEM_SEC in ${NMT_SECTIONS[*]}; do
+for MEM_SEC in `echo Internal Tenant`; do
   DIFF=$($JCMD $PID VM.native_memory summary.diff | grep -A3 ${MEM_SEC} | grep malloc | grep -v grep)
   if [ ! -z "$(echo $DIFF | grep +)" ] && [ -z "$(echo $DIFF | awk '{print $2}' | grep \#)" ]; then
     DIFF=$(echo $DIFF | awk '{print $2}')
