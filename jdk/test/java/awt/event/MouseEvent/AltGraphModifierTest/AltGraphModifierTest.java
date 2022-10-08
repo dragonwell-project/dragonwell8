@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -44,13 +44,9 @@ public class AltGraphModifierTest {
                 = {
                     "This test is for verifying Alt-Gr modifier of an event.",
                     "Windows :-",
-                    "1. Please check if Alt-Gr key is present on keyboard.",
-                    "2. If present, press the Alt-Gr key and perform",
-                    "   mouse click on the TestWindow.",
-                    "3. If Alt-Gr key is not present, press Ctrl+Alt keys &",
-                    "   perform mouse click on the TestWindow.",
-                    "4. Test will exit by itself with appropriate result.",
-                    "",
+                    "1. Click Pass.",
+                    "2. Alt-Gr modifier is tested under Robot tests.",
+                    " ",
                     "Linux :-",
                     "1. Please check if Alt-Gr key is present on keyboard.",
                     "2. If present, press the Alt-Gr key and perform",

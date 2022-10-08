@@ -56,7 +56,10 @@ define_pd_global(intx, InlineFrequencyCount,     100);
 define_pd_global(intx, StackYellowPages, 2);
 define_pd_global(intx, StackRedPages, 1);
 
-define_pd_global(intx, StackShadowPages, 4 DEBUG_ONLY(+5));
+// Java_java_net_SocketOutputStream_socketWrite0() uses a 64k buffer on the
+// stack if compiled for unix and LP64. To pass stack overflow tests we need
+// 20 shadow pages.
+define_pd_global(intx, StackShadowPages, 20 DEBUG_ONLY(+5));
 
 define_pd_global(intx, PreInflateSpin,           10);
 

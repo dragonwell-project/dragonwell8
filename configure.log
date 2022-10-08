@@ -1,0 +1,343 @@
+`configure' configures OpenJDK jdk8 to adapt to many kinds of systems.
+
+Usage: /home/lvfei.lv/workspace/github/alibaba/dragonwell8/configure [OPTION]... [VAR=VALUE]...
+
+To assign environment variables (e.g., CC, CFLAGS...), specify them as
+VAR=VALUE.  See below for descriptions of some of the useful variables.
+
+Defaults for the options are specified in brackets.
+
+Configuration:
+  -h, --help              display this help and exit
+      --help=short        display options specific to this package
+      --help=recursive    display the short help of all the included packages
+  -V, --version           display version information and exit
+  -q, --quiet, --silent   do not print `checking ...' messages
+      --cache-file=FILE   cache test results in FILE [disabled]
+  -C, --config-cache      alias for `--cache-file=config.cache'
+  -n, --no-create         do not create output files
+      --srcdir=DIR        find the sources in DIR [configure dir or `..']
+
+Installation directories:
+  --prefix=PREFIX         install architecture-independent files in PREFIX
+                          [/usr/local]
+  --exec-prefix=EPREFIX   install architecture-dependent files in EPREFIX
+                          [PREFIX]
+
+By default, `make install' will install all the files in
+`/usr/local/bin', `/usr/local/lib' etc.  You can specify
+an installation prefix other than `/usr/local' using `--prefix',
+for instance `--prefix=$HOME'.
+
+For better control, use the options below.
+
+Fine tuning of the installation directories:
+  --bindir=DIR            user executables [EPREFIX/bin]
+  --sbindir=DIR           system admin executables [EPREFIX/sbin]
+  --libexecdir=DIR        program executables [EPREFIX/libexec]
+  --sysconfdir=DIR        read-only single-machine data [PREFIX/etc]
+  --sharedstatedir=DIR    modifiable architecture-independent data [PREFIX/com]
+  --localstatedir=DIR     modifiable single-machine data [PREFIX/var]
+  --runstatedir=DIR       modifiable per-process data [LOCALSTATEDIR/run]
+  --libdir=DIR            object code libraries [EPREFIX/lib]
+  --includedir=DIR        C header files [PREFIX/include]
+  --oldincludedir=DIR     C header files for non-gcc [/usr/include]
+  --datarootdir=DIR       read-only arch.-independent data root [PREFIX/share]
+  --datadir=DIR           read-only architecture-independent data [DATAROOTDIR]
+  --infodir=DIR           info documentation [DATAROOTDIR/info]
+  --localedir=DIR         locale-dependent data [DATAROOTDIR/locale]
+  --mandir=DIR            man documentation [DATAROOTDIR/man]
+  --docdir=DIR            documentation root [DATAROOTDIR/doc/openjdk]
+  --htmldir=DIR           html documentation [DOCDIR]
+  --dvidir=DIR            dvi documentation [DOCDIR]
+  --pdfdir=DIR            pdf documentation [DOCDIR]
+  --psdir=DIR             ps documentation [DOCDIR]
+
+X features:
+  --x-includes=DIR    X include files are in DIR
+  --x-libraries=DIR   X library files are in DIR
+
+System types:
+  --build=BUILD     configure for building on BUILD [guessed]
+  --host=HOST       cross-compile to build programs to run on HOST [BUILD]
+  --target=TARGET   configure for building compilers for TARGET [HOST]
+
+Optional Features:
+  --disable-option-checking  ignore unrecognized --enable/--with options
+  --disable-FEATURE       do not include FEATURE (same as --enable-FEATURE=no)
+  --enable-FEATURE[=ARG]  include FEATURE [ARG=yes]
+  --enable-openjdk-only   suppress building custom source even if present
+                          [disabled]
+  --enable-debug          set the debug level to fastdebug (shorthand for
+                          --with-debug-level=fastdebug) [disabled]
+  --disable-headful       disable building headful support (graphical UI
+                          support) [enabled]
+  --enable-hotspot-test-in-build
+                          run the Queens test after Hotspot build [disabled]
+  --enable-unlimited-crypto
+                          Enable unlimited crypto policy [disabled]
+  --disable-jfr           Disable Java Flight Recorder support [enabled]
+  --disable-debug-symbols disable generation of debug symbols [enabled]
+  --disable-zip-debug-info
+                          disable zipping of debug-info files [enabled]
+  --enable-macosx-runtime-support
+                          Deprecated. Option is kept for backwards
+                          compatibility and is ignored
+  --disable-freetype-bundling
+                          disable bundling of the freetype library with the
+                          build result [enabled on Windows or when using
+                          --with-freetype, disabled otherwise]
+  --enable-sjavac         use sjavac to do fast incremental compiles
+                          [disabled]
+  --disable-precompiled-headers
+                          disable using precompiled headers when compiling C++
+                          [enabled]
+  --enable-ccache         enable using ccache to speed up recompilations
+                          [disabled]
+
+Optional Packages:
+  --with-PACKAGE[=ARG]    use PACKAGE [ARG=yes]
+  --without-PACKAGE       do not use PACKAGE (same as --with-PACKAGE=no)
+  --with-custom-make-dir  use this directory for custom build/make files
+  --with-target-bits      build 32-bit or 64-bit binaries (for platforms that
+                          support it), e.g. --with-target-bits=32 [guessed]
+  --with-jdk-variant      JDK variant to build (normal) [normal]
+  --with-jvm-interpreter  JVM interpreter to build (template, cpp) [template]
+  --with-jvm-variants     JVM variants (separated by commas) to build (server,
+                          client, minimal1, kernel, zero, zeroshark, core)
+                          [server]
+  --with-debug-level      set the debug level (release, fastdebug, slowdebug)
+                          [release]
+  --with-devkit           use this devkit for compilers, tools and resources
+  --with-sys-root         alias for --with-sysroot for backwards compatability
+  --with-sysroot          use this directory as sysroot)
+  --with-tools-dir        alias for --with-toolchain-path for backwards
+                          compatibility
+  --with-toolchain-path   prepend these directories when searching for
+                          toolchain binaries (compilers etc)
+  --with-extra-path       prepend these directories to the default path
+  --with-xcode-path       explicit path to Xcode application (generally for
+                          building on 10.9 and later)
+  --with-conf-name        use this as the name of the configuration [generated
+                          from important configuration options]
+  --with-builddeps-conf   use this configuration file for the builddeps
+  --with-builddeps-server download and use build dependencies from this server
+                          url
+  --with-builddeps-dir    store downloaded build dependencies here
+                          [/localhome/builddeps]
+  --with-builddeps-group  chgrp the downloaded build dependencies to this
+                          group
+  --with-cacerts-file     specify alternative cacerts file
+  --with-milestone        Set milestone value for build [internal]
+  --with-update-version   Set update version value for build [b00]
+  --with-user-release-suffix
+                          Add a custom string to the version string if build
+                          number isn't set.[username_builddateb00]
+  --with-build-number     Set build number value for build [b00]
+  --with-vendor-name      Set vendor name. Among others, used to set the
+                          'java.vendor' and 'java.vm.vendor' system
+                          properties. [not specified]
+  --with-vendor-url       Set the 'java.vendor.url' system property [not
+                          specified]
+  --with-vendor-bug-url   Set the 'java.vendor.url.bug' system property [not
+                          specified]
+  --with-vendor-vm-bug-url
+                          Sets the bug URL which will be displayed when the VM
+                          crashes [not specified]
+  --with-copyright-year   Set copyright year value for build [current year]
+  --with-boot-jdk         path to Boot JDK (used to bootstrap build) [probed]
+  --with-boot-jdk-jvmargs specify JVM arguments to be passed to all
+                          invocations of the Boot JDK, overriding the default
+                          values, e.g --with-boot-jdk-jvmargs="-Xmx8G
+                          -enableassertions"
+  --with-add-source-root  for each and every source directory, look in this
+                          additional source root for the same directory; if it
+                          exists and have files in it, include it in the build
+  --with-override-source-root
+                          for each and every source directory, look in this
+                          override source root for the same directory; if it
+                          exists, use that directory instead and ignore the
+                          directory in the original source root
+  --with-adds-and-overrides
+                          use the subdirs 'adds' and 'overrides' in the
+                          specified directory as add-source-root and
+                          override-source-root
+  --with-override-langtools
+                          use this langtools dir for the build
+  --with-override-corba   use this corba dir for the build
+  --with-override-jaxp    use this jaxp dir for the build
+  --with-override-jaxws   use this jaxws dir for the build
+  --with-override-hotspot use this hotspot dir for the build
+  --with-override-nashorn use this nashorn dir for the build
+  --with-override-jdk     use this jdk dir for the build
+  --with-import-hotspot   import hotspot binaries from this jdk image or
+                          hotspot build dist dir instead of building from
+                          source
+  --with-toolchain-type   the toolchain type (or family) to use, use '--help'
+                          to show possible values [platform dependent]
+  --with-toolchain-version
+                          the version of the toolchain to look for, use
+                          '--help' to show possible values [platform
+                          dependent]
+  --with-jtreg            Regression Test Harness [probed]
+  --with-extra-cflags     extra flags to be used when compiling jdk c-files
+  --with-extra-cxxflags   extra flags to be used when compiling jdk c++-files
+  --with-extra-ldflags    extra flags to be used when linking jdk
+  --with-extra-asflags    extra flags to be passed to the assembler
+  --with-native-debug-symbols
+                          set the native debug symbol configuration (none,
+                          internal, external, zipped) [varying]
+  --with-x                use the X Window System
+  --with-cups             specify prefix directory for the cups package
+                          (expecting the headers under PATH/include)
+  --with-cups-include     specify directory for the cups include files
+  --with-freetype         specify prefix directory for the freetype package
+                          (expecting the libraries under PATH/lib and the
+                          headers under PATH/include)
+  --with-freetype-include specify directory for the freetype include files
+  --with-freetype-lib     specify directory for the freetype library
+  --with-freetype-src     specify directory with freetype sources to
+                          automatically build the library (experimental,
+                          Windows-only)
+  --with-alsa             specify prefix directory for the alsa package
+                          (expecting the libraries under PATH/lib and the
+                          headers under PATH/include)
+  --with-alsa-include     specify directory for the alsa include files
+  --with-alsa-lib         specify directory for the alsa library
+  --with-fontconfig       specify prefix directory for the fontconfig package
+                          (expecting the headers under PATH/include)
+  --with-fontconfig-include
+                          specify directory for the fontconfig include files
+  --with-giflib           use giflib from build system or OpenJDK source
+                          (system, bundled) [bundled]
+  --with-zlib             use zlib from build system or OpenJDK source
+                          (system, bundled) [bundled]
+  --with-stdc++lib=<static>,<dynamic>,<default>
+                          force linking of the C++ runtime on Linux to either
+                          static or dynamic, default is static with dynamic as
+                          fallback
+  --with-msvcr-dll        path to microsoft C runtime dll (msvcr*.dll)
+                          (Windows only) [probed]
+  --with-msvcp-dll        path to microsoft C++ runtime dll (msvcp*.dll)
+                          (Windows only) [probed]
+  --with-ucrt-dll-dir     path to Microsoft Windows Kit UCRT DLL dir (Windows
+                          only) [probed]
+  --with-dxsdk            Deprecated. Option is kept for backwards
+                          compatibility and is ignored
+  --with-dxsdk-lib        Deprecated. Option is kept for backwards
+                          compatibility and is ignored
+  --with-dxsdk-include    Deprecated. Option is kept for backwards
+                          compatibility and is ignored
+  --with-num-cores        number of cores in the build system, e.g.
+                          --with-num-cores=8 [probed]
+  --with-memory-size      memory (in MB) available in the build system, e.g.
+                          --with-memory-size=1024 [probed]
+  --with-jobs             number of parallel jobs to let make run [calculated
+                          based on cores and memory]
+  --with-sjavac-server-java
+                          use this java binary for running the sjavac
+                          background server [Boot JDK java]
+  --with-ccache-dir       where to store ccache files [~/.ccache]
+
+Some influential environment variables:
+  BASENAME    Override default value for BASENAME
+  BASH        Override default value for BASH
+  CAT         Override default value for CAT
+  CHMOD       Override default value for CHMOD
+  CMP         Override default value for CMP
+  COMM        Override default value for COMM
+  CP          Override default value for CP
+  CUT         Override default value for CUT
+  DATE        Override default value for DATE
+  DIFF        Override default value for DIFF
+  DIRNAME     Override default value for DIRNAME
+  ECHO        Override default value for ECHO
+  EXPR        Override default value for EXPR
+  FILE        Override default value for FILE
+  FIND        Override default value for FIND
+  HEAD        Override default value for HEAD
+  LN          Override default value for LN
+  LS          Override default value for LS
+  MKDIR       Override default value for MKDIR
+  MKTEMP      Override default value for MKTEMP
+  MV          Override default value for MV
+  NAWK        Override default value for NAWK
+  PRINTF      Override default value for PRINTF
+  RM          Override default value for RM
+  SH          Override default value for SH
+  SORT        Override default value for SORT
+  TAIL        Override default value for TAIL
+  TAR         Override default value for TAR
+  TEE         Override default value for TEE
+  TOUCH       Override default value for TOUCH
+  TR          Override default value for TR
+  UNAME       Override default value for UNAME
+  UNIQ        Override default value for UNIQ
+  WC          Override default value for WC
+  WHICH       Override default value for WHICH
+  XARGS       Override default value for XARGS
+  AWK         Override default value for AWK
+  GREP        Override default value for GREP
+  EGREP       Override default value for EGREP
+  FGREP       Override default value for FGREP
+  SED         Override default value for SED
+  CYGPATH     Override default value for CYGPATH
+  READLINK    Override default value for READLINK
+  DF          Override default value for DF
+  SETFILE     Override default value for SETFILE
+  CPIO        Override default value for CPIO
+  UNZIP       Override default value for UNZIP
+  ZIP         Override default value for ZIP
+  LDD         Override default value for LDD
+  READELF     Override default value for READELF
+  HG          Override default value for HG
+  GIT         Override default value for GIT
+  STAT        Override default value for STAT
+  TIME        Override default value for TIME
+  DSYMUTIL    Override default value for DSYMUTIL
+  XATTR       Override default value for XATTR
+  CODESIGN    Override default value for CODESIGN
+  PKG_CONFIG  path to pkg-config utility
+  CC          C compiler command
+  CFLAGS      C compiler flags
+  LDFLAGS     linker flags, e.g. -L<lib dir> if you have libraries in a
+              nonstandard directory <lib dir>
+  LIBS        libraries to pass to the linker, e.g. -l<library>
+  CPPFLAGS    (Objective) C/C++ preprocessor flags, e.g. -I<include dir> if
+              you have headers in a nonstandard directory <include dir>
+  CXX         C++ compiler command
+  CXXFLAGS    C++ compiler flags
+  CPP         C preprocessor
+  CXXCPP      C++ preprocessor
+  AS          Override default value for AS
+  AR          Override default value for AR
+  OBJC        Objective C compiler command
+  OBJCFLAGS   Objective C compiler flags
+  LIPO        Override default value for LIPO
+  STRIP       Override default value for STRIP
+  NM          Override default value for NM
+  GNM         Override default value for GNM
+  MCS         Override default value for MCS
+  OBJCOPY     Override default value for OBJCOPY
+  OBJDUMP     Override default value for OBJDUMP
+  BUILD_CC    Override default value for BUILD_CC
+  BUILD_CXX   Override default value for BUILD_CXX
+  BUILD_LD    Override default value for BUILD_LD
+  JTREGEXE    Override default value for JTREGEXE
+  XMKMF       Path to xmkmf, Makefile generator for X Window System
+  FREETYPE_CFLAGS
+              C compiler flags for FREETYPE, overriding pkg-config
+  FREETYPE_LIBS
+              linker flags for FREETYPE, overriding pkg-config
+  ALSA_CFLAGS C compiler flags for ALSA, overriding pkg-config
+  ALSA_LIBS   linker flags for ALSA, overriding pkg-config
+  LIBFFI_CFLAGS
+              C compiler flags for LIBFFI, overriding pkg-config
+  LIBFFI_LIBS linker flags for LIBFFI, overriding pkg-config
+  CCACHE      Override default value for CCACHE
+
+Use these variables to override the choices made by `configure' or to help
+it to find libraries and programs with nonstandard names/locations.
+
+Report bugs to <build-dev@openjdk.java.net>.
+OpenJDK home page: <http://openjdk.java.net>.
