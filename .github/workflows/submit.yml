@@ -178,18 +178,20 @@ jobs:
         run: make CONF_NAME=linux-x64 LOG_LEVEL=debug images
         working-directory: jdk
 
+      - name: Pack artifacts
+        run: |
+          tar -cf jdk-${{ env.JDK_VERSION }}-internal+0_linux-x64_bin${{ matrix.artifact }}.tar.gz -C jdk/build/linux-x64/images j2sdk-image
+
       - name: Persist test bundles
         uses: actions/upload-artifact@v2
         with:
           name: transient_jdk-linux-x64${{ matrix.artifact }}_${{ needs.prerequisites.outputs.bundle_id }}
           path: |
-            jdk/build/linux-x64/bundles/jdk-${{ env.JDK_VERSION }}-internal+0_linux-x64_bin${{ matrix.artifact }}.tar.gz
-            jdk/build/linux-x64/bundles/jdk-${{ env.JDK_VERSION }}-internal+0_linux-x64_bin-tests${{ matrix.artifact }}.tar.gz
+            jdk-${{ env.JDK_VERSION }}-internal+0_linux-x64_bin${{ matrix.artifact }}.tar.gz
 
   linux_x64_test:
     name: Linux x64
     runs-on: "ubuntu-20.04"
-    if: false
     needs:
       - prerequisites
       - linux_x64_build
@@ -198,39 +200,16 @@ jobs:
       fail-fast: false
       matrix:
         test:
-          - jdk/tier1 part 1
-          - jdk/tier1 part 2
-          - jdk/tier1 part 3
-          - langtools/tier1
-          - hs/tier1 common
-          - hs/tier1 compiler
-          - hs/tier1 gc
-          - hs/tier1 runtime
-          - hs/tier1 serviceability
+          - jdk/tier1
+#          - langtools/tier1
+#          - hotspot/tier1
         include:
-          - test: jdk/tier1 part 1
-            suites: test/jdk/:tier1_part1
-          - test: jdk/tier1 part 2
-            suites: test/jdk/:tier1_part2
-          - test: jdk/tier1 part 3
-            suites: test/jdk/:tier1_part3
-          - test: langtools/tier1
-            suites: test/langtools/:tier1
-          - test: hs/tier1 common
-            suites: test/hotspot/jtreg/:tier1_common
-            artifact: -debug
-          - test: hs/tier1 compiler
-            suites: test/hotspot/jtreg/:tier1_compiler
-            artifact: -debug
-          - test: hs/tier1 gc
-            suites: test/hotspot/jtreg/:tier1_gc
-            artifact: -debug
-          - test: hs/tier1 runtime
-            suites: test/hotspot/jtreg/:tier1_runtime
-            artifact: -debug
-          - test: hs/tier1 serviceability
-            suites: test/hotspot/jtreg/:tier1_serviceability
-            artifact: -debug
+          - test: jdk/tier1
+            suites: jdk_tier1
+#          - test: langtools/tier1
+#            suites: langtools_tier1
+#          - test: hotspot/tier1
+#            suites: hotspot_tier1
 
     env:
       JDK_VERSION: "${{ fromJson(needs.prerequisites.outputs.dependencies).JDK_MAJOR_VERSION }}.${{ fromJson(needs.prerequisites.outputs.dependencies).JDK_MINOR_VERSION }}.${{ fromJson(needs.prerequisites.outputs.dependencies).JDK_MICRO_VERSION }}"
@@ -280,36 +259,25 @@ jobs:
           mkdir -p "${HOME}/jdk-linux-x64${{ matrix.artifact }}/jdk-${{ env.JDK_VERSION }}-internal+0_linux-x64_bin${{ matrix.artifact }}"
           tar -xf "${HOME}/jdk-linux-x64${{ matrix.artifact }}/jdk-${{ env.JDK_VERSION }}-internal+0_linux-x64_bin${{ matrix.artifact }}.tar.gz" -C "${HOME}/jdk-linux-x64${{ matrix.artifact }}/jdk-${{ env.JDK_VERSION }}-internal+0_linux-x64_bin${{ matrix.artifact }}"
 
-      - name: Unpack tests
-        run: |
-          mkdir -p "${HOME}/jdk-linux-x64${{ matrix.artifact }}/jdk-${{ env.JDK_VERSION }}-internal+0_linux-x64_bin-tests${{ matrix.artifact }}"
-          tar -xf "${HOME}/jdk-linux-x64${{ matrix.artifact }}/jdk-${{ env.JDK_VERSION }}-internal+0_linux-x64_bin-tests${{ matrix.artifact }}.tar.gz" -C "${HOME}/jdk-linux-x64${{ matrix.artifact }}/jdk-${{ env.JDK_VERSION }}-internal+0_linux-x64_bin-tests${{ matrix.artifact }}"
-
-      - name: Find root of jdk image dir
-        run: |
-          imageroot=`find ${HOME}/jdk-linux-x64${{ matrix.artifact }}/jdk-${{ env.JDK_VERSION }}-internal+0_linux-x64_bin${{ matrix.artifact }} -name release -type f`
-          echo "imageroot=`dirname ${imageroot}`" >> $GITHUB_ENV
-
       - name: Run tests
         run: >
-          JDK_IMAGE_DIR=${{ env.imageroot }}
-          TEST_IMAGE_DIR=${HOME}/jdk-linux-x64${{ matrix.artifact }}/jdk-${{ env.JDK_VERSION }}-internal+0_linux-x64_bin-tests${{ matrix.artifact }}
-          BOOT_JDK=${BOOT_JDK}
-          JT_HOME=${HOME}/jtreg
-          make run-test-prebuilt
-          CONF_NAME=run-test-prebuilt
-          LOG_CMDLINES=true
-          JTREG_VERBOSE=fail,error,time
-          TEST="${{ matrix.suites }}"
-          TEST_OPTS_JAVA_OPTIONS=
-          JTREG_KEYWORDS="!headful"
-          JTREG="JAVA_OPTIONS=-XX:-CreateCoredumpOnCrash"
+          chmod +x "${HOME}/jtreg/bin/jtreg" &&
+          mkdir test-results &&
+          cd test &&
+          PRODUCT_HOME="${HOME}/jdk-linux-x64${{ matrix.artifact }}/jdk-${{ env.JDK_VERSION }}-internal+0_linux-x64_bin${{ matrix.artifact }}/j2sdk-image"
+          JT_HOME="${HOME}/jtreg"
+          ALT_OUTPUTDIR="${GITHUB_WORKSPACE}/test-results"
+          JAVA_ARGS="-Djdk.test.docker.image.name=ubuntu -Djdk.test.docker.image.version=latest"
+          JTREG_TIMEOUT_FACTOR="4"
+          make
+          "${{ matrix.suites }}"
 
       - name: Check that all tests executed successfully
         if: always()
         run: >
-          if ! grep --include=test-summary.txt -lqr build/*/test-results -e "TEST SUCCESS" ; then
-            cat build/*/test-results/*/text/newfailures.txt ;
+          if cat test-results/testoutput/*/exitcode.txt | grep -q -v '^0$'
+          || ! cat test-results/testoutput/*/Stats.txt | grep -q 'fail=0' ; then
+            cat test-results/testoutput/*/JTreport/text/newfailures.txt ;
             exit 1 ;
           fi
 
@@ -319,23 +287,12 @@ jobs:
 
       - name: Package test results
         if: always()
-        working-directory: build/run-test-prebuilt/test-results/
+        working-directory: test-results
         run: >
           zip -r9
           "$HOME/linux-x64${{ matrix.artifact }}_testresults_${{ env.logsuffix }}.zip"
           .
-        continue-on-error: true
-
-      - name: Package test support
-        if: always()
-        working-directory: build/run-test-prebuilt/test-support/
-        run: >
-          zip -r9
-          "$HOME/linux-x64${{ matrix.artifact }}_testsupport_${{ env.logsuffix }}.zip"
-          .
-          -i *.jtr
-          -i */hs_err*.log
-          -i */replay*.log
+          -x "*ARCHIVE_BUNDLE.zip"
         continue-on-error: true
 
       - name: Persist test results
@@ -343,13 +300,6 @@ jobs:
         uses: actions/upload-artifact@v2
         with:
           path: ~/linux-x64${{ matrix.artifact }}_testresults_${{ env.logsuffix }}.zip
-        continue-on-error: true
-
-      - name: Persist test outputs
-        if: always()
-        uses: actions/upload-artifact@v2
-        with:
-          path: ~/linux-x64${{ matrix.artifact }}_testsupport_${{ env.logsuffix }}.zip
         continue-on-error: true
 
   linux_additional_build:
@@ -584,18 +534,20 @@ jobs:
         run: make CONF_NAME=linux-x86 images
         working-directory: jdk
 
+      - name: Pack artifacts
+        run: |
+          tar -cf jdk-${{ env.JDK_VERSION }}-internal+0_linux-x86_bin${{ matrix.artifact }}.tar.gz -C jdk/build/linux-x86/images j2sdk-image
+
       - name: Persist test bundles
         uses: actions/upload-artifact@v2
         with:
           name: transient_jdk-linux-x86${{ matrix.artifact }}_${{ needs.prerequisites.outputs.bundle_id }}
           path: |
-            jdk/build/linux-x86/bundles/jdk-${{ env.JDK_VERSION }}-internal+0_linux-x86_bin${{ matrix.artifact }}.tar.gz
-            jdk/build/linux-x86/bundles/jdk-${{ env.JDK_VERSION }}-internal+0_linux-x86_bin-tests${{ matrix.artifact }}.tar.gz
+            jdk-${{ env.JDK_VERSION }}-internal+0_linux-x86_bin${{ matrix.artifact }}.tar.gz
 
   linux_x86_test:
     name: Linux x86
     runs-on: "ubuntu-20.04"
-    if: false
     needs:
       - prerequisites
       - linux_x86_build
@@ -604,39 +556,16 @@ jobs:
       fail-fast: false
       matrix:
         test:
-          - jdk/tier1 part 1
-          - jdk/tier1 part 2
-          - jdk/tier1 part 3
-          - langtools/tier1
-          - hs/tier1 common
-          - hs/tier1 compiler
-          - hs/tier1 gc
-          - hs/tier1 runtime
-          - hs/tier1 serviceability
+          - jdk/tier1
+#          - langtools/tier1
+#          - hotspot/tier1
         include:
-          - test: jdk/tier1 part 1
-            suites: test/jdk/:tier1_part1
-          - test: jdk/tier1 part 2
-            suites: test/jdk/:tier1_part2
-          - test: jdk/tier1 part 3
-            suites: test/jdk/:tier1_part3
-          - test: langtools/tier1
-            suites: test/langtools/:tier1
-          - test: hs/tier1 common
-            suites: test/hotspot/jtreg/:tier1_common
-            artifact: -debug
-          - test: hs/tier1 compiler
-            suites: test/hotspot/jtreg/:tier1_compiler
-            artifact: -debug
-          - test: hs/tier1 gc
-            suites: test/hotspot/jtreg/:tier1_gc
-            artifact: -debug
-          - test: hs/tier1 runtime
-            suites: test/hotspot/jtreg/:tier1_runtime
-            artifact: -debug
-          - test: hs/tier1 serviceability
-            suites: test/hotspot/jtreg/:tier1_serviceability
-            artifact: -debug
+          - test: jdk/tier1
+            suites: jdk_tier1
+#          - test: langtools/tier1
+#            suites: langtools_tier1
+#          - test: hotspot/tier1
+#            suites: hotspot_tier1
 
     # Reduced 32-bit build uses the same boot JDK as 64-bit build
     env:
@@ -687,36 +616,25 @@ jobs:
           mkdir -p "${HOME}/jdk-linux-x86${{ matrix.artifact }}/jdk-${{ env.JDK_VERSION }}-internal+0_linux-x86_bin${{ matrix.artifact }}"
           tar -xf "${HOME}/jdk-linux-x86${{ matrix.artifact }}/jdk-${{ env.JDK_VERSION }}-internal+0_linux-x86_bin${{ matrix.artifact }}.tar.gz" -C "${HOME}/jdk-linux-x86${{ matrix.artifact }}/jdk-${{ env.JDK_VERSION }}-internal+0_linux-x86_bin${{ matrix.artifact }}"
 
-      - name: Unpack tests
-        run: |
-          mkdir -p "${HOME}/jdk-linux-x86${{ matrix.artifact }}/jdk-${{ env.JDK_VERSION }}-internal+0_linux-x86_bin-tests${{ matrix.artifact }}"
-          tar -xf "${HOME}/jdk-linux-x86${{ matrix.artifact }}/jdk-${{ env.JDK_VERSION }}-internal+0_linux-x86_bin-tests${{ matrix.artifact }}.tar.gz" -C "${HOME}/jdk-linux-x86${{ matrix.artifact }}/jdk-${{ env.JDK_VERSION }}-internal+0_linux-x86_bin-tests${{ matrix.artifact }}"
-
-      - name: Find root of jdk image dir
-        run: |
-          imageroot=`find ${HOME}/jdk-linux-x86${{ matrix.artifact }}/jdk-${{ env.JDK_VERSION }}-internal+0_linux-x86_bin${{ matrix.artifact }} -name release -type f`
-          echo "imageroot=`dirname ${imageroot}`" >> $GITHUB_ENV
-
       - name: Run tests
         run: >
-          JDK_IMAGE_DIR=${{ env.imageroot }}
-          TEST_IMAGE_DIR=${HOME}/jdk-linux-x86${{ matrix.artifact }}/jdk-${{ env.JDK_VERSION }}-internal+0_linux-x86_bin-tests${{ matrix.artifact }}
-          BOOT_JDK=${BOOT_JDK}
-          JT_HOME=${HOME}/jtreg
-          make run-test-prebuilt
-          CONF_NAME=run-test-prebuilt
-          LOG_CMDLINES=true
-          JTREG_VERBOSE=fail,error,time
-          TEST="${{ matrix.suites }}"
-          TEST_OPTS_JAVA_OPTIONS=
-          JTREG_KEYWORDS="!headful"
-          JTREG="JAVA_OPTIONS=-XX:-CreateCoredumpOnCrash"
+          chmod +x "${HOME}/jtreg/bin/jtreg" &&
+          mkdir test-results &&
+          cd test &&
+          PRODUCT_HOME="${HOME}/jdk-linux-x86${{ matrix.artifact }}/jdk-${{ env.JDK_VERSION }}-internal+0_linux-x86_bin${{ matrix.artifact }}/j2sdk-image"
+          JT_HOME="${HOME}/jtreg"
+          ALT_OUTPUTDIR="${GITHUB_WORKSPACE}/test-results"
+          JAVA_ARGS="-Djdk.test.docker.image.name=ubuntu -Djdk.test.docker.image.version=latest"
+          JTREG_TIMEOUT_FACTOR="4"
+          make
+          "${{ matrix.suites }}"
 
       - name: Check that all tests executed successfully
         if: always()
         run: >
-          if ! grep --include=test-summary.txt -lqr build/*/test-results -e "TEST SUCCESS" ; then
-            cat build/*/test-results/*/text/newfailures.txt ;
+          if cat test-results/testoutput/*/exitcode.txt | grep -q -v '^0$'
+          || ! cat test-results/testoutput/*/Stats.txt | grep -q 'fail=0' ; then
+            cat test-results/testoutput/*/JTreport/text/newfailures.txt ;
             exit 1 ;
           fi
 
@@ -726,23 +644,12 @@ jobs:
 
       - name: Package test results
         if: always()
-        working-directory: build/run-test-prebuilt/test-results/
+        working-directory: test-results
         run: >
           zip -r9
           "$HOME/linux-x86${{ matrix.artifact }}_testresults_${{ env.logsuffix }}.zip"
           .
-        continue-on-error: true
-
-      - name: Package test support
-        if: always()
-        working-directory: build/run-test-prebuilt/test-support/
-        run: >
-          zip -r9
-          "$HOME/linux-x86${{ matrix.artifact }}_testsupport_${{ env.logsuffix }}.zip"
-          .
-          -i *.jtr
-          -i */hs_err*.log
-          -i */replay*.log
+          -x "*ARCHIVE_BUNDLE.zip"
         continue-on-error: true
 
       - name: Persist test results
@@ -750,13 +657,6 @@ jobs:
         uses: actions/upload-artifact@v2
         with:
           path: ~/linux-x86${{ matrix.artifact }}_testresults_${{ env.logsuffix }}.zip
-        continue-on-error: true
-
-      - name: Persist test outputs
-        if: always()
-        uses: actions/upload-artifact@v2
-        with:
-          path: ~/linux-x86${{ matrix.artifact }}_testsupport_${{ env.logsuffix }}.zip
         continue-on-error: true
 
   windows_x64_build:
@@ -910,14 +810,21 @@ jobs:
           & make CONF_NAME=windows-x64 FORCE_MSC_VER=1912 FORCE_LD_VER=1412 images
         working-directory: jdk
 
+      - name: Pack artifacts
+        run: >
+          dir ;
+          $env:Path = "$HOME\cygwin\cygwin64\bin;$env:Path" ;
+          zip -r9
+          "${{ github.workspace }}/jdk-${{ env.JDK_VERSION }}-internal+0_windows-x64_bin${{ matrix.artifact }}.zip"
+          j2sdk-image
+        working-directory: jdk/build/windows-x64/images
+
       - name: Persist test bundles
         uses: actions/upload-artifact@v2
         with:
           name: transient_jdk-windows-x64${{ matrix.artifact }}_${{ needs.prerequisites.outputs.bundle_id }}
           path: |
-            jdk/build/windows-x64/bundles/jdk-${{ env.JDK_VERSION }}-internal+0_windows-x64_bin${{ matrix.artifact }}.zip
-            jdk/build/windows-x64/bundles/jdk-${{ env.JDK_VERSION }}-internal+0_windows-x64_bin-tests${{ matrix.artifact }}.tar.gz
-            jdk/build/windows-x64/bundles/jdk-${{ env.JDK_VERSION }}-internal+0_windows-x64_bin${{ matrix.artifact }}-symbols.tar.gz
+            jdk-${{ env.JDK_VERSION }}-internal+0_windows-x64_bin${{ matrix.artifact }}.zip
 
   windows_x86_build:
     name: Windows x86
@@ -1063,14 +970,21 @@ jobs:
           & make CONF_NAME=windows-x86 images
         working-directory: jdk
 
+      - name: Pack artifacts
+        run: >
+          dir ;
+          $env:Path = "$HOME\cygwin\cygwin64\bin;$env:Path" ;
+          zip -r9
+          "${{ github.workspace }}/jdk-${{ env.JDK_VERSION }}-internal+0_windows-x86_bin${{ matrix.artifact }}.zip"
+          j2sdk-image
+        working-directory: jdk/build/windows-x86/images
+
       - name: Persist test bundles
         uses: actions/upload-artifact@v2
         with:
           name: transient_jdk-windows-x86${{ matrix.artifact }}_${{ needs.prerequisites.outputs.bundle_id }}
           path: |
-            jdk/build/windows-x86/bundles/jdk-${{ env.JDK_VERSION }}-internal+0_windows-x86_bin${{ matrix.artifact }}.zip
-            jdk/build/windows-x86/bundles/jdk-${{ env.JDK_VERSION }}-internal+0_windows-x86_bin-tests${{ matrix.artifact }}.tar.gz
-            jdk/build/windows-x86/bundles/jdk-${{ env.JDK_VERSION }}-internal+0_windows-x86_bin${{ matrix.artifact }}-symbols.tar.gz
+            jdk-${{ env.JDK_VERSION }}-internal+0_windows-x86_bin${{ matrix.artifact }}.zip
 
   windows_x64_test:
     name: Windows x64
@@ -1084,39 +998,16 @@ jobs:
       fail-fast: false
       matrix:
         test:
-          - jdk/tier1 part 1
-          - jdk/tier1 part 2
-          - jdk/tier1 part 3
+          - jdk/tier1
           - langtools/tier1
-          - hs/tier1 common
-          - hs/tier1 compiler
-          - hs/tier1 gc
-          - hs/tier1 runtime
-          - hs/tier1 serviceability
+          - hotspot/tier1
         include:
-          - test: jdk/tier1 part 1
-            suites: test/jdk/:tier1_part1
-          - test: jdk/tier1 part 2
-            suites: test/jdk/:tier1_part2
-          - test: jdk/tier1 part 3
-            suites: test/jdk/:tier1_part3
+          - test: jdk/tier1
+            suites: jdk_tier1
           - test: langtools/tier1
-            suites: test/langtools/:tier1
-          - test: hs/tier1 common
-            suites: test/hotspot/jtreg/:tier1_common
-            artifact: -debug
-          - test: hs/tier1 compiler
-            suites: test/hotspot/jtreg/:tier1_compiler
-            artifact: -debug
-          - test: hs/tier1 gc
-            suites: test/hotspot/jtreg/:tier1_gc
-            artifact: -debug
-          - test: hs/tier1 runtime
-            suites: test/hotspot/jtreg/:tier1_runtime
-            artifact: -debug
-          - test: hs/tier1 serviceability
-            suites: test/hotspot/jtreg/:tier1_serviceability
-            artifact: -debug
+            suites: langtools_tier1
+          - test: hotspot/tier1
+            suites: hotspot_tier1
 
     env:
       JDK_VERSION: "${{ fromJson(needs.prerequisites.outputs.dependencies).JDK_MAJOR_VERSION }}.${{ fromJson(needs.prerequisites.outputs.dependencies).JDK_MINOR_VERSION }}.${{ fromJson(needs.prerequisites.outputs.dependencies).JDK_MICRO_VERSION }}"
@@ -1194,42 +1085,28 @@ jobs:
           mkdir -p "${HOME}/jdk-windows-x64${{ matrix.artifact }}/jdk-${{ env.JDK_VERSION }}-internal+0_windows-x64_bin${{ matrix.artifact }}"
           tar -xf "${HOME}/jdk-windows-x64${{ matrix.artifact }}/jdk-${{ env.JDK_VERSION }}-internal+0_windows-x64_bin${{ matrix.artifact }}.zip" -C "${HOME}/jdk-windows-x64${{ matrix.artifact }}/jdk-${{ env.JDK_VERSION }}-internal+0_windows-x64_bin${{ matrix.artifact }}"
 
-      - name: Unpack symbols
+      - name: Create results dir
         run: |
-          mkdir -p "${HOME}/jdk-windows-x64${{ matrix.artifact }}/jdk-${{ env.JDK_VERSION }}-internal+0_windows-x64_bin${{ matrix.artifact }}-symbols"
-          tar -xf "${HOME}/jdk-windows-x64${{ matrix.artifact }}/jdk-${{ env.JDK_VERSION }}-internal+0_windows-x64_bin${{ matrix.artifact }}-symbols.tar.gz" -C "${HOME}/jdk-windows-x64${{ matrix.artifact }}/jdk-${{ env.JDK_VERSION }}-internal+0_windows-x64_bin${{ matrix.artifact }}-symbols"
-
-      - name: Unpack tests
-        run: |
-          mkdir -p "${HOME}/jdk-windows-x64${{ matrix.artifact }}/jdk-${{ env.JDK_VERSION }}-internal+0_windows-x64_bin-tests${{ matrix.artifact }}"
-          tar -xf "${HOME}/jdk-windows-x64${{ matrix.artifact }}/jdk-${{ env.JDK_VERSION }}-internal+0_windows-x64_bin-tests${{ matrix.artifact }}.tar.gz" -C "${HOME}/jdk-windows-x64${{ matrix.artifact }}/jdk-${{ env.JDK_VERSION }}-internal+0_windows-x64_bin-tests${{ matrix.artifact }}"
-
-      - name: Find root of jdk image dir
-        run: echo ("imageroot=" + (Get-ChildItem -Path $HOME/jdk-windows-x64${{ matrix.artifact }}/jdk-${{ env.JDK_VERSION }}-internal+0_windows-x64_bin${{ matrix.artifact }} -Filter release -Recurse -ErrorAction SilentlyContinue -Force).DirectoryName) | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8
+          mkdir test-results
 
       - name: Run tests
+        working-directory: test
         run: >
           $env:Path = "$HOME\cygwin\cygwin64\bin;$HOME\cygwin\cygwin64\bin;$env:Path" ;
           $env:Path = $env:Path -split ";" -match "C:\\Windows|PowerShell|cygwin" -join ";" ;
-          $env:JDK_IMAGE_DIR = cygpath "${{ env.imageroot }}" ;
-          $env:SYMBOLS_IMAGE_DIR = cygpath "${{ env.imageroot }}" ;
-          $env:TEST_IMAGE_DIR = cygpath "$HOME/jdk-windows-x64${{ matrix.artifact }}/jdk-${{ env.JDK_VERSION }}-internal+0_windows-x64_bin-tests${{ matrix.artifact }}" ;
-          $env:BOOT_JDK = cygpath "$HOME/bootjdk/$env:BOOT_JDK_VERSION" ;
+          $env:PRODUCT_HOME = cygpath "$HOME/jdk-windows-x64${{ matrix.artifact }}/jdk-${{ env.JDK_VERSION }}-internal+0_windows-x64_bin${{ matrix.artifact }}/j2sdk-image" ;
           $env:JT_HOME = cygpath "$HOME/jtreg" ;
-          & make run-test-prebuilt
-          CONF_NAME=run-test-prebuilt
-          LOG_CMDLINES=true
-          JTREG_VERBOSE=fail,error,time
-          TEST=${{ matrix.suites }}
-          TEST_OPTS_JAVA_OPTIONS=
-          JTREG_KEYWORDS="!headful"
-          JTREG="JAVA_OPTIONS=-XX:-CreateCoredumpOnCrash"
+          $env:ALT_OUTPUTDIR = cygpath "$env:GITHUB_WORKSPACE/test-results" ;
+          $env:JAVA_ARGS = "-XX:-CreateMinidumpOnCrash -Djdk.test.container.command=skipcontianer" ;
+          $env:JTREG_TIMEOUT_FACTOR = "4" ;
+          & make
+          "${{ matrix.suites }}"
 
       - name: Check that all tests executed successfully
         if: always()
         run: >
-          if ((Get-ChildItem -Path build\*\test-results\test-summary.txt -Recurse | Select-String -Pattern "TEST SUCCESS" ).Count -eq 0) {
-            Get-Content -Path build\*\test-results\*\*\newfailures.txt ;
+          if ((Get-ChildItem -Path test-results\testoutput\*\exitcode.txt -Recurse | Select-String -Pattern '^0$' -NotMatch ).Count -gt 0) {
+            Get-Content -Path test-results\testoutput\*\JTreport\text\newfailures.txt ;
             exit 1
           }
 
@@ -1239,25 +1116,13 @@ jobs:
 
       - name: Package test results
         if: always()
-        working-directory: build/run-test-prebuilt/test-results/
+        working-directory: test-results
         run: >
           $env:Path = "$HOME\cygwin\cygwin64\bin;$env:Path" ;
           zip -r9
           "$HOME/windows-x64${{ matrix.artifact }}_testresults_${{ env.logsuffix }}.zip"
           .
-        continue-on-error: true
-
-      - name: Package test support
-        if: always()
-        working-directory: build/run-test-prebuilt/test-support/
-        run: >
-          $env:Path = "$HOME\cygwin\cygwin64\bin;$env:Path" ;
-          zip -r9
-          "$HOME/windows-x64${{ matrix.artifact }}_testsupport_${{ env.logsuffix }}.zip"
-          .
-          -i *.jtr
-          -i */hs_err*.log
-          -i */replay*.log
+          -x "*ARCHIVE_BUNDLE.zip"
         continue-on-error: true
 
       - name: Persist test results
@@ -1267,11 +1132,150 @@ jobs:
           path: ~/windows-x64${{ matrix.artifact }}_testresults_${{ env.logsuffix }}.zip
         continue-on-error: true
 
-      - name: Persist test outputs
+  windows_x86_test:
+    name: Windows x86
+    runs-on: "windows-2019"
+    if: false
+    needs:
+      - prerequisites
+      - windows_x86_build
+
+    strategy:
+      fail-fast: false
+      matrix:
+        test:
+          - jdk/tier1
+          - langtools/tier1
+          - hotspot/tier1
+        include:
+          - test: jdk/tier1
+            suites: jdk_tier1
+          - test: langtools/tier1
+            suites: langtools_tier1
+          - test: hotspot/tier1
+            suites: hotspot_tier1
+
+    env:
+      JDK_VERSION: "${{ fromJson(needs.prerequisites.outputs.dependencies).JDK_MAJOR_VERSION }}.${{ fromJson(needs.prerequisites.outputs.dependencies).JDK_MINOR_VERSION }}.${{ fromJson(needs.prerequisites.outputs.dependencies).JDK_MICRO_VERSION }}"
+      BOOT_JDK_VERSION: "${{ fromJson(needs.prerequisites.outputs.dependencies).BOOT_JDK_VERSION }}"
+      BOOT_JDK_FILENAME: "${{ fromJson(needs.prerequisites.outputs.dependencies).WINDOWS_X86_BOOT_JDK_FILENAME }}"
+      BOOT_JDK_URL: "${{ fromJson(needs.prerequisites.outputs.dependencies).WINDOWS_X86_BOOT_JDK_URL }}"
+      BOOT_JDK_SHA256: "${{ fromJson(needs.prerequisites.outputs.dependencies).WINDOWS_X86_BOOT_JDK_SHA256 }}"
+
+    steps:
+      - name: Checkout the source
+        uses: actions/checkout@v2
+
+      - name: Restore boot JDK from cache
+        id: bootjdk
+        uses: actions/cache@v2
+        with:
+          path: ~/bootjdk/${{ env.BOOT_JDK_VERSION }}
+          key: bootjdk-${{ runner.os }}-${{ env.BOOT_JDK_VERSION }}-${{ env.BOOT_JDK_SHA256 }}-v1
+
+      - name: Download boot JDK
+        run: |
+          mkdir -p "$HOME\bootjdk\$env:BOOT_JDK_VERSION"
+          & curl -L "$env:BOOT_JDK_URL" -o "$HOME/bootjdk/$env:BOOT_JDK_FILENAME"
+          $FileHash = Get-FileHash -Algorithm SHA256 "$HOME/bootjdk/$env:BOOT_JDK_FILENAME"
+          $FileHash.Hash -eq $env:BOOT_JDK_SHA256
+          & tar -xf "$HOME/bootjdk/$env:BOOT_JDK_FILENAME" -C "$HOME/bootjdk/$env:BOOT_JDK_VERSION"
+          Get-ChildItem "$HOME\bootjdk\$env:BOOT_JDK_VERSION\*\*" | Move-Item -Destination "$HOME\bootjdk\$env:BOOT_JDK_VERSION"
+        if: steps.bootjdk.outputs.cache-hit != 'true'
+
+      - name: Restore cygwin packages from cache
+        id: cygwin
+        uses: actions/cache@v2
+        with:
+          path: ~/cygwin/packages
+          key: cygwin-packages-${{ runner.os }}-v1
+
+      - name: Install cygwin
+        run: |
+          New-Item -Force -ItemType directory -Path "$HOME\cygwin"
+          & curl -L "https://www.cygwin.com/setup-x86_64.exe" -o "$HOME/cygwin/setup-x86_64.exe"
+          Start-Process -FilePath "$HOME\cygwin\setup-x86_64.exe" -ArgumentList "--quiet-mode --packages autoconf,make,zip,unzip --root $HOME\cygwin\cygwin64 --local-package-dir $HOME\cygwin\packages --site http://mirrors.kernel.org/sourceware/cygwin --no-desktop --no-shortcuts --no-startmenu --no-admin" -Wait -NoNewWindow
+
+      - name: Restore jtreg artifact
+        id: jtreg_restore
+        uses: actions/download-artifact@v2
+        with:
+          name: transient_jtreg_${{ needs.prerequisites.outputs.bundle_id }}
+          path: ~/jtreg/
+        continue-on-error: true
+
+      - name: Restore jtreg artifact (retry)
+        uses: actions/download-artifact@v2
+        with:
+          name: transient_jtreg_${{ needs.prerequisites.outputs.bundle_id }}
+          path: ~/jtreg/
+        if: steps.jtreg_restore.outcome == 'failure'
+
+      - name: Restore build artifacts
+        id: build_restore
+        uses: actions/download-artifact@v2
+        with:
+          name: transient_jdk-windows-x86${{ matrix.artifact }}_${{ needs.prerequisites.outputs.bundle_id }}
+          path: ~/jdk-windows-x86${{ matrix.artifact }}
+        continue-on-error: true
+
+      - name: Restore build artifacts (retry)
+        uses: actions/download-artifact@v2
+        with:
+          name: transient_jdk-windows-x86${{ matrix.artifact }}_${{ needs.prerequisites.outputs.bundle_id }}
+          path: ~/jdk-windows-x86${{ matrix.artifact }}
+        if: steps.build_restore.outcome == 'failure'
+
+      - name: Unpack jdk
+        run: |
+          mkdir -p "${HOME}/jdk-windows-x86${{ matrix.artifact }}/jdk-${{ env.JDK_VERSION }}-internal+0_windows-x86_bin${{ matrix.artifact }}"
+          tar -xf "${HOME}/jdk-windows-x86${{ matrix.artifact }}/jdk-${{ env.JDK_VERSION }}-internal+0_windows-x86_bin${{ matrix.artifact }}.zip" -C "${HOME}/jdk-windows-x86${{ matrix.artifact }}/jdk-${{ env.JDK_VERSION }}-internal+0_windows-x86_bin${{ matrix.artifact }}"
+
+      - name: Create results dir
+        run: |
+          mkdir test-results
+
+      - name: Run tests
+        working-directory: test
+        run: >
+          $env:Path = "$HOME\cygwin\cygwin64\bin;$HOME\cygwin\cygwin64\bin;$env:Path" ;
+          $env:Path = $env:Path -split ";" -match "C:\\Windows|PowerShell|cygwin" -join ";" ;
+          $env:PRODUCT_HOME = cygpath "$HOME/jdk-windows-x86${{ matrix.artifact }}/jdk-${{ env.JDK_VERSION }}-internal+0_windows-x86_bin${{ matrix.artifact }}/j2sdk-image" ;
+          $env:JT_HOME = cygpath "$HOME/jtreg" ;
+          $env:ALT_OUTPUTDIR = cygpath "$env:GITHUB_WORKSPACE/test-results" ;
+          $env:JAVA_ARGS = "-XX:-CreateMinidumpOnCrash -Djdk.test.container.command=skipcontianer" ;
+          $env:JTREG_TIMEOUT_FACTOR = "4" ;
+          & make
+          "${{ matrix.suites }}"
+
+      - name: Check that all tests executed successfully
+        if: always()
+        run: >
+          if ((Get-ChildItem -Path test-results\testoutput\*\exitcode.txt -Recurse | Select-String -Pattern '^0$' -NotMatch ).Count -gt 0) {
+            Get-Content -Path test-results\testoutput\*\JTreport\text\newfailures.txt ;
+            exit 1
+          }
+
+      - name: Create suitable test log artifact name
+        if: always()
+        run: echo ("logsuffix=" + ("${{ matrix.test }}" -replace "/", "_" -replace " ", "_")) | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8
+
+      - name: Package test results
+        if: always()
+        working-directory: test-results
+        run: >
+          $env:Path = "$HOME\cygwin\cygwin64\bin;$env:Path" ;
+          zip -r9
+          "$HOME/windows-x86${{ matrix.artifact }}_testresults_${{ env.logsuffix }}.zip"
+          .
+          -x "*ARCHIVE_BUNDLE.zip"
+        continue-on-error: true
+
+      - name: Persist test results
         if: always()
         uses: actions/upload-artifact@v2
         with:
-          path: ~/windows-x64${{ matrix.artifact }}_testsupport_${{ env.logsuffix }}.zip
+          path: ~/windows-x86${{ matrix.artifact }}_testresults_${{ env.logsuffix }}.zip
         continue-on-error: true
 
   macos_x64_build:
@@ -1361,18 +1365,20 @@ jobs:
         run: make CONF_NAME=macos-x64 images
         working-directory: jdk
 
+      - name: Pack artifacts
+        run: |
+          tar -cf jdk-${{ env.JDK_VERSION }}-internal+0_osx-x64_bin${{ matrix.artifact }}.tar.gz -C jdk/build/macos-x64/images j2sdk-image
+
       - name: Persist test bundles
         uses: actions/upload-artifact@v2
         with:
           name: transient_jdk-macos-x64${{ matrix.artifact }}_${{ needs.prerequisites.outputs.bundle_id }}
           path: |
-            jdk/build/macos-x64/bundles/jdk-${{ env.JDK_VERSION }}-internal+0_osx-x64_bin${{ matrix.artifact }}.tar.gz
-            jdk/build/macos-x64/bundles/jdk-${{ env.JDK_VERSION }}-internal+0_osx-x64_bin-tests${{ matrix.artifact }}.tar.gz
+            jdk-${{ env.JDK_VERSION }}-internal+0_osx-x64_bin${{ matrix.artifact }}.tar.gz
 
   macos_x64_test:
     name: macOS x64
     runs-on: "macos-11"
-    if: false
     needs:
       - prerequisites
       - macos_x64_build
@@ -1381,39 +1387,16 @@ jobs:
       fail-fast: false
       matrix:
         test:
-          - jdk/tier1 part 1
-          - jdk/tier1 part 2
-          - jdk/tier1 part 3
-          - langtools/tier1
-          - hs/tier1 common
-          - hs/tier1 compiler
-          - hs/tier1 gc
-          - hs/tier1 runtime
-          - hs/tier1 serviceability
+          - jdk/tier1
+#          - langtools/tier1
+#          - hotspot/tier1
         include:
-          - test: jdk/tier1 part 1
-            suites: test/jdk/:tier1_part1
-          - test: jdk/tier1 part 2
-            suites: test/jdk/:tier1_part2
-          - test: jdk/tier1 part 3
-            suites: test/jdk/:tier1_part3
-          - test: langtools/tier1
-            suites: test/langtools/:tier1
-          - test: hs/tier1 common
-            suites: test/hotspot/jtreg/:tier1_common
-            artifact: -debug
-          - test: hs/tier1 compiler
-            suites: test/hotspot/jtreg/:tier1_compiler
-            artifact: -debug
-          - test: hs/tier1 gc
-            suites: test/hotspot/jtreg/:tier1_gc
-            artifact: -debug
-          - test: hs/tier1 runtime
-            suites: test/hotspot/jtreg/:tier1_runtime
-            artifact: -debug
-          - test: hs/tier1 serviceability
-            suites: test/hotspot/jtreg/:tier1_serviceability
-            artifact: -debug
+          - test: jdk/tier1
+            suites: jdk_tier1
+#          - test: langtools/tier1
+#            suites: langtools_tier1
+#          - test: hotspot/tier1
+#            suites: hotspot_tier1
 
     env:
       JDK_VERSION: "${{ fromJson(needs.prerequisites.outputs.dependencies).JDK_MAJOR_VERSION }}.${{ fromJson(needs.prerequisites.outputs.dependencies).JDK_MINOR_VERSION }}.${{ fromJson(needs.prerequisites.outputs.dependencies).JDK_MICRO_VERSION }}"
@@ -1477,42 +1460,30 @@ jobs:
           mkdir -p "${HOME}/jdk-macos-x64${{ matrix.artifact }}/jdk-${{ env.JDK_VERSION }}-internal+0_osx-x64_bin${{ matrix.artifact }}"
           tar -xf "${HOME}/jdk-macos-x64${{ matrix.artifact }}/jdk-${{ env.JDK_VERSION }}-internal+0_osx-x64_bin${{ matrix.artifact }}.tar.gz" -C "${HOME}/jdk-macos-x64${{ matrix.artifact }}/jdk-${{ env.JDK_VERSION }}-internal+0_osx-x64_bin${{ matrix.artifact }}"
 
-      - name: Unpack tests
-        run: |
-          mkdir -p "${HOME}/jdk-macos-x64${{ matrix.artifact }}/jdk-${{ env.JDK_VERSION }}-internal+0_osx-x64_bin-tests${{ matrix.artifact }}"
-          tar -xf "${HOME}/jdk-macos-x64${{ matrix.artifact }}/jdk-${{ env.JDK_VERSION }}-internal+0_osx-x64_bin-tests${{ matrix.artifact }}.tar.gz" -C "${HOME}/jdk-macos-x64${{ matrix.artifact }}/jdk-${{ env.JDK_VERSION }}-internal+0_osx-x64_bin-tests${{ matrix.artifact }}"
-
       - name: Install dependencies
         run: brew install make
 
       - name: Select Xcode version
         run: sudo xcode-select --switch /Applications/Xcode_11.7.app/Contents/Developer
 
-      - name: Find root of jdk image dir
-        run: |
-          imageroot=`find ${HOME}/jdk-macos-x64${{ matrix.artifact }}/jdk-${{ env.JDK_VERSION }}-internal+0_osx-x64_bin${{ matrix.artifact }} -name release -type f`
-          echo "imageroot=`dirname ${imageroot}`" >> $GITHUB_ENV
-
       - name: Run tests
         run: >
-          JDK_IMAGE_DIR=${{ env.imageroot }}
-          TEST_IMAGE_DIR=${HOME}/jdk-macos-x64${{ matrix.artifact }}/jdk-${{ env.JDK_VERSION }}-internal+0_osx-x64_bin-tests${{ matrix.artifact }}
-          BOOT_JDK=${HOME}/bootjdk/${BOOT_JDK_VERSION}/Contents/Home
-          JT_HOME=${HOME}/jtreg
-          gmake run-test-prebuilt
-          CONF_NAME=run-test-prebuilt
-          LOG_CMDLINES=true
-          JTREG_VERBOSE=fail,error,time
-          TEST=${{ matrix.suites }}
-          TEST_OPTS_JAVA_OPTIONS=
-          JTREG_KEYWORDS="!headful"
-          JTREG="JAVA_OPTIONS=-XX:-CreateCoredumpOnCrash"
+          chmod +x "${HOME}/jtreg/bin/jtreg" &&
+          mkdir test-results &&
+          cd test &&
+          PRODUCT_HOME="${HOME}/jdk-macos-x64${{ matrix.artifact }}/jdk-${{ env.JDK_VERSION }}-internal+0_osx-x64_bin${{ matrix.artifact }}/j2sdk-image"
+          JT_HOME="${HOME}/jtreg"
+          ALT_OUTPUTDIR="${GITHUB_WORKSPACE}/test-results"
+          JTREG_TIMEOUT_FACTOR="4"
+          gmake
+          "${{ matrix.suites }}"
 
       - name: Check that all tests executed successfully
         if: always()
         run: >
-          if ! grep --include=test-summary.txt -lqr build/*/test-results -e "TEST SUCCESS" ; then
-            cat build/*/test-results/*/text/newfailures.txt ;
+          if cat test-results/testoutput/*/exitcode.txt | grep -q -v '^0$'
+          || ! cat test-results/testoutput/*/Stats.txt | grep -q 'fail=0' ; then
+            cat test-results/testoutput/*/JTreport/text/newfailures.txt ;
             exit 1 ;
           fi
 
@@ -1522,23 +1493,12 @@ jobs:
 
       - name: Package test results
         if: always()
-        working-directory: build/run-test-prebuilt/test-results/
+        working-directory: test-results
         run: >
           zip -r9
           "$HOME/macos-x64${{ matrix.artifact }}_testresults_${{ env.logsuffix }}.zip"
           .
-        continue-on-error: true
-
-      - name: Package test support
-        if: always()
-        working-directory: build/run-test-prebuilt/test-support/
-        run: >
-          zip -r9
-          "$HOME/macos-x64${{ matrix.artifact }}_testsupport_${{ env.logsuffix }}.zip"
-          .
-          -i *.jtr
-          -i */hs_err*.log
-          -i */replay*.log
+          -x "*ARCHIVE_BUNDLE.zip"
         continue-on-error: true
 
       - name: Persist test results
@@ -1548,13 +1508,6 @@ jobs:
           path: ~/macos-x64${{ matrix.artifact }}_testresults_${{ env.logsuffix }}.zip
         continue-on-error: true
 
-      - name: Persist test outputs
-        if: always()
-        uses: actions/upload-artifact@v2
-        with:
-          path: ~/macos-x64${{ matrix.artifact }}_testsupport_${{ env.logsuffix }}.zip
-        continue-on-error: true
-
   artifacts:
     name: Post-process artifacts
     runs-on: "ubuntu-20.04"
@@ -1562,11 +1515,11 @@ jobs:
     continue-on-error: true
     needs:
       - prerequisites
-      - linux_x64_build
-      - linux_x86_build
-      - windows_x64_build
-      - windows_x86_build
-      - macos_x64_build
+      - linux_x64_test
+      - linux_x86_test
+      - windows_x64_test
+      - windows_x86_test
+      - macos_x64_test
 
     steps:
       - name: Determine current artifacts endpoint
