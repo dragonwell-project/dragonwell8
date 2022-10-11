@@ -45,7 +45,7 @@ import jdk.test.lib.jfr.Events;
  *
  * @library /lib /
  *
- * @run main/othervm -XX:TLABSize=2k jdk.jfr.event.oldobject.TestClassLoaderLeak
+ * @run main/othervm -XX:TLABSize=2k -Xmx128m jdk.jfr.event.oldobject.TestClassLoaderLeak
  */
 public class TestClassLoaderLeak {
 
