@@ -989,7 +989,6 @@ jobs:
   windows_x64_test:
     name: Windows x64
     runs-on: "windows-2019"
-    if: false
     needs:
       - prerequisites
       - windows_x64_build
@@ -999,15 +998,15 @@ jobs:
       matrix:
         test:
           - jdk/tier1
-          - langtools/tier1
-          - hotspot/tier1
+#          - langtools/tier1
+#          - hotspot/tier1
         include:
           - test: jdk/tier1
             suites: jdk_tier1
-          - test: langtools/tier1
-            suites: langtools_tier1
-          - test: hotspot/tier1
-            suites: hotspot_tier1
+#          - test: langtools/tier1
+#            suites: langtools_tier1
+#          - test: hotspot/tier1
+#            suites: hotspot_tier1
 
     env:
       JDK_VERSION: "${{ fromJson(needs.prerequisites.outputs.dependencies).JDK_MAJOR_VERSION }}.${{ fromJson(needs.prerequisites.outputs.dependencies).JDK_MINOR_VERSION }}.${{ fromJson(needs.prerequisites.outputs.dependencies).JDK_MICRO_VERSION }}"
@@ -1135,7 +1134,6 @@ jobs:
   windows_x86_test:
     name: Windows x86
     runs-on: "windows-2019"
-    if: false
     needs:
       - prerequisites
       - windows_x86_build
@@ -1145,15 +1143,15 @@ jobs:
       matrix:
         test:
           - jdk/tier1
-          - langtools/tier1
-          - hotspot/tier1
+#          - langtools/tier1
+#          - hotspot/tier1
         include:
           - test: jdk/tier1
             suites: jdk_tier1
-          - test: langtools/tier1
-            suites: langtools_tier1
-          - test: hotspot/tier1
-            suites: hotspot_tier1
+#          - test: langtools/tier1
+#            suites: langtools_tier1
+#          - test: hotspot/tier1
+#            suites: hotspot_tier1
 
     env:
       JDK_VERSION: "${{ fromJson(needs.prerequisites.outputs.dependencies).JDK_MAJOR_VERSION }}.${{ fromJson(needs.prerequisites.outputs.dependencies).JDK_MINOR_VERSION }}.${{ fromJson(needs.prerequisites.outputs.dependencies).JDK_MICRO_VERSION }}"

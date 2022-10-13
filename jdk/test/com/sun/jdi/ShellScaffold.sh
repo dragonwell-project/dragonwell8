@@ -201,9 +201,9 @@ findPid()
             res=$?
             ;;
         Windows* | CYGWIN*)
-            # Don't use ps on cygwin since it sometimes misses
-            # some processes (!).
-            tasklist /NH | $grep " $1 " > $devnull 2>&1
+            # No longer possible to use tasklist as Cygwin PIDs are no longer
+            # same as Windows PIDs
+            $psCmd | $grep '^ *'"$1 " > $devnull 2>&1
             res=$?
             ;;
        *)
@@ -281,7 +281,7 @@ EOF
          rm -f $tmpFile
          # on mks
          grep=egrep
-         psCmd=ps
+         psCmd="ps -W"
          jstack=jstack.exe
          ;;
        SunOS | Linux | Darwin | AIX)
