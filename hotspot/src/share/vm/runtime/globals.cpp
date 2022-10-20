@@ -303,13 +303,13 @@ void Flag::print_on(outputStream* st, bool withComments) {
     st->print("%-16s", get_bool() ? "true" : "false");
   }
   if (is_intx()) {
-    st->print("%-16ld", get_intx());
+    st->print(INTX_FORMAT_W(-16), get_intx());
   }
   if (is_uintx()) {
-    st->print("%-16lu", get_uintx());
+    st->print(UINTX_FORMAT_W(-16), get_uintx());
   }
   if (is_uint64_t()) {
-    st->print("%-16lu", get_uint64_t());
+    st->print(UINT64_FORMAT_W(-16), get_uint64_t());
   }
   if (is_double()) {
     st->print("%-16f", get_double());

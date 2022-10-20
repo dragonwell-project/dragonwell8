@@ -68,6 +68,7 @@ TypeArrayKlass* TypeArrayKlass::create_klass(BasicType type,
   // including classes in the bootstrap (NULL) class loader.
   // GC walks these as strong roots.
   null_loader_data->add_class(ak);
+  JFR_ONLY(ASSIGN_PRIMITIVE_CLASS_ID(ak);)
 
   // Call complete_create_array_klass after all instance variables have been initialized.
   complete_create_array_klass(ak, ak->super(), CHECK_NULL);

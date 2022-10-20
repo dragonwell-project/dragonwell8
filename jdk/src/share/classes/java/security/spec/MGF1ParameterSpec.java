@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -98,12 +98,18 @@ public class MGF1ParameterSpec implements AlgorithmParameterSpec {
 
     /**
      * The MGF1ParameterSpec which uses SHA-512/224 message digest
+     *
+     * @apiNote This field is defined in Java SE 8 Maintenance Release 3.
+     * @since 8
      */
     public static final MGF1ParameterSpec SHA512_224 =
         new MGF1ParameterSpec("SHA-512/224");
 
     /**
      * The MGF1ParameterSpec which uses SHA-512/256 message digest
+     *
+     * @apiNote This field is defined in Java SE 8 Maintenance Release 3.
+     * @since 8
      */
     public static final MGF1ParameterSpec SHA512_256 =
         new MGF1ParameterSpec("SHA-512/256");

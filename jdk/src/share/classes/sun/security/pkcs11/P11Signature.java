@@ -370,8 +370,9 @@ final class P11Signature extends SignatureSpi {
             // skip the check if no native info available
             return;
         }
-        int minKeySize = (int) mechInfo.ulMinKeySize;
-        int maxKeySize = (int) mechInfo.ulMaxKeySize;
+        int minKeySize = mechInfo.iMinKeySize;
+        int maxKeySize = mechInfo.iMaxKeySize;
+
         // need to override the MAX keysize for SHA1withDSA
         if (md != null && mechanism == CKM_DSA && maxKeySize > 1024) {
                maxKeySize = 1024;
@@ -395,11 +396,11 @@ final class P11Signature extends SignatureSpi {
                     " key must be the right type", cce);
             }
         }
-        if ((minKeySize != -1) && (keySize < minKeySize)) {
+        if (keySize < minKeySize) {
             throw new InvalidKeyException(keyAlgo +
                 " key must be at least " + minKeySize + " bits");
         }
-        if ((maxKeySize != -1) && (keySize > maxKeySize)) {
+        if (keySize > maxKeySize) {
             throw new InvalidKeyException(keyAlgo +
                 " key must be at most " + maxKeySize + " bits");
         }

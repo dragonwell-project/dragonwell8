@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,17 +22,22 @@
  */
 
 /* @test
- * @bug 4268317
+ * @bug 4268317 8175797
  * @summary Test if Reference.enqueue() works properly with GC
+ * @run main ReferenceEnqueue
  */
 
 import java.lang.ref.*;
+import java.util.ArrayList;
+import java.util.List;
 
 public class ReferenceEnqueue {
 
     public static void main(String args[]) throws Exception {
-        for (int i=0; i < 5; i++)
+        for (int i=0; i < 5; i++) {
             new WeakRef().run();
+            new ExplicitEnqueue().run();
+        }
         System.out.println("Test passed.");
     }
 
@@ -73,6 +78,47 @@ public class ReferenceEnqueue {
                 // poll() should return ref enqueued by the GC
                 throw new RuntimeException("Error: poll() returned null;"
                         + " expected ref object");
+            }
+        }
+    }
+
+    static class ExplicitEnqueue {
+        final ReferenceQueue<Object> queue = new ReferenceQueue<>();
+        final List<Reference<Object>> refs = new ArrayList<>();
+        final int iterations = 1000;
+
+        ExplicitEnqueue() {
+            this.refs.add(new SoftReference<>(new Object(), queue));
+            this.refs.add(new WeakReference<>(new Object(), queue));
+            // Can't test PhantomReference because get() always returns null.
+        }
+
+        void run() throws InterruptedException {
+            for (Reference<Object> ref : refs) {
+                if (ref.enqueue() == false) {
+                    throw new RuntimeException("Error: enqueue failed");
+                }
+                if (ref.get() != null) {
+                    throw new RuntimeException("Error: referent must be cleared");
+                }
+            }
+
+            System.gc();
+            for (int i = 0; refs.size() > 0 && i < iterations; i++) {
+                Reference<Object> ref = (Reference<Object>)queue.poll();
+                if (ref == null) {
+                    System.gc();
+                    Thread.sleep(100);
+                    continue;
+                }
+
+                if (refs.remove(ref) == false) {
+                    throw new RuntimeException("Error: unknown reference " + ref);
+                }
+            }
+
+            if (!refs.isEmpty()) {
+                throw new RuntimeException("Error: not all references are removed");
             }
         }
     }

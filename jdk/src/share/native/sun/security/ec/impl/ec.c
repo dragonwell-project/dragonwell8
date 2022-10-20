@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2007, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2007, 2022, Oracle and/or its affiliates. All rights reserved.
  * Use is subject to license terms.
  *
  * This library is free software; you can redistribute it and/or
@@ -924,6 +924,12 @@ ECDSA_VerifyDigest(ECPublicKey *key, const SECItem *signature,
     }
 
     ecParams = &(key->ecParams);
+
+    if (EC_ValidatePublicKey(ecParams, &key->publicValue, kmflag) != SECSuccess) {
+        PORT_SetError(SEC_ERROR_BAD_KEY);
+        goto cleanup;
+    }
+
     flen = (ecParams->fieldID.size + 7) >> 3;
     olen = ecParams->order.len;
     if (signature->len == 0 || signature->len%2 != 0 ||

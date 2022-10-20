@@ -165,6 +165,11 @@ public class XalanXPathAPI implements XPathAPI {
 
     private static synchronized void fixupFunctionTable() {
         installed = false;
+        if (new FunctionTable().functionAvailable("here")) {
+            LOG.debug("Here function already registered");
+            installed = true;
+            return;
+        }
         LOG.debug("Registering Here function");
         /**
          * Try to register our here() implementation as internal function.

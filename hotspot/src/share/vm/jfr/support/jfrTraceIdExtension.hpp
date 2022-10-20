@@ -38,6 +38,7 @@
   static size_t trace_id_size() { return sizeof(traceid); }
 
 #define INIT_ID(data) JfrTraceId::assign(data)
+#define ASSIGN_PRIMITIVE_CLASS_ID(data) JfrTraceId::assign_primitive_klass_id()
 #define REMOVE_ID(k) JfrTraceId::remove(k);
 #define RESTORE_ID(k) JfrTraceId::restore(k);
 

@@ -29,11 +29,13 @@
 
 // A JavaThread for low memory detection support and JVMTI
 // compiled-method-load events.
+class JvmtiDeferredEvent;
+
 class ServiceThread : public JavaThread {
   friend class VMStructs;
  private:
-
   static ServiceThread* _instance;
+  static JvmtiDeferredEvent* _jvmti_event;
 
   static void service_thread_entry(JavaThread* thread, TRAPS);
   ServiceThread(ThreadFunction entry_point) : JavaThread(entry_point) {};
@@ -43,9 +45,11 @@ class ServiceThread : public JavaThread {
 
   // Hide this thread from external view.
   bool is_hidden_from_external_view() const      { return true; }
+  bool is_service_thread() const                 { return true; }
 
-  // Returns true if the passed thread is the service thread.
-  static bool is_service_thread(Thread* thread);
+  // GC support
+  void oops_do(OopClosure* f, CLDClosure* cld_f, CodeBlobClosure* cf);
+  void nmethods_do(CodeBlobClosure* cf);
 };
 
 #endif // SHARE_VM_RUNTIME_SERVICETHREAD_HPP

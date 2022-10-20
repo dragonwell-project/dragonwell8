@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -166,15 +166,12 @@ final class Finalizer extends FinalReference<Object> { /* Package-private; must 
     /* Create a privileged secondary finalizer thread in the system thread
        group for the given Runnable, and wait for it to complete.
 
-       This method is used by both runFinalization and runFinalizersOnExit.
-       The former method invokes all pending finalizers, while the latter
-       invokes all uninvoked finalizers if on-exit finalization has been
-       enabled.
+       This method is used by runFinalization.
 
-       These two methods could have been implemented by offloading their work
-       to the regular finalizer thread and waiting for that thread to finish.
+       It could have been implemented by offloading the work to the
+       regular finalizer thread and waiting for that thread to finish.
        The advantage of creating a fresh thread, however, is that it insulates
-       invokers of these methods from a stalled or deadlocked finalizer thread.
+       invokers of that method from a stalled or deadlocked finalizer thread.
      */
     private static void forkSecondaryFinalizer(final Runnable proc) {
         AccessController.doPrivileged(
@@ -225,6 +222,7 @@ final class Finalizer extends FinalReference<Object> { /* Package-private; must 
         });
     }
 
+<<<<<<< HEAD
     /* Invoked by java.lang.Shutdown */
     static void runAllFinalizers() {
         if (!VM.isBooted()) {
@@ -259,6 +257,8 @@ final class Finalizer extends FinalReference<Object> { /* Package-private; must 
                 }}});
     }
 
+=======
+>>>>>>> dragonwell_extended_upstream/master
     private static class FinalizerThread extends Thread {
         private volatile boolean running;
         FinalizerThread(ThreadGroup g) {

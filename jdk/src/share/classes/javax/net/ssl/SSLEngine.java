@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -1265,6 +1265,7 @@ public abstract class SSLEngine {
      * Application-Layer Protocol Negotiation (ALPN), can negotiate
      * application-level values between peers.
      *
+     * @apiNote This method is defined in Java SE 8 Maintenance Release 3.
      * @implSpec
      * The implementation in this class throws
      * {@code UnsupportedOperationException} and performs no other action.
@@ -1290,6 +1291,7 @@ public abstract class SSLEngine {
      * a connection may be in the middle of a handshake. The
      * application protocol may or may not yet be available.
      *
+     * @apiNote This method is defined in Java SE 8 Maintenance Release 3.
      * @implSpec
      * The implementation in this class throws
      * {@code UnsupportedOperationException} and performs no other action.
@@ -1350,7 +1352,8 @@ public abstract class SSLEngine {
      *         });
      * }</pre>
      *
-     * @apiNote
+     * @apiNote This method is defined in Java SE 8 Maintenance Release 3.
+     * <p>
      * This method should be called by TLS server applications before the TLS
      * handshake begins. Also, this {@code SSLEngine} should be configured with
      * parameters that are compatible with the application protocol selected by
@@ -1380,6 +1383,7 @@ public abstract class SSLEngine {
      * setHandshakeApplicationProtocolSelector}
      * for the function's type parameters.
      *
+     * @apiNote This method is defined in Java SE 8 Maintenance Release 3.
      * @implSpec
      * The implementation in this class throws
      * {@code UnsupportedOperationException} and performs no other action.
