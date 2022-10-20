@@ -37,11 +37,15 @@
 #include "jfr/writers/jfrTypeWriterHost.hpp"
 #include "memory/iterator.hpp"
 #include "memory/resourceArea.hpp"
+#include "memory/universe.hpp"
 #include "oops/instanceKlass.hpp"
 #include "oops/objArrayKlass.hpp"
 #include "oops/oop.inline.hpp"
 #include "utilities/accessFlags.hpp"
 #include "utilities/bitMap.inline.hpp"
+
+// incremented on each checkpoint
+static int primitives_count = 9;
 
 typedef const Klass* KlassPtr;
 typedef const ClassLoaderData* CldPtr;
@@ -99,6 +103,43 @@ static traceid artifact_id(const T* ptr) {
   return TRACE_ID(ptr);
 }
 
+static bool is_initial_typeset_for_chunk(bool class_unload) {
+  return !class_unload;
+}
+
+static traceid mark_symbol(Symbol* symbol, JfrArtifactSet* artifacts, bool leakp) {
+  return symbol != NULL ? create_symbol_id(artifacts->mark(symbol, leakp)) : 0;
+}
+
+static const char* primitive_name(KlassPtr type_array_klass) {
+  switch (type_array_klass->name()->base()[1]) {
+    case JVM_SIGNATURE_BOOLEAN: return "boolean";
+    case JVM_SIGNATURE_BYTE: return "byte";
+    case JVM_SIGNATURE_CHAR: return "char";
+    case JVM_SIGNATURE_SHORT: return "short";
+    case JVM_SIGNATURE_INT: return "int";
+    case JVM_SIGNATURE_LONG: return "long";
+    case JVM_SIGNATURE_FLOAT: return "float";
+    case JVM_SIGNATURE_DOUBLE: return "double";
+  }
+  assert(false, "invalid type array klass");
+  return NULL;
+}
+
+static Symbol* primitive_symbol(KlassPtr type_array_klass) {
+  if (type_array_klass == NULL) {
+    // void.class
+    static Symbol* const void_class_name = SymbolTable::probe("void", 4);
+    assert(void_class_name != NULL, "invariant");
+    return void_class_name;
+  }
+  const char* const primitive_type_str = primitive_name(type_array_klass);
+  assert(primitive_type_str != NULL, "invariant");
+  Symbol* const primitive_type_sym = SymbolTable::probe(primitive_type_str, (int)strlen(primitive_type_str));
+  assert(primitive_type_sym != NULL, "invariant");
+  return primitive_type_sym;
+}
+
 inline uintptr_t package_name_hash(const char *s) {
   uintptr_t val = 0;
   while (*s != 0) {
@@ -122,6 +163,7 @@ static traceid method_id(KlassPtr klass, MethodPtr method) {
   assert(method != NULL, "invariant");
   return METHOD_ID(klass, method);
 }
+
 static traceid cld_id(CldPtr cld, bool leakp) {
   assert(cld != NULL, "invariant");
   assert(!cld->is_anonymous(), "invariant");
@@ -131,6 +173,10 @@ static traceid cld_id(CldPtr cld, bool leakp) {
     SET_TRANSIENT(cld);
   }
   return artifact_id(cld);
+}
+
+static u4 get_primitive_flags() {
+  return JVM_ACC_ABSTRACT | JVM_ACC_FINAL | JVM_ACC_PUBLIC;
 }
 
 template <typename T>
@@ -257,12 +303,54 @@ static void do_klass(Klass* klass) {
   do_implied(klass);
 }
 
+static traceid primitive_id(KlassPtr array_klass) {
+  if (array_klass == NULL) {
+    // The first klass id is reserved for the void.class.
+    return MaxJfrEventId + 101;
+  }
+  // Derive the traceid for a primitive mirror from its associated array klass (+1).
+  return JfrTraceId::get(array_klass) + 1;
+}
+
+static void write_primitive(JfrCheckpointWriter* writer, Klass* type_array_klass, JfrArtifactSet* artifacts) {
+  assert(writer != NULL, "invariant");
+  assert(artifacts != NULL, "invariant");
+  writer->write(primitive_id(type_array_klass));
+  writer->write(cld_id(Universe::boolArrayKlassObj()->class_loader_data(), false));
+  writer->write(mark_symbol(primitive_symbol(type_array_klass), artifacts, false));
+  writer->write(package_id(Universe::boolArrayKlassObj(), artifacts));
+  writer->write(get_primitive_flags());
+  // we use 0 as object size for primitive types since there is no instance concept for primitive types.
+  writer->write((s4)0);
+}
+
+// A mirror representing a primitive class (e.g. int.class) has no reified Klass*,
+// instead it has an associated TypeArrayKlass* (e.g. int[].class).
+// We can use the TypeArrayKlass* as a proxy for deriving the id of the primitive class.
+// The exception is the void.class, which has neither a Klass* nor a TypeArrayKlass*.
+// It will use a reserved constant.
+static void do_primitives(JfrArtifactSet* artifacts, bool class_unload) {
+  // Only write the primitive classes once per chunk.
+  if (is_initial_typeset_for_chunk(class_unload)) {
+    write_primitive(_writer, Universe::boolArrayKlassObj(), artifacts);
+    write_primitive(_writer, Universe::byteArrayKlassObj(), artifacts);
+    write_primitive(_writer, Universe::charArrayKlassObj(), artifacts);
+    write_primitive(_writer, Universe::shortArrayKlassObj(), artifacts);
+    write_primitive(_writer, Universe::intArrayKlassObj(), artifacts);
+    write_primitive(_writer, Universe::longArrayKlassObj(), artifacts);
+    write_primitive(_writer, Universe::singleArrayKlassObj(), artifacts);
+    write_primitive(_writer, Universe::doubleArrayKlassObj(), artifacts);
+    write_primitive(_writer, NULL, artifacts); // void.class
+  }
+}
+
 static void do_klasses() {
   if (_class_unload) {
     ClassLoaderDataGraph::classes_unloading_do(&do_unloaded_klass);
     return;
   }
   ClassLoaderDataGraph::classes_do(&do_klass);
+  do_primitives(_artifacts, _class_unload);
 }
 
 typedef SerializePredicate<KlassPtr> KlassPredicate;
@@ -306,6 +394,11 @@ static bool write_klasses() {
     CompositeKlassCallback callback(&ckwr);
     _subsystem_callback = &callback;
     do_klasses();
+  }
+  if (is_initial_typeset_for_chunk(_class_unload)) {
+    // Because the set of primitives is written outside the callback,
+    // their count is not automatically incremented.
+    kw.add(primitives_count);
   }
   if (is_complete()) {
     return false;

@@ -28,7 +28,7 @@
  * @test
  * @bug 8211806
  * @summary TLS 1.3 handshake server name indication is missing on a session resume
- * @run main/othervm -Djdk.tls.client.protocols="TLSv1.3,TLSv1.2,TLSv1.1,TLSv1,SSLv3" ResumeTLS13withSNI
+ * @run main/othervm ResumeTLS13withSNI
  */
 
 import javax.net.ssl.*;

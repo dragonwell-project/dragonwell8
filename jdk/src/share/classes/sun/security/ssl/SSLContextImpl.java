@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -940,12 +940,14 @@ public abstract class SSLContextImpl extends SSLContextSpi {
         static ProtocolVersion[] getProtocols() {
             if (SunJSSE.isFIPS()) {
                 return new ProtocolVersion[]{
+                        ProtocolVersion.TLS13,
                         ProtocolVersion.TLS12,
                         ProtocolVersion.TLS11,
                         ProtocolVersion.TLS10
                 };
             } else {
                 return new ProtocolVersion[]{
+                        ProtocolVersion.TLS13,
                         ProtocolVersion.TLS12,
                         ProtocolVersion.TLS11,
                         ProtocolVersion.TLS10,

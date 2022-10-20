@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -96,6 +96,7 @@ public class PSSParameterSpec implements AlgorithmParameterSpec {
     /**
      * The {@code TrailerFieldBC} constant as defined in PKCS#1
      *
+     * @apiNote This field is defined in Java SE 8 Maintenance Release 3.
      * @since 8
      */
     public static final int TRAILER_FIELD_BC = 1;

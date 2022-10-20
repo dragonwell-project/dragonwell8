@@ -26,8 +26,8 @@
  * @bug 8206925
  * @library /javax/net/ssl/templates
  * @summary Support the certificate_authorities extension
- * @run main/othervm -Djdk.tls.client.protocols=TLSv1.3 TooManyCAs
- * @run main/othervm -Djdk.tls.client.protocols=TLSv1.3 -Djdk.tls.client.enableCAExtension=true TooManyCAs
+ * @run main/othervm TooManyCAs
+ * @run main/othervm -Djdk.tls.client.enableCAExtension=true TooManyCAs
  */
 import javax.net.ssl.*;
 import javax.security.auth.x500.X500Principal;

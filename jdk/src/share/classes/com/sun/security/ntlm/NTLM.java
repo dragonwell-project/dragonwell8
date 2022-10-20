@@ -228,23 +228,27 @@ class NTLM {
             System.arraycopy(data, 0, internal, offset, data.length);
         }
 
-        void writeSecurityBuffer(int offset, byte[] data) {
+        void writeSecurityBuffer(int offset, byte[] data) throws NTLMException {
             if (data == null) {
-                writeShort(offset+4, current);
+                writeInt(offset+4, current);
             } else {
                 int len = data.length;
+                if (len > 65535) {
+                    throw new NTLMException(NTLMException.INVALID_INPUT,
+                            "Invalid data length " + len);
+                }
                 if (current + len > internal.length) {
                     internal = Arrays.copyOf(internal, current + len + 256);
                 }
                 writeShort(offset, len);
                 writeShort(offset+2, len);
-                writeShort(offset+4, current);
+                writeInt(offset+4, current);
                 System.arraycopy(data, 0, internal, current, len);
                 current += len;
             }
         }
 
-        void writeSecurityBuffer(int offset, String str, boolean unicode) {
+        void writeSecurityBuffer(int offset, String str, boolean unicode) throws NTLMException {
             try {
                 writeSecurityBuffer(offset, str == null ? null : str.getBytes(
                         unicode ? "UnicodeLittleUnmarked" : "ISO8859_1"));

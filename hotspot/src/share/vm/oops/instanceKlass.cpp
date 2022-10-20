@@ -1807,7 +1807,7 @@ jmethodID InstanceKlass::get_jmethod_id(instanceKlassHandle ik_h, methodHandle m
         // we're single threaded or at a safepoint - no locking needed
         get_jmethod_id_length_value(jmeths, idnum, &length, &id);
       } else {
-        MutexLocker ml(JmethodIdCreation_lock);
+        MutexLockerEx ml(JmethodIdCreation_lock, Mutex::_no_safepoint_check_flag);
         get_jmethod_id_length_value(jmeths, idnum, &length, &id);
       }
     }
@@ -1857,7 +1857,7 @@ jmethodID InstanceKlass::get_jmethod_id(instanceKlassHandle ik_h, methodHandle m
       id = get_jmethod_id_fetch_or_update(ik_h, idnum, new_id, new_jmeths,
                                           &to_dealloc_id, &to_dealloc_jmeths);
     } else {
-      MutexLocker ml(JmethodIdCreation_lock);
+      MutexLockerEx ml(JmethodIdCreation_lock, Mutex::_no_safepoint_check_flag);
       id = get_jmethod_id_fetch_or_update(ik_h, idnum, new_id, new_jmeths,
                                           &to_dealloc_id, &to_dealloc_jmeths);
     }
