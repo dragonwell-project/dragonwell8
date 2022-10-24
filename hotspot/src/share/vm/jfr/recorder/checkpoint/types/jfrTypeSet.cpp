@@ -42,20 +42,10 @@
 #include "oops/objArrayKlass.hpp"
 #include "oops/oop.inline.hpp"
 #include "utilities/accessFlags.hpp"
-<<<<<<< HEAD
 #include "utilities/bitMap.inline.hpp"
-=======
 
 // incremented on each checkpoint
-static u8 checkpoint_id = 0;
-static JfrCheckpointWriter* _writer = NULL;
 static int primitives_count = 9;
-
-// creates a unique id by combining a checkpoint relative symbol id (2^24)
-// with the current checkpoint id (2^40)
-#define CREATE_SYMBOL_ID(sym_id) (((u8)((checkpoint_id << 24) | sym_id)))
-#define CREATE_PACKAGE_ID(pkg_id) (((u8)((checkpoint_id << 24) | pkg_id)))
->>>>>>> dragonwell_extended_upstream/master
 
 typedef const Klass* KlassPtr;
 typedef const ClassLoaderData* CldPtr;
@@ -64,7 +54,6 @@ typedef const Symbol* SymbolPtr;
 typedef const JfrSymbolId::SymbolEntry* SymbolEntryPtr;
 typedef const JfrSymbolId::CStringEntry* CStringEntryPtr;
 
-<<<<<<< HEAD
 static JfrCheckpointWriter* _writer = NULL;
 static JfrCheckpointWriter* _leakp_writer = NULL;
 static JfrArtifactSet* _artifacts = NULL;
@@ -80,13 +69,10 @@ static u8 checkpoint_id = 1;
 #define CREATE_SYMBOL_ID(sym_id) (((u8)((checkpoint_id << 24) | sym_id)))
 #define CREATE_PACKAGE_ID(pkg_id) (((u8)((checkpoint_id << 24) | pkg_id)))
 
-=======
->>>>>>> dragonwell_extended_upstream/master
 static traceid create_symbol_id(traceid artifact_id) {
   return artifact_id != 0 ? CREATE_SYMBOL_ID(artifact_id) : 0;
 }
 
-<<<<<<< HEAD
 static bool current_epoch() {
   return _class_unload;
 }
@@ -115,7 +101,8 @@ template <typename T>
 static traceid artifact_id(const T* ptr) {
   assert(ptr != NULL, "invariant");
   return TRACE_ID(ptr);
-=======
+}
+
 static bool is_initial_typeset_for_chunk(bool class_unload) {
   return !class_unload;
 }
@@ -151,7 +138,6 @@ static Symbol* primitive_symbol(KlassPtr type_array_klass) {
   Symbol* const primitive_type_sym = SymbolTable::probe(primitive_type_str, (int)strlen(primitive_type_str));
   assert(primitive_type_sym != NULL, "invariant");
   return primitive_type_sym;
->>>>>>> dragonwell_extended_upstream/master
 }
 
 inline uintptr_t package_name_hash(const char *s) {
@@ -177,18 +163,8 @@ static traceid method_id(KlassPtr klass, MethodPtr method) {
   assert(method != NULL, "invariant");
   return METHOD_ID(klass, method);
 }
-<<<<<<< HEAD
+
 static traceid cld_id(CldPtr cld, bool leakp) {
-=======
-
-static u4 get_primitive_flags() {
-  return JVM_ACC_ABSTRACT | JVM_ACC_FINAL | JVM_ACC_PUBLIC;
-}
-
-static void tag_leakp_klass_artifacts(KlassPtr k, bool class_unload) {
-  assert(k != NULL, "invariant");
-  CldPtr cld = k->class_loader_data();
->>>>>>> dragonwell_extended_upstream/master
   assert(cld != NULL, "invariant");
   assert(!cld->is_anonymous(), "invariant");
   if (leakp) {
@@ -197,6 +173,10 @@ static void tag_leakp_klass_artifacts(KlassPtr k, bool class_unload) {
     SET_TRANSIENT(cld);
   }
   return artifact_id(cld);
+}
+
+static u4 get_primitive_flags() {
+  return JVM_ACC_ABSTRACT | JVM_ACC_FINAL | JVM_ACC_PUBLIC;
 }
 
 template <typename T>
@@ -329,6 +309,7 @@ static void do_klasses() {
     return;
   }
   ClassLoaderDataGraph::classes_do(&do_klass);
+  do_primitives(_artifacts, _class_unload);
 }
 
 typedef SerializePredicate<KlassPtr> KlassPredicate;
@@ -372,6 +353,11 @@ static bool write_klasses() {
     CompositeKlassCallback callback(&ckwr);
     _subsystem_callback = &callback;
     do_klasses();
+  }
+  if (is_initial_typeset_for_chunk(_class_unload)) {
+    // Because the set of primitives is written outside the callback,
+    // their count is not automatically incremented.
+    kw.add(primitives_count);
   }
   if (is_complete()) {
     return false;
@@ -504,7 +490,6 @@ typedef LeakPredicate<CldPtr> LeakCldPredicate;
 typedef JfrPredicatedTypeWriterImplHost<CldPtr, LeakCldPredicate, write__classloader__leakp> LeakCldWriterImpl;
 typedef JfrTypeWriterHost<LeakCldWriterImpl, TYPE_CLASSLOADER> LeakCldWriter;
 
-<<<<<<< HEAD
 typedef CompositeFunctor<CldPtr, LeakCldWriter, CldWriter> CompositeCldWriter;
 typedef KlassToFieldEnvelope<KlassCldFieldSelector, CompositeCldWriter> KlassCompositeCldWriter;
 typedef KlassToFieldEnvelope<ModuleCldFieldSelector, CompositeCldWriter> ModuleCompositeCldWriter;
@@ -550,43 +535,6 @@ static void write_classloaders() {
 static u1 get_visibility(MethodPtr method) {
   assert(method != NULL, "invariant");
   return const_cast<Method*>(method)->is_hidden() ? (u1)1 : (u1)0;
-=======
-/*
- * Composite operation
- *
- * TagLeakpKlassArtifact ->
- *   LeakpPredicate ->
- *     LeakpKlassWriter ->
- *       KlassPredicate ->
- *         KlassWriter ->
- *           KlassWriterRegistration
- */
-void JfrTypeSet::write_klass_constants(JfrCheckpointWriter* writer, JfrCheckpointWriter* leakp_writer) {
-  assert(!_artifacts->has_klass_entries(), "invariant");
-  KlassArtifactRegistrator reg(_artifacts);
-  KlassWriter kw(writer, _artifacts, _class_unload);
-  KlassWriterRegistration kwr(&kw, &reg);
-  if (leakp_writer == NULL) {
-    KlassCallback callback(&kwr);
-    _subsystem_callback = &callback;
-    do_klasses();
-  } else {
-    TagLeakpKlassArtifact tagging(_class_unload);
-    LeakKlassWriter lkw(leakp_writer, _artifacts, _class_unload);
-    LeakpKlassArtifactTagging lpkat(&tagging, &lkw);
-    CompositeKlassWriter ckw(&lpkat, &kw);
-    CompositeKlassWriterRegistration ckwr(&ckw, &reg);
-    CompositeKlassCallback callback(&ckwr);
-    _subsystem_callback = &callback;
-    do_klasses();
-  }
-
-  if (is_initial_typeset_for_chunk(_class_unload)) {
-    // Because the set of primitives is written outside the callback,
-    // their count is not automatically incremented.
-    kw.add(primitives_count);
-  }
->>>>>>> dragonwell_extended_upstream/master
 }
 
 template <>
@@ -767,14 +715,6 @@ int write__symbol__leakp(JfrCheckpointWriter* writer, const void* e) {
   return write_symbol(writer, entry, true);
 }
 
-<<<<<<< HEAD
-static int write_cstring(JfrCheckpointWriter* writer, CStringEntryPtr entry, bool leakp) {
-  assert(writer != NULL, "invariant");
-  assert(entry != NULL, "invariant");
-  writer->write(create_symbol_id(entry->id()));
-  writer->write(entry->value());
-  return 1;
-=======
 static traceid primitive_id(KlassPtr array_klass) {
   if (array_klass == NULL) {
     // The first klass id is reserved for the void.class.
@@ -814,14 +754,12 @@ static void do_primitives(JfrArtifactSet* artifacts, bool class_unload) {
   }
 }
 
-void JfrTypeSet::do_klasses() {
-  if (_class_unload) {
-    ClassLoaderDataGraph::classes_unloading_do(&do_unloaded_klass);
-    return;
-  }
-  ClassLoaderDataGraph::classes_do(&do_klass);
-  do_primitives(_artifacts, _class_unload);
->>>>>>> dragonwell_extended_upstream/master
+static int write_cstring(JfrCheckpointWriter* writer, CStringEntryPtr entry, bool leakp) {
+  assert(writer != NULL, "invariant");
+  assert(entry != NULL, "invariant");
+  writer->write(create_symbol_id(entry->id()));
+  writer->write(entry->value());
+  return 1;
 }
 
 int write__cstring(JfrCheckpointWriter* writer, const void* e) {
@@ -905,20 +843,9 @@ static size_t teardown() {
   return total_count;
 }
 
-<<<<<<< HEAD
 static void setup(JfrCheckpointWriter* writer, JfrCheckpointWriter* leakp_writer, bool class_unload) {
   _writer = writer;
   _leakp_writer = leakp_writer;
-=======
-/**
- * Write all "tagged" (in-use) constant artifacts and their dependencies.
- */
-void JfrTypeSet::serialize(JfrCheckpointWriter* writer, JfrCheckpointWriter* leakp_writer, bool class_unload) {
-  assert(writer != NULL, "invariant");
-  ResourceMark rm;
-  // initialization begin
-  _writer = writer;
->>>>>>> dragonwell_extended_upstream/master
   _class_unload = class_unload;
   if (_artifacts == NULL) {
     _artifacts = new JfrArtifactSet(class_unload);
@@ -948,4 +875,3 @@ size_t JfrTypeSet::serialize(JfrCheckpointWriter* writer, JfrCheckpointWriter* l
   write_symbols();
   return teardown();
 }
-

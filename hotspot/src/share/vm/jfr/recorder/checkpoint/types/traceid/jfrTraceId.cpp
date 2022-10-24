@@ -171,12 +171,8 @@ traceid JfrTraceId::use(jclass jc) {
   assert(((JavaThread*)Thread::current())->thread_state() == _thread_in_vm, "invariant");
   const oop my_oop = JNIHandles::resolve(jc);
   assert(my_oop != NULL, "invariant");
-<<<<<<< HEAD
-  return use(java_lang_Class::as_Klass(my_oop));
-=======
   const Klass* const k = java_lang_Class::as_Klass(my_oop);
-  return k != NULL ? use(k, leakp) : load_primitive(my_oop);
->>>>>>> dragonwell_extended_upstream/master
+  return k != NULL ? use(k) : load_primitive(my_oop);
 }
 
 bool JfrTraceId::in_visible_set(const jclass jc) {
