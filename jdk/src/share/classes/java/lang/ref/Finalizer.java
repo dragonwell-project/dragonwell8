@@ -222,43 +222,6 @@ final class Finalizer extends FinalReference<Object> { /* Package-private; must 
         });
     }
 
-<<<<<<< HEAD
-    /* Invoked by java.lang.Shutdown */
-    static void runAllFinalizers() {
-        if (!VM.isBooted()) {
-            return;
-        }
-
-        forkSecondaryFinalizer(new Runnable() {
-            private volatile boolean running;
-            public void run() {
-                // in case of recursive call to run()
-                if (running)
-                    return;
-                final JavaLangAccess jla = SharedSecrets.getJavaLangAccess();
-                running = true;
-                for (;;) {
-                    Finalizer f;
-                    if (TenantGlobals.isDataIsolationEnabled() && TenantContainer.current() != null) {
-                        TenantData td = TenantContainer.current().getTenantData();
-                        synchronized (lock) {
-                            f = td.getFieldValue(Finalizer.class, ID_UNFINALIZED);
-                            if (f == null) break;
-                            td.setFieldValue(Finalizer.class, ID_UNFINALIZED, f.next);
-                        }
-                    } else {
-                        synchronized (lock) {
-                            f = unfinalized;
-                            if (f == null) break;
-                            unfinalized = f.next;
-                        }
-                    }
-                    f.runFinalizer(jla);
-                }}});
-    }
-
-=======
->>>>>>> dragonwell_extended_upstream/master
     private static class FinalizerThread extends Thread {
         private volatile boolean running;
         FinalizerThread(ThreadGroup g) {
