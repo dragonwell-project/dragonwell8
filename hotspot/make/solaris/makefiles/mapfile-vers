@@ -30,12 +30,8 @@ SUNWprivate_1.1 {
                 JNI_CreateJavaVM;
                 JNI_GetCreatedJavaVMs;
                 JNI_GetDefaultJavaVMInitArgs;
-<<<<<<< HEAD
                 JNI_SetRunningFromJava;
-        
-=======
 
->>>>>>> dragonwell_extended_upstream/master
                 # JVM
                 JVM_Accept;
                 JVM_ActiveProcessorCount;

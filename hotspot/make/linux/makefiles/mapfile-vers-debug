@@ -87,7 +87,6 @@ SUNWprivate_1.1 {
                 JVM_DumpAllStacks;
                 JVM_DumpThreads;
                 JVM_EnableCompiler;
-<<<<<<< HEAD
                 JVM_ElasticHeapGetEvaluationMode;
                 JVM_ElasticHeapSetYoungGenCommitPercent;
                 JVM_ElasticHeapGetYoungGenCommitPercent;
@@ -97,9 +96,6 @@ SUNWprivate_1.1 {
                 JVM_ElasticHeapSetSoftmxPercent;
                 JVM_ElasticHeapGetSoftmxPercent;
                 JVM_ElasticHeapGetTotalUncommittedBytes;
-                JVM_Exit;
-=======
->>>>>>> dragonwell_extended_upstream/master
                 JVM_FillInStackTrace;
                 JVM_FindClassFromCaller;
                 JVM_FindClassFromClass;
