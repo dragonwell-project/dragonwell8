@@ -984,14 +984,9 @@ public class GIFImageReader extends ImageReader {
                         }
                     }
 
-<<<<<<< HEAD
-                    int ti = tableIndex;
-                    int oc = oldCode;
-=======
                     if (NULL_CODE != oldCode && tableIndex < 4096) {
                         int ti = tableIndex;
                         int oc = oldCode;
->>>>>>> dragonwell_extended_upstream/master
 
                         prefix[ti] = oc;
                         suffix[ti] = initial[newSuffixIndex];
