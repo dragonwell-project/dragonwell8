@@ -107,8 +107,8 @@ static bool is_initial_typeset_for_chunk(bool class_unload) {
   return !class_unload;
 }
 
-static traceid mark_symbol(Symbol* symbol, JfrArtifactSet* artifacts) {
-  return symbol != NULL ? create_symbol_id(artifacts->mark(symbol)) : 0;
+static traceid mark_symbol(Symbol* symbol, JfrArtifactSet* artifacts, bool leakp) {
+  return symbol != NULL ? create_symbol_id(artifacts->mark(symbol, leakp)) : 0;
 }
 
 static const char* primitive_name(KlassPtr type_array_klass) {
@@ -301,6 +301,45 @@ static void do_klass(Klass* klass) {
     }
   }
   do_implied(klass);
+}
+
+static traceid primitive_id(KlassPtr array_klass) {
+  if (array_klass == NULL) {
+    // The first klass id is reserved for the void.class.
+    return MaxJfrEventId + 101;
+  }
+  // Derive the traceid for a primitive mirror from its associated array klass (+1).
+  return JfrTraceId::get(array_klass) + 1;
+}
+
+static void write_primitive(JfrCheckpointWriter* writer, Klass* type_array_klass, JfrArtifactSet* artifacts) {
+  assert(writer != NULL, "invariant");
+  assert(artifacts != NULL, "invariant");
+  writer->write(primitive_id(type_array_klass));
+  writer->write(cld_id(Universe::boolArrayKlassObj()->class_loader_data(), false));
+  writer->write(mark_symbol(primitive_symbol(type_array_klass), artifacts, false));
+  writer->write(package_id(Universe::boolArrayKlassObj(), artifacts));
+  writer->write(get_primitive_flags());
+}
+
+// A mirror representing a primitive class (e.g. int.class) has no reified Klass*,
+// instead it has an associated TypeArrayKlass* (e.g. int[].class).
+// We can use the TypeArrayKlass* as a proxy for deriving the id of the primitive class.
+// The exception is the void.class, which has neither a Klass* nor a TypeArrayKlass*.
+// It will use a reserved constant.
+static void do_primitives(JfrArtifactSet* artifacts, bool class_unload) {
+  // Only write the primitive classes once per chunk.
+  if (is_initial_typeset_for_chunk(class_unload)) {
+    write_primitive(_writer, Universe::boolArrayKlassObj(), artifacts);
+    write_primitive(_writer, Universe::byteArrayKlassObj(), artifacts);
+    write_primitive(_writer, Universe::charArrayKlassObj(), artifacts);
+    write_primitive(_writer, Universe::shortArrayKlassObj(), artifacts);
+    write_primitive(_writer, Universe::intArrayKlassObj(), artifacts);
+    write_primitive(_writer, Universe::longArrayKlassObj(), artifacts);
+    write_primitive(_writer, Universe::singleArrayKlassObj(), artifacts);
+    write_primitive(_writer, Universe::doubleArrayKlassObj(), artifacts);
+    write_primitive(_writer, NULL, artifacts); // void.class
+  }
 }
 
 static void do_klasses() {
@@ -713,45 +752,6 @@ int write__symbol__leakp(JfrCheckpointWriter* writer, const void* e) {
   assert(e != NULL, "invariant");
   SymbolEntryPtr entry = (SymbolEntryPtr)e;
   return write_symbol(writer, entry, true);
-}
-
-static traceid primitive_id(KlassPtr array_klass) {
-  if (array_klass == NULL) {
-    // The first klass id is reserved for the void.class.
-    return MaxJfrEventId + 101;
-  }
-  // Derive the traceid for a primitive mirror from its associated array klass (+1).
-  return JfrTraceId::get(array_klass) + 1;
-}
-
-static void write_primitive(JfrCheckpointWriter* writer, Klass* type_array_klass, JfrArtifactSet* artifacts) {
-  assert(writer != NULL, "invariant");
-  assert(artifacts != NULL, "invariant");
-  writer->write(primitive_id(type_array_klass));
-  writer->write(cld_id(Universe::boolArrayKlassObj()->class_loader_data()));
-  writer->write(mark_symbol(primitive_symbol(type_array_klass), artifacts));
-  writer->write(package_id(Universe::boolArrayKlassObj(), artifacts));
-  writer->write(get_primitive_flags());
-}
-
-// A mirror representing a primitive class (e.g. int.class) has no reified Klass*,
-// instead it has an associated TypeArrayKlass* (e.g. int[].class).
-// We can use the TypeArrayKlass* as a proxy for deriving the id of the primitive class.
-// The exception is the void.class, which has neither a Klass* nor a TypeArrayKlass*.
-// It will use a reserved constant.
-static void do_primitives(JfrArtifactSet* artifacts, bool class_unload) {
-  // Only write the primitive classes once per chunk.
-  if (is_initial_typeset_for_chunk(class_unload)) {
-    write_primitive(_writer, Universe::boolArrayKlassObj(), artifacts);
-    write_primitive(_writer, Universe::byteArrayKlassObj(), artifacts);
-    write_primitive(_writer, Universe::charArrayKlassObj(), artifacts);
-    write_primitive(_writer, Universe::shortArrayKlassObj(), artifacts);
-    write_primitive(_writer, Universe::intArrayKlassObj(), artifacts);
-    write_primitive(_writer, Universe::longArrayKlassObj(), artifacts);
-    write_primitive(_writer, Universe::singleArrayKlassObj(), artifacts);
-    write_primitive(_writer, Universe::doubleArrayKlassObj(), artifacts);
-    write_primitive(_writer, NULL, artifacts); // void.class
-  }
 }
 
 static int write_cstring(JfrCheckpointWriter* writer, CStringEntryPtr entry, bool leakp) {
