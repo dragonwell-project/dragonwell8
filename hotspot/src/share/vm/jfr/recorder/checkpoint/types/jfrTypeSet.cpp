@@ -320,6 +320,8 @@ static void write_primitive(JfrCheckpointWriter* writer, Klass* type_array_klass
   writer->write(mark_symbol(primitive_symbol(type_array_klass), artifacts, false));
   writer->write(package_id(Universe::boolArrayKlassObj(), artifacts));
   writer->write(get_primitive_flags());
+  // we use 0 as object size for primitive types since there is no instance concept for primitive types.
+  writer->write((s4)0);
 }
 
 // A mirror representing a primitive class (e.g. int.class) has no reified Klass*,
