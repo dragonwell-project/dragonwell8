@@ -41,6 +41,8 @@ $(PROFILE_VERSION_JAVA_TARGETS): \
 	    -e 's/@@java_runtime_version@@/$(FULL_VERSION)/g' \
 	    -e 's/@@java_runtime_name@@/$(RUNTIME_NAME)/g' \
 	    -e 's/@@java_profile_name@@/$(call profile_version_name, $@)/g' \
+            -e 's/@@java_distro_name@@/$(DISTRO_NAME)/g' \
+            -e 's/@@java_distro_version@@/$(DISTRO_VERSION)/g' \
 	    $< > $@.tmp
 	$(MV) $@.tmp $@
 
