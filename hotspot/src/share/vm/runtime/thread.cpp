@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -1448,6 +1448,7 @@ void JavaThread::initialize() {
   set_monitor_chunks(NULL);
   set_next(NULL);
   set_thread_state(_thread_new);
+  _in_asgct = false;
   _terminated = _not_terminated;
   _privileged_stack_top = NULL;
   _array_for_gc = NULL;
@@ -3927,10 +3928,9 @@ void JavaThread::invoke_shutdown_hooks() {
     // SystemDictionary::resolve_or_null will return null if there was
     // an exception.  If we cannot load the Shutdown class, just don't
     // call Shutdown.shutdown() at all.  This will mean the shutdown hooks
-    // and finalizers (if runFinalizersOnExit is set) won't be run.
-    // Note that if a shutdown hook was registered or runFinalizersOnExit
-    // was called, the Shutdown class would have already been loaded
-    // (Runtime.addShutdownHook and runFinalizersOnExit will load it).
+    // won't be run. Note that if a shutdown hook was registered,
+    // the Shutdown class would have already been loaded
+    // (Runtime.addShutdownHook will load it).
     instanceKlassHandle shutdown_klass (THREAD, k);
     JavaValue result(T_VOID);
     JavaCalls::call_static(&result,
@@ -3954,7 +3954,7 @@ void JavaThread::invoke_shutdown_hooks() {
 //   + Wait until we are the last non-daemon thread to execute
 //     <-- every thing is still working at this moment -->
 //   + Call java.lang.Shutdown.shutdown(), which will invoke Java level
-//        shutdown hooks, run finalizers if finalization-on-exit
+//        shutdown hooks
 //   + Call before_exit(), prepare for VM exit
 //      > run VM level shutdown hooks (they are registered through JVM_OnExit(),
 //        currently the only user of this mechanism is File.deleteOnExit())
@@ -4011,15 +4011,8 @@ bool Threads::destroy_vm() {
   }
   os::wait_for_keypress_at_exit();
 
-  if (JDK_Version::is_jdk12x_version()) {
-    // We are the last thread running, so check if finalizers should be run.
-    // For 1.3 or later this is done in thread->invoke_shutdown_hooks()
-    HandleMark rm(thread);
-    Universe::run_finalizers_on_exit();
-  } else {
-    // run Java level shutdown hooks
-    thread->invoke_shutdown_hooks();
-  }
+  // run Java level shutdown hooks
+  thread->invoke_shutdown_hooks();
 
   before_exit(thread);
 

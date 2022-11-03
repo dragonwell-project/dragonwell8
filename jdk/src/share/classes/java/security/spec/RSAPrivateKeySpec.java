@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -60,6 +60,7 @@ public class RSAPrivateKeySpec implements KeySpec {
     /**
      * Creates a new RSAPrivateKeySpec with additional key parameters.
      *
+     * @apiNote This method is defined in Java SE 8 Maintenance Release 3.
      * @param modulus the modulus
      * @param privateExponent the private exponent
      * @param params the parameters associated with this key, may be null
@@ -94,6 +95,7 @@ public class RSAPrivateKeySpec implements KeySpec {
      * Returns the parameters associated with this key, may be null if not
      * present.
      *
+     * @apiNote This method is defined in Java SE 8 Maintenance Release 3.
      * @return the parameters associated with this key
      * @since 8
      */

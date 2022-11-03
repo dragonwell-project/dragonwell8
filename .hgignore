@@ -1,9 +1,0 @@
-^build/
-^dist/
-nbproject/private/
-^webrev
-^.src-rev$
-.DS_Store
-# Default ignored files
-.idea/workspace.xml
-.*/.git/.*

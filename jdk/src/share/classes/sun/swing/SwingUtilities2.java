@@ -2028,6 +2028,15 @@ public class SwingUtilities2 {
         return -1;
     }
 
+    /**
+     * Sets the InputEvent.ALT_GRAPH mask on any modifier passed to the function
+     * @param modifier the modifier passed
+     * @return the modifier retiurned with ALT_GRAPH flag set
+     */
+    public static int setAltGraphMask(int modifier) {
+        return (modifier | InputEvent.ALT_GRAPH_DOWN_MASK);
+    }
+
     public static int getSystemMnemonicKeyMask() {
         Toolkit toolkit = Toolkit.getDefaultToolkit();
         if (toolkit instanceof SunToolkit) {
