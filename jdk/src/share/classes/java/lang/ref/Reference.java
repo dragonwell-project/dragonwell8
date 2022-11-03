@@ -265,7 +265,6 @@ public abstract class Reference<T> {
         this.referent = null;
     }
 
-
     /* -- Queue operations -- */
 
     /**
@@ -282,8 +281,8 @@ public abstract class Reference<T> {
     }
 
     /**
-     * Adds this reference object to the queue with which it is registered,
-     * if any.
+     * Clears this reference object and adds it to the queue with which
+     * it is registered, if any.
      *
      * <p> This method is invoked only by Java code; when the garbage collector
      * enqueues references it does so directly, without invoking this method.
@@ -293,9 +292,26 @@ public abstract class Reference<T> {
      *           it was not registered with a queue when it was created
      */
     public boolean enqueue() {
+        this.referent = null;
         return this.queue.enqueue(this);
     }
 
+
+    /**
+     * Throws {@link CloneNotSupportedException}. A {@code Reference} cannot be
+     * meaningfully cloned. Construct a new {@code Reference} instead.
+     *
+     * @apiNote This method is defined in Java SE 8 Maintenance Release 4.
+     *
+     * @return  never returns normally
+     * @throws  CloneNotSupportedException always
+     *
+     * @since 8
+     */
+    @Override
+    protected Object clone() throws CloneNotSupportedException {
+        throw new CloneNotSupportedException();
+    }
 
     /* -- Constructors -- */
 
@@ -307,5 +323,4 @@ public abstract class Reference<T> {
         this.referent = referent;
         this.queue = (queue == null) ? ReferenceQueue.NULL : queue;
     }
-
 }

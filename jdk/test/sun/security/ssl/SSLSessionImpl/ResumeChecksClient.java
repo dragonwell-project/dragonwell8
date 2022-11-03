@@ -29,8 +29,8 @@
  * @run main/othervm -Djdk.tls.client.protocols=TLSv1.2 ResumeChecksClient BASIC
  * @run main/othervm -Djdk.tls.client.protocols=TLSv1.3 ResumeChecksClient BASIC
  * @run main/othervm ResumeChecksClient BASIC
- * @run main/othervm -Djdk.tls.client.protocols=TLSv1.2,TLSv1.3 ResumeChecksClient VERSION_2_TO_3
- * @run main/othervm -Djdk.tls.client.protocols=TLSv1.2,TLSv1.3 ResumeChecksClient VERSION_3_TO_2
+ * @run main/othervm ResumeChecksClient VERSION_2_TO_3
+ * @run main/othervm ResumeChecksClient VERSION_3_TO_2
  * @run main/othervm -Djdk.tls.client.protocols=TLSv1.3 ResumeChecksClient CIPHER_SUITE
  * @run main/othervm -Djdk.tls.client.protocols=TLSv1.3 ResumeChecksClient SIGNATURE_SCHEME
  *

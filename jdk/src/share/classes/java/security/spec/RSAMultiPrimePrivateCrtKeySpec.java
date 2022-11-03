@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -104,6 +104,7 @@ public class RSAMultiPrimePrivateCrtKeySpec extends RSAPrivateKeySpec {
     * are copied to protect against subsequent modification when
     * constructing this object.
     *
+    * @apiNote This method is defined in Java SE 8 Maintenance Release 3.
     * @param modulus          the modulus n
     * @param publicExponent   the public exponent e
     * @param privateExponent  the private exponent d

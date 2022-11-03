@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2012, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -33,7 +33,7 @@ extern "C" { void register_on_exit_function(void (*func)(void)) ;}
 // Execute code before all handles are released and thread is killed; prologue to vm_exit
 extern void before_exit(JavaThread * thread);
 
-// Forced VM exit (i.e, internal error or JVM_Exit)
+// Forced VM exit (i.e, internal error or JVM_Halt)
 extern void vm_exit(int code);
 
 // Wrapper for ::exit()

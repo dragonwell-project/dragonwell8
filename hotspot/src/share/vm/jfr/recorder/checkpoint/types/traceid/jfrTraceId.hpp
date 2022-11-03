@@ -77,6 +77,7 @@ class JfrTraceId : public AllStatic {
  public:
   static void assign(const Klass* klass);
   static void assign(const ClassLoaderData* cld);
+  static traceid assign_primitive_klass_id();
   static traceid assign_thread_id();
 
   static traceid get(const Klass* klass);

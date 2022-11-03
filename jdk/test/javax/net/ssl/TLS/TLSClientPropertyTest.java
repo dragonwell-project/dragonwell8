@@ -71,7 +71,7 @@ public class TLSClientPropertyTest {
             }
             contextProtocol = null;
             expectedDefaultProtos = new String[] {
-                    "TLSv1.2"
+                    "TLSv1.2", "TLSv1.3"
             };
             break;
         case "SSLv3":
@@ -90,13 +90,13 @@ public class TLSClientPropertyTest {
             };
             break;
         case "TLSv12":
-        case "TLS":
             contextProtocol = "TLSv1.2";
             expectedDefaultProtos = new String[] {
                     "TLSv1.2"
             };
             break;
         case "TLSv13":
+        case "TLS":
             contextProtocol = "TLSv1.3";
             expectedDefaultProtos = new String[] {
                     "TLSv1.2", "TLSv1.3"

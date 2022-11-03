@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -486,6 +486,7 @@ public class SSLParameters {
      * <p>
      * This method will return a new array each time it is invoked.
      *
+     * @apiNote This method is defined in Java SE 8 Maintenance Release 3.
      * @return a non-null, possibly zero-length array of application protocol
      *         {@code String}s.  The array is ordered based on protocol
      *         preference, with {@code protocols[0]} being the most preferred.
@@ -518,6 +519,7 @@ public class SSLParameters {
      * action to take.  (For example, ALPN will send a
      * {@code "no_application_protocol"} alert and terminate the connection.)
      *
+     * @apiNote This method is defined in Java SE 8 Maintenance Release 3.
      * @implSpec
      * This method will make a copy of the {@code protocols} array.
      *
