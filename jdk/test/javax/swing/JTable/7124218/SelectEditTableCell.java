@@ -48,23 +48,28 @@ public class SelectEditTableCell {
 
     public static void main(String[] args) throws Exception {
         robot = new Robot();
-        robot.delay(2000);
+        robot.setAutoDelay(100);
         UIManager.LookAndFeelInfo[] lookAndFeelArray
                 = UIManager.getInstalledLookAndFeels();
         for (UIManager.LookAndFeelInfo lookAndFeelItem : lookAndFeelArray) {
             executeCase(lookAndFeelItem.getClassName());
         }
-
     }
 
     private static void executeCase(String lookAndFeelString) throws Exception {
-        if (tryLookAndFeel(lookAndFeelString)) {
-            createUI(lookAndFeelString);
-            robot.delay(2000);
-            runTestCase();
-            robot.delay(2000);
-            cleanUp();
-            robot.delay(2000);
+        try {
+            if (tryLookAndFeel(lookAndFeelString)) {
+                createUI(lookAndFeelString);
+                robot.delay(2000);
+                runTestCase();
+                robot.delay(2000);
+                cleanUp();
+                robot.delay(2000);
+            }
+        } finally {
+            if (frame != null) {
+                SwingUtilities.invokeAndWait(frame::dispose);
+            }
         }
 
     }
@@ -98,6 +103,7 @@ public class SelectEditTableCell {
         robot.mouseMove(centerPoint.x, centerPoint.y);
         robot.mousePress(InputEvent.BUTTON1_MASK);
         robot.mouseRelease(InputEvent.BUTTON1_MASK);
+        robot.waitForIdle();
         SwingUtilities.invokeAndWait(new Runnable() {
             @Override
             public void run() {
@@ -110,7 +116,7 @@ public class SelectEditTableCell {
                 }
             }
         });
-        robot.waitForIdle();
+
         int fetchKeyCode;
         keyTap(fetchKeyCode = isMac(lookAndFeel)
                 ? KeyEvent.VK_ENTER : KeyEvent.VK_SPACE);
@@ -127,7 +133,7 @@ public class SelectEditTableCell {
                 }
             }
         });
-        robot.waitForIdle();
+
         keyTap(KeyEvent.VK_SPACE);
         robot.waitForIdle();
         SwingUtilities.invokeAndWait(new Runnable() {
@@ -147,10 +153,12 @@ public class SelectEditTableCell {
                 }
             }
         });
-        robot.waitForIdle();
+
         // hitting a letter key will start editing
         keyTap(KeyEvent.VK_A);
+        robot.waitForIdle();
         keyTap(KeyEvent.VK_SPACE);
+        robot.waitForIdle();
         keyTap(KeyEvent.VK_A);
         robot.waitForIdle();
         SwingUtilities.invokeAndWait(new Runnable() {
