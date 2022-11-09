@@ -23,7 +23,7 @@
 
 /*
  * @test BooleanTest
- * @bug 8028756
+ * @bug 8038756
  * @library /testlibrary /testlibrary/whitebox
  * @build BooleanTest
  * @run main ClassFileInstaller sun.hotspot.WhiteBox

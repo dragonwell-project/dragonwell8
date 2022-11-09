@@ -23,7 +23,7 @@
 
 /*
  * @test DoubleTest
- * @bug 8028756
+ * @bug 8038756
  * @library /testlibrary /testlibrary/whitebox
  * @build DoubleTest
  * @run main ClassFileInstaller sun.hotspot.WhiteBox

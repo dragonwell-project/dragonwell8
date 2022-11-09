@@ -23,7 +23,7 @@
 
 /*
  * @test StringTest
- * @bug 8028756
+ * @bug 8038756
  * @library /testlibrary /testlibrary/whitebox
  * @build StringTest
  * @run main ClassFileInstaller sun.hotspot.WhiteBox
