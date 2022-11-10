@@ -53,7 +53,7 @@ jobs:
         if: steps.check_submit.outputs.should_run != 'false'
 
       - name: Checkout the source
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           path: jdk
         if: steps.check_submit.outputs.should_run != 'false'
@@ -82,14 +82,14 @@ jobs:
 
       - name: Check if a jtreg image is present in the cache
         id: jtreg
-        uses: actions/cache@v2
+        uses: actions/cache@v3
         with:
           path: ~/jtreg/
           key: jtreg-${{ env.JTREG_REF }}-v1
         if: steps.check_submit.outputs.should_run != 'false'
 
       - name: Checkout the jtreg source
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           repository: "openjdk/jtreg"
           ref: ${{ env.JTREG_REF }}
@@ -107,7 +107,7 @@ jobs:
         if: steps.check_submit.outputs.should_run != 'false' && steps.jtreg.outputs.cache-hit != 'true'
 
       - name: Store jtreg for use by later steps
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           name: transient_jtreg_${{ steps.check_bundle_id.outputs.bundle_id }}
           path: ~/jtreg/
@@ -135,20 +135,20 @@ jobs:
 
     steps:
       - name: Checkout the source
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           path: jdk
 
       - name: Restore jtreg artifact
         id: jtreg_restore
-        uses: actions/download-artifact@v2
+        uses: actions/download-artifact@v3
         with:
           name: transient_jtreg_${{ needs.prerequisites.outputs.bundle_id }}
           path: ~/jtreg/
         continue-on-error: true
 
       - name: Restore jtreg artifact (retry)
-        uses: actions/download-artifact@v2
+        uses: actions/download-artifact@v3
         with:
           name: transient_jtreg_${{ needs.prerequisites.outputs.bundle_id }}
           path: ~/jtreg/
@@ -183,7 +183,7 @@ jobs:
           tar -cf jdk-${{ env.JDK_VERSION }}-internal+0_linux-x64_bin${{ matrix.artifact }}.tar.gz -C jdk/build/linux-x64/images j2sdk-image
 
       - name: Persist test bundles
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           name: transient_jdk-linux-x64${{ matrix.artifact }}_${{ needs.prerequisites.outputs.bundle_id }}
           path: |
@@ -217,18 +217,18 @@ jobs:
 
     steps:
       - name: Checkout the source
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
       - name: Restore jtreg artifact
         id: jtreg_restore
-        uses: actions/download-artifact@v2
+        uses: actions/download-artifact@v3
         with:
           name: transient_jtreg_${{ needs.prerequisites.outputs.bundle_id }}
           path: ~/jtreg/
         continue-on-error: true
 
       - name: Restore jtreg artifact (retry)
-        uses: actions/download-artifact@v2
+        uses: actions/download-artifact@v3
         with:
           name: transient_jtreg_${{ needs.prerequisites.outputs.bundle_id }}
           path: ~/jtreg/
@@ -236,14 +236,14 @@ jobs:
 
       - name: Restore build artifacts
         id: build_restore
-        uses: actions/download-artifact@v2
+        uses: actions/download-artifact@v3
         with:
           name: transient_jdk-linux-x64${{ matrix.artifact }}_${{ needs.prerequisites.outputs.bundle_id }}
           path: ~/jdk-linux-x64${{ matrix.artifact }}
         continue-on-error: true
 
       - name: Restore build artifacts (retry)
-        uses: actions/download-artifact@v2
+        uses: actions/download-artifact@v3
         with:
           name: transient_jdk-linux-x64${{ matrix.artifact }}_${{ needs.prerequisites.outputs.bundle_id }}
           path: ~/jdk-linux-x64${{ matrix.artifact }}
@@ -297,7 +297,7 @@ jobs:
 
       - name: Persist test results
         if: always()
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           path: ~/linux-x64${{ matrix.artifact }}_testresults_${{ env.logsuffix }}.zip
         continue-on-error: true
@@ -355,20 +355,20 @@ jobs:
 
     steps:
       - name: Checkout the source
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           path: jdk
 
       - name: Restore build JDK
         id: build_restore
-        uses: actions/download-artifact@v2
+        uses: actions/download-artifact@v3
         with:
           name: transient_jdk-linux-x64_${{ needs.prerequisites.outputs.bundle_id }}
           path: ~/jdk-linux-x64
         continue-on-error: true
 
       - name: Restore build JDK (retry)
-        uses: actions/download-artifact@v2
+        uses: actions/download-artifact@v3
         with:
           name: transient_jdk-linux-x64_${{ needs.prerequisites.outputs.bundle_id }}
           path: ~/jdk-linux-x64
@@ -399,7 +399,7 @@ jobs:
 
       - name: Cache sysroot
         id: cache-sysroot
-        uses: actions/cache@v2
+        uses: actions/cache@v3
         with:
           path: ~/sysroot-${{ matrix.debian-arch }}/
           key: sysroot-${{ matrix.debian-arch }}-${{ hashFiles('jdk/.github/workflows/submit.yml') }}
@@ -483,20 +483,20 @@ jobs:
 
     steps:
       - name: Checkout the source
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           path: jdk
 
       - name: Restore jtreg artifact
         id: jtreg_restore
-        uses: actions/download-artifact@v2
+        uses: actions/download-artifact@v3
         with:
           name: transient_jtreg_${{ needs.prerequisites.outputs.bundle_id }}
           path: ~/jtreg/
         continue-on-error: true
 
       - name: Restore jtreg artifact (retry)
-        uses: actions/download-artifact@v2
+        uses: actions/download-artifact@v3
         with:
           name: transient_jtreg_${{ needs.prerequisites.outputs.bundle_id }}
           path: ~/jtreg/
@@ -539,7 +539,7 @@ jobs:
           tar -cf jdk-${{ env.JDK_VERSION }}-internal+0_linux-x86_bin${{ matrix.artifact }}.tar.gz -C jdk/build/linux-x86/images j2sdk-image
 
       - name: Persist test bundles
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           name: transient_jdk-linux-x86${{ matrix.artifact }}_${{ needs.prerequisites.outputs.bundle_id }}
           path: |
@@ -574,18 +574,18 @@ jobs:
 
     steps:
       - name: Checkout the source
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
       - name: Restore jtreg artifact
         id: jtreg_restore
-        uses: actions/download-artifact@v2
+        uses: actions/download-artifact@v3
         with:
           name: transient_jtreg_${{ needs.prerequisites.outputs.bundle_id }}
           path: ~/jtreg/
         continue-on-error: true
 
       - name: Restore jtreg artifact (retry)
-        uses: actions/download-artifact@v2
+        uses: actions/download-artifact@v3
         with:
           name: transient_jtreg_${{ needs.prerequisites.outputs.bundle_id }}
           path: ~/jtreg/
@@ -593,14 +593,14 @@ jobs:
 
       - name: Restore build artifacts
         id: build_restore
-        uses: actions/download-artifact@v2
+        uses: actions/download-artifact@v3
         with:
           name: transient_jdk-linux-x86${{ matrix.artifact }}_${{ needs.prerequisites.outputs.bundle_id }}
           path: ~/jdk-linux-x86${{ matrix.artifact }}
         continue-on-error: true
 
       - name: Restore build artifacts (retry)
-        uses: actions/download-artifact@v2
+        uses: actions/download-artifact@v3
         with:
           name: transient_jdk-linux-x86${{ matrix.artifact }}_${{ needs.prerequisites.outputs.bundle_id }}
           path: ~/jdk-linux-x86${{ matrix.artifact }}
@@ -654,7 +654,7 @@ jobs:
 
       - name: Persist test results
         if: always()
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           path: ~/linux-x86${{ matrix.artifact }}_testresults_${{ env.logsuffix }}.zip
         continue-on-error: true
@@ -689,7 +689,7 @@ jobs:
     steps:
       - name: Restore cygwin packages from cache
         id: cygwin
-        uses: actions/cache@v2
+        uses: actions/cache@v3
         with:
           path: ~/cygwin/packages
           key: cygwin-packages-${{ runner.os }}-v1
@@ -701,12 +701,12 @@ jobs:
           Start-Process -FilePath "$HOME\cygwin\setup-x86_64.exe" -ArgumentList "--quiet-mode --packages autoconf,make,zip,unzip --root $HOME\cygwin\cygwin64 --local-package-dir $HOME\cygwin\packages --site http://mirrors.kernel.org/sourceware/cygwin --no-desktop --no-shortcuts --no-startmenu --no-admin" -Wait -NoNewWindow
 
       - name: Checkout the source
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           path: jdk
 
       - name: Checkout the FreeType source
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           repository: "freetype/freetype"
           ref: VER-2-8-1
@@ -714,7 +714,7 @@ jobs:
 
       - name: Restore boot JDK from cache
         id: bootjdk
-        uses: actions/cache@v2
+        uses: actions/cache@v3
         with:
           path: ~/bootjdk/${{ env.BOOT_JDK_VERSION }}
           key: bootjdk-${{ runner.os }}-${{ env.BOOT_JDK_VERSION }}-${{ env.BOOT_JDK_SHA256 }}-v1
@@ -731,21 +731,21 @@ jobs:
 
       - name: Restore Visual Studio 2017 from cache
         id: vs2017
-        uses: actions/cache@v2
+        uses: actions/cache@v3
         with:
           path: ~/${{ env.VS2017_FILENAME }}
           key: vs2017
 
       - name: Restore jtreg artifact
         id: jtreg_restore
-        uses: actions/download-artifact@v2
+        uses: actions/download-artifact@v3
         with:
           name: transient_jtreg_${{ needs.prerequisites.outputs.bundle_id }}
           path: ~/jtreg/
         continue-on-error: true
 
       - name: Restore jtreg artifact (retry)
-        uses: actions/download-artifact@v2
+        uses: actions/download-artifact@v3
         with:
           name: transient_jtreg_${{ needs.prerequisites.outputs.bundle_id }}
           path: ~/jtreg/
@@ -820,7 +820,7 @@ jobs:
         working-directory: jdk/build/windows-x64/images
 
       - name: Persist test bundles
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           name: transient_jdk-windows-x64${{ matrix.artifact }}_${{ needs.prerequisites.outputs.bundle_id }}
           path: |
@@ -857,7 +857,7 @@ jobs:
     steps:
       - name: Restore cygwin packages from cache
         id: cygwin
-        uses: actions/cache@v2
+        uses: actions/cache@v3
         with:
           path: ~/cygwin/packages
           key: cygwin-packages-${{ runner.os }}-v1
@@ -869,12 +869,12 @@ jobs:
           Start-Process -FilePath "$HOME\cygwin\setup-x86_64.exe" -ArgumentList "--quiet-mode --packages autoconf,make,zip,unzip --root $HOME\cygwin\cygwin64 --local-package-dir $HOME\cygwin\packages --site http://mirrors.kernel.org/sourceware/cygwin --no-desktop --no-shortcuts --no-startmenu --no-admin" -Wait -NoNewWindow
 
       - name: Checkout the source
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           path: jdk
 
       - name: Checkout the FreeType source
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           repository: "freetype/freetype"
           ref: VER-2-8-1
@@ -882,7 +882,7 @@ jobs:
 
       - name: Restore boot JDK from cache
         id: bootjdk
-        uses: actions/cache@v2
+        uses: actions/cache@v3
         with:
           path: ~/bootjdk/${{ env.BOOT_JDK_VERSION }}
           key: bootjdk-${{ runner.os }}-${{ env.BOOT_JDK_VERSION }}-${{ env.BOOT_JDK_SHA256 }}-v1
@@ -899,7 +899,7 @@ jobs:
 
       - name: Restore Visual Studio 2010 from cache
         id: vs2010
-        uses: actions/cache@v2
+        uses: actions/cache@v3
         with:
           path: ~/${{ env.VS2010_DIR }}
           key: vs2010
@@ -920,14 +920,14 @@ jobs:
 
       - name: Restore jtreg artifact
         id: jtreg_restore
-        uses: actions/download-artifact@v2
+        uses: actions/download-artifact@v3
         with:
           name: transient_jtreg_${{ needs.prerequisites.outputs.bundle_id }}
           path: ~/jtreg/
         continue-on-error: true
 
       - name: Restore jtreg artifact (retry)
-        uses: actions/download-artifact@v2
+        uses: actions/download-artifact@v3
         with:
           name: transient_jtreg_${{ needs.prerequisites.outputs.bundle_id }}
           path: ~/jtreg/
@@ -980,7 +980,7 @@ jobs:
         working-directory: jdk/build/windows-x86/images
 
       - name: Persist test bundles
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           name: transient_jdk-windows-x86${{ matrix.artifact }}_${{ needs.prerequisites.outputs.bundle_id }}
           path: |
@@ -1017,11 +1017,11 @@ jobs:
 
     steps:
       - name: Checkout the source
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
       - name: Restore boot JDK from cache
         id: bootjdk
-        uses: actions/cache@v2
+        uses: actions/cache@v3
         with:
           path: ~/bootjdk/${{ env.BOOT_JDK_VERSION }}
           key: bootjdk-${{ runner.os }}-${{ env.BOOT_JDK_VERSION }}-${{ env.BOOT_JDK_SHA256 }}-v1
@@ -1038,7 +1038,7 @@ jobs:
 
       - name: Restore cygwin packages from cache
         id: cygwin
-        uses: actions/cache@v2
+        uses: actions/cache@v3
         with:
           path: ~/cygwin/packages
           key: cygwin-packages-${{ runner.os }}-v1
@@ -1051,14 +1051,14 @@ jobs:
 
       - name: Restore jtreg artifact
         id: jtreg_restore
-        uses: actions/download-artifact@v2
+        uses: actions/download-artifact@v3
         with:
           name: transient_jtreg_${{ needs.prerequisites.outputs.bundle_id }}
           path: ~/jtreg/
         continue-on-error: true
 
       - name: Restore jtreg artifact (retry)
-        uses: actions/download-artifact@v2
+        uses: actions/download-artifact@v3
         with:
           name: transient_jtreg_${{ needs.prerequisites.outputs.bundle_id }}
           path: ~/jtreg/
@@ -1066,14 +1066,14 @@ jobs:
 
       - name: Restore build artifacts
         id: build_restore
-        uses: actions/download-artifact@v2
+        uses: actions/download-artifact@v3
         with:
           name: transient_jdk-windows-x64${{ matrix.artifact }}_${{ needs.prerequisites.outputs.bundle_id }}
           path: ~/jdk-windows-x64${{ matrix.artifact }}
         continue-on-error: true
 
       - name: Restore build artifacts (retry)
-        uses: actions/download-artifact@v2
+        uses: actions/download-artifact@v3
         with:
           name: transient_jdk-windows-x64${{ matrix.artifact }}_${{ needs.prerequisites.outputs.bundle_id }}
           path: ~/jdk-windows-x64${{ matrix.artifact }}
@@ -1126,7 +1126,7 @@ jobs:
 
       - name: Persist test results
         if: always()
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           path: ~/windows-x64${{ matrix.artifact }}_testresults_${{ env.logsuffix }}.zip
         continue-on-error: true
@@ -1162,11 +1162,11 @@ jobs:
 
     steps:
       - name: Checkout the source
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
       - name: Restore boot JDK from cache
         id: bootjdk
-        uses: actions/cache@v2
+        uses: actions/cache@v3
         with:
           path: ~/bootjdk/${{ env.BOOT_JDK_VERSION }}
           key: bootjdk-${{ runner.os }}-${{ env.BOOT_JDK_VERSION }}-${{ env.BOOT_JDK_SHA256 }}-v1
@@ -1183,7 +1183,7 @@ jobs:
 
       - name: Restore cygwin packages from cache
         id: cygwin
-        uses: actions/cache@v2
+        uses: actions/cache@v3
         with:
           path: ~/cygwin/packages
           key: cygwin-packages-${{ runner.os }}-v1
@@ -1196,14 +1196,14 @@ jobs:
 
       - name: Restore jtreg artifact
         id: jtreg_restore
-        uses: actions/download-artifact@v2
+        uses: actions/download-artifact@v3
         with:
           name: transient_jtreg_${{ needs.prerequisites.outputs.bundle_id }}
           path: ~/jtreg/
         continue-on-error: true
 
       - name: Restore jtreg artifact (retry)
-        uses: actions/download-artifact@v2
+        uses: actions/download-artifact@v3
         with:
           name: transient_jtreg_${{ needs.prerequisites.outputs.bundle_id }}
           path: ~/jtreg/
@@ -1211,14 +1211,14 @@ jobs:
 
       - name: Restore build artifacts
         id: build_restore
-        uses: actions/download-artifact@v2
+        uses: actions/download-artifact@v3
         with:
           name: transient_jdk-windows-x86${{ matrix.artifact }}_${{ needs.prerequisites.outputs.bundle_id }}
           path: ~/jdk-windows-x86${{ matrix.artifact }}
         continue-on-error: true
 
       - name: Restore build artifacts (retry)
-        uses: actions/download-artifact@v2
+        uses: actions/download-artifact@v3
         with:
           name: transient_jdk-windows-x86${{ matrix.artifact }}_${{ needs.prerequisites.outputs.bundle_id }}
           path: ~/jdk-windows-x86${{ matrix.artifact }}
@@ -1271,7 +1271,7 @@ jobs:
 
       - name: Persist test results
         if: always()
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           path: ~/windows-x86${{ matrix.artifact }}_testresults_${{ env.logsuffix }}.zip
         continue-on-error: true
@@ -1303,13 +1303,13 @@ jobs:
 
     steps:
       - name: Checkout the source
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           path: jdk
 
       - name: Restore boot JDK from cache
         id: bootjdk
-        uses: actions/cache@v2
+        uses: actions/cache@v3
         with:
           path: ~/bootjdk/${{ env.BOOT_JDK_VERSION }}
           key: bootjdk-${{ runner.os }}-${{ env.BOOT_JDK_VERSION }}-${{ env.BOOT_JDK_SHA256 }}-v1
@@ -1325,14 +1325,14 @@ jobs:
 
       - name: Restore jtreg artifact
         id: jtreg_restore
-        uses: actions/download-artifact@v2
+        uses: actions/download-artifact@v3
         with:
           name: transient_jtreg_${{ needs.prerequisites.outputs.bundle_id }}
           path: ~/jtreg/
         continue-on-error: true
 
       - name: Restore jtreg artifact (retry)
-        uses: actions/download-artifact@v2
+        uses: actions/download-artifact@v3
         with:
           name: transient_jtreg_${{ needs.prerequisites.outputs.bundle_id }}
           path: ~/jtreg/
@@ -1368,7 +1368,7 @@ jobs:
           tar -cf jdk-${{ env.JDK_VERSION }}-internal+0_osx-x64_bin${{ matrix.artifact }}.tar.gz -C jdk/build/macos-x64/images j2sdk-image
 
       - name: Persist test bundles
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           name: transient_jdk-macos-x64${{ matrix.artifact }}_${{ needs.prerequisites.outputs.bundle_id }}
           path: |
@@ -1405,11 +1405,11 @@ jobs:
 
     steps:
       - name: Checkout the source
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
       - name: Restore boot JDK from cache
         id: bootjdk
-        uses: actions/cache@v2
+        uses: actions/cache@v3
         with:
           path: ~/bootjdk/${{ env.BOOT_JDK_VERSION }}
           key: bootjdk-${{ runner.os }}-${{ env.BOOT_JDK_VERSION }}-${{ env.BOOT_JDK_SHA256 }}-v1
@@ -1425,14 +1425,14 @@ jobs:
 
       - name: Restore jtreg artifact
         id: jtreg_restore
-        uses: actions/download-artifact@v2
+        uses: actions/download-artifact@v3
         with:
           name: transient_jtreg_${{ needs.prerequisites.outputs.bundle_id }}
           path: ~/jtreg/
         continue-on-error: true
 
       - name: Restore jtreg artifact (retry)
-        uses: actions/download-artifact@v2
+        uses: actions/download-artifact@v3
         with:
           name: transient_jtreg_${{ needs.prerequisites.outputs.bundle_id }}
           path: ~/jtreg/
@@ -1440,14 +1440,14 @@ jobs:
 
       - name: Restore build artifacts
         id: build_restore
-        uses: actions/download-artifact@v2
+        uses: actions/download-artifact@v3
         with:
           name: transient_jdk-macos-x64${{ matrix.artifact }}_${{ needs.prerequisites.outputs.bundle_id }}
           path: ~/jdk-macos-x64${{ matrix.artifact }}
         continue-on-error: true
 
       - name: Restore build artifacts (retry)
-        uses: actions/download-artifact@v2
+        uses: actions/download-artifact@v3
         with:
           name: transient_jdk-macos-x64${{ matrix.artifact }}_${{ needs.prerequisites.outputs.bundle_id }}
           path: ~/jdk-macos-x64${{ matrix.artifact }}
@@ -1501,7 +1501,7 @@ jobs:
 
       - name: Persist test results
         if: always()
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           path: ~/macos-x64${{ matrix.artifact }}_testresults_${{ env.logsuffix }}.zip
         continue-on-error: true
@@ -1522,7 +1522,7 @@ jobs:
     steps:
       - name: Determine current artifacts endpoint
         id: actions_runtime
-        uses: actions/github-script@v3
+        uses: actions/github-script@v6
         with:
           script: "return { url: process.env['ACTIONS_RUNTIME_URL'], token: process.env['ACTIONS_RUNTIME_TOKEN'] }"
 
@@ -1545,7 +1545,7 @@ jobs:
           done
 
       - name: Fetch remaining artifacts (test results)
-        uses: actions/download-artifact@v2
+        uses: actions/download-artifact@v3
         with:
           path: test-results
 
@@ -1562,7 +1562,7 @@ jobs:
           done
 
       - name: Upload a combined test results artifact
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           name: test-results_${{ needs.prerequisites.outputs.bundle_id }}
           path: test-results
