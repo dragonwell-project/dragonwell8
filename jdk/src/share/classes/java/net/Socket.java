@@ -597,6 +597,8 @@ class Socket implements java.io.Closeable {
     public void connect(SocketAddress endpoint) throws IOException {
         if (WispEngine.transparentWispSwitch()) {
             asyncImpl.connect(endpoint);
+            // Getting here normally means we have succeeded in the connection
+            connected = true;
             return;
         }
         connect(endpoint, 0);
@@ -637,6 +639,8 @@ class Socket implements java.io.Closeable {
 
         if (WispEngine.transparentWispSwitch()) {
             asyncImpl.connect(endpoint, timeout);
+            // Getting here normally means we have succeeded in the connection
+            connected = true;
             return;
         }
 
@@ -1773,8 +1777,9 @@ class Socket implements java.io.Closeable {
      * @since 1.4
      */
     public boolean isConnected() {
-        if (WispEngine.transparentWispSwitch())
-            return asyncImpl.isConnected();
+        if (WispEngine.transparentWispSwitch()) {
+            return connected;
+        }
 
         // Before 1.3 Sockets were always connected during creation
         return connected || oldImpl;
