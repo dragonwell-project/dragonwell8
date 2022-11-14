@@ -34,22 +34,22 @@ jobs:
     steps:
       - name: Check if submit tests should actually run depending on secrets and manual triggering
         id: check_submit
-        run: echo "::set-output name=should_run::${{ github.event.inputs.platforms != '' || (!secrets.JDK_SUBMIT_FILTER || startsWith(github.ref, 'refs/heads/submit/')) }}"
+        run: echo "should_run=${{ github.event.inputs.platforms != '' || (!secrets.JDK_SUBMIT_FILTER || startsWith(github.ref, 'refs/heads/submit/')) }}" >> $GITHUB_OUTPUT
 
       - name: Check which platforms should be included
         id: check_platforms
         run: |
-          echo "::set-output name=platform_linux_additional::${{ contains(github.event.inputs.platforms, 'linux additional (hotspot only)') || (github.event.inputs.platforms == '' && (secrets.JDK_SUBMIT_PLATFORMS == '' || contains(secrets.JDK_SUBMIT_PLATFORMS, 'linux additional (hotspot only)'))) }}"
-          echo "::set-output name=platform_linux_x64::${{ contains(github.event.inputs.platforms, 'linux x64') || (github.event.inputs.platforms == '' && (secrets.JDK_SUBMIT_PLATFORMS == '' || contains(secrets.JDK_SUBMIT_PLATFORMS, 'linux x64'))) }}"
-          echo "::set-output name=platform_linux_x86::${{ contains(github.event.inputs.platforms, 'linux x86') || (github.event.inputs.platforms == '' && (secrets.JDK_SUBMIT_PLATFORMS == '' || contains(secrets.JDK_SUBMIT_PLATFORMS, 'linux x86'))) }}"
-          echo "::set-output name=platform_windows_x64::${{ contains(github.event.inputs.platforms, 'windows x64') || (github.event.inputs.platforms == '' && (secrets.JDK_SUBMIT_PLATFORMS == '' || contains(secrets.JDK_SUBMIT_PLATFORMS, 'windows x64'))) }}"
-          echo "::set-output name=platform_windows_x86::${{ contains(github.event.inputs.platforms, 'windows x86') || (github.event.inputs.platforms == '' && (secrets.JDK_SUBMIT_PLATFORMS == '' || contains(secrets.JDK_SUBMIT_PLATFORMS, 'windows x86'))) }}"
-          echo "::set-output name=platform_macos_x64::${{ contains(github.event.inputs.platforms, 'macos x64') || (github.event.inputs.platforms == '' && (secrets.JDK_SUBMIT_PLATFORMS == '' || contains(secrets.JDK_SUBMIT_PLATFORMS, 'macos x64'))) }}"
+          echo "platform_linux_additional=${{ contains(github.event.inputs.platforms, 'linux additional (hotspot only)') || (github.event.inputs.platforms == '' && (secrets.JDK_SUBMIT_PLATFORMS == '' || contains(secrets.JDK_SUBMIT_PLATFORMS, 'linux additional (hotspot only)'))) }}" >> $GITHUB_OUTPUT
+          echo "platform_linux_x64=${{ contains(github.event.inputs.platforms, 'linux x64') || (github.event.inputs.platforms == '' && (secrets.JDK_SUBMIT_PLATFORMS == '' || contains(secrets.JDK_SUBMIT_PLATFORMS, 'linux x64'))) }}" >> $GITHUB_OUTPUT
+          echo "platform_linux_x86=${{ contains(github.event.inputs.platforms, 'linux x86') || (github.event.inputs.platforms == '' && (secrets.JDK_SUBMIT_PLATFORMS == '' || contains(secrets.JDK_SUBMIT_PLATFORMS, 'linux x86'))) }}" >> $GITHUB_OUTPUT
+          echo "platform_windows_x64=${{ contains(github.event.inputs.platforms, 'windows x64') || (github.event.inputs.platforms == '' && (secrets.JDK_SUBMIT_PLATFORMS == '' || contains(secrets.JDK_SUBMIT_PLATFORMS, 'windows x64'))) }}" >> $GITHUB_OUTPUT
+          echo "platform_windows_x86=${{ contains(github.event.inputs.platforms, 'windows x86') || (github.event.inputs.platforms == '' && (secrets.JDK_SUBMIT_PLATFORMS == '' || contains(secrets.JDK_SUBMIT_PLATFORMS, 'windows x86'))) }}" >> $GITHUB_OUTPUT
+          echo "platform_macos_x64=${{ contains(github.event.inputs.platforms, 'macos x64') || (github.event.inputs.platforms == '' && (secrets.JDK_SUBMIT_PLATFORMS == '' || contains(secrets.JDK_SUBMIT_PLATFORMS, 'macos x64'))) }}" >> $GITHUB_OUTPUT
         if: steps.check_submit.outputs.should_run != 'false'
 
       - name: Determine unique bundle identifier
         id: check_bundle_id
-        run: echo "::set-output name=bundle_id::${GITHUB_ACTOR}_${GITHUB_SHA:0:8}"
+        run: echo "bundle_id=${GITHUB_ACTOR}_${GITHUB_SHA:0:8}" >> $GITHUB_OUTPUT
         if: steps.check_submit.outputs.should_run != 'false'
 
       - name: Checkout the source
@@ -60,7 +60,7 @@ jobs:
 
       - name: Determine versions and locations to be used for dependencies
         id: check_deps
-        run: "echo ::set-output name=dependencies::`cat common/autoconf/version-numbers make/conf/test-dependencies | sed -e '1i {' -e 's/#.*//g' -e 's/\"//g' -e 's/\\(.*\\)=\\(.*\\)/\"\\1\": \"\\2\",/g' -e '$s/,\\s\\{0,\\}$/\\}/'`"
+        run: "echo dependencies=`cat common/autoconf/version-numbers make/conf/test-dependencies | sed -e '1i {' -e 's/#.*//g' -e 's/\"//g' -e 's/\\(.*\\)=\\(.*\\)/\"\\1\": \"\\2\",/g' -e '$s/,\\s\\{0,\\}$/\\}/'` >> $GITHUB_OUTPUT"
         working-directory: jdk
         if: steps.check_submit.outputs.should_run != 'false'
 
