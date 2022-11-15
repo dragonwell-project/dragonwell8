@@ -49,8 +49,6 @@ if [ "x$gcc_cmd" = "x" ]; then
     exit 0;
 fi
 
-CFLAGS="-m${VM_BITS}"
-
 LD_LIBRARY_PATH=.:${COMPILEJAVA}/jre/lib/${VM_CPU}/${VM_TYPE}:/usr/lib:$LD_LIBRARY_PATH
 export LD_LIBRARY_PATH
 
@@ -59,12 +57,11 @@ cp ${TESTSRC}${FS}invoke.cxx .
 # Copy the result of our @compile action:
 cp ${TESTCLASSES}${FS}DoOverflow.class .
 
-echo "Compilation flag: ${COMP_FLAG}"
 # Note pthread may not be found thus invoke creation will fail to be created.
 # Check to ensure you have a /usr/lib/libpthread.so if you don't please look
 # for /usr/lib/`uname -m`-linux-gnu version ensure to add that path to below compilation.
 
-$gcc_cmd -DLINUX ${CFLAGS} -o invoke \
+$gcc_cmd -DLINUX ${CFLAGBITS} -o invoke \
     -I${COMPILEJAVA}/include -I${COMPILEJAVA}/include/linux \
     -L${COMPILEJAVA}/jre/lib/${VM_CPU}/${VM_TYPE} \
     -ljvm -lpthread invoke.cxx
