@@ -760,8 +760,6 @@ class Socket implements java.io.Closeable {
     }
 
     void setConnected() {
-        if (WispEngine.transparentWispSwitch())
-            throw new UnsupportedOperationException();
         connected = true;
     }
 

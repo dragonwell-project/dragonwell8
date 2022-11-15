@@ -84,8 +84,29 @@ public class ServerSocketConnectionTest {
         }
     }
 
+    private static void testIsConnectedAfterAcception() throws Exception {
+        Socket s1 = null;
+        try (ServerSocket ss = new ServerSocket(0)) {
+            InetAddress ia = InetAddress.getLocalHost();
+            InetSocketAddress isa = new InetSocketAddress(ia, ss.getLocalPort());
+            new Socket().connect(isa);
+            s1 = ss.accept();
+        } catch (Exception e) {
+            e.printStackTrace();
+            throw new RuntimeException("Test Failed!");
+        } finally {
+            if (s1 != null) {
+                assertTrue(s1.isConnected());
+                s1.close();
+                // We should return true even after the socket is closed, to keep align with OpenJDK.
+                assertTrue(s1.isConnected());
+            }
+        }
+    }
+
     public static void main(String args[]) throws Exception {
         testIsConnectedAfterClosing();
         testIsConnectedAfterConnectionFailure();
+        testIsConnectedAfterAcception();
     }
 }
