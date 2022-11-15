@@ -568,7 +568,9 @@ class ServerSocket implements java.io.Closeable {
         if (!isBound())
             throw new SocketException("Socket is not bound yet");
         if (WispEngine.transparentWispSwitch()) {
-            return asyncImpl.accept();
+            Socket s = asyncImpl.accept();
+            s.setConnected();
+            return s;
         }
         Socket s = new Socket((SocketImpl) null);
         implAccept(s);
