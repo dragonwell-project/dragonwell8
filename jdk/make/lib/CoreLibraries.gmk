@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2011, 2022, Oracle and/or its affiliates. All rights reserved.
 # DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 #
 # This code is free software; you can redistribute it and/or modify it
@@ -266,6 +266,9 @@ ifeq ($(USE_EXTERNAL_LIBZ), true)
   LIBZIP_EXCLUDES += zlib
 else
   ZLIB_CPPFLAGS := -I$(JDK_TOPDIR)/src/share/native/java/util/zip/zlib
+  ifeq ($(OPENJDK_TARGET_OS), macosx)
+    ZLIB_CPPFLAGS += -DHAVE_UNISTD_H
+  endif
 endif
 
 BUILD_LIBZIP_REORDER :=
