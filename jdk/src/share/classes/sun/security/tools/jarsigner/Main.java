@@ -56,6 +56,7 @@ import java.security.cert.TrustAnchor;
 import java.util.Map.Entry;
 import sun.security.pkcs.PKCS7;
 import sun.security.pkcs.SignerInfo;
+import sun.security.provider.certpath.CertPathConstraintsParameters;
 import sun.security.timestamp.TimestampToken;
 import sun.security.tools.KeyStoreUtil;
 import sun.security.tools.PathList;
@@ -881,7 +882,8 @@ public class Main {
                         String history;
                         try {
                             SignerInfo si = p7.getSignerInfos()[0];
-                            X509Certificate signer = si.getCertificate(p7);
+                            ArrayList<X509Certificate> chain = si.getCertificateChain(p7);
+                            X509Certificate signer = chain.get(0);
                             String digestAlg = digestMap.get(s);
                             String sigAlg = AlgorithmId.makeSigAlg(
                                     si.getDigestAlgorithmId().getName(),
@@ -903,26 +905,31 @@ public class Main {
                                         TimeZone.getTimeZone("UTC"),
                                         Locale.getDefault(Locale.Category.FORMAT));
                                 c.setTime(tsTokenInfo.getDate());
+                                JarConstraintsParameters jcp =
+                                    new JarConstraintsParameters(chain, si.getTimestamp());
                                 history = String.format(
                                         rb.getString("history.with.ts"),
                                         signer.getSubjectX500Principal(),
-                                        verifyWithWeak(digestAlg, DIGEST_PRIMITIVE_SET, false),
-                                        verifyWithWeak(sigAlg, SIG_PRIMITIVE_SET, false),
-                                        verifyWithWeak(key),
+                                        verifyWithWeak(digestAlg, DIGEST_PRIMITIVE_SET, false, jcp),
+                                        verifyWithWeak(sigAlg, SIG_PRIMITIVE_SET, false, jcp),
+                                        verifyWithWeak(key, jcp),
                                         c,
                                         tsSigner.getSubjectX500Principal(),
-                                        verifyWithWeak(tsDigestAlg, DIGEST_PRIMITIVE_SET, true),
-                                        verifyWithWeak(tsSigAlg, SIG_PRIMITIVE_SET, true),
-                                        verifyWithWeak(tsKey));
+                                        verifyWithWeak(tsDigestAlg, DIGEST_PRIMITIVE_SET, true, jcp),
+                                        verifyWithWeak(tsSigAlg, SIG_PRIMITIVE_SET, true, jcp),
+                                        verifyWithWeak(tsKey, jcp));
                             } else {
+                                JarConstraintsParameters jcp =
+                                    new JarConstraintsParameters(chain, null);
                                 history = String.format(
                                         rb.getString("history.without.ts"),
                                         signer.getSubjectX500Principal(),
-                                        verifyWithWeak(digestAlg, DIGEST_PRIMITIVE_SET, false),
-                                        verifyWithWeak(sigAlg, SIG_PRIMITIVE_SET, false),
-                                        verifyWithWeak(key));
+                                        verifyWithWeak(digestAlg, DIGEST_PRIMITIVE_SET, false, jcp),
+                                        verifyWithWeak(sigAlg, SIG_PRIMITIVE_SET, false, jcp),
+                                        verifyWithWeak(key, jcp));
                             }
                         } catch (Exception e) {
+                            e.printStackTrace();
                             // The only usage of sigNameMap, remember the name
                             // of the block file if it's invalid.
                             history = String.format(
@@ -1256,56 +1263,67 @@ public class Main {
         }
     }
 
-    private String verifyWithWeak(String alg, Set<CryptoPrimitive> primitiveSet, boolean tsa) {
-        if (DISABLED_CHECK.permits(primitiveSet, alg, null)) {
-            if (LEGACY_CHECK.permits(primitiveSet, alg, null)) {
-                return alg;
-            } else {
-                if (primitiveSet == SIG_PRIMITIVE_SET) {
-                   legacyAlg |= 2;
-                   legacySigAlg = alg;
-                } else {
-                    if (tsa) {
-                        legacyAlg |= 4;
-                        legacyTsaDigestAlg = alg;
-                    } else {
-                        legacyAlg |= 1;
-                        legacyDigestAlg = alg;
-                    }
-                }
-                return String.format(rb.getString("with.weak"), alg);
-            }
-        } else {
+    private String verifyWithWeak(String alg, Set<CryptoPrimitive> primitiveSet,
+        boolean tsa, JarConstraintsParameters jcp) {
+
+        try {
+            DISABLED_CHECK.permits(alg, jcp);
+        } catch (CertPathValidatorException e) {
             disabledAlgFound = true;
             return String.format(rb.getString("with.disabled"), alg);
         }
-    }
-
-    private String verifyWithWeak(PublicKey key) {
-        int kLen = KeyUtil.getKeySize(key);
-        if (DISABLED_CHECK.permits(SIG_PRIMITIVE_SET, key)) {
-            if (LEGACY_CHECK.permits(SIG_PRIMITIVE_SET, key)) {
-                if (kLen >= 0) {
-                    return String.format(rb.getString("key.bit"), kLen);
-                } else {
-                    return rb.getString("unknown.size");
-                }
+        try {
+            LEGACY_CHECK.permits(alg, jcp);
+            return alg;
+        } catch (CertPathValidatorException e) {
+            if (primitiveSet == SIG_PRIMITIVE_SET) {
+                legacyAlg |= 2;
+                legacySigAlg = alg;
             } else {
-                weakPublicKey = key;
-                legacyAlg |= 8;
-                return String.format(rb.getString("key.bit.weak"), kLen);
+                if (tsa) {
+                    legacyAlg |= 4;
+                    legacyTsaDigestAlg = alg;
+                } else {
+                    legacyAlg |= 1;
+                    legacyDigestAlg = alg;
+                }
             }
-        } else {
-           disabledAlgFound = true;
-           return String.format(rb.getString("key.bit.disabled"), kLen);
+            return String.format(rb.getString("with.weak"), alg);
         }
     }
 
-    private void checkWeakSign(String alg, Set<CryptoPrimitive> primitiveSet, boolean tsa) {
-        if (DISABLED_CHECK.permits(primitiveSet, alg, null)) {
-            if (!LEGACY_CHECK.permits(primitiveSet, alg, null)) {
+    private String verifyWithWeak(PublicKey key, JarConstraintsParameters jcp) {
+        int kLen = KeyUtil.getKeySize(key);
+        try {
+            DISABLED_CHECK.permits(key.getAlgorithm(), jcp);
+        } catch (CertPathValidatorException e) {
+            disabledAlgFound = true;
+            return String.format(rb.getString("key.bit.disabled"), kLen);
+        }
+        try {
+            LEGACY_CHECK.permits(key.getAlgorithm(), jcp);
+            if (kLen >= 0) {
+                return String.format(rb.getString("key.bit"), kLen);
+            } else {
+                return rb.getString("unknown.size");
+            }
+        } catch (CertPathValidatorException e) {
+            weakPublicKey = key;
+            legacyAlg |= 8;
+            return String.format(rb.getString("key.bit.weak"), kLen);
+        }
+    }
+
+    private void checkWeakSign(String alg, Set<CryptoPrimitive> primitiveSet,
+        boolean tsa, JarConstraintsParameters jcp) {
+
+        try {
+            DISABLED_CHECK.permits(alg, jcp);
+            try {
+                LEGACY_CHECK.permits(alg, jcp);
+            } catch (CertPathValidatorException e) {
                 if (primitiveSet == SIG_PRIMITIVE_SET) {
-                   legacyAlg |= 2;
+                    legacyAlg |= 2;
                 } else {
                     if (tsa) {
                         legacyAlg |= 4;
@@ -1314,7 +1332,7 @@ public class Main {
                     }
                 }
             }
-        } else {
+        } catch (CertPathValidatorException e) {
            if (primitiveSet == SIG_PRIMITIVE_SET) {
                disabledAlg |= 2;
            } else {
@@ -1327,12 +1345,15 @@ public class Main {
         }
     }
 
-    private void checkWeakSign(PrivateKey key) {
-        if (DISABLED_CHECK.permits(SIG_PRIMITIVE_SET, key)) {
-            if (!LEGACY_CHECK.permits(SIG_PRIMITIVE_SET, key)) {
+    private void checkWeakSign(PrivateKey key, JarConstraintsParameters jcp) {
+        try {
+            DISABLED_CHECK.permits(key.getAlgorithm(), jcp);
+            try {
+                LEGACY_CHECK.permits(key.getAlgorithm(), jcp);
+            } catch (CertPathValidatorException e) {
                 legacyAlg |= 8;
             }
-        } else {
+        } catch (CertPathValidatorException e) {
             disabledAlg |= 8;
         }
     }
@@ -1359,7 +1380,7 @@ public class Main {
      * @param checkUsage true to check code signer keyUsage
      */
     String printCert(boolean isTsCert, String tab, Certificate c,
-        Date timestamp, boolean checkUsage) throws Exception {
+        Date timestamp, boolean checkUsage, CertPathConstraintsParameters cpcp) throws Exception {
 
         StringBuilder certStr = new StringBuilder();
         String space = rb.getString("SPACE");
@@ -1558,8 +1579,11 @@ public class Main {
     void signJar(String jarName, String alias, String[] args)
             throws Exception {
 
-        checkWeakSign(digestalg, DIGEST_PRIMITIVE_SET, false);
-        checkWeakSign(tSADigestAlg, DIGEST_PRIMITIVE_SET, true);
+        JarConstraintsParameters jcp =
+            new JarConstraintsParameters(Arrays.asList(certChain), null);
+        checkWeakSign(digestalg, DIGEST_PRIMITIVE_SET, false, jcp);
+
+        checkWeakSign(tSADigestAlg, DIGEST_PRIMITIVE_SET, true, jcp);
         /*
          * If no signature algorithm was specified, we choose a
          * default that is compatible with the private key algorithm.
@@ -1567,9 +1591,9 @@ public class Main {
         if (sigalg == null) {
             sigalg = getDefaultSignatureAlgorithm(privateKey);
         }
-        checkWeakSign(sigalg, SIG_PRIMITIVE_SET, false);
+        checkWeakSign(sigalg, SIG_PRIMITIVE_SET, false, jcp);
 
-        checkWeakSign(privateKey);
+        checkWeakSign(privateKey, jcp);
 
         boolean aliasUsed = false;
         X509Certificate tsaCert = null;
@@ -1845,8 +1869,10 @@ public class Main {
                         System.out.println(rb.getString("TSA.location.") +
                             tsaURI);
                     }
+                    CertPathConstraintsParameters cpcp =
+                        new CertPathConstraintsParameters(tsaCert, Validator.VAR_TSA_SERVER, null, null);
                     System.out.println(rb.getString("TSA.certificate.") +
-                            printCert(true, "", tsaCert, null, false));
+                            printCert(true, "", tsaCert, null, false, cpcp));
                 }
                 if (signingMechanism != null) {
                     System.out.println(
@@ -2071,8 +2097,13 @@ public class Main {
         boolean first = true;
         StringBuilder sb = new StringBuilder();
         sb.append(tab1).append(rb.getString("...Signer")).append('\n');
+        @SuppressWarnings("unchecked")
+        List<X509Certificate> chain = (List<X509Certificate>)certs;
+        TrustAnchor anchor = findTrustAnchor(chain);
         for (Certificate c : certs) {
-            sb.append(printCert(false, tab2, c, timestamp, first));
+            CertPathConstraintsParameters cpcp =
+                new CertPathConstraintsParameters((X509Certificate)c, Validator.VAR_CODE_SIGNING, anchor, timestamp);
+            sb.append(printCert(false, tab2, c, timestamp, first, cpcp));
             sb.append('\n');
             first = false;
         }
@@ -2085,9 +2116,15 @@ public class Main {
                     .append(e.getLocalizedMessage()).append("]\n");
         }
         if (ts != null) {
+            List<? extends Certificate> tscerts = ts.getSignerCertPath().getCertificates();
+            @SuppressWarnings("unchecked")
+            List<X509Certificate> tschain = (List<X509Certificate>)tscerts;
+            anchor = findTrustAnchor(chain);
             sb.append(tab1).append(rb.getString("...TSA")).append('\n');
-            for (Certificate c : ts.getSignerCertPath().getCertificates()) {
-                sb.append(printCert(true, tab2, c, null, false));
+            for (Certificate c : tschain) {
+                CertPathConstraintsParameters cpcp =
+                    new CertPathConstraintsParameters((X509Certificate)c, Validator.VAR_TSA_SERVER, anchor, timestamp);
+                sb.append(printCert(true, tab2, c, null, false, cpcp));
                 sb.append('\n');
             }
             try {
@@ -2145,6 +2182,15 @@ public class Main {
                 is.close();
             }
         }
+    }
+
+    private TrustAnchor findTrustAnchor(List<X509Certificate> chain) {
+        X509Certificate last = chain.get(chain.size() - 1);
+        Optional<X509Certificate> trusted =
+            trustedCerts.stream()
+                        .filter(c -> c.getSubjectX500Principal().equals(last.getIssuerX500Principal()))
+                        .findFirst();
+        return trusted.isPresent() ? new TrustAnchor(trusted.get(), null) : null;
     }
 
     void loadKeyStore(String keyStoreName, boolean prompt) {

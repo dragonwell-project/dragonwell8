@@ -39,7 +39,6 @@ import java.security.spec.AlgorithmParameterSpec;
 import java.security.spec.InvalidParameterSpecException;
 import java.security.spec.MGF1ParameterSpec;
 import java.security.spec.PSSParameterSpec;
-import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Calendar;
@@ -681,8 +680,6 @@ public class DisabledAlgorithmConstraints extends AbstractAlgorithmConstraints {
      */
     private static class DenyAfterConstraint extends Constraint {
         private Date denyAfterDate;
-        private static final SimpleDateFormat dateFormat =
-                new SimpleDateFormat("EEE, MMM d HH:mm:ss z yyyy");
 
         DenyAfterConstraint(String algo, int year, int month, int day) {
             Calendar c;
@@ -716,7 +713,7 @@ public class DisabledAlgorithmConstraints extends AbstractAlgorithmConstraints {
             denyAfterDate = c.getTime();
             if (debug != null) {
                 debug.println("DenyAfterConstraint date set to: " +
-                        dateFormat.format(denyAfterDate));
+                        denyAfterDate);
             }
         }
 
@@ -747,8 +744,8 @@ public class DisabledAlgorithmConstraints extends AbstractAlgorithmConstraints {
                 throw new CertPathValidatorException(
                         "denyAfter constraint check failed: " + algorithm +
                         " used with Constraint date: " +
-                        dateFormat.format(denyAfterDate) + "; params date: " +
-                        dateFormat.format(currentDate) + cp.extendedExceptionMsg(),
+                        denyAfterDate + "; params date: " +
+                        currentDate + cp.extendedExceptionMsg(),
                         null, null, -1, BasicReason.ALGORITHM_CONSTRAINED);
             }
         }
