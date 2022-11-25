@@ -355,12 +355,6 @@ void VMThread::wait_for_vm_thread_exit() {
   }
 }
 
-void VMThread::print_on(outputStream* st) const {
-  st->print("\"%s\" ", name());
-  Thread::print_on(st);
-  st->cr();
-}
-
 static void post_vm_operation_event(EventExecuteVMOperation* event, VM_Operation* op) {
   assert(event != NULL, "invariant");
   assert(event->should_commit(), "invariant");
