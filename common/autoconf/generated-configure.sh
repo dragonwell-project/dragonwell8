@@ -4422,7 +4422,7 @@ VS_TOOLSET_SUPPORTED_2019=false
 #CUSTOM_AUTOCONF_INCLUDE
 
 # Do not change or remove the following line, it is needed for consistency checks:
-DATE_WHEN_GENERATED=1669201939
+DATE_WHEN_GENERATED=1669893448
 
 ###############################################################################
 #
@@ -52458,7 +52458,7 @@ if test "${with_vcruntime_1_dll+set}" = set; then :
 fi
 
 
-  if test "x$VCRUNTIME_1_NAME" != "x"; then
+  if test "x$VCRUNTIME_1_NAME" != "x" && test "x$OPENJDK_TARGET_CPU" = xx86_64; then
     if test "x$with_vcruntime_1_dll" != x; then
       # If given explicitly by user, do not probe. If not present, fail directly.
 
