@@ -129,7 +129,7 @@ CXX_DONT_USE_PCH=/D DONT_USE_PRECOMPILED_HEADER
 
 !if "$(USE_PRECOMPILED_HEADER)" != "0"
 CXX_USE_PCH=/Fp"vm.pch" /Yu"precompiled.hpp"
-!if "$(COMPILER_NAME)" == "VS2012" || "$(COMPILER_NAME)" == "VS2013" || "$(COMPILER_NAME)" == "VS2015" || "$(COMPILER_NAME)" == "VS2017"
+!if "$(COMPILER_NAME)" == "VS2012" || "$(COMPILER_NAME)" == "VS2013" || "$(COMPILER_NAME)" == "VS2015" || "$(COMPILER_NAME)" == "VS2017" || "$(COMPILER_NAME)" == "VS2019"
 # VS2012 and later require this object file to be listed:
 LD_FLAGS=$(LD_FLAGS) _build_pch_file.obj
 !endif
