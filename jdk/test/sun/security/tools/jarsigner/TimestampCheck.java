@@ -67,7 +67,7 @@ import jdk.testlibrary.Utils;
 /*
  * @test
  * @bug 6543842 6543440 6939248 8009636 8024302 8163304 8169911 8169688 8171121
- *      8180289 8172404 8269039
+ *      8180289 8172404 8269039 8275887
  * @summary checking response of timestamp
  * @modules java.base/sun.security.pkcs
  *          java.base/sun.security.timestamp
@@ -475,6 +475,7 @@ public class TimestampCheck {
                 verify("tsdisabled2.jar", "-verbose")
                         .shouldHaveExitValue(16)
                         .shouldContain("treated as unsigned")
+                        .shouldNotMatch("Signature.*(disabled)")
                         .shouldMatch("Timestamp.*512.*(disabled)");
 
                 // Algorithm used in signing is disabled
@@ -491,6 +492,8 @@ public class TimestampCheck {
                 // sign with RSAkeysize < 1024
                 signVerbose("normal", "sign1.jar", "sign2.jar", "disabledkeysize")
                         .shouldContain("Algorithm constraints check failed on keysize")
+                        .shouldNotContain("option is considered a security " +
+                            "risk and is disabled")
                         .shouldHaveExitValue(4);
                 checkMultiple("sign2.jar");
 
@@ -534,6 +537,17 @@ public class TimestampCheck {
                 // sign with RSAkeysize < 2048
                 signVerbose("normal", "sign1.jar", "sign2.jar", "weakkeysize")
                         .shouldNotContain("Algorithm constraints check failed on keysize")
+                        .shouldNotContain("The SHA-256 algorithm specified " +
+                            "for the -digestalg option is considered a " +
+                            "security risk")
+                        .shouldNotContain("The SHA256withRSA algorithm " +
+                            "specified for the -sigalg option is considered " +
+                            "a security risk")
+                        .shouldNotContain("The SHA-256 algorithm specified " +
+                            "for the -tsadigestalg option is considered a " +
+                            "security risk")
+                        .shouldContain("The RSA signing key has a keysize " +
+                            "of 1024 which is considered a security risk")
                         .shouldHaveExitValue(0);
                 checkMultipleWeak("sign2.jar");
 
@@ -789,7 +803,7 @@ public class TimestampCheck {
                 .shouldMatch("Timestamp signature algorithm: .*key.*(disabled)");
         verify(file, "-J-Djava.security.debug=jar")
                 .shouldHaveExitValue(16)
-                .shouldMatch("SignatureException:.*keysize");
+                .shouldMatch("SignatureException:.*MD5");
     }
 
     static void checkHalfWeak(String file) throws Exception {
