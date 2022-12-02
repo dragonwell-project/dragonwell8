@@ -69,7 +69,7 @@ public class TestVendorVMOptions {
         outputAnalyzer.shouldHaveExitValue(0);
 
         // enable a invalid JAVA_OPTIONS and DRAGONWELL_JAVA_TOOL_OPTIONS_JDK_ONLY jps
-        Process p = Runtime.getRuntime().exec(System.getProperty("test.jdk") + "/bin/jps ", new String[]{"JAVA_OPTIONS=invliad", "DRAGONWELL_JAVA_TOOL_OPTIONS_JDK_ONLY=true"});
+        Process p = Runtime.getRuntime().exec(System.getProperty("test.jdk") + "/bin/jps ", new String[]{"JAVA_TOOL_OPTIONS=invliad", "DRAGONWELL_JAVA_TOOL_OPTIONS_JDK_ONLY=true"});
         outputAnalyzer = new OutputAnalyzer(p);
         outputAnalyzer.shouldHaveExitValue(0);
 

@@ -132,8 +132,6 @@ AgentLibraryList Arguments::_agentList;
 abort_hook_t     Arguments::_abort_hook         = NULL;
 exit_hook_t      Arguments::_exit_hook          = NULL;
 vfprintf_hook_t  Arguments::_vfprintf_hook      = NULL;
-bool             Arguments::_running_from_java  = JNI_FALSE;
-
 
 SystemProperty *Arguments::_java_ext_dirs = NULL;
 SystemProperty *Arguments::_java_endorsed_dirs = NULL;
@@ -2776,6 +2774,7 @@ jint Arguments::parse_vm_init_args(const JavaVMInitArgs* args) {
   // For components of the system classpath.
   SysClassPath scp(Arguments::get_sysclasspath());
   bool scp_assembly_required = false;
+  bool enable_tool_options = is_enable_tool_options(args);
 
   // Save default settings for some mode flags
   Arguments::_AlwaysCompileLoopMethods = AlwaysCompileLoopMethods;
@@ -2787,13 +2786,13 @@ jint Arguments::parse_vm_init_args(const JavaVMInitArgs* args) {
   set_mode_flags(_mixed);
 
   // Parse JAVA_TOOL_OPTIONS environment variable (if present)
-  jint result = parse_java_tool_options_environment_variable(&scp, &scp_assembly_required);
+  jint result = parse_java_tool_options_environment_variable(&scp, &scp_assembly_required, enable_tool_options);
   if (result != JNI_OK) {
     return result;
   }
 
   // Parse DRAGONWELL_JAVA_TOOL_OPTIONS environment variable (if present)
-  result = parse_dragonwell_options_environment_variable(&scp, &scp_assembly_required);
+  result = parse_dragonwell_options_environment_variable(&scp, &scp_assembly_required, enable_tool_options);
   if (result != JNI_OK) {
     return result;
   }
@@ -3774,27 +3773,51 @@ jint Arguments::finalize_vm_init_args(SysClassPath* scp_p, bool scp_assembly_req
   return JNI_OK;
 }
 
+bool Arguments::is_enable_tool_options(const JavaVMInitArgs *args) {
+  bool enable = true;
+  const int OPTION_BUFFER_SIZE = 64;
+  char buffer[OPTION_BUFFER_SIZE];
+  const char* sun_tool_package = "sun.tools.";
+  if (os::getenv("DRAGONWELL_JAVA_TOOL_OPTIONS_JDK_ONLY", buffer, sizeof(buffer))) {
+    if (strcmp(buffer,"true") == 0) {
+      int index;
+      const char* tail = NULL;
+      for (index = 0; index < args->nOptions; index++) {
+        const JavaVMOption *option = args->options + index;
+        if (match_option(option, "-Dsun.java.command=", &tail)) {
+          break;
+        }
+      }
+      //if no -Dsun.java.command like :java -version
+      //or JDK builtin tools
+      if (NULL == tail || strncmp(sun_tool_package, tail, strlen(sun_tool_package)) == 0) {
+        enable = false;
+      }
+    }
+  }
+  return enable;
+}
+
 jint Arguments::parse_java_options_environment_variable(SysClassPath* scp_p, bool* scp_assembly_required_p) {
   return parse_options_environment_variable("_JAVA_OPTIONS", scp_p,
                                             scp_assembly_required_p);
 }
 
-jint Arguments::parse_java_tool_options_environment_variable(SysClassPath* scp_p, bool* scp_assembly_required_p) {
-  const int OPTION_BUFFER_SIZE = 1024;
-  char buffer[OPTION_BUFFER_SIZE];
-  if (os::getenv("DRAGONWELL_JAVA_TOOL_OPTIONS_JDK_ONLY", buffer, sizeof(buffer))) {
-    if (Arguments::is_running_from_java()) {
-      return parse_options_environment_variable("JAVA_TOOL_OPTIONS", scp_p,
-                                                  scp_assembly_required_p);
-    }
+jint Arguments::parse_java_tool_options_environment_variable(SysClassPath* scp_p, bool* scp_assembly_required_p, bool enable_tool_options) {
+  if (enable_tool_options) {
+    return parse_options_environment_variable("JAVA_TOOL_OPTIONS", scp_p,
+                                              scp_assembly_required_p);
+  } else {
     return JNI_OK;
   }
-  return parse_options_environment_variable("JAVA_TOOL_OPTIONS", scp_p,
-                                            scp_assembly_required_p);
 }
-jint Arguments::parse_dragonwell_options_environment_variable(SysClassPath* scp_p, bool* scp_assembly_required_p) {
-  return parse_options_environment_variable("DRAGONWELL_JAVA_TOOL_OPTIONS", scp_p,
+jint Arguments::parse_dragonwell_options_environment_variable(SysClassPath* scp_p, bool* scp_assembly_required_p, bool enable_tool_options) {
+  if (enable_tool_options) {
+    return parse_options_environment_variable("DRAGONWELL_JAVA_TOOL_OPTIONS", scp_p,
                                               scp_assembly_required_p);
+  } else {
+    return JNI_OK;
+  }
 }
 
 jint Arguments::parse_options_environment_variable(const char* name, SysClassPath* scp_p, bool* scp_assembly_required_p) {
