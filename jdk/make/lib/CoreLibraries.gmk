@@ -165,7 +165,7 @@ endif
 
 # Make it possible to override this variable
 ifeq ($(OPENJDK_TARGET_OS), linux)
-  # Linux-only symbol Java_jdk_internal_platform_cgroupv1_Metrics_isUseContainerSupport
+  # Linux-only symbol Java_jdk_internal_platform_CgroupMetrics_isUseContainerSupport
   LIBJAVA_MAPFILE ?= $(JDK_TOPDIR)/make/mapfiles/libjava/mapfile-linux
 else
   LIBJAVA_MAPFILE ?= $(JDK_TOPDIR)/make/mapfiles/libjava/mapfile-vers

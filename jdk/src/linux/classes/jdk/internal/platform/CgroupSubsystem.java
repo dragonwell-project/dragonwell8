@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, Red Hat, Inc.
+ * Copyright (c) 2020, Red Hat Inc.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,13 +23,18 @@
  * questions.
  */
 
-#include "jni.h"
-#include "jvm.h"
+package jdk.internal.platform;
 
-#include "jdk_internal_platform_cgroupv1_Metrics.h"
+/**
+ * Marker interface for cgroup-based metrics
+ *
+ */
+public interface CgroupSubsystem extends Metrics {
 
-JNIEXPORT jboolean JNICALL
-Java_jdk_internal_platform_cgroupv1_Metrics_isUseContainerSupport(JNIEnv *env, jclass ignored)
-{
-    return JVM_IsUseContainerSupport();
+    /**
+     * Returned for metrics of type long if the underlying implementation
+     * has determined that no limit is being imposed.
+     */
+    public static final long LONG_RETVAL_UNLIMITED = -1;
+
 }
