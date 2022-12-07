@@ -374,12 +374,14 @@ class Arguments : AllStatic {
   static void process_java_launcher_argument(const char*, void*);
   static void process_java_compiler_argument(char* arg);
   static jint parse_options_environment_variable(const char* name, SysClassPath* scp_p, bool* scp_assembly_required_p);
-  static jint parse_java_tool_options_environment_variable(SysClassPath* scp_p, bool* scp_assembly_required_p);
+  static jint parse_java_tool_options_environment_variable(SysClassPath* scp_p, bool* scp_assembly_required_p, bool enable_tool_options);
+  static jint parse_dragonwell_options_environment_variable(SysClassPath* scp_p, bool* scp_assembly_required_p, bool enable_tool_options);
   static jint parse_java_options_environment_variable(SysClassPath* scp_p, bool* scp_assembly_required_p);
   static jint parse_vm_init_args(const JavaVMInitArgs* args);
   static jint parse_each_vm_init_arg(const JavaVMInitArgs* args, SysClassPath* scp_p, bool* scp_assembly_required_p, Flag::Flags origin);
   static jint finalize_vm_init_args(SysClassPath* scp_p, bool scp_assembly_required);
   static bool is_bad_option(const JavaVMOption* option, jboolean ignore, const char* option_type);
+  static bool is_enable_tool_options(const JavaVMInitArgs* args);
 
   static bool is_bad_option(const JavaVMOption* option, jboolean ignore) {
     return is_bad_option(option, ignore, NULL);
