@@ -214,7 +214,7 @@ JVM_handle_linux_signal(int sig,
 
   // Moved SafeFetch32 handling outside thread!=NULL conditional block to make
   // it work if no associated JavaThread object exists.
-  if (uc) {
+  if ((sig == SIGSEGV || sig == SIGBUS) && uc) {
     address const pc = os::Linux::ucontext_get_pc(uc);
     if (pc && StubRoutines::is_safefetch_fault(pc)) {
       uc->uc_mcontext.regs->nip = (unsigned long)StubRoutines::continuation_for_safefetch_fault(pc);
