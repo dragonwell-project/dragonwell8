@@ -82,7 +82,6 @@
 #include "utilities/dtrace.hpp"
 #include "utilities/events.hpp"
 #include "utilities/histogram.hpp"
-#include "runtime/arguments.hpp"
 #ifdef TARGET_OS_FAMILY_linux
 # include "os_linux.inline.hpp"
 #endif
@@ -5682,10 +5681,6 @@ jint JNICALL jni_AttachCurrentThreadAsDaemon(JavaVM *vm, void **penv, void *_arg
                                                  ret);
 #endif /* USDT2 */
   return ret;
-}
-
-_JNI_IMPORT_OR_EXPORT_ void JNICALL JNI_SetRunningFromJava(jboolean flag) {
-    Arguments::set_running_from_java(flag);
 }
 
 

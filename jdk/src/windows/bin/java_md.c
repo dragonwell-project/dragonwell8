@@ -403,8 +403,6 @@ LoadJavaVM(const char *jvmpath, InvocationFunctions *ifn)
         (void *)GetProcAddress(handle, "JNI_CreateJavaVM");
     ifn->GetDefaultJavaVMInitArgs =
         (void *)GetProcAddress(handle, "JNI_GetDefaultJavaVMInitArgs");
-    ifn->SetRunningFromJava =
-        (void *)GetProcAddress(handle, "JNI_SetRunningFromJava");
     if (ifn->CreateJavaVM == 0 || ifn->GetDefaultJavaVMInitArgs == 0) {
         JLI_ReportErrorMessage(JNI_ERROR1, (char *)jvmpath);
         return JNI_FALSE;

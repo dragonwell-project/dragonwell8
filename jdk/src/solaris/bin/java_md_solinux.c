@@ -917,14 +917,6 @@ LoadJavaVM(const char *jvmpath, InvocationFunctions *ifn)
         return JNI_FALSE;
     }
 
-    ifn->SetRunningFromJava = (SetRunningFromJava_t)
-        dlsym(libjvm, "JNI_SetRunningFromJava");
-    if (ifn->SetRunningFromJava == NULL) {
-        JLI_ReportErrorMessage(DLL_ERROR2, jvmpath, dlerror());
-        return JNI_FALSE;
-    }
-
-
     return JNI_TRUE;
 }
 
