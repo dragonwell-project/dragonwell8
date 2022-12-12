@@ -558,14 +558,14 @@ jobs:
         test:
           - jdk/tier1
           - langtools/tier1
-#          - hotspot/tier1
+          - hotspot/tier1
         include:
           - test: jdk/tier1
             suites: jdk_tier1
           - test: langtools/tier1
             suites: langtools_tier1
-#          - test: hotspot/tier1
-#            suites: hotspot_tier1
+          - test: hotspot/tier1
+            suites: hotspot_tier1
 
     # Reduced 32-bit build uses the same boot JDK as 64-bit build
     env:
@@ -609,12 +609,20 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install openjdk-8-jdk
+          sudo apt-get install openjdk-8-jdk gcc-9-multilib g++-9-multilib
 
       - name: Unpack jdk
         run: |
           mkdir -p "${HOME}/jdk-linux-x86${{ matrix.artifact }}/jdk-${{ env.JDK_VERSION }}-internal+0_linux-x86_bin${{ matrix.artifact }}"
           tar -xf "${HOME}/jdk-linux-x86${{ matrix.artifact }}/jdk-${{ env.JDK_VERSION }}-internal+0_linux-x86_bin${{ matrix.artifact }}.tar.gz" -C "${HOME}/jdk-linux-x86${{ matrix.artifact }}/jdk-${{ env.JDK_VERSION }}-internal+0_linux-x86_bin${{ matrix.artifact }}"
+
+      - name: Build multilib docker image
+        if: matrix.test == 'hotspot/tier1'
+        run: >
+          printf '%s\n%s\n'
+          'FROM ubuntu:latest'
+          'RUN dpkg --add-architecture i386 && apt-get update && apt-get -y install libc6:i386'
+          | docker build -t 'ubuntu-multilib:latest' -
 
       - name: Run tests
         run: >
@@ -624,7 +632,7 @@ jobs:
           PRODUCT_HOME="${HOME}/jdk-linux-x86${{ matrix.artifact }}/jdk-${{ env.JDK_VERSION }}-internal+0_linux-x86_bin${{ matrix.artifact }}/j2sdk-image"
           JT_HOME="${HOME}/jtreg"
           ALT_OUTPUTDIR="${GITHUB_WORKSPACE}/test-results"
-          JAVA_ARGS="-Djdk.test.docker.image.name=ubuntu -Djdk.test.docker.image.version=latest"
+          JAVA_ARGS="-Djdk.test.docker.image.name=ubuntu-multilib -Djdk.test.docker.image.version=latest"
           JTREG_TIMEOUT_FACTOR="4"
           make
           "${{ matrix.suites }}"
@@ -1177,14 +1185,14 @@ jobs:
         test:
           - jdk/tier1
           - langtools/tier1
-#          - hotspot/tier1
+          - hotspot/tier1
         include:
           - test: jdk/tier1
             suites: jdk_tier1
           - test: langtools/tier1
             suites: langtools_tier1
-#          - test: hotspot/tier1
-#            suites: hotspot_tier1
+          - test: hotspot/tier1
+            suites: hotspot_tier1
 
     env:
       JDK_VERSION: "${{ fromJson(needs.prerequisites.outputs.dependencies).JDK_MAJOR_VERSION }}.${{ fromJson(needs.prerequisites.outputs.dependencies).JDK_MINOR_VERSION }}.${{ fromJson(needs.prerequisites.outputs.dependencies).JDK_MICRO_VERSION }}"
