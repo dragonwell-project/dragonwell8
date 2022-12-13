@@ -135,7 +135,7 @@ public class MetricsMemoryTester {
                             + kmemlimit + "]");
             }
         } else {
-            throw new RuntimeException("oomKillFlag test not supported for cgroups v2");
+            throw new RuntimeException("kernel memory limit test not supported for cgroups v2");
         }
     }
 
