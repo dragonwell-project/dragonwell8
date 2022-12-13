@@ -2284,7 +2284,7 @@ void os::Linux::print_full_memory_info(outputStream* st) {
 }
 
 void os::Linux::print_container_info(outputStream* st) {
-if (!OSContainer::is_containerized()) {
+  if (!OSContainer::is_containerized()) {
     return;
   }
 
