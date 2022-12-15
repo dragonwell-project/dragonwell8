@@ -63,6 +63,8 @@ public class CgroupSubsystemFactory {
     private Path cgroupv1CgInfoNonZeroHierarchy;
     private Path cgroupv1MntInfoNonZeroHierarchyOtherOrder;
     private Path cgroupv1MntInfoNonZeroHierarchy;
+    private Path cgroupv1MntInfoDoubleCpuset;
+    private Path cgroupv1MntInfoDoubleCpuset2;
     private String mntInfoEmpty = "";
     private Path cgroupV1SelfCgroup;
     private Path cgroupV2SelfCgroup;
@@ -105,11 +107,14 @@ public class CgroupSubsystemFactory {
             "41 30 0:37 / /sys/fs/cgroup/devices rw,nosuid,nodev,noexec,relatime shared:13 - cgroup none rw,seclabel,devices\n" +
             "42 30 0:38 / /sys/fs/cgroup/cpuset rw,nosuid,nodev,noexec,relatime shared:14 - cgroup none rw,seclabel,cpuset\n" +
             "43 30 0:39 / /sys/fs/cgroup/blkio rw,nosuid,nodev,noexec,relatime shared:15 - cgroup none rw,seclabel,blkio\n" +
-            "44 30 0:40 / /sys/fs/cgroup/freezer rw,nosuid,nodev,noexec,relatime shared:16 - cgroup none rw,seclabel,freezer";
+            "44 30 0:40 / /sys/fs/cgroup/freezer rw,nosuid,nodev,noexec,relatime shared:16 - cgroup none rw,seclabel,freezer\n";
     private String mntInfoHybridRest = cgroupv1MountInfoLineMemory + mntInfoHybridStub;
     private String mntInfoHybridMissingMemory = mntInfoHybridStub;
     private String mntInfoHybrid = cgroupV2LineHybrid + mntInfoHybridRest;
     private String mntInfoHybridFlippedOrder = mntInfoHybridRest + cgroupV2LineHybrid;
+    private String mntInfoCgroupv1MoreCpusetLine = "121 32 0:37 / /cpusets rw,relatime shared:69 - cgroup none rw,cpuset\n";
+    private String mntInfoCgroupv1DoubleCpuset = mntInfoCgroupv1MoreCpusetLine + mntInfoHybrid;
+    private String mntInfoCgroupv1DoubleCpuset2 =  mntInfoHybrid + mntInfoCgroupv1MoreCpusetLine;
     private String cgroupsNonZeroHierarchy =
             "#subsys_name hierarchy   num_cgroups enabled\n" +
             "cpuset  3   1   1\n" +
@@ -160,6 +165,12 @@ public class CgroupSubsystemFactory {
 
             cgroupV2MntInfoMissingCgroupv2 = Paths.get(existingDirectory.toString(), "mnt_info_missing_cgroup2");
             Files.write(cgroupV2MntInfoMissingCgroupv2, mntInfoHybridStub.getBytes());
+
+            cgroupv1MntInfoDoubleCpuset = Paths.get(existingDirectory.toString(), "mnt_info_cgroupv1_double_cpuset");
+            Files.write(cgroupv1MntInfoDoubleCpuset, mntInfoCgroupv1DoubleCpuset.getBytes());
+
+            cgroupv1MntInfoDoubleCpuset2 = Paths.get(existingDirectory.toString(), "mnt_info_cgroupv1_double_cpuset2");
+            Files.write(cgroupv1MntInfoDoubleCpuset2, mntInfoCgroupv1DoubleCpuset2.getBytes());
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
@@ -194,6 +205,16 @@ public class CgroupSubsystemFactory {
 
     private boolean isValidCgroup(int value) {
         return value == CGROUPS_V1 || value == CGROUPS_V2;
+    }
+
+    public void testCgroupv1MultipleCpusetMounts(WhiteBox wb, Path mountInfo) {
+        String procCgroups = cgroupv1CgInfoNonZeroHierarchy.toString();
+        String procSelfCgroup = cgroupV1SelfCgroup.toString();
+        String procSelfMountinfo = mountInfo.toString();
+        int retval = wb.validateCgroup(procCgroups, procSelfCgroup, procSelfMountinfo);
+        Asserts.assertEQ(CGROUPS_V1, retval, "Multiple cpuset controllers, but only one in /sys/fs/cgroup");
+        Asserts.assertTrue(isValidCgroup(retval));
+        System.out.println("testCgroupv1MultipleCpusetMounts PASSED!");
     }
 
     public void testCgroupv1NoMounts(WhiteBox wb) {
@@ -268,6 +289,8 @@ public class CgroupSubsystemFactory {
             test.testCgroupV1HybridMntInfoOrder(wb);
             test.testCgroupv1MissingMemoryController(wb);
             test.testCgroupv2NoCgroup2Fs(wb);
+            test.testCgroupv1MultipleCpusetMounts(wb, test.cgroupv1MntInfoDoubleCpuset);
+            test.testCgroupv1MultipleCpusetMounts(wb, test.cgroupv1MntInfoDoubleCpuset2);
         } finally {
             test.teardown();
         }
