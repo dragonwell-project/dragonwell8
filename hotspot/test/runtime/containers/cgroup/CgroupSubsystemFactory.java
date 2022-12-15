@@ -65,6 +65,7 @@ public class CgroupSubsystemFactory {
     private Path cgroupv1MntInfoNonZeroHierarchy;
     private Path cgroupv1MntInfoDoubleCpuset;
     private Path cgroupv1MntInfoDoubleCpuset2;
+    private Path cgroupv1MntInfoSystemdOnly;
     private String mntInfoEmpty = "";
     private Path cgroupV1SelfCgroup;
     private Path cgroupV2SelfCgroup;
@@ -131,6 +132,9 @@ public class CgroupSubsystemFactory {
             "pids    3   80  1";
     private String mntInfoCgroupsV2Only =
             "28 21 0:25 / /sys/fs/cgroup rw,nosuid,nodev,noexec,relatime shared:4 - cgroup2 none rw,seclabel,nsdelegate";
+    private String mntInfoCgroupsV1SystemdOnly =
+            "35 26 0:26 / /sys/fs/cgroup/systemd rw,nosuid,nodev,noexec,relatime - cgroup systemd rw,name=systemd\n" +
+            "26 18 0:19 / /sys/fs/cgroup rw,relatime - tmpfs none rw,size=4k,mode=755\n";
 
     private void setup() {
         try {
@@ -171,6 +175,9 @@ public class CgroupSubsystemFactory {
 
             cgroupv1MntInfoDoubleCpuset2 = Paths.get(existingDirectory.toString(), "mnt_info_cgroupv1_double_cpuset2");
             Files.write(cgroupv1MntInfoDoubleCpuset2, mntInfoCgroupv1DoubleCpuset2.getBytes());
+
+            cgroupv1MntInfoSystemdOnly = Paths.get(existingDirectory.toString(), "mnt_info_cgroupv1_systemd_only");
+            Files.write(cgroupv1MntInfoSystemdOnly, mntInfoCgroupsV1SystemdOnly.getBytes());
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
@@ -215,6 +222,16 @@ public class CgroupSubsystemFactory {
         Asserts.assertEQ(CGROUPS_V1, retval, "Multiple cpuset controllers, but only one in /sys/fs/cgroup");
         Asserts.assertTrue(isValidCgroup(retval));
         System.out.println("testCgroupv1MultipleCpusetMounts PASSED!");
+    }
+
+    public void testCgroupv1SystemdOnly(WhiteBox wb) {
+        String procCgroups = cgroupv1CgInfoZeroHierarchy.toString();
+        String procSelfCgroup = cgroupV1SelfCgroup.toString();
+        String procSelfMountinfo = cgroupv1MntInfoSystemdOnly.toString();
+        int retval = wb.validateCgroup(procCgroups, procSelfCgroup, procSelfMountinfo);
+        Asserts.assertEQ(INVALID_CGROUPS_NO_MOUNT, retval, "Only systemd mounted. Invalid");
+        Asserts.assertFalse(isValidCgroup(retval));
+        System.out.println("testCgroupv1SystemdOnly PASSED!");
     }
 
     public void testCgroupv1NoMounts(WhiteBox wb) {
@@ -283,6 +300,7 @@ public class CgroupSubsystemFactory {
         CgroupSubsystemFactory test = new CgroupSubsystemFactory();
         test.setup();
         try {
+            test.testCgroupv1SystemdOnly(wb);
             test.testCgroupv1NoMounts(wb);
             test.testCgroupv2(wb);
             test.testCgroupV1Hybrid(wb);
