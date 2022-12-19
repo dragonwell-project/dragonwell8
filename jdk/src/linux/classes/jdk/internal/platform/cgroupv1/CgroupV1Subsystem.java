@@ -408,6 +408,4 @@ public class CgroupV1Subsystem implements CgroupSubsystem, CgroupV1Metrics {
         return CgroupV1SubsystemController.getLongEntry(blkio, "blkio.throttle.io_serviced", "Total");
     }
 
-    private static native boolean isUseContainerSupport();
-
 }
