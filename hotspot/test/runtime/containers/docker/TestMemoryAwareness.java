@@ -24,6 +24,7 @@
 
 /*
  * @test
+ * @bug 8146115 8292083
  * @summary Test JVM's memory resource awareness when running inside docker container
  * @library /testlibrary /testlibrary/whitebox
  * @build AttemptOOM sun.hotspot.WhiteBox PrintContainerInfo CheckOperatingSystemMXBean
@@ -36,6 +37,7 @@ import com.oracle.java.testlibrary.DockerRunOptions;
 import com.oracle.java.testlibrary.DockerTestUtils;
 import com.oracle.java.testlibrary.OutputAnalyzer;
 
+import com.oracle.java.testlibrary.Asserts;
 
 public class TestMemoryAwareness {
     private static final String imageName = Common.imageName("memory");
@@ -72,6 +74,7 @@ public class TestMemoryAwareness {
                 "1G", Integer.toString(((int) Math.pow(2, 20)) * 1024),
                 "1500M", Integer.toString(((int) Math.pow(2, 20)) * (1500 - 1024))
             );
+            testContainerMemExceedsPhysical();
         } finally {
             DockerTestUtils.removeDockerImage(imageName);
         }
@@ -88,6 +91,28 @@ public class TestMemoryAwareness {
 
         Common.run(opts)
             .shouldMatch("Memory Limit is:.*" + expectedTraceValue);
+    }
+
+    // JDK-8292083
+    // Ensure that Java ignores container memory limit values above the host's physical memory.
+    private static void testContainerMemExceedsPhysical()
+            throws Exception {
+
+        Common.logNewTestCase("container memory limit exceeds physical memory");
+
+        DockerRunOptions opts = Common.newOpts(imageName);
+
+        // first run: establish physical memory in test environment and derive
+        // a bad value one power of ten larger
+        String goodMem = Common.run(opts).firstMatch("total physical memory: (\\d+)", 1);
+        Asserts.assertNotNull(goodMem, "no match for 'total physical memory' in trace output");
+        String badMem = goodMem + "0";
+
+        // second run: set a container memory limit to the bad value
+        opts = Common.newOpts(imageName)
+            .addDockerOpts("--memory", badMem);
+        Common.run(opts)
+            .shouldMatch("container memory limit (ignored: " + badMem + "|unlimited: -1), using host value " + goodMem);
     }
 
 

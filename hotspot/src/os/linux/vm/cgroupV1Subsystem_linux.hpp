@@ -94,8 +94,6 @@ class CgroupV1Subsystem: public CgroupSubsystem {
     CachingCgroupController * cpu_controller() { return _cpu; }
 
   private:
-    julong _unlimited_memory;
-
     /* controllers */
     CachingCgroupController* _memory;
     CgroupV1Controller* _cpuset;
@@ -111,7 +109,6 @@ class CgroupV1Subsystem: public CgroupSubsystem {
       _cpu = new CachingCgroupController(cpu);
       _cpuacct = cpuacct;
       _memory = new CachingCgroupController(memory);
-      _unlimited_memory = (LONG_MAX / os::vm_page_size()) * os::vm_page_size();
     }
 };
 
