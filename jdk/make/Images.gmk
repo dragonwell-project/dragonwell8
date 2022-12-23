@@ -146,6 +146,7 @@ WINDOWS_JDK_BIN_FILES = \
     $(EXE_SUFFIX) \
     $(LIBRARY_PREFIX)jli$(SHARED_LIBRARY_SUFFIX) \
     $(notdir $(MSVCR_DLL)) \
+    $(notdir $(VCRUNTIME_1_DLL)) \
     $(notdir $(MSVCP_DLL))
 
 ifneq ($(UCRT_DLL_DIR), )
