@@ -23,10 +23,10 @@
 
 import com.oracle.java.testlibrary.ProcessTools;
 import com.oracle.java.testlibrary.OutputAnalyzer;
+import com.oracle.java.testlibrary.Platform;
 
 /*
  * @test MaxMetaspaceSizeTest
- * @requires vm.bits == "64"
  * @bug 8087291
  * @library /testlibrary
  * @run main/othervm MaxMetaspaceSizeTest
@@ -34,6 +34,10 @@ import com.oracle.java.testlibrary.OutputAnalyzer;
 
 public class MaxMetaspaceSizeTest {
     public static void main(String... args) throws Exception {
+        if (!Platform.is64bit()) {
+            System.out.println("Test requires 64-bit JVM. Skipping...");
+            return;
+        }
         ProcessBuilder pb = ProcessTools.createJavaProcessBuilder(
             "-Xmx1g",
             "-XX:InitialBootClassLoaderMetaspaceSize=4195328",
