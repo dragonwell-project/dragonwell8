@@ -175,11 +175,11 @@ public class CyclicBarrier {
      * Called only while holding lock.
      */
     private void nextGeneration() {
+        // set up next generation
+        generation = new Generation();
         // signal completion of last generation
         trip.signalAll();
-        // set up next generation
         count = parties;
-        generation = new Generation();
     }
 
     /**
