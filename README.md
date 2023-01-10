@@ -2,7 +2,9 @@
 
 [Alibaba Dragonwell8 User Guide](https://github.com/alibaba/dragonwell8/wiki/Alibaba-Dragonwell8-User-Guide)
 
-[Alibaba Dragonwell8 Release Notes](https://github.com/alibaba/dragonwell8/wiki/Alibaba-Dragonwell8-Release-Notes)
+[Alibaba Dragonwell8 Extended Edition Release Notes](https://github.com/alibaba/dragonwell8/wiki/Alibaba-Dragonwell8-Extended-Edition-Release-Notes)
+
+[Alibaba Dragonwell8 Standard Edition Release Notes](https://github.com/alibaba/dragonwell8/wiki/Alibaba-Dragonwell8-Standard-Edition-Release-Notes)
 
 # Introduction
 
