@@ -44,14 +44,14 @@ echo "Testing on " $OS
 case "$OS" in
   Linux)
     cc_cmd=`which gcc`
-    if [ "x$cc_cmd" == "x" ]; then
+    if [ "x$cc_cmd" = "x" ]; then
         echo "WARNING: gcc not found. Cannot execute test." 2>&1
         exit 0;
     fi
     ;;
   Solaris)
     cc_cmd=`which cc`
-    if [ "x$cc_cmd" == "x" ]; then
+    if [ "x$cc_cmd" = "x" ]; then
         echo "WARNING: cc not found. Cannot execute test." 2>&1
         exit 0;
     fi
@@ -63,7 +63,7 @@ case "$OS" in
 esac
 
 # CriticalJNINatives is not supported for aarch64
-if [ $VM_CPU == "aarch64" ]; then
+if [ $VM_CPU = "aarch64" ]; then
     echo "Test Passed"
     exit 0;
 fi

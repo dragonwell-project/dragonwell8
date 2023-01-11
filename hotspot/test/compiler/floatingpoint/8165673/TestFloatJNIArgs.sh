@@ -41,10 +41,10 @@ echo "TESTSRC=${TESTSRC}"
 . ${TESTSRC}/../../../test_env.sh
 
 # set platform-dependent variables
-if [ $VM_OS == "linux" -a $VM_CPU == "aarch64" ]; then
+if [ $VM_OS = "linux" -a $VM_CPU = "aarch64" ]; then
     echo "Testing on linux-aarch64"
     gcc_cmd=`which gcc`
-    if [ "x$gcc_cmd" == "x" ]; then
+    if [ "x$gcc_cmd" = "x" ]; then
         echo "WARNING: gcc not found. Cannot execute test." 2>&1
         exit 0;
     fi
