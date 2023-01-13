@@ -34,6 +34,9 @@
 // Makes a string of the macro expansion of a
 #define XSTR(a) STR(a)
 
+// Allow commas in macro arguments.
+#define COMMA ,
+
 // -DINCLUDE_<something>=0 | 1 can be specified on the command line to include
 // or exclude functionality.
 

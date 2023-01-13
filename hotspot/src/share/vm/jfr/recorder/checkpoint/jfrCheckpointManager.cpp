@@ -156,7 +156,9 @@ bool JfrCheckpointManager::is_locked() const {
 }
 
 static void assert_free_lease(const BufferPtr buffer) {
-  assert(buffer != NULL, "invariant");
+  if (buffer == NULL) {
+    return;
+  }
   assert(buffer->acquired_by_self(), "invariant");
   assert(buffer->lease(), "invariant");
 }
