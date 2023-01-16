@@ -48,8 +48,8 @@
 #include <stdio.h>
 #include <malloc.h>
 #include <math.h>
-#include <strsafe.h>
 #include <windows.h>
+#include <strsafe.h>
 #include <winuser.h>
 
 #include <jni.h>
