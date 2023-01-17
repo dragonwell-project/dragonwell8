@@ -178,8 +178,8 @@ class ClassLoaderData : public CHeapObj<mtClass> {
   Dependencies _dependencies; // holds dependencies from this class loader
                               // data to others.
 
-  Metaspace * _metaspace;  // Meta-space where meta-data defined by the
-                           // classes in the class loader are allocated.
+  Metaspace * volatile _metaspace;  // Meta-space where meta-data defined by the
+                                    // classes in the class loader are allocated.
   Mutex* _metaspace_lock;  // Locks the metaspace for allocations and setup.
   bool _unloading;         // true if this class loader goes away
   bool _keep_alive;        // if this CLD is kept alive without a keep_alive_object().
@@ -187,7 +187,7 @@ class ClassLoaderData : public CHeapObj<mtClass> {
   volatile int _claimed;   // true if claimed, for example during GC traces.
                            // To avoid applying oop closure more than once.
                            // Has to be an int because we cas it.
-  Klass* _klasses;         // The classes defined by the class loader.
+  Klass* volatile _klasses;   // The classes defined by the class loader.
 
   ChunkedHandleList _handles; // Handles to constant pool arrays, etc, which
                               // have the same life cycle of the corresponding ClassLoader.
@@ -216,8 +216,6 @@ class ClassLoaderData : public CHeapObj<mtClass> {
 
   ClassLoaderData(Handle h_class_loader, bool is_anonymous, Dependencies dependencies);
   ~ClassLoaderData();
-
-  void set_metaspace(Metaspace* m) { _metaspace = m; }
 
   Mutex* metaspace_lock() const { return _metaspace_lock; }
 

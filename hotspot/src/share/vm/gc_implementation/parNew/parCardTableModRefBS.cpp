@@ -353,6 +353,8 @@ process_chunk_boundaries(Space* sp,
                               " and max_to_do " PTR_FORMAT " + " PTR_FORMAT " = " PTR_FORMAT,
                               limit_card, last_block, last_block_size, max_to_do);)
         }
+        // Looks like need loadload before reading LNC array
+        OrderAccess::loadload();
         assert(0 < cur_chunk_index+1 && cur_chunk_index+1 < lowest_non_clean_chunk_size,
                "Bounds error.");
         // It is possible that a dirty card for the last object may have been

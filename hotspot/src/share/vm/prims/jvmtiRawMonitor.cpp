@@ -165,7 +165,12 @@ int JvmtiRawMonitor::SimpleExit (Thread * Self) {
   RawMonitor_lock->unlock() ;
   if (w != NULL) {
       guarantee (w ->TState == ObjectWaiter::TS_ENTER, "invariant") ;
+      // Once we set TState to TS_RUN the waiting thread can complete
+      // SimpleEnter and 'w' is pointing into random stack space. So we have
+      // to ensure we extract the ParkEvent (which is in type-stable memory)
+      // before we set the state, and then don't access 'w'.
       ParkEvent * ev = w->_event ;
+      OrderAccess::loadstore();
       w->TState = ObjectWaiter::TS_RUN ;
       OrderAccess::fence() ;
       ev->unpark() ;
