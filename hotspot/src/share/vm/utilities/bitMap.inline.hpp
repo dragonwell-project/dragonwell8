@@ -54,7 +54,7 @@ inline bool BitMap::par_set_bit(idx_t bit) {
   verify_index(bit);
   volatile bm_word_t* const addr = word_addr(bit);
   const bm_word_t mask = bit_mask(bit);
-  bm_word_t old_val = *addr;
+  bm_word_t old_val = OrderAccess::load_acquire(addr);
 
   do {
     const bm_word_t new_val = old_val | mask;
@@ -75,7 +75,7 @@ inline bool BitMap::par_clear_bit(idx_t bit) {
   verify_index(bit);
   volatile bm_word_t* const addr = word_addr(bit);
   const bm_word_t mask = ~bit_mask(bit);
-  bm_word_t old_val = *addr;
+  bm_word_t old_val = OrderAccess::load_acquire(addr);
 
   do {
     const bm_word_t new_val = old_val & mask;
