@@ -1018,6 +1018,7 @@ Node* MemNode::can_see_stored_value(Node* st, PhaseTransform* phase) const {
     // through any kind of MemBar but normal loads shouldn't skip
     // through MemBarAcquire since the could allow them to move out of
     // a synchronized region.
+    int cont_times = 0;
     while (current->is_Proj()) {
       int opc = current->in(0)->Opcode();
       if ((final && (opc == Op_MemBarAcquire ||
@@ -1034,6 +1035,12 @@ Node* MemNode::can_see_stored_value(Node* st, PhaseTransform* phase) const {
           if (new_st == merge->base_memory()) {
             // Keep searching
             current = new_st;
+            if (opc == Op_MemBarCPUOrder)
+              cont_times++;
+            if (cont_times > MemNodeLoopContinueThres) {
+              phase->C->record_method_not_compilable("Possible deap loop");
+              return NULL;
+            }
             continue;
           }
           // Save the new memory state for the slice and fall through

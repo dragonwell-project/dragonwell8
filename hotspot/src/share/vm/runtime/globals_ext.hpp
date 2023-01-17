@@ -160,6 +160,9 @@
           "code sweeper trigger period time (in seconds, "                  \
           "0 means disable periodly trigger)" )                             \
                                                                             \
+  product(intx, MemNodeLoopContinueThres, 200,                              \
+          "Max coninuation number in MemNode loop")                         \
+                                                                            \
   //add new AJVM specific flags here
 
 
