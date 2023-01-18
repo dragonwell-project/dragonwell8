@@ -70,7 +70,7 @@ template <typename T>
 inline void WriterHost<BE, IE, WriterPolicyImpl>::write(const T* value, size_t len) {
   assert(value != NULL, "invariant");
   assert(len > 0, "invariant");
-  assert(len <= max_jint, "invariant");
+  assert(len <= static_cast<size_t>(max_jint), "invariant");
   // Might need T + 1 size
   u1* const pos = ensure_size(sizeof(T) * len + len);
   if (pos) {
@@ -126,7 +126,7 @@ template <typename T>
 inline void WriterHost<BE, IE, WriterPolicyImpl>::be_write(const T* value, size_t len) {
   assert(value != NULL, "invariant");
   assert(len > 0, "invariant");
-  assert(len <= max_jint, "invariant");
+  assert(len <= static_cast<size_t>(max_jint), "invariant");
   // Big endian writes map one-to-one for length, so no extra space is needed.
   u1* const pos = ensure_size(sizeof(T) * len);
   if (pos) {
