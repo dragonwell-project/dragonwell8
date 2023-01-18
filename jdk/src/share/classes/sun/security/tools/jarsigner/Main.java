@@ -904,9 +904,14 @@ public class Main {
                                 Calendar c = Calendar.getInstance(
                                         TimeZone.getTimeZone("UTC"),
                                         Locale.getDefault(Locale.Category.FORMAT));
-                                c.setTime(tsTokenInfo.getDate());
+                                Date tsDate = tsTokenInfo.getDate();
+                                c.setTime(tsDate);
                                 JarConstraintsParameters jcp =
-                                    new JarConstraintsParameters(chain, si.getTimestamp());
+                                    new JarConstraintsParameters(chain, tsDate);
+                                JarConstraintsParameters jcpts =
+                                    new JarConstraintsParameters(
+                                        tsSi.getCertificateChain(tsToken),
+                                        tsDate);
                                 history = String.format(
                                         rb.getString("history.with.ts"),
                                         signer.getSubjectX500Principal(),
@@ -915,9 +920,9 @@ public class Main {
                                         verifyWithWeak(key, jcp),
                                         c,
                                         tsSigner.getSubjectX500Principal(),
-                                        verifyWithWeak(tsDigestAlg, DIGEST_PRIMITIVE_SET, true, jcp),
-                                        verifyWithWeak(tsSigAlg, SIG_PRIMITIVE_SET, true, jcp),
-                                        verifyWithWeak(tsKey, jcp));
+                                        verifyWithWeak(tsDigestAlg, DIGEST_PRIMITIVE_SET, true, jcpts),
+                                        verifyWithWeak(tsSigAlg, SIG_PRIMITIVE_SET, true, jcpts),
+                                        verifyWithWeak(tsKey, jcpts));
                             } else {
                                 JarConstraintsParameters jcp =
                                     new JarConstraintsParameters(chain, null);
@@ -1267,13 +1272,13 @@ public class Main {
         boolean tsa, JarConstraintsParameters jcp) {
 
         try {
-            DISABLED_CHECK.permits(alg, jcp);
+            DISABLED_CHECK.permits(alg, jcp, false);
         } catch (CertPathValidatorException e) {
             disabledAlgFound = true;
             return String.format(rb.getString("with.disabled"), alg);
         }
         try {
-            LEGACY_CHECK.permits(alg, jcp);
+            LEGACY_CHECK.permits(alg, jcp, false);
             return alg;
         } catch (CertPathValidatorException e) {
             if (primitiveSet == SIG_PRIMITIVE_SET) {
@@ -1295,13 +1300,13 @@ public class Main {
     private String verifyWithWeak(PublicKey key, JarConstraintsParameters jcp) {
         int kLen = KeyUtil.getKeySize(key);
         try {
-            DISABLED_CHECK.permits(key.getAlgorithm(), jcp);
+            DISABLED_CHECK.permits(key.getAlgorithm(), jcp, true);
         } catch (CertPathValidatorException e) {
             disabledAlgFound = true;
             return String.format(rb.getString("key.bit.disabled"), kLen);
         }
         try {
-            LEGACY_CHECK.permits(key.getAlgorithm(), jcp);
+            LEGACY_CHECK.permits(key.getAlgorithm(), jcp, true);
             if (kLen >= 0) {
                 return String.format(rb.getString("key.bit"), kLen);
             } else {
@@ -1318,9 +1323,9 @@ public class Main {
         boolean tsa, JarConstraintsParameters jcp) {
 
         try {
-            DISABLED_CHECK.permits(alg, jcp);
+            DISABLED_CHECK.permits(alg, jcp, false);
             try {
-                LEGACY_CHECK.permits(alg, jcp);
+                LEGACY_CHECK.permits(alg, jcp, false);
             } catch (CertPathValidatorException e) {
                 if (primitiveSet == SIG_PRIMITIVE_SET) {
                     legacyAlg |= 2;
@@ -1347,9 +1352,9 @@ public class Main {
 
     private void checkWeakSign(PrivateKey key, JarConstraintsParameters jcp) {
         try {
-            DISABLED_CHECK.permits(key.getAlgorithm(), jcp);
+            DISABLED_CHECK.permits(key.getAlgorithm(), jcp, true);
             try {
-                LEGACY_CHECK.permits(key.getAlgorithm(), jcp);
+                LEGACY_CHECK.permits(key.getAlgorithm(), jcp, true);
             } catch (CertPathValidatorException e) {
                 legacyAlg |= 8;
             }
