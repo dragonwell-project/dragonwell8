@@ -36,8 +36,8 @@ import static org.testng.AssertJUnit.assertTrue;
 
 /**
  * @test
- * @run testng SplittableRandomTest
- * @run testng/othervm -Djava.util.secureRandomSeed=true SplittableRandomTest
+ * @run testng/othervm -Djava.security.egd=file:/dev/urandom SplittableRandomTest
+ * @run testng/othervm -Djava.security.egd=file:/dev/urandom -Djava.util.secureRandomSeed=true SplittableRandomTest
  * @summary test methods on SplittableRandom
  * @key randomness
  */
