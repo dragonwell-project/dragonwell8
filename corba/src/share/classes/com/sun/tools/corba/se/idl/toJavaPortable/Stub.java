@@ -342,6 +342,11 @@ public class Stub implements AuxGen
     stream.println ("  private void readObject (java.io.ObjectInputStream s) throws java.io.IOException");
     stream.println ("  {");
     stream.println ("     String str = s.readUTF ();");
+    if ("DynAnyFactory".equals (i.name ())) {
+      stream.println ("     if (!str.startsWith(com.sun.corba.se.impl.orbutil.ORBConstants.STRINGIFY_PREFIX) &&");
+      stream.println ("         !Boolean.getBoolean(com.sun.corba.se.impl.orbutil.ORBConstants.ALLOW_DESERIALIZE_OBJECT))");
+      stream.println ("       throw new java.io.InvalidObjectException(\"IOR: expected\");");
+    }
     stream.println ("     String[] args = null;");
     stream.println ("     java.util.Properties props = null;");
     stream.println ("     org.omg.CORBA.ORB orb = org.omg.CORBA.ORB.init (args, props);");

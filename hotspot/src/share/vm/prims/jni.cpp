@@ -191,8 +191,6 @@ static jint CurrentVersion = JNI_VERSION_1_8;
 #define FP_SELECT(TypeName, intcode, fpcode) \
   FP_SELECT_##TypeName(intcode, fpcode)
 
-#define COMMA ,
-
 // Choose DT_RETURN_MARK macros  based on the type: float/double -> void
 // (dtrace doesn't do FP yet)
 #ifndef USDT2

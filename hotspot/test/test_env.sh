@@ -157,6 +157,7 @@ then
 fi
 
 VM_CPU="unknown"
+CFLAGBITS=""
 grep "sparc" vm_version.out > ${NULL}
 if [ $? = 0 ]
 then
@@ -164,12 +165,15 @@ then
   if [ $VM_BITS = "64" ]
   then
     VM_CPU="sparcv9"
+  else
+    CFLAGBITS="-m32"
   fi
 fi
 grep "x86" vm_version.out > ${NULL}
 if [ $? = 0 ]
 then
   VM_CPU="i386"
+  CFLAGBITS="-m32"
 fi
 grep "amd64" vm_version.out > ${NULL}
 if [ $? = 0 ]
@@ -193,6 +197,8 @@ then
     then
       VM_CPU="ppc64le"
     fi
+  else
+    CFLAGBITS="-m32"
   fi
 fi
 grep "ia64" vm_version.out > ${NULL}

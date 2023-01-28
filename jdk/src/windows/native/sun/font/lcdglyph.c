@@ -49,6 +49,7 @@
 #include <malloc.h>
 #include <math.h>
 #include <windows.h>
+#include <strsafe.h>
 #include <winuser.h>
 
 #include <jni.h>
@@ -245,7 +246,7 @@ Java_sun_font_FileFontStrike__1getGlyphImageFromWindows
     name[nameLen] = '\0';
 
     if (nameLen < (sizeof(lf.lfFaceName) / sizeof(lf.lfFaceName[0]))) {
-        wcscpy(lf.lfFaceName, name);
+        StringCchCopyW(lf.lfFaceName, LF_FACESIZE, name);
     } else {
         FREE_AND_RETURN;
     }

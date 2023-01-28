@@ -46,6 +46,8 @@ ConcurrentMarkThread::ConcurrentMarkThread(ConcurrentMark* cm) :
   _state(Idle),
   _vtime_accum(0.0),
   _vtime_mark_accum(0.0) {
+
+  set_name("G1 Main Concurrent Mark GC Thread");
   create_and_start();
 }
 
@@ -316,16 +318,6 @@ void ConcurrentMarkThread::stop() {
       Terminator_lock->wait();
     }
   }
-}
-
-void ConcurrentMarkThread::print() const {
-  print_on(tty);
-}
-
-void ConcurrentMarkThread::print_on(outputStream* st) const {
-  st->print("\"G1 Main Concurrent Mark GC Thread\" ");
-  Thread::print_on(st);
-  st->cr();
 }
 
 void ConcurrentMarkThread::sleepBeforeNextCycle() {

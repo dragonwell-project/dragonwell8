@@ -52,9 +52,10 @@ class JfrBuffer {
   const void* volatile _identity;
   u1* _pos;
   mutable const u1* volatile _top;
-  u2 _flags;
+  size_t _size;
   u2 _header_size;
-  u4 _size;
+  u2 _flags;
+  LP64_ONLY(const u4 _pad;)
 
   const u1* stable_top() const;
 
@@ -124,7 +125,7 @@ class JfrBuffer {
   }
 
   size_t size() const {
-    return _size * BytesPerWord;
+    return _size;
   }
 
   size_t total_size() const {

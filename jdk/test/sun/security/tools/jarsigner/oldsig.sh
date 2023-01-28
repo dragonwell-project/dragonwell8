@@ -70,10 +70,17 @@ esac
 ${CP} ${TESTSRC}${FS}oldsig${FS}A.jar B.jar
 ${CP} ${TESTSRC}${FS}oldsig${FS}A.class B.class
 
+PROP_ARGS=" -J-Djava.security.properties=${TESTSRC}${FS}OldSig.props"
+KS_ARGS="-keystore ${TESTSRC}${FS}JarSigning.keystore -storepass bbbbbb"
+
 ${TESTJAVA}${FS}bin${FS}jar uvf B.jar B.class
 ${TESTJAVA}${FS}bin${FS}jarsigner \
-    -keystore ${TESTSRC}${FS}JarSigning.keystore \
-    -storepass bbbbbb \
+    ${KS_ARGS} \
     -digestalg SHA1 \
     B.jar c
-${TESTJAVA}${FS}bin${FS}jarsigner -verify B.jar
+
+JAR_VERIFY_CMD="${TESTJAVA}${FS}bin${FS}jarsigner -verify ${KS_ARGS} ${PROP_ARGS} -verbose B.jar"
+echo ${JAR_VERIFY_CMD}
+LINES=`${JAR_VERIFY_CMD} | grep smk | grep B.class | wc -l`
+[ $LINES = 1 ] || exit 1
+

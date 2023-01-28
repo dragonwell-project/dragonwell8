@@ -21,10 +21,9 @@
  * questions.
  */
 
-// key: compiler.misc.inferred.do.not.conform.to.upper.bounds
-// key: compiler.misc.intersection.type
-// key: compiler.misc.where.description.intersection.1
-// key: compiler.misc.where.intersection
+// key: compiler.misc.incompatible.upper.lower.bounds
+// key: compiler.misc.where.description.typevar
+// key: compiler.misc.where.typevar
 // key: compiler.err.prob.found.req
 // options: -XDdiags=where
 // run: simple

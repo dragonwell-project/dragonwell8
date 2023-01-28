@@ -217,7 +217,7 @@ public class ManifestEntryVerifier {
                     params.setExtendedExceptionMsg(JarFile.MANIFEST_NAME,
                         name + " entry");
                     DisabledAlgorithmConstraints.jarConstraints()
-                           .permits(digest.getAlgorithm(), params);
+                           .permits(digest.getAlgorithm(), params, false);
                 } catch (GeneralSecurityException e) {
                     if (debug != null) {
                         debug.println("Digest algorithm is restricted: " + e);

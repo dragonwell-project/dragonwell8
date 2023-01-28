@@ -38,11 +38,13 @@ JfrBuffer::JfrBuffer() : _next(NULL),
                          _top(NULL),
                          _flags(0),
                          _header_size(0),
-                         _size(0) {}
+                         _size(0)
+                         LP64_ONLY(COMMA _pad(0)) {}
 
 bool JfrBuffer::initialize(size_t header_size, size_t size, const void* id /* NULL */) {
-  _header_size = (u2)header_size;
-  _size = (u4)(size / BytesPerWord);
+  assert(header_size <= max_jushort, "invariant");
+  _header_size = static_cast<u2>(header_size);
+  _size = size;
   assert(_identity == NULL, "invariant");
   _identity = id;
   set_pos(start());
