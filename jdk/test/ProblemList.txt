@@ -208,6 +208,9 @@ sun/net/www/http/HttpClient/B8025710.java			generic-all
 # 8169774
 java/io/File/WinSpecialFiles.java                               windows-all
 
+# 8274122
+java/io/File/createTempFile/SpecialTempFile.java                windows11
+
 ############################################################################
 
 # jdk_nio
