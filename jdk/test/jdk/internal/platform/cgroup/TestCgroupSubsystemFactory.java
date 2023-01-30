@@ -258,64 +258,64 @@ public class TestCgroupSubsystemFactory {
             cgroupv1CgInfoZeroHierarchy = cgroupsZero;
             cgroupv2CgInfoZeroHierarchy = cgroupsZero;
             cgroupv1MntInfoZeroHierarchy = Paths.get(existingDirectory.toString(), "mountinfo_empty");
-            Files.write(cgroupv1MntInfoZeroHierarchy, mntInfoEmpty.getBytes());
+            Files.write(cgroupv1MntInfoZeroHierarchy, mntInfoEmpty.getBytes(StandardCharsets.UTF_8));
 
             cgroupv2MntInfoZeroHierarchy = Paths.get(existingDirectory.toString(), "mountinfo_cgroupv2");
-            Files.write(cgroupv2MntInfoZeroHierarchy, mntInfoCgroupsV2Only.getBytes());
+            Files.write(cgroupv2MntInfoZeroHierarchy, mntInfoCgroupsV2Only.getBytes(StandardCharsets.UTF_8));
 
             cgroupv1CgInfoNonZeroHierarchy = Paths.get(existingDirectory.toString(), "cgroups_non_zero");
-            Files.write(cgroupv1CgInfoNonZeroHierarchy, cgroupsNonZeroHierarchy.getBytes());
+            Files.write(cgroupv1CgInfoNonZeroHierarchy, cgroupsNonZeroHierarchy.getBytes(StandardCharsets.UTF_8));
 
             cgroupv1MntInfoNonZeroHierarchy = Paths.get(existingDirectory.toString(), "mountinfo_non_zero");
-            Files.write(cgroupv1MntInfoNonZeroHierarchy, mntInfoHybrid.getBytes());
+            Files.write(cgroupv1MntInfoNonZeroHierarchy, mntInfoHybrid.getBytes(StandardCharsets.UTF_8));
 
             cgroupv1MntInfoSystemdOnly = Paths.get(existingDirectory.toString(), "mountinfo_cgroupv1_systemd_only");
-            Files.write(cgroupv1MntInfoSystemdOnly, mntInfoCgroupsV1SystemdOnly.getBytes());
+            Files.write(cgroupv1MntInfoSystemdOnly, mntInfoCgroupsV1SystemdOnly.getBytes(StandardCharsets.UTF_8));
 
             cgroupv1MntInfoDoubleControllers = Paths.get(existingDirectory.toString(), "mountinfo_cgroupv1_double_controllers");
-            Files.write(cgroupv1MntInfoDoubleControllers, mntInfoCgroupsV1DoubleControllers.getBytes());
+            Files.write(cgroupv1MntInfoDoubleControllers, mntInfoCgroupsV1DoubleControllers.getBytes(StandardCharsets.UTF_8));
 
             cgroupv1MntInfoDoubleControllers2 = Paths.get(existingDirectory.toString(), "mountinfo_cgroupv1_double_controllers2");
-            Files.write(cgroupv1MntInfoDoubleControllers2, mntInfoCgroupsV1DoubleControllers2.getBytes());
+            Files.write(cgroupv1MntInfoDoubleControllers2, mntInfoCgroupsV1DoubleControllers2.getBytes(StandardCharsets.UTF_8));
 
             cgroupv1CgroupsJoinControllers = Paths.get(existingDirectory.toString(), "cgroups_cgv1_join_controllers");
-            Files.write(cgroupv1CgroupsJoinControllers, cgroupsNonZeroJoinControllers.getBytes());
+            Files.write(cgroupv1CgroupsJoinControllers, cgroupsNonZeroJoinControllers.getBytes(StandardCharsets.UTF_8));
 
             cgroupv1MountInfoJoinControllers = Paths.get(existingDirectory.toString(), "mntinfo_cgv1_join_controllers");
-            Files.write(cgroupv1MountInfoJoinControllers, mntInfoCgroupv1JoinControllers.getBytes());
+            Files.write(cgroupv1MountInfoJoinControllers, mntInfoCgroupv1JoinControllers.getBytes(StandardCharsets.UTF_8));
 
             cgroupv1MntInfoColonsHierarchy = Paths.get(existingDirectory.toString(), "mountinfo_colons");
-            Files.write(cgroupv1MntInfoColonsHierarchy, mntInfoColons.getBytes());
+            Files.write(cgroupv1MntInfoColonsHierarchy, mntInfoColons.getBytes(StandardCharsets.UTF_8));
 
             cgroupv1SelfCgroup = Paths.get(existingDirectory.toString(), "self_cgroup_cgv1");
-            Files.write(cgroupv1SelfCgroup, cgroupv1SelfCgroupContent.getBytes());
+            Files.write(cgroupv1SelfCgroup, cgroupv1SelfCgroupContent.getBytes(StandardCharsets.UTF_8));
 
             cgroupv1SelfColons = Paths.get(existingDirectory.toString(), "self_colons_cgv1");
-            Files.write(cgroupv1SelfColons, cgroupv1SelfColonsContent.getBytes());
+            Files.write(cgroupv1SelfColons, cgroupv1SelfColonsContent.getBytes(StandardCharsets.UTF_8));
 
             cgroupv2SelfCgroup = Paths.get(existingDirectory.toString(), "self_cgroup_cgv2");
-            Files.write(cgroupv2SelfCgroup, cgroupv2SelfCgroupContent.getBytes());
+            Files.write(cgroupv2SelfCgroup, cgroupv2SelfCgroupContent.getBytes(StandardCharsets.UTF_8));
 
             cgroupv1SelfCgroupJoinCtrl = Paths.get(existingDirectory.toString(), "self_cgroup_cgv1_join_controllers");
-            Files.write(cgroupv1SelfCgroupJoinCtrl, selfCgroupNonZeroJoinControllers.getBytes());
+            Files.write(cgroupv1SelfCgroupJoinCtrl, selfCgroupNonZeroJoinControllers.getBytes(StandardCharsets.UTF_8));
 
             cgroupv1CgroupsOnlyCPUCtrl = Paths.get(existingDirectory.toString(), "cgroups_cpu_only_controller");
-            Files.write(cgroupv1CgroupsOnlyCPUCtrl, cgroupsNonZeroCpuControllerOnly.getBytes());
+            Files.write(cgroupv1CgroupsOnlyCPUCtrl, cgroupsNonZeroCpuControllerOnly.getBytes(StandardCharsets.UTF_8));
 
             cgroupv1SelfCgroupsOnlyCPUCtrl = Paths.get(existingDirectory.toString(), "self_cgroup_cpu_only_controller");
-            Files.write(cgroupv1SelfCgroupsOnlyCPUCtrl, selfCgroupNonZeroCpuControllerOnly.getBytes());
+            Files.write(cgroupv1SelfCgroupsOnlyCPUCtrl, selfCgroupNonZeroCpuControllerOnly.getBytes(StandardCharsets.UTF_8));
 
             cgroupv1MountInfoCgroupsOnlyCPUCtrl = Paths.get(existingDirectory.toString(), "self_mountinfo_cpu_only_controller");
-            Files.write(cgroupv1MountInfoCgroupsOnlyCPUCtrl, mntInfoCpuOnly.getBytes());
+            Files.write(cgroupv1MountInfoCgroupsOnlyCPUCtrl, mntInfoCpuOnly.getBytes(StandardCharsets.UTF_8));
 
             cgroupv2CgInfoNoZeroHierarchyOnlyFreezer = Paths.get(existingDirectory.toString(), "cgroups_cgv2_non_zero_only_freezer");
-            Files.write(cgroupv2CgInfoNoZeroHierarchyOnlyFreezer, cgroupsNonZeroHierarchyOnlyFreezer.getBytes());
+            Files.write(cgroupv2CgInfoNoZeroHierarchyOnlyFreezer, cgroupsNonZeroHierarchyOnlyFreezer.getBytes(StandardCharsets.UTF_8));
 
             cgroupv2SelfNoZeroHierarchyOnlyFreezer = Paths.get(existingDirectory.toString(), "self_cgroup_non_zero_only_freezer");
-            Files.write(cgroupv2SelfNoZeroHierarchyOnlyFreezer, cgroupv1SelfOnlyFreezerContent.getBytes());
+            Files.write(cgroupv2SelfNoZeroHierarchyOnlyFreezer, cgroupv1SelfOnlyFreezerContent.getBytes(StandardCharsets.UTF_8));
 
             cgroupv2MntInfoNoZeroHierarchyOnlyFreezer = Paths.get(existingDirectory.toString(), "self_mountinfo_cgv2_non_zero_only_freezer");
-            Files.write(cgroupv2MntInfoNoZeroHierarchyOnlyFreezer, mntInfoOnlyFreezerInV1.getBytes());
+            Files.write(cgroupv2MntInfoNoZeroHierarchyOnlyFreezer, mntInfoOnlyFreezerInV1.getBytes(StandardCharsets.UTF_8));
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
