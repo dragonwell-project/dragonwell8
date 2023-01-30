@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -52,7 +52,8 @@ public class TestEmptyBootstrapMethodsAttr {
         // ======= execute test case #1
         // Expect a lack of main method, this implies that the class loaded correctly
         // with an empty bootstrap_methods and did not generate a ClassFormatError.
-        pb = ProcessTools.createJavaProcessBuilder("-cp", ".", className);
+        pb = ProcessTools.createJavaProcessBuilder("-cp", ".",
+                "-Duser.language=en", "-Duser.country=US", className);
         output = new OutputAnalyzer(pb.start());
         output.shouldNotContain("java.lang.ClassFormatError");
         output.shouldContain("Main method not found in class " + className);
@@ -66,7 +67,8 @@ public class TestEmptyBootstrapMethodsAttr {
         // ======= execute test case #2
         // Expect a lack of main method, this implies that the class loaded correctly
         // with an empty bootstrap_methods and did not generate ClassFormatError.
-        pb = ProcessTools.createJavaProcessBuilder("-cp", ".", className);
+        pb = ProcessTools.createJavaProcessBuilder("-cp", ".",
+                "-Duser.language=en", "-Duser.country=US", className);
         output = new OutputAnalyzer(pb.start());
         output.shouldNotContain("java.lang.ClassFormatError");
         output.shouldContain("Main method not found in class " + className);
