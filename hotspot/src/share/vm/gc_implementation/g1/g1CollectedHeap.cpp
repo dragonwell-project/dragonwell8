@@ -2287,7 +2287,6 @@ void G1CollectedHeap::iterate_dirty_card_closure(CardTableEntryClosure* cl,
     n_completed_buffers++;
   }
   g1_policy()->phase_times()->record_thread_work_item(G1GCPhaseTimes::UpdateRS, worker_i, n_completed_buffers);
-  dcqs.clear_n_completed_buffers();
   assert(!dcqs.completed_buffers_exist_dirty(), "Completed buffers exist!");
 }
 

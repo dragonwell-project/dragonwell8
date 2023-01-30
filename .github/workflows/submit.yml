@@ -10,7 +10,7 @@ on:
       platforms:
         description: "Platform(s) to execute on"
         required: true
-        default: "Linux x64, Linux x86, Windows x64, Windows x86, macOS x64"
+        default: "Linux additional (hotspot only), Linux x64, Linux x86, Windows x64, Windows x86, macOS x64"
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -23,7 +23,7 @@ jobs:
     outputs:
       should_run: ${{ steps.check_submit.outputs.should_run }}
       bundle_id: ${{ steps.check_bundle_id.outputs.bundle_id }}
-      platform_linux_additional: false
+      platform_linux_additional: ${{ steps.check_platforms.outputs.platform_linux_additional }}
       platform_linux_x64: ${{ steps.check_platforms.outputs.platform_linux_x64 }}
       platform_linux_x86: ${{ steps.check_platforms.outputs.platform_linux_x86 }}
       platform_windows_x64: ${{ steps.check_platforms.outputs.platform_windows_x64 }}
@@ -117,7 +117,7 @@ jobs:
     name: Linux x64
     runs-on: "ubuntu-20.04"
     needs: prerequisites
-    if: needs.prerequisites.outputs.should_run != 'false' && (needs.prerequisites.outputs.platform_linux_x64 != 'false' || needs.prerequisites.outputs.platform_linux_additional == 'true')
+    if: needs.prerequisites.outputs.should_run != 'false' && needs.prerequisites.outputs.platform_linux_x64 != 'false'
 
     strategy:
       fail-fast: false
@@ -307,7 +307,6 @@ jobs:
     runs-on: "ubuntu-20.04"
     needs:
       - prerequisites
-      - linux_x64_build
     if: needs.prerequisites.outputs.should_run != 'false' && needs.prerequisites.outputs.platform_linux_additional != 'false'
 
     strategy:
@@ -316,8 +315,8 @@ jobs:
         flavor:
           - hs x64 build only
           - hs x64 zero build only
-          - hs x64 minimal build only
-          - hs x64 optimized build only
+          - hs x86 minimal build only
+          - hs x86 client build only
           - hs aarch64 build only
           - hs arm build only
           - hs s390x build only
@@ -327,21 +326,23 @@ jobs:
             flags: --enable-debug --disable-precompiled-headers
           - flavor: hs x64 zero build only
             flags: --enable-debug --disable-precompiled-headers --with-jvm-variants=zero
-          - flavor: hs x64 minimal build only
-            flags: --enable-debug --disable-precompiled-headers --with-jvm-variants=minimal
-          - flavor: hs x64 optimized build only
-            flags: --with-debug-level=optimized --disable-precompiled-headers
+          - flavor: hs x86 minimal build only
+            flags: --enable-debug --disable-precompiled-headers --with-jvm-variants=minimal1 --with-target-bits=32
+            multilib: true
+          - flavor: hs x86 client build only
+            flags: --enable-debug --disable-precompiled-headers --with-jvm-variants=client --with-target-bits=32
+            multilib: true
           - flavor: hs aarch64 build only
             flags: --enable-debug --disable-precompiled-headers
             debian-arch: arm64
             gnu-arch: aarch64
           - flavor: hs arm build only
-            flags: --enable-debug --disable-precompiled-headers
+            flags: --enable-debug --disable-precompiled-headers --with-jvm-variants=zero
             debian-arch: armhf
             gnu-arch: arm
             gnu-flavor: eabihf
           - flavor: hs s390x build only
-            flags: --enable-debug --disable-precompiled-headers
+            flags: --enable-debug --disable-precompiled-headers --with-jvm-variants=zero
             debian-arch: s390x
             gnu-arch: s390x
           - flavor: hs ppc64le build only
@@ -359,31 +360,6 @@ jobs:
         with:
           path: jdk
 
-      - name: Restore build JDK
-        id: build_restore
-        uses: actions/download-artifact@v3
-        with:
-          name: transient_jdk-linux-x64_${{ needs.prerequisites.outputs.bundle_id }}
-          path: ~/jdk-linux-x64
-        continue-on-error: true
-
-      - name: Restore build JDK (retry)
-        uses: actions/download-artifact@v3
-        with:
-          name: transient_jdk-linux-x64_${{ needs.prerequisites.outputs.bundle_id }}
-          path: ~/jdk-linux-x64
-        if: steps.build_restore.outcome == 'failure'
-
-      - name: Unpack build JDK
-        run: |
-          mkdir -p "${HOME}/jdk-linux-x64/jdk-${{ env.JDK_VERSION }}-internal+0_linux-x64_bin"
-          tar -xf "${HOME}/jdk-linux-x64/jdk-${{ env.JDK_VERSION }}-internal+0_linux-x64_bin.tar.gz" -C "${HOME}/jdk-linux-x64/jdk-${{ env.JDK_VERSION }}-internal+0_linux-x64_bin"
-
-      - name: Find root of build JDK image dir
-        run: |
-          build_jdk_root=`find ${HOME}/jdk-linux-x64/jdk-${{ env.JDK_VERSION }}-internal+0_linux-x64_bin -name release -type f`
-          echo "build_jdk_root=`dirname ${build_jdk_root}`" >> $GITHUB_ENV
-
       - name: Update apt
         run: sudo apt-get update
 
@@ -393,8 +369,17 @@ jobs:
           sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-9 100 --slave /usr/bin/g++ g++ /usr/bin/g++-9
         if: matrix.debian-arch == ''
 
+      - name: Install multilib dependencies
+        run: |
+          sudo dpkg --add-architecture i386
+          sudo apt-get update
+          sudo apt-get install --only-upgrade apt
+          sudo apt-get install openjdk-8-jdk gcc-9-multilib g++-9-multilib libfreetype6-dev:i386 libxrandr-dev:i386 libxtst-dev:i386 libtiff-dev:i386 libcupsimage2-dev:i386 libcups2-dev:i386 libasound2-dev:i386
+          sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-9 100 --slave /usr/bin/g++ g++ /usr/bin/g++-9
+        if: matrix.multilib != ''
+
       - name: Install cross-compilation host dependencies
-        run: sudo apt-get install gcc-9-${{ matrix.gnu-arch }}-linux-gnu${{ matrix.gnu-flavor}} g++-9-${{ matrix.gnu-arch }}-linux-gnu${{ matrix.gnu-flavor}}
+        run: sudo apt-get install openjdk-8-jdk gcc-9-${{ matrix.gnu-arch }}-linux-gnu${{ matrix.gnu-flavor}} g++-9-${{ matrix.gnu-arch }}-linux-gnu${{ matrix.gnu-flavor}}
         if: matrix.debian-arch != ''
 
       - name: Cache sysroot
@@ -414,7 +399,7 @@ jobs:
           sudo qemu-debootstrap
           --arch=${{ matrix.debian-arch }}
           --verbose
-          --include=fakeroot,symlinks,build-essential,libx11-dev,libxext-dev,libxrender-dev,libxrandr-dev,libxtst-dev,libxt-dev,libcups2-dev,libfontconfig1-dev,libasound2-dev,libfreetype6-dev,libpng-dev
+          --include=fakeroot,symlinks,build-essential,libx11-dev,libxext-dev,libxrender-dev,libxrandr-dev,libxtst-dev,libxt-dev,libcups2-dev,libfontconfig1-dev,libasound2-dev,libfreetype6-dev,libpng-dev,libffi-dev
           --resolve-deps
           buster
           ~/sysroot-${{ matrix.debian-arch }}
@@ -439,11 +424,22 @@ jobs:
           echo "cross_flags=
           --openjdk-target=${{ matrix.gnu-arch }}-linux-gnu${{ matrix.gnu-flavor}}
           --with-sysroot=${HOME}/sysroot-${{ matrix.debian-arch }}/
+          --with-cups=${HOME}/sysroot-${{ matrix.debian-arch }}/usr
+          --with-freetype-lib=${HOME}/sysroot-${{ matrix.debian-arch }}/usr/lib/${{ matrix.gnu-arch }}-linux-gnu${{ matrix.gnu-flavor}}
+          --with-freetype-include=${HOME}/sysroot-${{ matrix.debian-arch }}/usr/include/freetype2
+          --with-alsa=${HOME}/sysroot-${{ matrix.debian-arch }}/usr
+          --with-fontconfig=${HOME}/sysroot-${{ matrix.debian-arch }}/usr
+          " >> $GITHUB_ENV
+          && echo "cross_conf_env=
+          CFLAGS=--sysroot=${HOME}/sysroot-${{ matrix.debian-arch }}
+          CXXFLAGS=--sysroot=${HOME}/sysroot-${{ matrix.debian-arch }}
+          LDFLAGS=--sysroot=${HOME}/sysroot-${{ matrix.debian-arch }}
           " >> $GITHUB_ENV
         if: matrix.debian-arch != ''
 
       - name: Configure
         run: >
+          ${{ env.cross_conf_env }}
           bash configure
           --with-conf-name=linux-${{ matrix.gnu-arch }}-hotspot
           ${{ matrix.flags }}
@@ -451,7 +447,7 @@ jobs:
           --with-user-release-suffix=${GITHUB_ACTOR}-${GITHUB_SHA}
           --with-build-number=b00
           --with-boot-jdk=${BOOT_JDK}
-          --with-build-jdk=${{ env.build_jdk_root }}
+          --disable-headful
           --with-zlib=bundled
         working-directory: jdk
 
@@ -1565,6 +1561,7 @@ jobs:
     continue-on-error: true
     needs:
       - prerequisites
+      - linux_additional_build
       - linux_x64_test
       - linux_x86_test
       - windows_x64_test
