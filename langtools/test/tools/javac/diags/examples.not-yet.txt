@@ -93,6 +93,7 @@ compiler.misc.verbose.retro.with                        # UNUSED
 compiler.misc.verbose.retro.with.list                   # UNUSED
 compiler.misc.version.not.available                     # JavaCompiler; implies build error
 compiler.misc.where.description.captured
+compiler.misc.where.description.intersection.1
 compiler.misc.where.typevar.1
 compiler.misc.wrong.version                             # ClassReader
 compiler.warn.annotation.method.not.found               # ClassReader

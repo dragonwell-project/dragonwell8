@@ -23,7 +23,7 @@
 
 /*
  * @test Uint64Test
- * @bug 8028756
+ * @bug 8038756
  * @library /testlibrary /testlibrary/whitebox
  * @build Uint64Test
  * @run main ClassFileInstaller sun.hotspot.WhiteBox

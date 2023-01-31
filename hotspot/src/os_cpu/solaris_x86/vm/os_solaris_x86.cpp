@@ -433,7 +433,7 @@ JVM_handle_solaris_signal(int sig, siginfo_t* info, void* ucVoid,
     // factor me: getPCfromContext
     pc = (address) uc->uc_mcontext.gregs[REG_PC];
 
-    if (StubRoutines::is_safefetch_fault(pc)) {
+    if ((sig == SIGSEGV || sig == SIGBUS) && StubRoutines::is_safefetch_fault(pc)) {
       uc->uc_mcontext.gregs[REG_PC] = intptr_t(StubRoutines::continuation_for_safefetch_fault(pc));
       return true;
     }

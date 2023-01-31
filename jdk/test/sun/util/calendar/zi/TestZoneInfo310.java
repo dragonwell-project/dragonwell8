@@ -173,10 +173,19 @@ public class TestZoneInfo310 {
              * Temporary ignoring the failing TimeZones which are having zone
              * rules defined till year 2037 and/or above and have negative DST
              * save time in IANA tzdata. This bug is tracked via JDK-8223388.
+             *
+             * Tehran/Iran rule has rules beyond 2037, in which javazic assumes
+             * to be the last year. Thus javazic's rule is based on year 2037
+             * (Mar 20th/Sep 20th are the cutover dates), while the real rule
+             * has year 2087 where Mar 21st/Sep 21st are the cutover dates.
              */
-            if (zid.equals("Africa/Casablanca") || zid.equals("Africa/El_Aaiun")
-                || zid.equals("Asia/Tehran") || zid.equals("Iran")) {
-                continue;
+            if (zid.equals("Africa/Casablanca") || // uses "Morocco" rule
+                zid.equals("Africa/El_Aaiun") || // uses "Morocco" rule
+                zid.equals("Asia/Tehran") || // last rule mismatch
+                zid.equals("Asia/Gaza") || // uses "Palestine" rule
+                zid.equals("Asia/Hebron") || // uses "Palestine" rule
+                zid.equals("Iran")) { // last rule mismatch
+                    continue;
             }
             if (! zi.equalsTo(ziOLD)) {
                 System.out.println(zi.diffsTo(ziOLD));

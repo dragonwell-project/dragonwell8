@@ -68,7 +68,7 @@ THIS_DIR=.
 cp ${TESTSRC}${FS}*.java ${THIS_DIR}
 ${TESTJAVA}${FS}bin${FS}javac *.java
 
-$cc_cmd -fPIC -shared -o libCallWithJNIWeak.so \
+$cc_cmd ${CFLAGBITS} -fPIC -shared -o libCallWithJNIWeak.so \
     -I${TESTJAVA}${FS}include -I${TESTJAVA}${FS}include${FS}linux \
     ${TESTSRC}${FS}CallWithJNIWeak.c
 

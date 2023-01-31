@@ -602,7 +602,7 @@ JVM_handle_linux_signal(int sig,
       return 1;
     }
 
-    if (checkPrefetch(uc, pc)) {
+    if ((sig == SIGSEGV || sig == SIGBUS) && checkPrefetch(uc, pc)) {
       return 1;
     }
 

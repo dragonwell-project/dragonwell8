@@ -462,13 +462,13 @@ JVM_handle_bsd_signal(int sig,
   if (info != NULL && uc != NULL && thread != NULL) {
     pc = (address) os::Bsd::ucontext_get_pc(uc);
 
-    if (StubRoutines::is_safefetch_fault(pc)) {
-      uc->context_pc = intptr_t(StubRoutines::continuation_for_safefetch_fault(pc));
-      return 1;
-    }
-
-    // Handle ALL stack overflow variations here
     if (sig == SIGSEGV || sig == SIGBUS) {
+      if (StubRoutines::is_safefetch_fault(pc)) {
+        uc->context_pc = intptr_t(StubRoutines::continuation_for_safefetch_fault(pc));
+        return 1;
+      }
+
+      // Handle ALL stack overflow variations here
       address addr = (address) info->si_addr;
 
       // check if fault address is within thread stack

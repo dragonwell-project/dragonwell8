@@ -329,9 +329,6 @@ final class ClientHello {
             // clean up this producer
             chc.handshakeProducers.remove(SSLHandshake.CLIENT_HELLO.id);
 
-            // the max protocol version this client is supporting.
-            ProtocolVersion maxProtocolVersion = chc.maximumActiveProtocol;
-
             // session ID of the ClientHello message
             SessionId sessionId = new SessionId(new byte[0]);
 
@@ -465,14 +462,6 @@ final class ClientHello {
                 if (!session.getProtocolVersion().useTLS13PlusSpec()) {
                     sessionId = session.getSessionId();
                 }
-                if (!maxProtocolVersion.equals(sessionVersion)) {
-                    maxProtocolVersion = sessionVersion;
-
-                    // Update protocol version number in underlying socket and
-                    // handshake output stream, so that the output records
-                    // (at the record layer) have the correct version
-                    chc.setVersion(sessionVersion);
-                }
 
                 // If no new session is allowed, force use of the previous
                 // session ciphersuite, and add the renegotiation SCSV if
@@ -507,7 +496,7 @@ final class ClientHello {
                             "no existing session can be resumed");
                 }
 
-                if (maxProtocolVersion.useTLS13PlusSpec() &&
+                if (chc.maximumActiveProtocol.useTLS13PlusSpec() &&
                         SSLConfiguration.useCompatibilityMode) {
                     // In compatibility mode, the TLS 1.3 legacy_session_id
                     // field MUST be non-empty, so a client not offering a
@@ -550,7 +539,7 @@ final class ClientHello {
             }
 
             // Create the handshake message.
-            ProtocolVersion clientHelloVersion = maxProtocolVersion;
+            ProtocolVersion clientHelloVersion = chc.maximumActiveProtocol;
             if (clientHelloVersion.useTLS13PlusSpec()) {
                 // In TLS 1.3, the client indicates its version preferences
                 // in the "supported_versions" extension and the client_version

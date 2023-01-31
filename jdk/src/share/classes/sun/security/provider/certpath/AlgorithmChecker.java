@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2009, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -38,7 +38,6 @@ import java.security.KeyFactory;
 import java.security.AlgorithmParameters;
 import java.security.GeneralSecurityException;
 import java.security.cert.Certificate;
-import java.security.cert.X509CRL;
 import java.security.cert.X509Certificate;
 import java.security.cert.PKIXCertPathChecker;
 import java.security.cert.TrustAnchor;
@@ -57,7 +56,6 @@ import sun.security.util.DisabledAlgorithmConstraints;
 import sun.security.validator.Validator;
 import sun.security.x509.AlgorithmId;
 import sun.security.x509.X509CertImpl;
-import sun.security.x509.X509CRLImpl;
 
 /**
  * A {@code PKIXCertPathChecker} implementation to check whether a
@@ -131,7 +129,7 @@ public final class AlgorithmChecker extends PKIXCertPathChecker {
      *     certificate
      * @param constraints the algorithm constraints (or null)
      * @param date the date specified by the PKIXParameters date, or the
-     *             JAR timestamp if jar files are being validated and the
+     *             timestamp if JAR files are being validated and the
      *             JAR is timestamped. May be null if no timestamp or
      *             PKIXParameter date is set.
      * @param variant the Validator variant of the operation. A null value
@@ -160,17 +158,19 @@ public final class AlgorithmChecker extends PKIXCertPathChecker {
 
     /**
      * Create a new {@code AlgorithmChecker} with the given {@code TrustAnchor},
-     * {@code PKIXParameter} date, and {@code varient}
+     * {@code PKIXParameter} date, and {@code variant}.
      *
      * @param anchor the trust anchor selected to validate the target
      *     certificate
-     * @param pkixdate Date the constraints are checked against. The value is
-     *             either the PKIXParameters date or null for the current date.
+     * @param date the date specified by the PKIXParameters date, or the
+     *             timestamp if JAR files are being validated and the
+     *             JAR is timestamped. May be null if no timestamp or
+     *             PKIXParameter date is set.
      * @param variant the Validator variant of the operation. A null value
      *                passed will set it to Validator.GENERIC.
      */
-    public AlgorithmChecker(TrustAnchor anchor, Date pkixdate, String variant) {
-        this(anchor, certPathDefaultConstraints, pkixdate, variant);
+    public AlgorithmChecker(TrustAnchor anchor, Date date, String variant) {
+        this(anchor, certPathDefaultConstraints, date, variant);
     }
 
     @Override
@@ -283,13 +283,13 @@ public final class AlgorithmChecker extends PKIXCertPathChecker {
         // Check against local constraints if it is DisabledAlgorithmConstraints
         if (constraints instanceof DisabledAlgorithmConstraints) {
             ((DisabledAlgorithmConstraints)constraints).permits(currSigAlg,
-                currSigAlgParams, cp);
+                currSigAlgParams, cp, true);
             // DisabledAlgorithmsConstraints does not check primitives, so key
             // additional key check.
 
         } else {
             // Perform the default constraints checking anyway.
-            certPathDefaultConstraints.permits(currSigAlg, currSigAlgParams, cp);
+            certPathDefaultConstraints.permits(currSigAlg, currSigAlgParams, cp, true);
             // Call locally set constraints to check key with primitives.
             if (!constraints.permits(primitives, currPubKey)) {
                 throw new CertPathValidatorException(
@@ -379,29 +379,6 @@ public final class AlgorithmChecker extends PKIXCertPathChecker {
      * Check the signature algorithm with the specified public key.
      *
      * @param key the public key to verify the CRL signature
-     * @param crl the target CRL
-     * @param variant the Validator variant of the operation. A null value
-     *                passed will set it to Validator.GENERIC.
-     * @param anchor the trust anchor selected to validate the CRL issuer
-     */
-    static void check(PublicKey key, X509CRL crl, String variant,
-                      TrustAnchor anchor) throws CertPathValidatorException {
-
-        X509CRLImpl x509CRLImpl = null;
-        try {
-            x509CRLImpl = X509CRLImpl.toImpl(crl);
-        } catch (CRLException ce) {
-            throw new CertPathValidatorException(ce);
-        }
-
-        AlgorithmId algorithmId = x509CRLImpl.getSigAlgId();
-        check(key, algorithmId, variant, anchor);
-    }
-
-    /**
-     * Check the signature algorithm with the specified public key.
-     *
-     * @param key the public key to verify the CRL signature
      * @param algorithmId signature algorithm Algorithm ID
      * @param variant the Validator variant of the operation. A null
      *                value passed will set it to Validator.GENERIC.
@@ -412,7 +389,7 @@ public final class AlgorithmChecker extends PKIXCertPathChecker {
 
         certPathDefaultConstraints.permits(algorithmId.getName(),
             algorithmId.getParameters(),
-            new CertPathConstraintsParameters(key, variant, anchor));
+            new CertPathConstraintsParameters(key, variant, anchor), true);
     }
 }
 

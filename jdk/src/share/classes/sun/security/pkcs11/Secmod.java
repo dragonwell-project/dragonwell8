@@ -206,7 +206,7 @@ public final class Secmod {
 
         if (configDir != null) {
             String configDirPath = null;
-            String sqlPrefix = "sql:/";
+            String sqlPrefix = "sql:";
             if (!configDir.startsWith(sqlPrefix)) {
                 configDirPath = configDir;
             } else {
