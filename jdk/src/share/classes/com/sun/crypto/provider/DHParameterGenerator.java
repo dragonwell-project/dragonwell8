@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -59,16 +59,20 @@ public final class DHParameterGenerator extends AlgorithmParameterGeneratorSpi {
     // The source of randomness
     private SecureRandom random = null;
 
-    private static void checkKeySize(int keysize)
+    private static void checkSupport(int keysize, int exponentSize)
             throws InvalidParameterException {
         boolean supported = ((keysize == 2048) || (keysize == 3072) ||
             ((keysize >= 512) && (keysize <= 1024) && ((keysize & 0x3F) == 0)));
 
         if (!supported) {
             throw new InvalidParameterException(
-                    "DH key size must be multiple of 64 and range " +
+                    "Supported DH key size must be multiple of 64 and range " +
                     "from 512 to 1024 (inclusive), or 2048, 3072. " +
-                    "The specific key size " + keysize + " is not supported");
+                    "The specified key size " + keysize + " is not supported");
+        }
+
+        if (exponentSize != 0) {
+            DHKeyPairGenerator.checkKeySize(keysize, exponentSize);
         }
     }
 
@@ -82,7 +86,8 @@ public final class DHParameterGenerator extends AlgorithmParameterGeneratorSpi {
      */
     @Override
     protected void engineInit(int keysize, SecureRandom random) {
-        checkKeySize(keysize);
+        checkSupport(keysize, 0);
+
         this.primeSize = keysize;
         this.random = random;
     }
@@ -107,21 +112,17 @@ public final class DHParameterGenerator extends AlgorithmParameterGeneratorSpi {
                 ("Inappropriate parameter type");
         }
 
-        DHGenParameterSpec dhParamSpec = (DHGenParameterSpec)genParamSpec;
-        primeSize = dhParamSpec.getPrimeSize();
-        exponentSize = dhParamSpec.getExponentSize();
-        if ((exponentSize <= 0) || (exponentSize >= primeSize)) {
-            throw new InvalidAlgorithmParameterException(
-                    "Exponent size (" + exponentSize +
-                    ") must be positive and less than modulus size (" +
-                    primeSize + ")");
-        }
+        DHGenParameterSpec dhParamSpec = (DHGenParameterSpec) genParamSpec;
+        int primeSize = dhParamSpec.getPrimeSize();
+        int exponentSize = dhParamSpec.getExponentSize();
         try {
-            checkKeySize(primeSize);
+            checkSupport(primeSize, exponentSize);
         } catch (InvalidParameterException ipe) {
             throw new InvalidAlgorithmParameterException(ipe.getMessage());
         }
 
+        this.primeSize = primeSize;
+        this.exponentSize = exponentSize;
         this.random = random;
     }
 

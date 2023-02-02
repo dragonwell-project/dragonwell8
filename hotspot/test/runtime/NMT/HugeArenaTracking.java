@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, Red Hat, Inc. All rights reserved.
+ * Copyright (c) 2019, 2020, Red Hat, Inc. All rights reserved.
  *
  * This code is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 only, as
@@ -38,6 +38,10 @@ public class HugeArenaTracking {
   private static final long GB = 1024 * 1024 * 1024;
 
   public static void main(String args[]) throws Exception {
+    if (!Platform.is64bit()) {
+        System.out.println("Test requires 64-bit JVM. Skipping...");
+        return;
+    }
     OutputAnalyzer output;
     final WhiteBox wb = WhiteBox.getWhiteBox();
 

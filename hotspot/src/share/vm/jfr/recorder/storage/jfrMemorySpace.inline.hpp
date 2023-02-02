@@ -70,42 +70,6 @@ bool JfrMemorySpace<T, RetrievalType, Callback>::initialize() {
   return true;
 }
 
-// allocations are even multiples of the mspace min size
-static inline size_t align_allocation_size(size_t requested_size, size_t min_elem_size) {
-  assert((int)min_elem_size % os::vm_page_size() == 0, "invariant");
-  u8 alloc_size_bytes = min_elem_size;
-  while (requested_size > alloc_size_bytes) {
-    alloc_size_bytes <<= 1;
-  }
-  assert((int)alloc_size_bytes % os::vm_page_size() == 0, "invariant");
-  return (size_t)alloc_size_bytes;
-}
-
-template <typename T, template <typename> class RetrievalType, typename Callback>
-inline T* JfrMemorySpace<T, RetrievalType, Callback>::allocate(size_t size) {
-  const size_t aligned_size_bytes = align_allocation_size(size, _min_elem_size);
-  void* const allocation = JfrCHeapObj::new_array<u1>(aligned_size_bytes + sizeof(T));
-  if (allocation == NULL) {
-    return NULL;
-  }
-  T* const t = new (allocation) T;
-  assert(t != NULL, "invariant");
-  if (!t->initialize(sizeof(T), aligned_size_bytes)) {
-    JfrCHeapObj::free(t, aligned_size_bytes + sizeof(T));
-    return NULL;
-  }
-  return t;
-}
-
-template <typename T, template <typename> class RetrievalType, typename Callback>
-inline void JfrMemorySpace<T, RetrievalType, Callback>::deallocate(T* t) {
-  assert(t != NULL, "invariant");
-  assert(!_free.in_list(t), "invariant");
-  assert(!_full.in_list(t), "invariant");
-  assert(t != NULL, "invariant");
-  JfrCHeapObj::free(t, t->total_size());
-}
-
 template <typename T, template <typename> class RetrievalType, typename Callback>
 inline void JfrMemorySpace<T, RetrievalType, Callback>::release_full(T* t) {
   assert(is_locked(), "invariant");
@@ -218,15 +182,6 @@ inline typename Mspace::Type* mspace_allocate_to_full(size_t size, Mspace* mspac
   mspace->insert_full_head(t);
   return t;
 }
-
-template <typename Mspace>
-class MspaceLock {
- private:
-  Mspace* _mspace;
- public:
-  MspaceLock(Mspace* mspace) : _mspace(mspace) { _mspace->lock(); }
-  ~MspaceLock() { _mspace->unlock(); }
-};
 
 template <typename Mspace>
 inline typename Mspace::Type* mspace_allocate_transient_to_full(size_t size, Mspace* mspace, Thread* thread) {
@@ -397,20 +352,6 @@ inline void process_free_list(Processor& processor, Mspace* mspace, jfr_iter_dir
   assert(mspace->has_free(), "invariant");
   process_free_list_iterator_control<Processor, Mspace, typename Mspace::Iterator>(processor, mspace, direction);
 }
-
-template <typename Mspace>
-class ReleaseOp : public StackObj {
- private:
-  Mspace* _mspace;
-  Thread* _thread;
-  bool _release_full;
- public:
-  typedef typename Mspace::Type Type;
-  ReleaseOp(Mspace* mspace, Thread* thread, bool release_full = true) :
-    _mspace(mspace), _thread(thread), _release_full(release_full) {}
-  bool process(Type* t);
-  size_t processed() const { return 0; }
-};
 
 template <typename Mspace>
 inline bool ReleaseOp<Mspace>::process(typename Mspace::Type* t) {

@@ -317,6 +317,8 @@ public class ORBConstants {
     public static final String DYNAMIC_STUB_FACTORY_FACTORY_CLASS =
         SUN_PREFIX + "ORBDynamicStubFactoryFactoryClass" ;
 
+    public static final String ALLOW_DESERIALIZE_OBJECT = SUN_PREFIX + "ORBAllowDeserializeObject" ;
+
     // Constants for NameService properties ************************************
 
     public static final int DEFAULT_INITIAL_PORT                 = 900;

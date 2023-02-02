@@ -214,7 +214,7 @@ JVM_handle_aix_signal(int sig, siginfo_t* info, void* ucVoid, int abort_if_unrec
   // SafeFetch 32 handling:
   // - make it work if _thread is null
   // - make it use the standard os::...::ucontext_get/set_pc APIs
-  if (uc) {
+  if ((sig == SIGSEGV || sig == SIGBUS) && uc) {
     address const pc = os::Aix::ucontext_get_pc(uc);
     if (pc && StubRoutines::is_safefetch_fault(pc)) {
       os::Aix::ucontext_set_pc(uc, StubRoutines::continuation_for_safefetch_fault(pc));

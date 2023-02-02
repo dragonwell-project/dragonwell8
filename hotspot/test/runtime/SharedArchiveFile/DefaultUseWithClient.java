@@ -25,7 +25,7 @@
  * @test DefaultUseWithClient
  * @summary Test default behavior of sharing with -client
  * @library /testlibrary
- * @run main DefaultUseWithClient
+ * @run main/othervm -client DefaultUseWithClient
  * @bug 8032224
  */
 
@@ -38,9 +38,9 @@ public class DefaultUseWithClient {
 
         // On 32-bit windows CDS should be on by default in "-client" config
         // Skip this test on any other platform
-        boolean is32BitWindows = (Platform.isWindows() && Platform.is32bit());
-        if (!is32BitWindows) {
-            System.out.println("Test only applicable on 32-bit Windows. Skipping");
+        boolean is32BitWindowsClient = (Platform.isWindows() && Platform.is32bit() && Platform.isClient());
+        if (!is32BitWindowsClient) {
+            System.out.println("Test only applicable on 32-bit Windows Client VM. Skipping");
             return;
         }
 

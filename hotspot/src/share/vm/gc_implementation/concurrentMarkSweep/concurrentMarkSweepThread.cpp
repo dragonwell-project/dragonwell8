@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -105,9 +105,7 @@ ConcurrentMarkSweepThread::ConcurrentMarkSweepThread(CMSCollector* collector)
 void ConcurrentMarkSweepThread::run() {
   assert(this == cmst(), "just checking");
 
-  this->record_stack_base_and_size();
-  this->initialize_thread_local_storage();
-  this->set_active_handles(JNIHandleBlock::allocate_block());
+  initialize_in_thread();
   // From this time Thread::current() should be working.
   assert(this == Thread::current(), "just checking");
   if (BindCMSThreadToCPU && !os::bind_to_processor(CPUForCMSThread)) {
@@ -221,12 +219,6 @@ void ConcurrentMarkSweepThread::threads_do(ThreadClosure* tc) {
       gang->threads_do(tc);
     }
   }
-}
-
-void ConcurrentMarkSweepThread::print_on(outputStream* st) const {
-  st->print("\"%s\" ", name());
-  Thread::print_on(st);
-  st->cr();
 }
 
 void ConcurrentMarkSweepThread::print_all_on(outputStream* st) {

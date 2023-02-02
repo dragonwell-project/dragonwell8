@@ -24,6 +24,7 @@
  */
 
 #include <windows.h>
+#include <strsafe.h>
 #include <stdio.h>
 
 #include <jni.h>
@@ -49,20 +50,20 @@ JNIEXPORT jstring JNICALL Java_sun_awt_Win32FontManager_getFontPath(JNIEnv *env,
     end = strrchr(sysdir,'\\');
     if (end && (stricmp(end,"\\System") || stricmp(end,"\\System32"))) {
         *end = 0;
-         strcat(sysdir, "\\Fonts");
+        StringCchCatA(sysdir, BSIZE, "\\Fonts");
     }
 
     GetWindowsDirectory(windir, BSIZE);
     if (strlen(windir) > BSIZE-7) {
         *windir = 0;
     } else {
-        strcat(windir, "\\Fonts");
+        StringCchCatA(windir, BSIZE, "\\Fonts");
     }
 
-    strcpy(fontpath,sysdir);
+    StringCchCopyA(fontpath, BSIZE*2, sysdir);
     if (stricmp(sysdir,windir)) {
-        strcat(fontpath,";");
-        strcat(fontpath,windir);
+        StringCchCatA(fontpath, BSIZE*2, ";");
+        StringCchCatA(fontpath, BSIZE*2, windir);
     }
 
     return JNU_NewStringPlatform(env, fontpath);
@@ -210,7 +211,7 @@ static int DifferentFamily(wchar_t *family, wchar_t* fullName) {
     info.isDifferent = 0;
 
     memset(&lfw, 0, sizeof(lfw));
-    wcscpy(lfw.lfFaceName, fullName);
+    StringCchCopyW(lfw.lfFaceName, LF_FACESIZE, fullName);
     lfw.lfCharSet = DEFAULT_CHARSET;
     EnumFontFamiliesExW(screenDC, &lfw,
                         (FONTENUMPROCW)CheckFontFamilyProcW,
@@ -379,7 +380,7 @@ static int CALLBACK EnumFamilyNamesW(
                              fmi->putMID, familyLC, fmi->list);
 
     memset(&lfw, 0, sizeof(lfw));
-    wcscpy(lfw.lfFaceName, lpelfe->elfLogFont.lfFaceName);
+    StringCchCopyW(lfw.lfFaceName, LF_FACESIZE, lpelfe->elfLogFont.lfFaceName);
     lfw.lfCharSet = lpelfe->elfLogFont.lfCharSet;
     EnumFontFamiliesExW(screenDC, &lfw,
                         (FONTENUMPROCW)EnumFontFacesInFamilyProcW,
@@ -674,7 +675,7 @@ Java_sun_awt_Win32FontManager_populateFontFileNameMap0
         LOGFONTW lfw;
         memset(&lfw, 0, sizeof(lfw));
         lfw.lfCharSet = DEFAULT_CHARSET;  /* all charsets */
-        wcscpy(lfw.lfFaceName, L"");      /* one face per family (CHECK) */
+        StringCchCopyW(lfw.lfFaceName, LF_FACESIZE, L"");  /* one face per family (CHECK) */
         EnumFontFamiliesExW(screenDC, &lfw,
                             (FONTENUMPROCW)EnumFamilyNamesW,
                             (LPARAM)(&fmi), 0L);

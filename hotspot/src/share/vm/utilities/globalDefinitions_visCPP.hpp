@@ -35,6 +35,7 @@
 # include <string.h>
 # include <stdarg.h>
 # include <stdlib.h>
+# include <stdint.h>
 # include <stddef.h>// for offsetof
 # include <io.h>    // for stream.cpp
 # include <float.h> // for _isnan
@@ -42,6 +43,9 @@
 # include <time.h>
 # include <fcntl.h>
 # include <limits.h>
+#if _MSC_VER >= 1800
+# include <inttypes.h>
+#endif
 // Need this on windows to get the math constants (e.g., M_PI).
 #define _USE_MATH_DEFINES
 # include <math.h>
@@ -77,53 +81,19 @@
 // pointer is stored as integer value.
 #define NULL_WORD NULL
 
-// Some MS Visual Studio versions do not seem to have INT64_C and UINT64_C
-// even with __STDC_CONSTANT_MACROS defined.
-#ifndef INT64_C
-#define INT64_C(c)  (c ## i64)
-#endif
-#ifndef UINT64_C
-#define UINT64_C(c) (c ## ui64)
-#endif
-
-// Compiler-specific primitive types
-typedef unsigned __int8  uint8_t;
-typedef unsigned __int16 uint16_t;
-typedef unsigned __int32 uint32_t;
-typedef unsigned __int64 uint64_t;
-
 #ifdef _WIN64
-typedef unsigned __int64 uintptr_t;
+typedef int64_t ssize_t;
 #else
-typedef unsigned int uintptr_t;
-#endif
-typedef signed   __int8  int8_t;
-typedef signed   __int16 int16_t;
-typedef signed   __int32 int32_t;
-typedef signed   __int64 int64_t;
-#ifdef _WIN64
-typedef signed   __int64 intptr_t;
-typedef signed   __int64 ssize_t;
-#else
-typedef signed   int intptr_t;
-typedef signed   int ssize_t;
-#endif
-
-#ifndef UINTPTR_MAX
-#ifdef _WIN64
-#define UINTPTR_MAX _UI64_MAX
-#else
-#define UINTPTR_MAX _UI32_MAX
-#endif
+typedef int32_t ssize_t;
 #endif
 
 //----------------------------------------------------------------------------------------------------
 // Additional Java basic types
 
-typedef unsigned char    jubyte;
-typedef unsigned short   jushort;
-typedef unsigned int     juint;
-typedef unsigned __int64 julong;
+typedef uint8_t  jubyte;
+typedef uint16_t jushort;
+typedef uint32_t juint;
+typedef uint64_t julong;
 
 
 //----------------------------------------------------------------------------------------------------
@@ -210,8 +180,9 @@ const jlong max_jlong = CONST64(0x7fffffffffffffff);
 // Formatting.
 #define FORMAT64_MODIFIER "I64"
 
-// Visual Studio doesn't provide inttypes.h so provide appropriate definitions here.
+// Visual Studio 2010-2012 doesn't provide inttypes.h so provide appropriate definitions here.
 // The 32 bits ones might need I32 but seem to work ok without it.
+#if _MSC_VER < 1800
 #define PRId32       "d"
 #define PRIu32       "u"
 #define PRIx32       "x"
@@ -228,6 +199,7 @@ const jlong max_jlong = CONST64(0x7fffffffffffffff);
 #define PRIdPTR       "d"
 #define PRIuPTR       "u"
 #define PRIxPTR       "x"
+#endif
 #endif
 
 #define offset_of(klass,field) offsetof(klass,field)

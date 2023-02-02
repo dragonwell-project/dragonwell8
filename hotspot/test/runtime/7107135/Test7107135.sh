@@ -65,7 +65,7 @@ THIS_DIR=.
 cp ${TESTSRC}${FS}*.java ${THIS_DIR}
 ${TESTJAVA}${FS}bin${FS}javac *.java
 
-$gcc_cmd -fPIC -shared -c -o test.o \
+$gcc_cmd ${CFLAGBITS} -fPIC -shared -c -o test.o \
     -I${TESTJAVA}${FS}include -I${TESTJAVA}${FS}include${FS}linux \
     ${TESTSRC}${FS}test.c
 

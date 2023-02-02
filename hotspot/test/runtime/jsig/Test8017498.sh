@@ -70,7 +70,7 @@ THIS_DIR=.
 cp ${TESTSRC}${FS}*.java ${THIS_DIR}
 ${TESTJAVA}${FS}bin${FS}javac *.java
 
-$gcc_cmd -DLINUX -fPIC -shared \
+$gcc_cmd -DLINUX ${CFLAGBITS} -fPIC -shared \
     -o ${TESTSRC}${FS}libTestJNI.so \
     -I${TESTJAVA}${FS}include \
     -I${TESTJAVA}${FS}include${FS}linux \

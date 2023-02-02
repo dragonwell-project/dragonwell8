@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2010, 2022, Oracle and/or its affiliates. All rights reserved.
 # DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 #
 # This code is free software; you can redistribute it and/or modify it
@@ -88,7 +88,7 @@ zip diffend.jar META-INF/MANIFEST.MF META-INF/x.RSA 1
 ${TESTJAVA}${FS}bin${FS}jarsigner \
     -keystore ${TESTSRC}${FS}JarSigning.keystore \
     -storepass bbbbbb \
-    -digestalg SHA1 \
+    -digestalg SHA-256 \
     -signedjar diffend.new.jar \
     diffend.jar c
 
@@ -102,7 +102,7 @@ zip diffend.jar META-INF/MANIFEST.MF 1
 ${TESTJAVA}${FS}bin${FS}jarsigner \
     -keystore ${TESTSRC}${FS}JarSigning.keystore \
     -storepass bbbbbb \
-    -digestalg SHA1 \
+    -digestalg SHA-256 \
     -signedjar diffend.new.jar \
     diffend.jar c
 
