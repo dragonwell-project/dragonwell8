@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020 Alibaba Group Holding Limited. All Rights Reserved.
+ * Copyright (c) 2023 Alibaba Group Holding Limited. All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -98,7 +98,7 @@ public class WispMonitorDataTest {
     }
 
     private static ServerSocket ss;
-    private static final int PORT = 23000;
+    private static final int PORT = 23002;
     private static final int BUFFER_SIZE = 1024;
 
     private static void startNetServer() throws IOException {
