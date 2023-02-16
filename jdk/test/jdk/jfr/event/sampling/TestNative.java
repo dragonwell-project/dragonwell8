@@ -43,7 +43,7 @@ import jdk.test.lib.process.ProcessTools;
  *
  * @library /lib /
  *
- * @run main/native jdk.jfr.event.sampling.TestNative
+ * @run shell TestNative.sh
  */
 public class TestNative {
 
