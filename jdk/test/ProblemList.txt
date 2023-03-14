@@ -428,13 +428,13 @@ com/alibaba/wisp/monitor/PassTokenTest.java generic-all
 com/alibaba/wisp/bug/WispSelectorReadyOpsTest.java generic-all
 com/alibaba/wisp2/NmtTracingWispTaskRecycleTest.java generic-all
 com/alibaba/wisp2/WispControlGroupCpuTest.java generic-all
-com/alibaba/wisp/ExecutionTest.java https://github.com/alibaba/dragonwell8/issues/371 generic-all
-com/alibaba/wisp/IoTest.java https://github.com/alibaba/dragonwell8/issues/371 generic-all
-com/alibaba/wisp/io/GlobalPollerTest.java https://github.com/alibaba/dragonwell8/issues/371 generic-all
-com/alibaba/wisp2/CarrierAsPollerTest.java https://github.com/alibaba/dragonwell8/issues/371 generic-all
-com/alibaba/wisp2/Wisp2TimerRemoveTest.java https://github.com/alibaba/dragonwell8/issues/360 generic-all
-com/alibaba/wisp/thread/PreemptTest.java https://github.com/alibaba/dragonwell8/issues/388 generic-all
-com/alibaba/wisp2/yield/YieldFewNanosTest.java https://github.com/alibaba/dragonwell8/issues/378 generic-all
+com/alibaba/wisp/ExecutionTest.java https://github.com/dragonwell-project/dragonwell8/issues/371 generic-all
+com/alibaba/wisp/IoTest.java https://github.com/dragonwell-project/dragonwell8/issues/371 generic-all
+com/alibaba/wisp/io/GlobalPollerTest.java https://github.com/dragonwell-project/dragonwell8/issues/371 generic-all
+com/alibaba/wisp2/CarrierAsPollerTest.java https://github.com/dragonwell-project/dragonwell8/issues/371 generic-all
+com/alibaba/wisp2/Wisp2TimerRemoveTest.java https://github.com/dragonwell-project/dragonwell8/issues/360 generic-all
+com/alibaba/wisp/thread/PreemptTest.java https://github.com/dragonwell-project/dragonwell8/issues/388 generic-all
+com/alibaba/wisp2/yield/YieldFewNanosTest.java https://github.com/dragonwell-project/dragonwell8/issues/378 generic-all
 
 # resource limit
 
