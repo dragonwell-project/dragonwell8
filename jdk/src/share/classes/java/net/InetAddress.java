@@ -863,6 +863,7 @@ class InetAddress implements java.io.Serializable {
             nameService = new NameService() {
                 public InetAddress[] lookupAllHostAddr(String host)
                     throws UnknownHostException {
+                    validate(host);
                     return impl.lookupAllHostAddr(host);
                 }
                 public String getHostByAddr(byte[] addr)
@@ -1073,6 +1074,7 @@ class InetAddress implements java.io.Serializable {
             return ret;
         }
 
+        validate(host);
         boolean ipv6Expected = false;
         if (host.charAt(0) == '[') {
             // This is supposed to be an IPv6 literal
@@ -1549,6 +1551,12 @@ class InetAddress implements java.io.Serializable {
         pf.put("address", holder().getAddress());
         pf.put("family", holder().getFamily());
         s.writeFields();
+    }
+
+    private static void validate(String host) throws UnknownHostException {
+        if (host.indexOf(0) != -1) {
+            throw new UnknownHostException("NUL character not allowed in hostname");
+        }
     }
 }
 
