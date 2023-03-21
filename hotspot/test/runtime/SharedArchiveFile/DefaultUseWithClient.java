@@ -24,8 +24,9 @@
 /*
  * @test DefaultUseWithClient
  * @summary Test default behavior of sharing with -client
+ * @requires os.family == "windows" & vm.bits == "32" & vm.flavor == "client"
  * @library /testlibrary
- * @run main/othervm -client DefaultUseWithClient
+ * @run main/othervm DefaultUseWithClient
  * @bug 8032224
  */
 
@@ -37,12 +38,6 @@ public class DefaultUseWithClient {
         String fileName = "test.jsa";
 
         // On 32-bit windows CDS should be on by default in "-client" config
-        // Skip this test on any other platform
-        boolean is32BitWindowsClient = (Platform.isWindows() && Platform.is32bit() && Platform.isClient());
-        if (!is32BitWindowsClient) {
-            System.out.println("Test only applicable on 32-bit Windows Client VM. Skipping");
-            return;
-        }
 
         // create the archive
         ProcessBuilder pb = ProcessTools.createJavaProcessBuilder(

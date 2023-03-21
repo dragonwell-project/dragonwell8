@@ -25,6 +25,7 @@
  * @test
  * @key nmt jcmd
  * @library /testlibrary /testlibrary/whitebox
+ * @requires vm.bits == 64
  * @build HugeArenaTracking
  * @run main ClassFileInstaller sun.hotspot.WhiteBox
  * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI -XX:NativeMemoryTracking=detail HugeArenaTracking
@@ -38,10 +39,6 @@ public class HugeArenaTracking {
   private static final long GB = 1024 * 1024 * 1024;
 
   public static void main(String args[]) throws Exception {
-    if (!Platform.is64bit()) {
-        System.out.println("Test requires 64-bit JVM. Skipping...");
-        return;
-    }
     OutputAnalyzer output;
     final WhiteBox wb = WhiteBox.getWhiteBox();
 
