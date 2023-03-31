@@ -76,6 +76,9 @@ class WispEventPump {
         Pool() {
             int n = Math.max(1, WispConfiguration.WORKER_COUNT / WispConfiguration.POLLER_SHARDING_SIZE);
             n = (n & (n - 1)) == 0 ? n : Integer.highestOneBit(n) * 2; // next power of 2
+            if (WispConfiguration.SEPARATE_IO_POLLER) {
+                n = Math.max(2, n);
+            }
             mask = n - 1;
             pumps = new WispEventPump[n];
             for (int i = 0; i < pumps.length; i++) {
@@ -104,16 +107,21 @@ class WispEventPump {
             return x * (int) 2654435761L;
         }
 
+        private WispEventPump pumpFromFd(int fd, boolean isRead) {
+            int offset = WispConfiguration.SEPARATE_IO_POLLER && !isRead ? 0 : 1;
+            return pumps[(hash(fd) + offset) & mask];
+        }
+
         void registerEvent(WispTask task, SelectableChannel ch, int event) throws IOException {
             if (ch != null && ch.isOpen()) {
                 int fd = ((SelChImpl) ch).getFDVal();
-                pumps[hash(fd) & mask].registerEvent(task, fd, event);
+                pumpFromFd(fd, isNativeReadEvent(toNativeEvent(event))).registerEvent(task, fd, event);
             }
         }
 
         int epollWaitForWisp(int epfd, long pollArray, int arraySize, long timeout, AtomicReference<Object> status,
                              final Object INTERRUPTED) throws IOException {
-            return pumps[hash(epfd) & mask].epollWaitForWisp(epfd, pollArray, arraySize, timeout, status, INTERRUPTED);
+            return pumpFromFd(epfd, true).epollWaitForWisp(epfd, pollArray, arraySize, timeout, status, INTERRUPTED);
         }
 
         void interruptEpoll(AtomicReference<Object> status, Object INTERRUPTED, int interruptFd) {
@@ -140,18 +148,18 @@ class WispEventPump {
     /**
      * whether event is a reading event or an accepting event
      */
-    private boolean isReadEvent(int events) throws IllegalArgumentException {
+    private static boolean isNativeReadEvent(int events) throws IllegalArgumentException {
         int event = (events & (Net.POLLCONN | Net.POLLIN | Net.POLLOUT));
         assert Integer.bitCount(event) == 1;
         return (events & Net.POLLIN) != 0;
     }
 
     private WispTask[] getFd2TaskLow(int events) {
-        return isReadEvent(events) ? fd2ReadTaskLow : fd2WriteTaskLow;
+        return isNativeReadEvent(events) ? fd2ReadTaskLow : fd2WriteTaskLow;
     }
 
     private ConcurrentHashMap<Integer, WispTask> getFd2TaskHigh(int events) {
-        return isReadEvent(events) ? fd2ReadTaskHigh : fd2WriteTaskHigh;
+        return isNativeReadEvent(events) ? fd2ReadTaskHigh : fd2WriteTaskHigh;
     }
 
     private boolean sanityCheck(int fd, WispTask newTask, int events) {
@@ -187,12 +195,17 @@ class WispEventPump {
         return task;
     }
 
-    private void registerEvent(WispTask task, int fd, int event) throws IOException {
-        int ev = 0;
+    private static int toNativeEvent(int events) {
         // Translates an interest operation set into a native poll event set
-        if ((event & (SelectionKey.OP_READ | SelectionKey.OP_ACCEPT)) != 0) ev |= Net.POLLIN;
-        if ((event & SelectionKey.OP_WRITE) != 0) ev |= Net.POLLOUT;
-        if ((event & SelectionKey.OP_CONNECT) != 0) ev |= Net.POLLCONN;
+        int ev = 0;
+        if ((events & (SelectionKey.OP_READ | SelectionKey.OP_ACCEPT)) != 0) ev |= Net.POLLIN;
+        if ((events & SelectionKey.OP_WRITE) != 0) ev |= Net.POLLOUT;
+        if ((events & SelectionKey.OP_CONNECT) != 0) ev |= Net.POLLCONN;
+        return ev;
+    }
+
+    private void registerEvent(WispTask task, int fd, int event) throws IOException {
+        int ev = toNativeEvent(event);
         // When the socket is closed, the poll event will be triggered
         ev |= Net.POLLHUP;
         // specify the EPOLLONESHOT flag, to tell epoll to disable the associated
