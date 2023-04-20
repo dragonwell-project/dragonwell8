@@ -279,7 +279,7 @@ public:
   bool process_or_enqueue_complete_buffer(void** buf);
 
   bool completed_buffers_exist_dirty() {
-    return _n_completed_buffers > 0;
+    return _n_completed_buffers > 0 || _completed_buffers_head != NULL;
   }
 
   bool process_completed_buffers() { return _process_completed; }

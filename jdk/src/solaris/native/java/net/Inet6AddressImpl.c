@@ -537,7 +537,7 @@ ping6(JNIEnv *env, jint fd, struct sockaddr_in6* him, jint timeout,
     jbyte *caddr, *recv_caddr;
     jchar pid;
     jint tmout2, seq = 1;
-    struct timeval tv;
+    struct timeval tv = { 0, 0 };
     size_t plen;
 
 #ifdef __linux__

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2008, 2023, Oracle and/or its affiliates. All rights reserved.
  * Copyright 2015 SAP AG. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -134,6 +134,7 @@ public class AixVirtualMachine extends HotSpotVirtualMachine {
      */
     InputStream execute(String cmd, Object ... args) throws AgentLoadException, IOException {
         assert args.length <= 3;            // includes null
+        checkNulls(args);
 
         // did we detach?
         String p;
