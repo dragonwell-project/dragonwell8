@@ -72,6 +72,8 @@ import sun.reflect.misc.ReflectUtil;
  */
 public class ObjectView extends ComponentView  {
 
+    private boolean createComp = true; // default
+
     /**
      * Creates a new ObjectView object.
      *
@@ -81,12 +83,20 @@ public class ObjectView extends ComponentView  {
         super(elem);
     }
 
+    ObjectView(Element elem, boolean createComp) {
+        super(elem);
+        this.createComp = createComp;
+    }
+
     /**
      * Create the component.  The classid is used
      * as a specification of the classname, which
      * we try to load.
      */
     protected Component createComponent() {
+        if (!createComp) {
+            return getUnloadableRepresentation();
+        }
         AttributeSet attr = getElement().getAttributes();
         String classname = (String) attr.getAttribute(HTML.Attribute.CLASSID);
         try {

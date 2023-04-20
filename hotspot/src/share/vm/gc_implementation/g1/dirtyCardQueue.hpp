@@ -161,7 +161,6 @@ public:
 
   // If any threads have partial logs, add them to the global list of logs.
   void concatenate_logs();
-  void clear_n_completed_buffers() { _n_completed_buffers = 0;}
 
   jint processed_buffers_mut() {
     return _processed_buffers_mut;
