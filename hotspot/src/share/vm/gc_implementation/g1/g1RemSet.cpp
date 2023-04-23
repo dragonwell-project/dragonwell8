@@ -377,9 +377,8 @@ void G1RemSet::cleanup_after_oops_into_collection_set_do() {
   // Free any completed buffers in the DirtyCardQueueSet used to hold cards
   // which contain references that point into the collection.
   _g1->into_cset_dirty_card_queue_set().clear();
-  assert(_g1->into_cset_dirty_card_queue_set().completed_buffers_num() == 0,
+  assert(!_g1->into_cset_dirty_card_queue_set().completed_buffers_exist_dirty(),
          "all buffers should be freed");
-  _g1->into_cset_dirty_card_queue_set().clear_n_completed_buffers();
 }
 
 class ScrubRSClosure: public HeapRegionClosure {

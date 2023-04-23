@@ -169,6 +169,9 @@ COMPILER_NAME=VS2017
 !if "$(MSC_VER)" == "1916"
 COMPILER_NAME=VS2017
 !endif
+!if "$(MSC_VER)" >= "1920" && "$(MSC_VER)" <= "1929"
+COMPILER_NAME=VS2019
+!endif
 !endif
 
 # By default, we do not want to use the debug version of the msvcrt.dll file
@@ -304,6 +307,21 @@ SAFESEH_FLAG = /SAFESEH
 !endif
 
 !if "$(COMPILER_NAME)" == "VS2017"
+PRODUCT_OPT_OPTION   = /O2 /Oy-
+FASTDEBUG_OPT_OPTION = /O2 /Oy-
+DEBUG_OPT_OPTION     = /Od
+GX_OPTION = /EHsc
+LD_FLAGS = /manifest $(LD_FLAGS)
+MP_FLAG = /MP
+# Manifest Tool - used in VS2005 and later to adjust manifests stored
+# as resources inside build artifacts.
+!if "x$(MT)" == "x"
+MT=mt.exe
+!endif
+SAFESEH_FLAG = /SAFESEH
+!endif
+
+!if "$(COMPILER_NAME)" == "VS2019"
 PRODUCT_OPT_OPTION   = /O2 /Oy-
 FASTDEBUG_OPT_OPTION = /O2 /Oy-
 DEBUG_OPT_OPTION     = /Od

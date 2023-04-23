@@ -74,6 +74,10 @@ class UnixUriUtils {
         int pos = 0;
         while (pos < len) {
             char c = p.charAt(pos++);
+            if ((c == '/') && (pos < len) && (p.charAt(pos) == '/')) {
+                // skip redundant slashes
+                continue;
+            }
             byte b;
             if (c == '%') {
                 assert (pos+2) <= len;
