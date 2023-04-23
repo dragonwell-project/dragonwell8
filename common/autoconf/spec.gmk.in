@@ -725,3 +725,9 @@ JRE_BUNDLE_DIR=$(IMAGES_OUTPUTDIR)/$(JRE_BUNDLE_SUBDIR)
 
 # Include the custom-spec.gmk file if it exists
 -include $(dir @SPEC@)/custom-spec.gmk
+
+# Include Dragonwell version information
+-include @TOPDIR@/dragonwell_version
+DISTRO_NAME=Alibaba Dragonwell Standard Edition
+COMPANY_NAME=Alibaba
+DISTRO_VERSION=$(DRAGONWELL_VERSION)
