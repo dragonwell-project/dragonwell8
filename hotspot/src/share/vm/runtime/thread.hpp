@@ -508,7 +508,7 @@ public:
   }
 
   // Sweeper support
-  void nmethods_do(CodeBlobClosure* cf);
+  virtual void nmethods_do(CodeBlobClosure* cf);
 
   // jvmtiRedefineClasses support
   void metadata_do(void f(Metadata*));
@@ -1450,10 +1450,10 @@ class JavaThread: public Thread {
   void frames_do(void f(frame*, const RegisterMap*));
 
   // Memory operations
-  void oops_do(OopClosure* f, CLDClosure* cld_f, CodeBlobClosure* cf);
+  virtual void oops_do(OopClosure* f, CLDClosure* cld_f, CodeBlobClosure* cf);
 
   // Sweeper operations
-  void nmethods_do(CodeBlobClosure* cf);
+  virtual void nmethods_do(CodeBlobClosure* cf);
 
   // RedefineClasses Support
   void metadata_do(void f(Metadata*));
