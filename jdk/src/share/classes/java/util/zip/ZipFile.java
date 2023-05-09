@@ -213,6 +213,9 @@ class ZipFile implements ZipConstants, Closeable {
                                                Integer.toHexString(mode));
         }
         String name = file.getPath();
+        if (name.indexOf(0) >= 0) {
+            throw new IOException("Illegal filename");
+        }
         file = new File(name);
         SecurityManager sm = System.getSecurityManager();
         if (sm != null) {

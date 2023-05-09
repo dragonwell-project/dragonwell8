@@ -45,14 +45,14 @@ echo "Testing on " $OS
 case "$OS" in
   Linux)
     cc_cmd=`which gcc`
-    if [ "x$cc_cmd" == "x" ]; then
+    if [ "x$cc_cmd" = "x" ]; then
         echo "WARNING: gcc not found. Cannot execute test." 2>&1
         exit 0;
     fi
     ;;
   Solaris)
     cc_cmd=`which cc`
-    if [ "x$cc_cmd" == "x" ]; then
+    if [ "x$cc_cmd" = "x" ]; then
         echo "WARNING: cc not found. Cannot execute test." 2>&1
         exit 0;
     fi
@@ -81,7 +81,7 @@ echo ${TESTJAVA}${FS}bin${FS}java -cp ${THIS_DIR} -Xint ReturnJNIWeak
 ${TESTJAVA}${FS}bin${FS}java -cp ${THIS_DIR} -Xint ReturnJNIWeak
 JAVA_RETVAL=$?
 
-if [ "$JAVA_RETVAL" == "0" ]
+if [ "$JAVA_RETVAL" = "0" ]
 then
   echo
   echo ${TESTJAVA}${FS}bin${FS}java -cp ${THIS_DIR} -Xcomp ReturnJNIWeak

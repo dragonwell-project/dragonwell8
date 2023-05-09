@@ -184,21 +184,14 @@ julong os::Linux::available_memory() {
   julong avail_mem;
 
   if (OSContainer::is_containerized()) {
-    jlong mem_limit, mem_usage;
-    if ((mem_limit = OSContainer::memory_limit_in_bytes()) < 1) {
-      if (PrintContainerInfo) {
-        tty->print_cr("container memory limit %s: " JLONG_FORMAT ", using host value",
-                       mem_limit == OSCONTAINER_ERROR ? "failed" : "unlimited", mem_limit);
-      }
-    }
-
+    jlong mem_limit = OSContainer::memory_limit_in_bytes();
+    jlong mem_usage;
     if (mem_limit > 0 && (mem_usage = OSContainer::memory_usage_in_bytes()) < 1) {
       if (PrintContainerInfo) {
         tty->print_cr("container memory usage failed: " JLONG_FORMAT ", using host value", mem_usage);
       }
     }
-
-    if (mem_limit > 0 && mem_usage > 0 ) {
+    if (mem_limit > 0 && mem_usage > 0) {
       avail_mem = mem_limit > mem_usage ? (julong)mem_limit - (julong)mem_usage : 0;
       if (PrintContainerInfo) {
         tty->print_cr("available container memory: " JULONG_FORMAT, avail_mem);
@@ -224,11 +217,6 @@ julong os::physical_memory() {
         tty->print_cr("total container memory: " JLONG_FORMAT, mem_limit);
       }
       return mem_limit;
-    }
-
-    if (PrintContainerInfo) {
-      tty->print_cr("container memory limit %s: " JLONG_FORMAT ", using host value",
-                     mem_limit == OSCONTAINER_ERROR ? "failed" : "unlimited", mem_limit);
     }
   }
 
@@ -306,6 +294,14 @@ pid_t os::Linux::gettid() {
   } else {
      return (pid_t)rslt;
   }
+}
+
+// Returns the amount of swap currently configured, in bytes.
+// This can change at any time.
+julong os::Linux::host_swap() {
+  struct sysinfo si;
+  sysinfo(&si);
+  return (julong)si.totalswap;
 }
 
 // Most versions of linux have a bug where the number of processors are
@@ -2284,7 +2280,7 @@ void os::Linux::print_full_memory_info(outputStream* st) {
 }
 
 void os::Linux::print_container_info(outputStream* st) {
-if (!OSContainer::is_containerized()) {
+  if (!OSContainer::is_containerized()) {
     return;
   }
 

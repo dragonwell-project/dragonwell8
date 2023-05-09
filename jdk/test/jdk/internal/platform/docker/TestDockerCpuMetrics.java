@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -62,11 +62,13 @@ public class TestDockerCpuMetrics {
                 testCpuSet((((numCpus - 1) / 2) + 1) + "-" + (numCpus - 1));
             }
             testCpuSet(IntStream.range(0, numCpus).mapToObj(a -> Integer.toString(a)).collect(Collectors.joining(",")));
+            testCpuSet("0", true /* additional cgroup fs mount */);
 
             testCpuQuota(50 * 1000, 100 * 1000);
             testCpuQuota(100 * 1000, 100 * 1000);
             testCpuQuota(150 * 1000, 100 * 1000);
             testCpuQuota(400 * 1000, 100 * 1000);
+            testCpuQuota(200 * 1000, 100 * 1000, true /* additional cgroup fs mount */);
 
             testCpuShares(256);
             testCpuShares(2048);
@@ -76,10 +78,10 @@ public class TestDockerCpuMetrics {
 
             int[] cpuSetMems = Metrics.systemMetrics().getCpuSetMems();
             String memNodes = null;
-            if (cpuSetMems.length > 1) {
+            if (cpuSetMems != null && cpuSetMems.length > 1) {
                 int endNode = (cpuSetMems[cpuSetMems.length - 1] - cpuSetMems[0]) / 2 + cpuSetMems[0];
                 memNodes = cpuSetMems[0] + "-" + endNode;
-            } else if (cpuSetMems.length == 1) {
+            } else if (cpuSetMems != null && cpuSetMems.length == 1) {
                 memNodes = cpuSetMems[0] + "";
             }
 
@@ -105,10 +107,18 @@ public class TestDockerCpuMetrics {
     }
 
     private static void testCpuSet(String value) throws Exception {
+        testCpuSet(value, false);
+    }
+
+    private static void testCpuSet(String value, boolean addCgroupMount) throws Exception {
         Common.logNewTestCase("testCpuSet, value = " + value);
         DockerRunOptions opts =
                 new DockerRunOptions(imageName, "/jdk/bin/java", "MetricsCpuTester");
         opts.addDockerOpts("--volume", Utils.TEST_CLASSES + ":/test-classes/");
+        if (addCgroupMount) {
+            // Extra cgroup mount should be ignored by product code
+            opts.addDockerOpts("--volume", "/sys/fs/cgroup:/cgroup-in:ro");
+        }
         opts.addJavaOpts("-cp", "/test-classes/");
         opts.addClassOptions("cpusets", value);
         opts.addDockerOpts("--cpuset-cpus=" + value);
@@ -116,10 +126,18 @@ public class TestDockerCpuMetrics {
     }
 
     private static void testCpuQuota(long quota, long period) throws Exception {
+        testCpuQuota(quota, period, false);
+    }
+
+    private static void testCpuQuota(long quota, long period, boolean addCgroupMount) throws Exception {
         Common.logNewTestCase("testCpuQuota, quota = " + quota + ", period = " + period);
         DockerRunOptions opts =
                 new DockerRunOptions(imageName, "/jdk/bin/java", "MetricsCpuTester");
         opts.addDockerOpts("--volume", Utils.TEST_CLASSES + ":/test-classes/");
+        if (addCgroupMount) {
+            // Extra cgroup mount should be ignored by product code
+            opts.addDockerOpts("--volume", "/sys/fs/cgroup:/cgroup-in:ro");
+        }
         opts.addDockerOpts("--cpu-period=" + period).addDockerOpts("--cpu-quota=" + quota);
         opts.addJavaOpts("-cp", "/test-classes/");
         opts.addClassOptions("cpuquota", quota + "", period + "");

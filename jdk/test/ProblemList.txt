@@ -122,12 +122,6 @@ java/awt/FontMetrics/MaxAdvanceIsMax.java             solaris-all,macosx-all
 
 # jdk_beans
 
-# 8060027
-java/beans/XMLEncoder/Test4903007.java                        generic-all
-java/beans/XMLEncoder/java_awt_GridBagLayout.java             generic-all
-java/beans/XMLDecoder/8028054/TestConstructorFinder.java      generic-all
-java/beans/XMLDecoder/8028054/TestMethodFinder.java           generic-all
-
 ############################################################################
 
 # jdk_lang
@@ -207,6 +201,9 @@ sun/net/www/http/HttpClient/B8025710.java			generic-all
 
 # 8169774
 java/io/File/WinSpecialFiles.java                               windows-all
+
+# 8274122
+java/io/File/createTempFile/SpecialTempFile.java                windows11
 
 ############################################################################
 
@@ -338,9 +335,6 @@ javax/sound/sampled/Clip/Drain/ClipDrain.java          7062792 generic-all
 
 javax/sound/sampled/Mixers/DisabledAssertionCrash.java 7067310 generic-all
 
-# 8059743
-javax/sound/midi/Gervill/SoftProvider/GetDevice.java            generic-all
-
 ############################################################################
 
 # jdk_swing
@@ -448,3 +442,10 @@ java/lang/invoke/LFCaching/LFGarbageCollectedTest.java generic-all
 java/util/AbstractList/CheckForComodification.java generic-all
 java/lang/StringBuilder/HugeCapacity.java generic-all
 
+############################################################################
+
+# china mainland network
+
+############################################################################
+
+security/infra/java/security/cert/CertPathValidator/certification/CertignaCA.java generic-all

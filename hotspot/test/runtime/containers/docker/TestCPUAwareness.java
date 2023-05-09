@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -32,6 +32,7 @@
  */
 
 import java.util.List;
+import com.oracle.java.testlibrary.OutputAnalyzer;
 import com.oracle.java.testlibrary.Common;
 import com.oracle.java.testlibrary.DockerTestUtils;
 import com.oracle.java.testlibrary.DockerRunOptions;
@@ -69,10 +70,11 @@ private static final String imageName = Common.imageName("cpu");
             testActiveProcessorCount(2, 2);
 
             // cpu quota and period
-            testCpuQuotaAndPeriod(50*1000, 100*1000);
-            testCpuQuotaAndPeriod(100*1000, 100*1000);
-            testCpuQuotaAndPeriod(150*1000, 100*1000);
-            testCpuQuotaAndPeriod(400*1000, 100*1000);
+            testCpuQuotaAndPeriod(50*1000, 100*1000, false);
+            testCpuQuotaAndPeriod(100*1000, 100*1000, false);
+            testCpuQuotaAndPeriod(150*1000, 100*1000, false);
+            testCpuQuotaAndPeriod(400*1000, 100*1000, false);
+            testCpuQuotaAndPeriod(50*1000, 100*1000, true /* additional cgroup mount */);
 
             testOperatingSystemMXBeanAwareness("0.5", "1");
             testOperatingSystemMXBeanAwareness("1.0", "1");
@@ -152,7 +154,7 @@ private static final String imageName = Common.imageName("cpu");
     }
 
 
-    private static void testCpuQuotaAndPeriod(int quota, int period)
+    private static void testCpuQuotaAndPeriod(int quota, int period, boolean addCgmounts)
         throws Exception {
         Common.logNewTestCase("test cpu quota and period: ");
         System.out.println("quota = " + quota);
@@ -165,6 +167,10 @@ private static final String imageName = Common.imageName("cpu");
         DockerRunOptions opts = Common.newOpts(imageName)
             .addDockerOpts("--cpu-period=" + period)
             .addDockerOpts("--cpu-quota=" + quota);
+
+        if (addCgmounts) {
+            opts = opts.addDockerOpts("--volume", "/sys/fs/cgroup:/cgroups-in:ro");
+        }
 
         Common.run(opts)
             .shouldMatch("CPU Period is.*" + period)
@@ -208,9 +214,21 @@ private static final String imageName = Common.imageName("cpu");
 
         DockerRunOptions opts = Common.newOpts(imageName)
             .addDockerOpts("--cpu-shares=" + shares);
-        Common.run(opts)
-            .shouldMatch("CPU Shares is.*" + shares)
-            .shouldMatch("active_processor_count.*" + expectedAPC);
+        OutputAnalyzer out = Common.run(opts);
+        // Cgroups v2 needs to do some scaling of raw shares values. Hence,
+        // 256 CPU shares come back as 264. Raw value written to cpu.weight
+        // is 10. The reason this works for >= 1024 shares value is because
+        // post-scaling the closest multiple of 1024 is found and returned.
+        //
+        // For values < 1024, this doesn't happen so loosen the match to a
+        // 3-digit number and ensure the active_processor_count is as
+        // expected.
+        if (shares < 1024) {
+            out.shouldMatch("CPU Shares is.*\\d{3}");
+        } else {
+            out.shouldMatch("CPU Shares is.*" + shares);
+        }
+        out.shouldMatch("active_processor_count.*" + expectedAPC);
     }
 
     private static void testOperatingSystemMXBeanAwareness(String cpuAllocation, String expectedCpus) throws Exception {

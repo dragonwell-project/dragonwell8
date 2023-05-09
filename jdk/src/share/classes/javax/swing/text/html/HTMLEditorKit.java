@@ -40,6 +40,7 @@ import javax.accessibility.*;
 import java.lang.ref.*;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
+import sun.swing.SwingAccessor;
 
 /**
  * The Swing JEditorPane text component supports different kinds
@@ -1182,7 +1183,11 @@ public class HTMLEditorKit extends StyledEditorKit implements Accessible {
                            (kind == HTML.Tag.TEXTAREA)) {
                     return new FormView(elem);
                 } else if (kind == HTML.Tag.OBJECT) {
-                    return new ObjectView(elem);
+                   if (SwingAccessor.getAllowHTMLObject()) {
+                        return new ObjectView(elem);
+                    } else {
+                        return new ObjectView(elem, false);
+                    }
                 } else if (kind == HTML.Tag.FRAMESET) {
                      if (elem.getAttributes().isDefined(HTML.Attribute.ROWS)) {
                          return new FrameSetView(elem, View.Y_AXIS);
