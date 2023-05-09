@@ -23,6 +23,7 @@
 
 /*
  * @test
+ * @key headful
  * @bug 8163889
  * @summary Printing crashes on OSX.
  * @run main PrintCrashTest

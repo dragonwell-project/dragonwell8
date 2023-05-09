@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -34,6 +34,7 @@ typedef int (*pthread_getattr_func_type) (pthread_t, pthread_attr_t *);
 static bool zero_page_read_protected() { return true; }
 
 class Linux {
+  friend class CgroupSubsystem;
   friend class os;
   friend class OSContainer;
   friend class TestReserveMemorySpecial;
@@ -80,8 +81,6 @@ class Linux {
   static const int _vm_default_page_size;
 
   static julong available_memory();
-  static julong physical_memory() { return _physical_memory; }
-  static void set_physical_memory(julong phys_mem) { _physical_memory = phys_mem; }
   static int active_processor_count();
 
   static void initialize_system_info();
@@ -152,6 +151,9 @@ class Linux {
   static address   ucontext_get_pc(ucontext_t* uc);
   static intptr_t* ucontext_get_sp(ucontext_t* uc);
   static intptr_t* ucontext_get_fp(ucontext_t* uc);
+
+  static julong physical_memory() { return _physical_memory; }
+  static julong host_swap();
 
   // For Analyzer Forte AsyncGetCallTrace profiling support:
   //

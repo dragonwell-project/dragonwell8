@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2010, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -63,6 +63,8 @@ public class T6893943 {
 
         List<String> command = new ArrayList<String>();
         command.add(new File(new File(javaHome, "bin"), "javah").getPath());
+        command.add("-J-Duser.language=en");
+        command.add("-J-Duser.country=US");
         command.add("-J-Xbootclasspath:" + System.getProperty("sun.boot.class.path"));
         command.addAll(Arrays.asList(args));
         //System.err.println("command: " + command);

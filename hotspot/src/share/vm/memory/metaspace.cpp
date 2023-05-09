@@ -1438,7 +1438,7 @@ bool MetaspaceGC::inc_capacity_until_GC(size_t v, size_t* new_cap_until_GC, size
 
   if (new_value < capacity_until_GC) {
     // The addition wrapped around, set new_value to aligned max value.
-    new_value = align_size_down(max_uintx, Metaspace::commit_alignment());
+    new_value = align_size_down(max_uintx, Metaspace::reserve_alignment());
   }
 
   if (new_value > MaxMetaspaceSize) {

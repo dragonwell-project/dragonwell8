@@ -329,10 +329,12 @@ public class WeakAlg {
                 .shouldMatch("The original.*ks.old5");
 
         KeyStore test_ks = KeyStore.getInstance("JKS");
-        test_ks.load(new FileInputStream(new File("ks")),
+        FileInputStream inputStream = new FileInputStream(new File("ks"));
+        test_ks.load(inputStream,
                 "changeit".toCharArray());
         Asserts.assertEQ(
                     test_ks.getType(), "JKS");
+        inputStream.close();
 
         importkeystore("ks", "ks", "-deststoretype PKCS12")
                 .shouldContain("Warning:")
@@ -340,16 +342,20 @@ public class WeakAlg {
                 .shouldMatch("Migrated.*Non.*JKS.*ks.old6");
 
         test_ks = KeyStore.getInstance("PKCS12");
-        test_ks.load(new FileInputStream(new File("ks")),
+        inputStream = new FileInputStream(new File("ks"));
+        test_ks.load(inputStream,
                 "changeit".toCharArray());
         Asserts.assertEQ(
                 test_ks.getType(), "PKCS12");
+        inputStream.close();
 
         test_ks = KeyStore.getInstance("JKS");
-        test_ks.load(new FileInputStream(new File("ks.old6")),
+        inputStream = new FileInputStream(new File("ks.old6"));
+        test_ks.load(inputStream,
                 "changeit".toCharArray());
         Asserts.assertEQ(
                 test_ks.getType(), "JKS");
+        inputStream.close();
 
         // One password prompt is enough for migration
         kt0("-importkeystore -srckeystore ks -destkeystore ks", "changeit")

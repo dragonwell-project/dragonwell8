@@ -198,6 +198,7 @@ public class DockerTestUtils {
         if (opts.appendTestJavaOptions) {
             Collections.addAll(cmd, Utils.getTestJavaOpts());
         }
+        cmd.addAll(opts.javaOptsAppended);
 
         cmd.add(opts.classToRun);
         cmd.addAll(opts.classParams);

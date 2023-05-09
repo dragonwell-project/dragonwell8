@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,7 +23,7 @@
 
 /**
  * @test
- * @bug 4853305
+ * @bug 4853305 8254717
  * @summary Test KeyFactory of the new RSA provider
  * @author Andreas Sterbenz
  */
@@ -107,11 +107,15 @@ public class TestKeyFactory {
 
         KeySpec rsaSpec2 = kf.getKeySpec(key, RSAPrivateKeySpec.class);
         PrivateKey key6 = kf.generatePrivate(rsaSpec2);
-        RSAPrivateKey rsaKey = (RSAPrivateKey)key;
-        KeySpec rsaSpec3 = new RSAPrivateKeySpec(rsaKey.getModulus(), rsaKey.getPrivateExponent());
-        PrivateKey key7 = kf.generatePrivate(rsaSpec3);
         testKey(key6, key6);
-        testKey(key6, key7);
+        if (key instanceof RSAPrivateCrtKey) {
+            RSAPrivateCrtKey rsaKey = (RSAPrivateCrtKey)key;
+            KeySpec rsaSpec3 = new RSAPrivateCrtKeySpec(rsaKey.getModulus(),
+                    rsaKey.getPublicExponent(), rsaKey.getPrivateExponent(), rsaKey.getPrimeP(), rsaKey.getPrimeQ(),
+                    rsaKey.getPrimeExponentP(), rsaKey.getPrimeExponentQ(), rsaKey.getCrtCoefficient(), rsaKey.getParams());
+            PrivateKey key7 = kf.generatePrivate(rsaSpec3);
+            testKey(key6, key7);
+        }
     }
 
     private static void test(KeyFactory kf, Key key) throws Exception {

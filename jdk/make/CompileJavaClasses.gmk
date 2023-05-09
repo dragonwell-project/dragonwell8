@@ -307,6 +307,10 @@ endif
 LINUX_SRC_DIRS :=
 ifeq ($(OPENJDK_TARGET_OS),linux)
      LINUX_SRC_DIRS += $(JDK_TOPDIR)/src/linux/classes
+
+     # Linux is the only OS with an actual implementation of SystemMetrics.
+     # Exclude the generic null-returning stub from solaris/classes for that reason.
+     EXFILES += $(JDK_TOPDIR)/src/solaris/classes/jdk/internal/platform/SystemMetrics.java
 endif
 
 # The exception handling of swing beaninfo
