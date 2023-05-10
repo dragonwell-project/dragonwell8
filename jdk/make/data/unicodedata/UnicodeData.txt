@@ -11732,7 +11732,7 @@
 4DFE;HEXAGRAM FOR AFTER COMPLETION;So;0;ON;;;;;N;;;;;
 4DFF;HEXAGRAM FOR BEFORE COMPLETION;So;0;ON;;;;;N;;;;;
 4E00;<CJK Ideograph, First>;Lo;0;L;;;;;N;;;;;
-9FCC;<CJK Ideograph, Last>;Lo;0;L;;;;;N;;;;;
+9FEF;<CJK Ideograph, Last>;Lo;0;L;;;;;N;;;;;
 A000;YI SYLLABLE IT;Lo;0;L;;;;;N;;;;;
 A001;YI SYLLABLE IX;Lo;0;L;;;;;N;;;;;
 A002;YI SYLLABLE I;Lo;0;L;;;;;N;;;;;

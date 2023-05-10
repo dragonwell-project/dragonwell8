@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,22 +28,16 @@
  * @bug 8218915
  */
 
-import java.util.List;
-import java.util.ArrayList;
-
 public class TestIsJavaIdentifierMethods {
-
-    // List of new code points are not present in Unicode 6.2.
-    private static final List<Integer> UNASSIGNED_CODEPOINTS_IN_6_2
-                                    = new ArrayList<Integer>()
-                                    {{
-                                        add(0x20BB); // NORDIC MARK SIGN
-                                        add(0x20BC); // MANAT SIGN
-                                        add(0x20BD); // RUBLE SIGN
-                                        add(0x20BE); // LARI SIGN
-                                        add(0x20BF); // BITCOIN SIGN
-                                        add(0x32FF); // SQUARE ERA NAME NEWERA
-                                    }};
+    // Unassigned code points not present in Unicode 6.2 (which Java SE 8
+    // is based upon), including: various currency symbol sign code points
+    // (Nordic Mark ... Bitcoin), Japanese Era Square character code point,
+    // and 35 CJK Unified Ideograph code points from GB18030-2022
+    private static final int CS_SIGNS_CODEPOINT_START = 0x20BB;
+    private static final int CS_SIGNS_CODEPOINT_END = 0x20BF;
+    private static final int JAPANESE_ERA_CODEPOINT = 0x32FF;
+    private static final int GB18030_2022_CODEPOINT_START = 0x9FCD;
+    private static final int GB18030_2022_CODEPOINT_END = 0x9FEF;
 
     public static void main(String[] args) {
         testIsJavaIdentifierPart_int();
@@ -75,14 +69,15 @@ public class TestIsJavaIdentifierMethods {
     public static void testIsJavaIdentifierPart_int() {
         for (int cp = 0; cp <= Character.MAX_CODE_POINT; cp++) {
             boolean expected = false;
-
             // Since Character.isJavaIdentifierPart(int) strictly conforms to
             // character information from version 6.2 of the Unicode Standard,
-            // check if code point is in "UNASSIGNED_CODEPOINTS_IN_6_2"
-            // list. If the code point is found in list
-            // "UNASSIGNED_CODEPOINTS_IN_6_2", value of variable
-            // "expected" is considered false.
-            if (!UNASSIGNED_CODEPOINTS_IN_6_2.contains(cp)) {
+            // check if code point is one of the extra unassigned
+            // code points (defined at the beginning of the file). If the code
+            // point is found to be one of the unassigned code points,
+            // value of variable "expected" is considered false.
+            if (cp != JAPANESE_ERA_CODEPOINT &&
+                    !(cp >= CS_SIGNS_CODEPOINT_START && cp <= CS_SIGNS_CODEPOINT_END) &&
+                    !(cp >= GB18030_2022_CODEPOINT_START && cp <= GB18030_2022_CODEPOINT_END)) {
                 byte type = (byte) Character.getType(cp);
                 expected = Character.isLetter(cp)
                         || type == Character.CURRENCY_SYMBOL
@@ -124,11 +119,13 @@ public class TestIsJavaIdentifierMethods {
             boolean expected = false;
             // Since Character.isJavaIdentifierPart(char) strictly conforms to
             // character information from version 6.2 of the Unicode Standard,
-            // check if code point is in "UNASSIGNED_CODEPOINTS_IN_6_2"
-            // list. If the code point is found in list
-            // "UNASSIGNED_CODEPOINTS_IN_6_2", value of variable
-            // "expected" is considered false.
-            if (!UNASSIGNED_CODEPOINTS_IN_6_2.contains(i)) {
+            // check if code point is one of the extra unassigned
+            // code points (defined at the beginning of the file). If the code
+            // point is found to be one of the unassigned code points,
+            // value of variable "expected" is considered false.
+            if (i != JAPANESE_ERA_CODEPOINT &&
+                    !(i >= CS_SIGNS_CODEPOINT_START && i <= CS_SIGNS_CODEPOINT_END) &&
+                    !(i >= GB18030_2022_CODEPOINT_START && i <= GB18030_2022_CODEPOINT_END)) {
                 byte type = (byte) Character.getType(ch);
                 expected = Character.isLetter(ch)
                         || type == Character.CURRENCY_SYMBOL
@@ -165,11 +162,13 @@ public class TestIsJavaIdentifierMethods {
             boolean expected = false;
             // Since Character.isJavaIdentifierStart(int) strictly conforms to
             // character information from version 6.2 of the Unicode Standard,
-            // check if code point is in "UNASSIGNED_CODEPOINTS_IN_6_2"
-            // list. If the code point is found in list
-            // "UNASSIGNED_CODEPOINTS_IN_6_2", value of variable
-            // "expected" is considered false.
-            if (!UNASSIGNED_CODEPOINTS_IN_6_2.contains(cp)) {
+            // check if code point is one of the extra unassigned
+            // code points (defined at the beginning of the file). If the code
+            // point is found to be one of the unassigned code points,
+            // value of variable "expected" is considered false.
+            if (cp != JAPANESE_ERA_CODEPOINT &&
+                    !(cp >= CS_SIGNS_CODEPOINT_START && cp <= CS_SIGNS_CODEPOINT_END) &&
+                    !(cp >= GB18030_2022_CODEPOINT_START && cp <= GB18030_2022_CODEPOINT_END)) {
                 byte type = (byte) Character.getType(cp);
                 expected = Character.isLetter(cp)
                         || type == Character.LETTER_NUMBER
@@ -203,11 +202,13 @@ public class TestIsJavaIdentifierMethods {
             boolean expected = false;
             // Since Character.isJavaIdentifierStart(char) strictly conforms to
             // character information from version 6.2 of the Unicode Standard,
-            // check if code point is in "UNASSIGNED_CODEPOINTS_IN_6_2"
-            // list. If the code point is found in list
-            // "UNASSIGNED_CODEPOINTS_IN_6_2", value of variable
-            // "expected" is considered false.
-            if (!UNASSIGNED_CODEPOINTS_IN_6_2.contains(i)) {
+            // check if code point is one of the extra unassigned
+            // code points (defined at the beginning of the file). If the code
+            // point is found to be one of the unassigned code points,
+            // value of variable "expected" is considered false.
+            if (i != JAPANESE_ERA_CODEPOINT &&
+                    !(i >= CS_SIGNS_CODEPOINT_START && i <= CS_SIGNS_CODEPOINT_END) &&
+                    !(i >= GB18030_2022_CODEPOINT_START && i <= GB18030_2022_CODEPOINT_END)) {
                 byte type = (byte) Character.getType(ch);
                 expected = Character.isLetter(ch)
                         || type == Character.LETTER_NUMBER
@@ -241,11 +242,13 @@ public class TestIsJavaIdentifierMethods {
             boolean expected = false;
             // Since Character.isJavaLetter(char) strictly conforms to
             // character information from version 6.2 of the Unicode Standard,
-            // check if code point is in "UNASSIGNED_CODEPOINTS_IN_6_2"
-            // list. If the code point is found in list
-            // "UNASSIGNED_CODEPOINTS_IN_6_2", value of variable
-            // "expected" is considered false.
-            if (!UNASSIGNED_CODEPOINTS_IN_6_2.contains(i)) {
+            // check if code point is one of the extra unassigned
+            // code points (defined at the beginning of the file). If the code
+            // point is found to be one of the unassigned code points,
+            // value of variable "expected" is considered false.
+            if (i != JAPANESE_ERA_CODEPOINT &&
+                    !(i >= CS_SIGNS_CODEPOINT_START && i <= CS_SIGNS_CODEPOINT_END) &&
+                    !(i >= GB18030_2022_CODEPOINT_START && i <= GB18030_2022_CODEPOINT_END)) {
                 byte type = (byte) Character.getType(ch);
                 expected = Character.isLetter(ch)
                         || type == Character.LETTER_NUMBER
@@ -283,11 +286,13 @@ public class TestIsJavaIdentifierMethods {
             boolean expected = false;
             // Since Character.isJavaLetterOrDigit(char) strictly conforms to
             // character information from version 6.2 of the Unicode Standard,
-            // check if code point is in "UNASSIGNED_CODEPOINTS_IN_6_2"
-            // list. If the code point is found in list
-            // "UNASSIGNED_CODEPOINTS_IN_6_2", value of variable
-            // "expected" is considered false.
-            if (!UNASSIGNED_CODEPOINTS_IN_6_2.contains(i)) {
+            // check if code point is one of the extra unassigned
+            // code points (defined at the beginning of the file). If the code
+            // point is found to be one of the unassigned code points,
+            // value of variable "expected" is considered false.
+            if (i != JAPANESE_ERA_CODEPOINT &&
+                    !(i >= CS_SIGNS_CODEPOINT_START && i <= CS_SIGNS_CODEPOINT_END) &&
+                    !(i >= GB18030_2022_CODEPOINT_START && i <= GB18030_2022_CODEPOINT_END)) {
                 byte type = (byte) Character.getType(ch);
                 expected = Character.isLetter(ch)
                         || type == Character.CURRENCY_SYMBOL
