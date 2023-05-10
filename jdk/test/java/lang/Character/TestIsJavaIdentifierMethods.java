@@ -25,19 +25,26 @@
  * @test
  * @summary Test behavior of isJavaIdentifierXX, testIsJavaLetter, and
  *  testIsJavaLetterOrDigit methods for all code points.
- * @bug 8218915
+ * @bug 8218915 8301400 8305681
  */
 
 public class TestIsJavaIdentifierMethods {
     // Unassigned code points not present in Unicode 6.2 (which Java SE 8
     // is based upon), including: various currency symbol sign code points
-    // (Nordic Mark ... Bitcoin), Japanese Era Square character code point,
-    // and 35 CJK Unified Ideograph code points from GB18030-2022
+    // (Nordic Mark ... Bitcoin), the Japanese Era Square character code point, and
+    // code points for GB1030-2022 level 1 and 2 implementation including
+    // (35 code points from CJK Unified Ideographs and all of CJK Unified Ideographs
+    // Extension E).
     private static final int CS_SIGNS_CODEPOINT_START = 0x20BB;
     private static final int CS_SIGNS_CODEPOINT_END = 0x20BF;
     private static final int JAPANESE_ERA_CODEPOINT = 0x32FF;
-    private static final int GB18030_2022_CODEPOINT_START = 0x9FCD;
-    private static final int GB18030_2022_CODEPOINT_END = 0x9FEF;
+    // GB18030_2022 Code Points
+    private static final int CJK_GB18030_LEVEL1_START = 0x9FCD;
+    private static final int CJK_GB18030_LEVEL1_END = 0x9FEF;
+    // Extension E code points are greater than U+FFFF,
+    // and thus only the int methods need to be tested
+    private static final int CJK_EXTENSION_E_START = 0x2B820;
+    private static final int CJK_EXTENSION_E_END = 0x2CEAF;
 
     public static void main(String[] args) {
         testIsJavaIdentifierPart_int();
@@ -77,7 +84,8 @@ public class TestIsJavaIdentifierMethods {
             // value of variable "expected" is considered false.
             if (cp != JAPANESE_ERA_CODEPOINT &&
                     !(cp >= CS_SIGNS_CODEPOINT_START && cp <= CS_SIGNS_CODEPOINT_END) &&
-                    !(cp >= GB18030_2022_CODEPOINT_START && cp <= GB18030_2022_CODEPOINT_END)) {
+                    !(cp >= CJK_GB18030_LEVEL1_START && cp <= CJK_GB18030_LEVEL1_END) &&
+                    !(cp >= CJK_EXTENSION_E_START && cp <= CJK_EXTENSION_E_END)) {
                 byte type = (byte) Character.getType(cp);
                 expected = Character.isLetter(cp)
                         || type == Character.CURRENCY_SYMBOL
@@ -125,7 +133,7 @@ public class TestIsJavaIdentifierMethods {
             // value of variable "expected" is considered false.
             if (i != JAPANESE_ERA_CODEPOINT &&
                     !(i >= CS_SIGNS_CODEPOINT_START && i <= CS_SIGNS_CODEPOINT_END) &&
-                    !(i >= GB18030_2022_CODEPOINT_START && i <= GB18030_2022_CODEPOINT_END)) {
+                    !(i >= CJK_GB18030_LEVEL1_START && i <= CJK_GB18030_LEVEL1_END)) {
                 byte type = (byte) Character.getType(ch);
                 expected = Character.isLetter(ch)
                         || type == Character.CURRENCY_SYMBOL
@@ -168,7 +176,8 @@ public class TestIsJavaIdentifierMethods {
             // value of variable "expected" is considered false.
             if (cp != JAPANESE_ERA_CODEPOINT &&
                     !(cp >= CS_SIGNS_CODEPOINT_START && cp <= CS_SIGNS_CODEPOINT_END) &&
-                    !(cp >= GB18030_2022_CODEPOINT_START && cp <= GB18030_2022_CODEPOINT_END)) {
+                    !(cp >= CJK_GB18030_LEVEL1_START && cp <= CJK_GB18030_LEVEL1_END) &&
+                    !(cp >= CJK_EXTENSION_E_START && cp <= CJK_EXTENSION_E_END)) {
                 byte type = (byte) Character.getType(cp);
                 expected = Character.isLetter(cp)
                         || type == Character.LETTER_NUMBER
@@ -208,7 +217,7 @@ public class TestIsJavaIdentifierMethods {
             // value of variable "expected" is considered false.
             if (i != JAPANESE_ERA_CODEPOINT &&
                     !(i >= CS_SIGNS_CODEPOINT_START && i <= CS_SIGNS_CODEPOINT_END) &&
-                    !(i >= GB18030_2022_CODEPOINT_START && i <= GB18030_2022_CODEPOINT_END)) {
+                    !(i >= CJK_GB18030_LEVEL1_START && i <= CJK_GB18030_LEVEL1_END)) {
                 byte type = (byte) Character.getType(ch);
                 expected = Character.isLetter(ch)
                         || type == Character.LETTER_NUMBER
@@ -248,7 +257,7 @@ public class TestIsJavaIdentifierMethods {
             // value of variable "expected" is considered false.
             if (i != JAPANESE_ERA_CODEPOINT &&
                     !(i >= CS_SIGNS_CODEPOINT_START && i <= CS_SIGNS_CODEPOINT_END) &&
-                    !(i >= GB18030_2022_CODEPOINT_START && i <= GB18030_2022_CODEPOINT_END)) {
+                    !(i >= CJK_GB18030_LEVEL1_START && i <= CJK_GB18030_LEVEL1_END)) {
                 byte type = (byte) Character.getType(ch);
                 expected = Character.isLetter(ch)
                         || type == Character.LETTER_NUMBER
@@ -292,7 +301,7 @@ public class TestIsJavaIdentifierMethods {
             // value of variable "expected" is considered false.
             if (i != JAPANESE_ERA_CODEPOINT &&
                     !(i >= CS_SIGNS_CODEPOINT_START && i <= CS_SIGNS_CODEPOINT_END) &&
-                    !(i >= GB18030_2022_CODEPOINT_START && i <= GB18030_2022_CODEPOINT_END)) {
+                    !(i >= CJK_GB18030_LEVEL1_START && i <= CJK_GB18030_LEVEL1_END)) {
                 byte type = (byte) Character.getType(ch);
                 expected = Character.isLetter(ch)
                         || type == Character.CURRENCY_SYMBOL

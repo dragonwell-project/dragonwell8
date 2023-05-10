@@ -23550,6 +23550,8 @@ FFFD;REPLACEMENT CHARACTER;So;0;ON;;;;;N;;;;;
 2B734;<CJK Ideograph Extension C, Last>;Lo;0;L;;;;;N;;;;;
 2B740;<CJK Ideograph Extension D, First>;Lo;0;L;;;;;N;;;;;
 2B81D;<CJK Ideograph Extension D, Last>;Lo;0;L;;;;;N;;;;;
+2B820;<CJK Ideograph Extension E, First>;Lo;0;L;;;;;N;;;;;
+2CEA1;<CJK Ideograph Extension E, Last>;Lo;0;L;;;;;N;;;;;
 2F800;CJK COMPATIBILITY IDEOGRAPH-2F800;Lo;0;L;4E3D;;;;N;;;;;
 2F801;CJK COMPATIBILITY IDEOGRAPH-2F801;Lo;0;L;4E38;;;;N;;;;;
 2F802;CJK COMPATIBILITY IDEOGRAPH-2F802;Lo;0;L;4E41;;;;N;;;;;

@@ -58,8 +58,10 @@ import java.util.Locale;
  * block from version 10.0 of the Unicode Standard. Second, the Java SE 8 Platform
  * allows an implementation of class {@code Character} to use the code points
  * in the range of {@code U+9FCD} to {@code U+9FEF} from version 11.0 of the
- * Unicode Standard, in order for the class to allow the "Implementation
- * Level 1" of the Chinese GB18030-2022 standard. Third, the Java SE 8 Platform
+ * Unicode Standard and in the {@code CJK Unified Ideographs Extension E} block
+ * from version 8.0 of the Unicode Standard, in order for the class to allow the
+ * "Implementation Level 2" of the Chinese GB18030-2022 standard.
+ * Third, the Java SE 8 Platform
  * allows an implementation of class {@code Character} to use the Japanese Era
  * code point, {@code U+32FF}, from the Unicode Standard version 12.1.
  * Consequently, the
@@ -2575,7 +2577,18 @@ class Character implements java.io.Serializable, Comparable<Character> {
                              "ARABIC MATHEMATICAL ALPHABETIC SYMBOLS",
                              "ARABICMATHEMATICALALPHABETICSYMBOLS");
 
-        private static final int[] blockStarts = {
+        /**
+         * Constant for the "CJK Unified Ideographs Extension E" Unicode
+         * character block.
+         * @apiNote This field is defined in Java SE 8 Maintenance Release 5.
+         * @since 1.8
+         */
+        public static final UnicodeBlock CJK_UNIFIED_IDEOGRAPHS_EXTENSION_E =
+                new UnicodeBlock("CJK_UNIFIED_IDEOGRAPHS_EXTENSION_E",
+                        "CJK UNIFIED IDEOGRAPHS EXTENSION E",
+                        "CJKUNIFIEDIDEOGRAPHSEXTENSIONE");
+
+        private static final int blockStarts[] = {
             0x0000,   // 0000..007F; Basic Latin
             0x0080,   // 0080..00FF; Latin-1 Supplement
             0x0100,   // 0100..017F; Latin Extended-A
@@ -2823,7 +2836,8 @@ class Character implements java.io.Serializable, Comparable<Character> {
             0x2A6E0,  //               unassigned
             0x2A700,  // 2A700..2B73F; CJK Unified Ideographs Extension C
             0x2B740,  // 2B740..2B81F; CJK Unified Ideographs Extension D
-            0x2B820,  //               unassigned
+            0x2B820,  // 2B820..2CEAF; CJK Unified Ideographs Extension E
+            0x2CEB0,  //               unassigned
             0x2F800,  // 2F800..2FA1F; CJK Compatibility Ideographs Supplement
             0x2FA20,  //               unassigned
             0xE0000,  // E0000..E007F; Tags
@@ -3082,6 +3096,7 @@ class Character implements java.io.Serializable, Comparable<Character> {
             null,
             CJK_UNIFIED_IDEOGRAPHS_EXTENSION_C,
             CJK_UNIFIED_IDEOGRAPHS_EXTENSION_D,
+            CJK_UNIFIED_IDEOGRAPHS_EXTENSION_E,
             null,
             CJK_COMPATIBILITY_IDEOGRAPHS_SUPPLEMENT,
             null,

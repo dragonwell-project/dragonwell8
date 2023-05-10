@@ -103,11 +103,21 @@ class CharacterData02 extends CharacterData {
     }
 
     boolean isJavaIdentifierStart(int ch) {
+        // isJavaIdentifierStart strictly conforms to code points assigned
+        // in Unicode 6.2.
+        if(Character.UnicodeBlock.of(ch) ==
+            Character.UnicodeBlock.CJK_UNIFIED_IDEOGRAPHS_EXTENSION_E)
+            return false;
         int props = getProperties(ch);
         return ((props & $$maskIdentifierInfo) >= $$lowJavaStart);
     }
 
     boolean isJavaIdentifierPart(int ch) {
+        // isJavaIdentifierPart strictly conforms to code points assigned
+        // in Unicode 6.2.
+        if(Character.UnicodeBlock.of(ch) ==
+            Character.UnicodeBlock.CJK_UNIFIED_IDEOGRAPHS_EXTENSION_E)
+            return false;
         int props = getProperties(ch);
         return ((props & $$nonzeroJavaPart) != 0);
     }
