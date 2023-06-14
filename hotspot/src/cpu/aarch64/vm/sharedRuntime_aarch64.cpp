@@ -3132,6 +3132,11 @@ void create_switchTo_contents(MacroAssembler *masm, int start, OopMapSet* oop_ma
     __ strw(temp, Address(old_coroutine, Coroutine::thread_status_offset()));
     __ ldrw(temp, Address(thread, JavaThread::java_call_counter_offset()));
     __ strw(temp, Address(old_coroutine, Coroutine::java_call_counter_offset()));
+    __ ldr(temp, Address(thread, JavaThread::monitor_chunks_offset()));
+    __ str(temp, Address(old_coroutine, Coroutine::monitor_chunks_offset()));
+    __ ldrb(temp, Address(thread, JavaThread::do_not_unlock_if_synchronized_offset()));
+    __ strb(temp, Address(old_coroutine, Coroutine::do_not_unlock_if_synchronized_offset()));
+
     __ mov(temp, sp);
     __ str(temp, Address(old_stack, CoroutineStack::last_sp_offset())); // str cannot use sp as an argument
   }
@@ -3171,6 +3176,10 @@ void create_switchTo_contents(MacroAssembler *masm, int start, OopMapSet* oop_ma
       __ strw(temp2, Address(temp, java_lang_Thread::thread_status_offset()));
       __ ldrw(temp, Address(target_coroutine, Coroutine::java_call_counter_offset()));
       __ strw(temp, Address(thread, JavaThread::java_call_counter_offset()));
+      __ ldr(temp, Address(target_coroutine, Coroutine::monitor_chunks_offset()));
+      __ str(temp, Address(thread, JavaThread::monitor_chunks_offset()));
+      __ ldrb(temp, Address(target_coroutine, Coroutine::do_not_unlock_if_synchronized_offset()));
+      __ strb(temp, Address(thread, JavaThread::do_not_unlock_if_synchronized_offset()));
 #ifdef ASSERT
       __ str(zr, Address(target_coroutine, Coroutine::handle_area_offset()));
       __ str(zr, Address(target_coroutine, Coroutine::resource_area_offset()));
