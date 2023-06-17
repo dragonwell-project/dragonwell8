@@ -615,4 +615,11 @@ endif
 
 ##########################################################################################
 
+$(JDK_OUTPUTDIR)/lib/quickstart.properties: $(JDK_TOPDIR)/src/share/lib/quickstart.properties
+	$(call install-file)
+
+COPY_FILES += $(JDK_OUTPUTDIR)/lib/quickstart.properties
+
+##########################################################################################
+
 -include $(CUSTOM_MAKE_DIR)/CopyFiles.gmk

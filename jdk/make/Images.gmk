@@ -138,7 +138,8 @@ ifeq ($(PROFILE), )
       jhat$(EXE_SUFFIX) \
       clhsdb$(EXE_SUFFIX) \
       hsdb$(EXE_SUFFIX) \
-      jfr$(EXE_SUFFIX)
+      jfr$(EXE_SUFFIX) \
+      jclass4cds$(EXE_SUFFIX)
   # jgroup is not included in JRE build
   ifeq ($(OPENJDK_TARGET_OS), linux)
     NOT_JRE_BIN_FILES += jgroup$(EXE_SUFFIX)

@@ -43,6 +43,7 @@
 #include "memory/genRemSet.hpp"
 #include "memory/generation.hpp"
 #include "memory/metadataFactory.hpp"
+#include "memory/metaspaceCounters.hpp"
 #include "memory/metaspaceShared.hpp"
 #include "memory/oopFactory.hpp"
 #include "memory/space.hpp"
@@ -502,7 +503,7 @@ void Universe::fixup_mirrors(TRAPS) {
     EXCEPTION_MARK;
     KlassHandle kh(THREAD, k);
     java_lang_Class::fixup_mirror(kh, CATCH);
-}
+  }
   delete java_lang_Class::fixup_mirror_list();
   java_lang_Class::set_fixup_mirror_list(NULL);
 }

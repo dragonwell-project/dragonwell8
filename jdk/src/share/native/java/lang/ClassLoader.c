@@ -34,12 +34,17 @@
 #include "java_lang_ClassLoader_NativeLibrary.h"
 #include <string.h>
 
+#define CLD "Ljava/lang/ClassLoader;"
+#define PD  "Ljava/security/ProtectionDomain;"
+#define CLS "Ljava/lang/Class;"
+
 /* defined in libverify.so/verify.dll (src file common/check_format.c) */
 extern jboolean VerifyClassname(char *utf_name, jboolean arrayAllowed);
 extern jboolean VerifyFixClassname(char *utf_name);
 
 static JNINativeMethod methods[] = {
-    {"retrieveDirectives",  "()Ljava/lang/AssertionStatusDirectives;", (void *)&JVM_AssertionStatusDirectives}
+    {"retrieveDirectives",  "()Ljava/lang/AssertionStatusDirectives;", (void *)&JVM_AssertionStatusDirectives},
+    {"defineClassFromCDS0", "("CLD PD "J)"CLS,                         (void *)&JVM_DefineClassFromCDS}
 };
 
 JNIEXPORT void JNICALL
@@ -274,12 +279,12 @@ Java_java_lang_ClassLoader_findBootstrapClass(JNIEnv *env, jobject loader,
 
 JNIEXPORT jclass JNICALL
 Java_java_lang_ClassLoader_findLoadedClass0(JNIEnv *env, jobject loader,
-                                           jstring name)
+                                           jstring name, jboolean onlyFind)
 {
     if (name == NULL) {
         return 0;
     } else {
-        return JVM_FindLoadedClass(env, loader, name);
+        return JVM_FindLoadedClass(env, loader, name, onlyFind);
     }
 }
 

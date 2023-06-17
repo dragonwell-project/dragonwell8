@@ -297,8 +297,10 @@ class Arguments : AllStatic {
 
   // -agentlib and -agentpath arguments
   static AgentLibraryList _agentList;
+public:
   static void add_init_agent(const char* name, char* options, bool absolute_path)
     { _agentList.add(new AgentLibrary(name, options, absolute_path, NULL)); }
+private:
 
   // Late-binding agents not started via arguments
   static void add_loaded_agent(AgentLibrary *agentLib)

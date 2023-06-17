@@ -255,7 +255,6 @@
   template(override_name,                             "override")                                 \
   template(parameterTypes_name,                       "parameterTypes")                           \
   template(returnType_name,                           "returnType")                               \
-  template(signature_name,                            "signature")                                \
   template(slot_name,                                 "slot")                                     \
                                                                                                   \
   /* Support for annotations (JDK 1.5 and above) */                                               \
@@ -348,8 +347,11 @@
   template(initializeSystemClass_name,                "initializeSystemClass")                    \
   template(initializeWispClass_name,                  "initializeWispClass")                      \
   template(startWispDaemons_name,                     "startWispDaemons")                         \
+  template(initialize_name,                           "initialize")                               \
   template(loadClass_name,                            "loadClass")                                \
   template(loadClassInternal_name,                    "loadClassInternal")                        \
+  template(loadClassFromCDS_name,                     "loadClassFromCDS")                         \
+  template(loadClassFromCDS_signature,                "(Ljava/lang/String;Ljava/lang/String;JI)Ljava/lang/Class;") \
   template(get_name,                                  "get")                                      \
   template(put_name,                                  "put")                                      \
   template(type_name,                                 "type")                                     \
@@ -434,6 +436,10 @@
   template(getFileURL_signature,                      "(Ljava/io/File;)Ljava/net/URL;")           \
   template(definePackageInternal_name,                "definePackageInternal")                    \
   template(definePackageInternal_signature,           "(Ljava/lang/String;Ljava/util/jar/Manifest;Ljava/net/URL;)V") \
+  template(addPackageInfo_name,                       "addPackageInfo")                           \
+  template(addPackageInfo_signature,                  "(Ljava/lang/ClassLoader;Ljava/lang/String;Ljava/lang/String;)Ljava/security/ProtectionDomain;") \
+  template(registerAsCDSLoader_name,                  "registerAsCDSLoader")                      \
+  template(classloader_string_void_signature,         "(Ljava/lang/ClassLoader;Ljava/lang/String;)V") \
   template(getProtectionDomain_name,                  "getProtectionDomain")                      \
   template(getProtectionDomain_signature,             "(Ljava/security/CodeSource;)Ljava/security/ProtectionDomain;") \
   template(url_code_signer_array_void_signature,      "(Ljava/net/URL;[Ljava/security/CodeSigner;)V") \
@@ -563,6 +569,7 @@
   /* used to identify class loaders handling parallel class loading */                                            \
   template(parallelCapable_name,                      "parallelLockMap")                                          \
                                                                                                                   \
+  template(signature_name,                             "signature")                                               \
   /* JVM monitoring and management support */                                                                     \
   template(java_lang_StackTraceElement_array,          "[Ljava/lang/StackTraceElement;")                          \
   template(java_lang_management_ThreadState,           "java/lang/management/ThreadState")                        \
@@ -629,9 +636,13 @@
   template(serializeAgentPropertiesToByteArray_name,   "serializeAgentPropertiesToByteArray")                     \
   template(classRedefinedCount_name,                   "classRedefinedCount")                                     \
   template(classLoader_name,                           "classLoader")                                             \
+  template(is_dead_name,                               "isDead")                                                  \
                                                                                                                   \
   /* jfr signatures */                                                                                            \
   JFR_TEMPLATES(template)                                                                                         \
+  /* CDS support */                                                                                               \
+  template(isNotFound_name,                            "isNotFound")                                              \
+  template(isNotFound_signature,                       "(Ljava/lang/String;I)Z")                                  \
   /* coroutine support */                                                                                         \
   template(java_dyn_CoroutineSupport,                  "java/dyn/CoroutineSupport")                               \
   template(java_dyn_CoroutineBase,                     "java/dyn/CoroutineBase")                                  \
@@ -648,6 +659,13 @@
   template(com_alibaba_wisp_engine_WispEngine,         "com/alibaba/wisp/engine/WispEngine")                      \
   template(com_alibaba_wisp_engine_WispCarrier,        "com/alibaba/wisp/engine/WispCarrier")                     \
   template(com_alibaba_wisp_engine_WispEventPump,      "com/alibaba/wisp/engine/WispEventPump")                   \
+  template(com_alibaba_util_QuickStart,                "com/alibaba/util/QuickStart")                             \
+  template(com_alibaba_util_CDSDumpHook,               "com/alibaba/util/CDSDumpHook")                            \
+  template(dumpCDSInfo_name,                           "dumpCDSInfo")                                             \
+  template(notifyDump_name,                            "notifyDump")                                              \
+  template(bool_string_void_signature,                 "(ZLjava/lang/String;)V")                                  \
+  template(int_string_bool_stringarray_string_void_signature,            "(ILjava/lang/String;Z[Ljava/lang/String;Ljava/lang/String;)V")                                 \
+  template(string_string_string_string_bool_void_signature,   "(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Z)V") \
   template(isInCritical_name,                          "isInCritical")                                            \
   template(jdkParkStatus_name,                         "jdkParkStatus")                                           \
   template(jvmParkStatus_name,                         "jvmParkStatus")                                           \

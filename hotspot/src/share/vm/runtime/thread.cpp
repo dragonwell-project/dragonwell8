@@ -64,6 +64,7 @@
 #include "runtime/objectMonitor.hpp"
 #include "runtime/orderAccess.inline.hpp"
 #include "runtime/osThread.hpp"
+#include "runtime/quickStart.hpp"
 #include "runtime/safepoint.hpp"
 #include "runtime/sharedRuntime.hpp"
 #include "runtime/statSampler.hpp"
@@ -260,6 +261,7 @@ Thread::Thread() {
   _current_pending_monitor_is_from_java = true;
   _current_waiting_monitor = NULL;
   _super_class_resolving_recursive_count = 0;
+  _initiating_loader = NULL;
   _num_nested_signal = 0;
   omFreeList = NULL ;
   omFreeCount = 0 ;
@@ -3852,14 +3854,6 @@ jint Threads::create_vm(JavaVMInitArgs* args, bool* canTryAgain) {
 
   EXCEPTION_MARK;
 
-  // At this point, the Universe is initialized, but we have not executed
-  // any byte code.  Now is a good time (the only time) to dump out the
-  // internal state of the JVM for sharing.
-  if (DumpSharedSpaces) {
-    MetaspaceShared::preload_and_dump(CHECK_0);
-    ShouldNotReachHere();
-  }
-
 #if !INCLUDE_JFR
   // if JFR is not enabled at the build time keep the original JvmtiExport location
 
@@ -3882,6 +3876,8 @@ jint Threads::create_vm(JavaVMInitArgs* args, bool* canTryAgain) {
 
     // Initialize java_lang.System (needed before creating the thread)
     initialize_class(vmSymbols::java_lang_System(), CHECK_0);
+    // The VM creates & returns objects of this class. Make sure it's initialized.
+    initialize_class(vmSymbols::java_lang_Class(), CHECK_0);
     initialize_class(vmSymbols::java_lang_ThreadGroup(), CHECK_0);
     Handle thread_group = create_initial_thread_group(CHECK_0);
     Universe::set_main_thread_group(thread_group());
@@ -3892,9 +3888,6 @@ jint Threads::create_vm(JavaVMInitArgs* args, bool* canTryAgain) {
     // been started and running.
     java_lang_Thread::set_thread_status(thread_object,
                                         java_lang_Thread::RUNNABLE);
-
-    // The VM creates & returns objects of this class. Make sure it's initialized.
-    initialize_class(vmSymbols::java_lang_Class(), CHECK_0);
 
     // The VM preresolves methods to these classes. Make sure that they get initialized
     initialize_class(vmSymbols::java_lang_reflect_Method(), CHECK_0);
@@ -3977,6 +3970,13 @@ jint Threads::create_vm(JavaVMInitArgs* args, bool* canTryAgain) {
 
   if (EnableCoroutine) {
     call_startWispDaemons(THREAD);
+    if (HAS_PENDING_EXCEPTION) {
+      vm_exit_during_initialization(Handle(THREAD, PENDING_EXCEPTION));
+    }
+  }
+
+  if (!QuickStart::is_normal()) {
+    QuickStart::initialize(THREAD);
     if (HAS_PENDING_EXCEPTION) {
       vm_exit_during_initialization(Handle(THREAD, PENDING_EXCEPTION));
     }
@@ -4135,6 +4135,12 @@ jint Threads::create_vm(JavaVMInitArgs* args, bool* canTryAgain) {
 #ifdef ASSERT
   _vm_complete = true;
 #endif
+
+  // Everything is ready for dumping CDS.
+  if (DumpSharedSpaces) {
+    MetaspaceShared::preload_and_dump(CHECK_0);
+    ShouldNotReachHere();
+  }
   return JNI_OK;
 }
 

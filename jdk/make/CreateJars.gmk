@@ -208,6 +208,7 @@ RT_JAR_EXCLUDES += \
     sun/tools/serialver \
     sun/tools/tree \
     sun/tools/util \
+    sun/tools/jclass4cds \
     sun/util/cldr/CLDRLocaleDataMetaInfo.class \
     sun/util/resources/cldr \
     $(LOCALEDATA_INCLUDES) \
@@ -508,7 +509,8 @@ TOOLS_JAR_INCLUDES := \
     sun/tools/native2ascii \
     sun/tools/serialver \
     sun/tools/tree \
-    sun/tools/util
+    sun/tools/util \
+    sun/tools/jclass4cds
 
 # The sjavac tools is not ready for public consumption.
 TOOLS_JAR_EXCLUDES = com/sun/tools/sjavac
@@ -558,6 +560,9 @@ EXCLUDE_PROPWARN_PKGS = com.sun.java.swing.plaf.windows \
 #
 EXPORTED_PRIVATE_PKGS = com.oracle.net \
     com.oracle.nio \
+    com.alibaba.cds \
+    com.alibaba.util \
+    com.alibaba.intrinsics \
     com.alibaba.jwarmup \
     com.alibaba.management \
     com.alibaba.jvm.gc \

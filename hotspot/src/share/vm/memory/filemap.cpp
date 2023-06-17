@@ -53,15 +53,21 @@ extern address JVM_FunctionAtEnd();
 // an archive file should stop the process.  Unrecoverable errors during
 // the reading of the archive file should stop the process.
 
-static void fail(const char *msg, va_list ap) {
+static void fail(const char *msg, va_list ap, bool warn_only = false) {
+  const char *err = warn_only ? "A warning" : "An error";
   // This occurs very early during initialization: tty is not initialized.
   jio_fprintf(defaultStream::error_stream(),
-              "An error has occurred while processing the"
-              " shared archive file.\n");
+              "%s has occurred while processing the"
+              " shared archive file.\n", err);
   jio_vfprintf(defaultStream::error_stream(), msg, ap);
   jio_fprintf(defaultStream::error_stream(), "\n");
-  // Do not change the text of the below message because some tests check for it.
-  vm_exit_during_initialization("Unable to use shared archive.", NULL);
+  if (!warn_only) {
+    // Do not change the text of the below message because some tests check for it.
+    vm_exit_during_initialization("Unable to use shared archive.", NULL);
+  } else {
+    // We may not want to fail the VM at all times.
+    vm_warning("Unable to use shared archive.", NULL);
+  }
 }
 
 
@@ -91,7 +97,7 @@ void FileMapInfo::fail_continue(const char *msg, ...) {
     tty->print_cr("]");
   } else {
     if (RequireSharedSpaces) {
-      fail(msg, ap);
+      fail(msg, ap, SuppressAppCDSErrors);
     } else {
       if (PrintSharedSpaces) {
         tty->print_cr("UseSharedSpaces: %s", msg);
@@ -217,7 +223,7 @@ void FileMapInfo::allocate_classpath_entry_table() {
           SharedClassUtil::update_shared_classpath(cpe, ent, st.st_mtime, st.st_size, THREAD);
         } else {
           ent->_filesize  = -1;
-          if (!os::dir_is_empty(name)) {
+          if (!IgnoreAppCDSDirCheck && !os::dir_is_empty(name)) {
             ClassLoader::exit_with_path_failure("Cannot have non-empty directory in archived classpaths", name);
           }
         }
@@ -266,7 +272,7 @@ bool FileMapInfo::validate_classpath_entry_table() {
       fail_continue("Required classpath entry does not exist: %s", name);
       ok = false;
     } else if (ent->is_dir()) {
-      if (!os::dir_is_empty(name)) {
+      if (!IgnoreAppCDSDirCheck && !os::dir_is_empty(name)) {
         fail_continue("directory is not empty: %s", name);
         ok = false;
       }
@@ -560,10 +566,18 @@ char* FileMapInfo::map_region(int i) {
   size_t alignment = os::vm_allocation_granularity();
   size_t size = align_size_up(used, alignment);
   char *requested_addr = si->_base;
+  bool read_only;
+
+  // If a tool agent is in use (debugging enabled), we must map the address space RW
+  if (JvmtiExport::can_modify_any_class() || JvmtiExport::can_walk_any_space()) {
+    read_only = false;
+  } else {
+    read_only = si->_read_only;
+  }
 
   // map the contents of the CDS archive in this memory
   char *base = os::map_memory(_fd, _full_path, si->_file_offset,
-                              requested_addr, size, si->_read_only,
+                              requested_addr, size, read_only,
                               si->_allow_exec);
   if (base == NULL || base != si->_base) {
     fail_continue("Unable to map %s shared space at required address.", shared_region_name[i]);
@@ -628,11 +642,6 @@ bool FileMapInfo::_validating_classpath_entry_table = false;
 //     region of the archive, which is not mapped yet.
 bool FileMapInfo::initialize() {
   assert(UseSharedSpaces, "UseSharedSpaces expected.");
-
-  if (JvmtiExport::can_modify_any_class() || JvmtiExport::can_walk_any_space()) {
-    fail_continue("Tool agent requires sharing to be disabled.");
-    return false;
-  }
 
   if (!open_for_read()) {
     return false;

@@ -121,6 +121,8 @@ private:
   int             _last_native_call_counter;
   int             _clinit_call_counter;
   volatile int    _native_call_counter;
+  // AppCDS support
+  ClassLoaderData* _initiating_loader;
 
   // work steal pool
   WispResourceArea*       _wisp_post_steal_resource_area;
@@ -207,6 +209,8 @@ public:
 
   int native_call_counter() const         { return _native_call_counter; }
 
+  ClassLoaderData* initiating_loader() const { return _initiating_loader; }
+
   bool is_disposable();
 
   oop print_stack_header_on(outputStream* st);
@@ -238,6 +242,7 @@ public:
   static ByteSize thread_status_offset()      { return byte_offset_of(Coroutine, _thread_status); }
   static ByteSize java_call_counter_offset()  { return byte_offset_of(Coroutine, _java_call_counter); }
   static ByteSize native_call_counter_offset(){ return byte_offset_of(Coroutine, _native_call_counter); }
+  static ByteSize initiating_loader_offset()  { return byte_offset_of(Coroutine, _initiating_loader); }
 #ifdef _LP64
   static ByteSize storage_offset()            { return byte_offset_of(Coroutine, _storage); }
 #endif

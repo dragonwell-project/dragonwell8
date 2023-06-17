@@ -298,6 +298,9 @@ class Thread: public ThreadShadow {
   // ObjectMonitor on which this thread called Object.wait()
   ObjectMonitor* _current_waiting_monitor;
 
+protected:
+  ClassLoaderData* _initiating_loader;
+
   // Private thread-local objectmonitor list - a simple cache organized as a SLL.
  public:
   ObjectMonitor* omFreeList;
@@ -506,6 +509,13 @@ class Thread: public ThreadShadow {
     _current_waiting_monitor = monitor;
   }
 
+  ClassLoaderData* initiating_loader() {
+    return _initiating_loader;
+  }
+
+  void set_initiating_loader(ClassLoaderData* loader) {
+    _initiating_loader = loader;
+  }
   // GC support
   // Apply "f->do_oop" to all root oops in "this".
   // Apply "cld_f->do_cld" to CLDs that are otherwise not kept alive.
@@ -1448,6 +1458,7 @@ class JavaThread: public Thread {
   static ByteSize vm_result_2_offset()           { return byte_offset_of(JavaThread, _vm_result_2         ); }
   static ByteSize vm_result_for_wisp_offset()    { return byte_offset_of(JavaThread, _vm_result_for_wisp ); }
   static ByteSize thread_state_offset()          { return byte_offset_of(JavaThread, _thread_state        ); }
+  static ByteSize thread_stat_offset()           { return byte_offset_of(JavaThread, _thread_stat         ); }
   static ByteSize saved_exception_pc_offset()    { return byte_offset_of(JavaThread, _saved_exception_pc  ); }
   static ByteSize osthread_offset()              { return byte_offset_of(JavaThread, _osthread            ); }
   static ByteSize exception_oop_offset()         { return byte_offset_of(JavaThread, _exception_oop       ); }
@@ -1459,6 +1470,8 @@ class JavaThread: public Thread {
   static ByteSize suspend_flags_offset()         { return byte_offset_of(JavaThread, _suspend_flags       ); }
   static ByteSize java_call_counter_offset()     { return byte_offset_of(JavaThread, _java_call_counter); }
   static ByteSize coroutine_list_offset()        { return byte_offset_of(JavaThread, _coroutine_list); }
+  // AppCDS support
+  static ByteSize initiating_loader_offset()     { return byte_offset_of(JavaThread, _initiating_loader); }
 
   static ByteSize do_not_unlock_if_synchronized_offset() { return byte_offset_of(JavaThread, _do_not_unlock_if_synchronized); }
   static ByteSize should_post_on_exceptions_flag_offset() {

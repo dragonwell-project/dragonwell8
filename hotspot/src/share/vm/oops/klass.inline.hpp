@@ -71,4 +71,30 @@ inline Klass* Klass::decode_klass(narrowKlass v) {
   return is_null(v) ? (Klass*)NULL : decode_klass_not_null(v);
 }
 
+template <class ITERATOR>
+inline void Klass::klass_and_method_pointers_do(ITERATOR* iter) {
+  iterate_array(iter, _secondary_supers);
+  for (int i = 0; i < _primary_super_limit; i++) {
+    iter->push(&_primary_supers[i]);
+  }
+  iter->push(&_super);
+  iter->push((Klass**)&_subklass);
+  iter->push((Klass**)&_next_sibling);
+  iter->push(&_next_link);
+
+  vtableEntry* vt = start_of_vtable();
+  for (int i=0; i<vtable_length(); i++) {
+    iter->push(vt[i].method_addr());
+  }
+}
+
+template <class ITERATOR, typename T>
+inline void Klass::iterate_array(ITERATOR* iter, Array<T>* array) {
+  if (array != NULL) {
+    int len = array->length();
+    for (int i=0; i<len; i++) {
+      iter->push(array->adr_at(i));
+    }
+  }
+}
 #endif // SHARE_VM_OOPS_KLASS_INLINE_HPP

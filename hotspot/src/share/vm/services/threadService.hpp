@@ -140,8 +140,8 @@ private:
   bool         _timer_pending_reset;
 
   // Keep accurate times for potentially recursive class operations
-  int           _perf_recursion_counts[6];
-  elapsedTimer  _perf_timers[6];
+  int           _perf_recursion_counts[8];
+  elapsedTimer  _perf_timers[8];
 
   // utility functions
   void  check_and_reset_count()            {

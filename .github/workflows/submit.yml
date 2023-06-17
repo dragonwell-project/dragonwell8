@@ -57,6 +57,24 @@ jobs:
           [ -d build ] && rm -rf build
           sh configure --with-debug-level=release --with-cacerts-file=${PWD}/common/security/cacerts --with-milestone=fcs --enable-unlimited-crypto
           make images CONF=linux-x86_64-normal-server-release
+      - name: Install dependencies
+        run: |
+          wget https://dlcdn.apache.org/maven/maven-3/3.8.8/binaries/apache-maven-3.8.8-bin.tar.gz
+          tar -xvf apache-maven-3.8.8-bin.tar.gz
+      - name: Download serverless-adapter-jdk8 source code
+        uses: actions/checkout@v3
+        with:
+          repository: dragonwell-project/serverless-adapter-jdk8
+          ref: main
+          path: serverless-adapter-jdk8
+      - name: Build serverless-adapter-jdk8
+        run: |
+          export JAVA_HOME=../build/linux-x86_64-normal-server-release/images/j2sdk-image
+          ../apache-maven-3.8.8/bin/mvn package
+          mkdir -p ../build/linux-x86_64-normal-server-release/images/j2sdk-image/jre/lib/amd64/serverless
+          cp -f target/serverless-adapter-0.1.jar ../build/linux-x86_64-normal-server-release/images/j2sdk-image/jre/lib/amd64/serverless/serverless-adapter.jar
+          cp -f output/libloadclassagent.so ../build/linux-x86_64-normal-server-release/images/j2sdk-image/jre/lib/amd64/serverless/
+        working-directory: serverless-adapter-jdk8
       - name: Upload Test image
         uses: actions/upload-artifact@v2
         with:
@@ -135,6 +153,25 @@ jobs:
         run: |
           sh configure --with-debug-level=release --with-cacerts-file=${PWD}/common/security/cacerts --with-milestone=fcs --enable-unlimited-crypto --with-boot-jdk=/home/${USER}/dragonwell8/dragonwell-8.15.16
           make images CONF=linux-aarch64-normal-server-release
+      - name: Install dependencies
+        run: |
+          wget https://dlcdn.apache.org/maven/maven-3/3.8.8/binaries/apache-maven-3.8.8-bin.tar.gz
+          tar -xvf apache-maven-3.8.8-bin.tar.gz
+      - name: Download serverless-adapter-jdk8 source code
+        uses: actions/checkout@v3
+        with:
+          repository: dragonwell-project/serverless-adapter-jdk8
+          ref: main
+          path: serverless-adapter-jdk8
+      - name: Build serverless-adapter-jdk8
+        run: |
+          export JAVA_HOME=../build/linux-aarch64-normal-server-release/images/j2sdk-image
+          ../apache-maven-3.8.8/bin/mvn package
+          mkdir -p ../build/linux-aarch64-normal-server-release/images/j2sdk-image/jre/lib/aarch64/serverless
+          cp -f target/serverless-adapter-0.1.jar ../build/linux-aarch64-normal-server-release/images/j2sdk-image/jre/lib/aarch64/serverless/serverless-adapter.jar
+          cp -f output/libloadclassagent.so ../build/linux-aarch64-normal-server-release/images/j2sdk-image/jre/lib/aarch64/serverless/
+          ../build/linux-aarch64-normal-server-release/images/j2sdk-image/bin/java -version
+        working-directory: serverless-adapter-jdk8
       - name: Upload Test image
         uses: actions/upload-artifact@v2
         with:

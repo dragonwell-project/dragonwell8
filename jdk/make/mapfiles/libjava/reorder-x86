@@ -16,6 +16,7 @@ text: .text%Java_com_alibaba_jvm_gc_ElasticHeapMXBeanImpl_registerNatives;
 text: .text%Java_com_alibaba_wisp_engine_WispEngine_registerNatives;
 text: .text%Java_com_alibaba_wisp_engine_WispSysmon_registerNatives;
 text: .text%Java_com_alibaba_wisp_engine_WispTask_registerNatives;
+text: .text%Java_com_alibaba_util_QuickStart_registerNatives;
 text: .text%Java_java_dyn_Coroutine_registerNatives;
 text: .text%Java_java_security_AccessController_getStackAccessControlContext;
 text: .text%Java_java_security_AccessController_getInheritedAccessControlContext;

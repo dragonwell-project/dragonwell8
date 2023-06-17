@@ -844,6 +844,7 @@ bool              JvmtiExport::_should_post_field_modification            = fals
 bool              JvmtiExport::_should_post_class_load                    = false;
 bool              JvmtiExport::_should_post_class_prepare                 = false;
 bool              JvmtiExport::_should_post_class_unload                  = false;
+bool              JvmtiExport::_should_post_first_class_load_prepare      = false;
 bool              JvmtiExport::_should_post_thread_life                   = false;
 bool              JvmtiExport::_should_clean_up_heap_objects              = false;
 bool              JvmtiExport::_should_post_native_method_bind            = false;
@@ -1016,6 +1017,34 @@ void JvmtiExport::post_class_unload(Klass* klass) {
   }
 }
 
+void JvmtiExport::post_first_class_load_prepare(JavaThread *thread, Handle object) {
+  if (JvmtiEnv::get_phase() < JVMTI_PHASE_PRIMORDIAL) {
+    return;
+  }
+  HandleMark hm(thread);
+
+  EVT_TRIG_TRACE(JVMTI_EVENT_FIRST_CLASS_LOAD_PREPARE, ("JVMTI [%s] Trg First Class Load Prepare triggered",
+                      JvmtiTrace::safe_get_thread_name(thread)));
+  JvmtiThreadState* state = thread->jvmti_thread_state();
+  if (state == NULL) {
+    return;
+  }
+  JvmtiEnvThreadStateIterator it(state);
+  for (JvmtiEnvThreadState* ets = it.first(); ets != NULL; ets = it.next(ets)) {
+    if (ets->is_enabled(JVMTI_EVENT_FIRST_CLASS_LOAD_PREPARE)) {
+      JvmtiEnv *env = ets->get_env();
+      EVT_TRACE(JVMTI_EVENT_FIRST_CLASS_LOAD_PREPARE, ("[%s] Evt First Class Load Prepare sent",
+                JvmtiTrace::safe_get_thread_name(thread) ));
+      JvmtiThreadEventMark jem(thread);
+      jobject loader_jobject = jem.to_jobject(object());
+      JvmtiJavaThreadEventTransition jet(thread);
+      jvmtiEventFirstClassLoadPrepare callback = env->callbacks()->FirstClassLoadPrepare;
+      if (callback != NULL) {
+        (*callback)(env->jvmti_external(), jem.jni_env(), jem.jni_thread(), loader_jobject);
+      }
+    }
+  }
+}
 
 void JvmtiExport::post_thread_start(JavaThread *thread) {
   assert(thread->thread_state() == _thread_in_vm, "must be in vm state");

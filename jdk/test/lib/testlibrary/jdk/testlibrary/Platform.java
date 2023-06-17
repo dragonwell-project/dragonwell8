@@ -92,6 +92,10 @@ public class Platform {
         return (isArch("amd64") || isArch("x86_64"));
     }
 
+    public static boolean isAArch64() {
+        return isArch("aarch64");
+    }
+
     private static boolean isArch(String archname) {
         return osArch.toLowerCase().startsWith(archname.toLowerCase());
     }

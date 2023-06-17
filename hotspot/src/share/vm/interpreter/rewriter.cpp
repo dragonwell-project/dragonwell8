@@ -95,6 +95,11 @@ void Rewriter::make_constant_pool_cache(TRAPS) {
                                         CHECK);
   _pool->set_cache(cache);
   cache->set_constant_pool(_pool());
+
+  DEBUG_ONLY(
+  if (DumpSharedSpaces) {
+    cache->verify_just_initialized();
+  })
 }
 
 

@@ -2422,6 +2422,9 @@ class CommandLineFlags {
   develop(bool, TraceClassLoaderData, false,                                \
           "Trace class loader loader_data lifetime")                        \
                                                                             \
+  develop(bool, TraceVerificationConstraints, false,                        \
+          "Trace Verify Constraints in shared dictionary")                  \
+                                                                            \
   product(uintx, InitialBootClassLoaderMetaspaceSize,                       \
           NOT_LP64(2200*K) LP64_ONLY(4*M),                                  \
           "Initial size of the boot class loader data metaspace")           \
@@ -3889,11 +3892,23 @@ class CommandLineFlags {
           NOT_LP64(LINUX_ONLY(2*G) NOT_LINUX(0)),                           \
           "Address to allocate shared memory region for class data")        \
                                                                             \
+  product(bool, UseAppCDS, false,                                           \
+          "Enable Application Class Data Sharing when using shared spaces") \
+                                                                            \
+  product(ccstr, SharedArchiveConfigFile, NULL,                             \
+          "Data to add to the CDS archive file")                            \
+                                                                            \
+  product(bool, EnableSharedLookupCache, true,                              \
+          "Enable resource lookup cache in the CDS archive")                \
+                                                                            \
+  product(bool, TraceSharedLookupCache, false,                              \
+          "Trace resource lookup cache in the CDS archive")                 \
+                                                                            \
   diagnostic(bool, EnableInvokeDynamic, true,                               \
           "support JSR 292 (method handles, invokedynamic, "                \
           "anonymous classes")                                              \
                                                                             \
-  diagnostic(bool, IgnoreUnverifiableClassesDuringDump, false,              \
+  product(bool, IgnoreUnverifiableClassesDuringDump, true,                  \
           "Do not quit -Xshare:dump even if we encounter unverifiable "     \
           "classes. Just exclude them from the shared dictionary.")         \
                                                                             \
@@ -3999,7 +4014,7 @@ class CommandLineFlags {
   product(ccstr, SharedClassListFile, NULL,                                 \
           "Override the default CDS class list")                            \
                                                                             \
-  diagnostic(ccstr, SharedArchiveFile, NULL,                                \
+  product(ccstr, SharedArchiveFile, NULL,                                \
           "Override the default location of the CDS archive file")          \
                                                                             \
   product(ccstr, ExtraSharedClassListFile, NULL,                            \

@@ -24,41 +24,30 @@
  */
 package java.lang;
 
-import java.io.InputStream;
-import java.io.IOException;
-import java.io.File;
-import java.lang.reflect.Constructor;
-import java.lang.reflect.InvocationTargetException;
-import java.net.MalformedURLException;
-import java.net.URL;
-import java.security.AccessController;
-import java.security.AccessControlContext;
-import java.security.CodeSource;
-import java.security.Policy;
-import java.security.PrivilegedAction;
-import java.security.PrivilegedActionException;
-import java.security.PrivilegedExceptionAction;
-import java.security.ProtectionDomain;
-import java.security.cert.Certificate;
-import java.util.Collections;
-import java.util.Enumeration;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Set;
-import java.util.Stack;
-import java.util.Map;
-import java.util.Vector;
-import java.util.Hashtable;
-import java.util.WeakHashMap;
-import java.util.concurrent.ConcurrentHashMap;
+
+import com.alibaba.util.Utils;
 import sun.misc.CompoundEnumeration;
+import sun.misc.JavaLangClassLoaderAccess;
 import sun.misc.Resource;
+import sun.misc.SharedSecrets;
 import sun.misc.URLClassPath;
 import sun.misc.VM;
 import sun.reflect.CallerSensitive;
 import sun.reflect.Reflection;
 import sun.reflect.misc.ReflectUtil;
 import sun.security.util.SecurityConstants;
+
+import java.io.File;
+import java.io.IOException;
+import java.io.InputStream;
+import java.lang.ref.WeakReference;
+import java.lang.reflect.Constructor;
+import java.lang.reflect.InvocationTargetException;
+import java.net.URL;
+import java.security.*;
+import java.security.cert.Certificate;
+import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * A class loader is an object that is responsible for loading classes. The
@@ -187,6 +176,25 @@ public abstract class ClassLoader {
     // must be added *after* it.
     private final ClassLoader parent;
 
+    // if this classloader will never be used again; the field is directly accessed by VM
+    private boolean isDead;
+
+    // class loader signature information
+    private int signature;
+
+    public int getSignature() {
+        return signature;
+    }
+
+    public void setSignature(int signature) {
+        this.signature = signature;
+    }
+
+    // Dispose current classLoader and will never use it again, caller code must guarrentee that!
+    void dispose() {
+        isDead = true;
+    }
+
     /**
      * Encapsulates the set of parallel capable loader types.
      */
@@ -263,7 +271,8 @@ public abstract class ClassLoader {
     // The packages defined in this class loader.  Each package name is mapped
     // to its corresponding Package object.
     // @GuardedBy("itself")
-    private final HashMap<String, Package> packages = new HashMap<>();
+    private final ConcurrentHashMap<String, Package> packages
+            = new ConcurrentHashMap<>();
 
     private static Void checkCreateClassLoader() {
         SecurityManager security = System.getSecurityManager();
@@ -428,6 +437,82 @@ public abstract class ClassLoader {
             }
             return c;
         }
+    }
+
+    /**
+     * load class from Class Data Sharing
+     * 1. use definingLoaderHash to get the defining class loader
+     * 2. use the lock to take care of parallel class loading which is the same as loadClass
+     * 3. use defining class loader to find and define class
+     *
+     * @param  className
+     *         The <a href="#binary-name">binary name</a> of the class
+     *
+     * @param  sourcePath
+     *         the path to load the class
+     *
+     * @param  ik
+     *         instance klass
+     *
+     * @param  definingLoaderHash
+     *         the signature of defining class loader
+     *
+     * @return  The resulting {@code Class} object
+     *
+     * @throws  ClassNotFoundException
+     *          If the class could not be found
+     *
+     */
+    private Class<?> loadClassFromCDS(String className, String sourcePath, long ik,
+                                      int definingLoaderHash) throws ClassNotFoundException {
+        if (signature == 0 || definingLoaderHash == 0) {
+            throw new IllegalArgumentException("[CDS exception]: initialing or defining loader not registered");
+        }
+        ClassLoader definingLoader = this;
+        if (definingLoaderHash != signature) {
+            WeakReference<ClassLoader> loaderRef = Utils.getClassLoader(definingLoaderHash);
+            if (loaderRef == null || loaderRef.get() == null) {
+                throw new IllegalStateException("[CDS exception]: definingLoader " + definingLoaderHash +
+                        " not found, initialing loader is " + this);
+            }
+            definingLoader = loaderRef.get();
+        }
+
+        synchronized (getClassLoadingLock(className)) {
+            synchronized (definingLoader.getClassLoadingLock(className)) {
+                // First, check if the class has already been loaded
+                Class<?> c;
+                if ((c = definingLoader.findLoadedClass0(className, true)) == null) {
+                    long t1 = System.nanoTime();
+                    c = definingLoader.findClassFromCDS(className, sourcePath, ik);
+                    // this is the defining class loader; record the stats
+                    sun.misc.PerfCounter.getFindClassTime().addElapsedTimeFrom(t1);
+                    sun.misc.PerfCounter.getFindClasses().increment();
+                }
+                return c;
+            }
+        }
+    }
+
+    /**
+     * find class in EagerAppCDS flow
+     *
+     * @param  className
+     *         The <a href="#binary-name">binary name</a> of the class
+     *
+     * @param  sourcePath
+     *         The path to load the class
+     *
+     * @param  ik
+     *         instance klass
+     *
+     * @return  The resulting {@code Class} object
+     *
+     * @throws  ClassNotFoundException
+     *          If the class could not be found
+     */
+    protected Class<?> findClassFromCDS(String className, String sourcePath, long ik) throws ClassNotFoundException {
+        return defineClassFromCDS(className, ik, null);
     }
 
     /**
@@ -847,6 +932,43 @@ public abstract class ClassLoader {
         return c;
     }
 
+    /**
+     * define class for CDS flow
+     * @param  name
+     *         The expected <a href="#binary-name">binary name</a>. of the class, or
+     *         {@code null} if not known
+     *
+     * @param  protectionDomain
+     *         The {@code ProtectionDomain} of the class, or {@code null}.
+     *
+     * @param  ik
+     *         instance class
+     * @return  The {@code Class} object created from the data,
+     *
+     * @throws  ClassFormatError
+     *          If the data did not contain a valid class.
+     * @throws  NoClassDefFoundError
+     *          If the ik's super/interfaces are transformed.
+     *
+     */
+    protected final Class<?> defineClassFromCDS(String name, long ik, ProtectionDomain protectionDomain)
+            throws ClassFormatError, NoClassDefFoundError
+    {
+        protectionDomain = preDefineClass(name, protectionDomain);
+        // ignore the code to get source in CDS flow
+        // String source = defineClassSourceLocation(protectionDomain);
+        Class<?> c = defineClassFromCDS0(this, protectionDomain, ik);
+        if (c == null) {
+            // This is because:
+            // [1] some agent transformed the ik's super/interfaces, so the ik in the jsa cannot be successfully loaded, so a null is returned.
+            // [2] under Incremental CDS: same as [1]: ik's super/interfaces are invalidated. so a null is returned for the child ik.
+            // Note: this Exception will be eaten in Hotspot.
+            throw new NoClassDefFoundError("CDS Super/Interfaces overwritten");
+        }
+        postDefineClass(c, protectionDomain);
+        return c;
+    }
+
     private native Class<?> defineClass0(String name, byte[] b, int off, int len,
                                          ProtectionDomain pd);
 
@@ -856,6 +978,8 @@ public abstract class ClassLoader {
     private native Class<?> defineClass2(String name, java.nio.ByteBuffer b,
                                          int off, int len, ProtectionDomain pd,
                                          String source);
+
+    static native Class<?> defineClassFromCDS0(ClassLoader loader, ProtectionDomain pd, long iklass);
 
     // true if the name is null or has the potential to be a valid binary name
     private boolean checkName(String name) {
@@ -1028,10 +1152,10 @@ public abstract class ClassLoader {
     protected final Class<?> findLoadedClass(String name) {
         if (!checkName(name))
             return null;
-        return findLoadedClass0(name);
+        return findLoadedClass0(name, false);
     }
 
-    private native final Class<?> findLoadedClass0(String name);
+    protected native final Class<?> findLoadedClass0(String name, boolean onlyFind);
 
     /**
      * Sets the signers of a class.  This should be invoked after defining a
@@ -1581,17 +1705,14 @@ public abstract class ClassLoader {
                                     String implVendor, URL sealBase)
         throws IllegalArgumentException
     {
-        synchronized (packages) {
-            Package pkg = getPackage(name);
-            if (pkg != null) {
-                throw new IllegalArgumentException(name);
-            }
-            pkg = new Package(name, specTitle, specVersion, specVendor,
-                              implTitle, implVersion, implVendor,
-                              sealBase, this);
-            packages.put(name, pkg);
-            return pkg;
+        Objects.requireNonNull(name);
+        Package pkg = new Package(name, specTitle, specVersion, specVendor,
+                implTitle, implVersion, implVendor,
+                sealBase, this);
+        if (packages.putIfAbsent(name, pkg) != null) {
+            throw new IllegalArgumentException(name);
         }
+        return pkg;
     }
 
     /**
@@ -1607,25 +1728,12 @@ public abstract class ClassLoader {
      * @since  1.2
      */
     protected Package getPackage(String name) {
-        Package pkg;
-        synchronized (packages) {
-            pkg = packages.get(name);
-        }
+        Package pkg = packages.get(name);
         if (pkg == null) {
             if (parent != null) {
                 pkg = parent.getPackage(name);
             } else {
                 pkg = Package.getSystemPackage(name);
-            }
-            if (pkg != null) {
-                synchronized (packages) {
-                    Package pkg2 = packages.get(name);
-                    if (pkg2 == null) {
-                        packages.put(name, pkg);
-                    } else {
-                        pkg = pkg2;
-                    }
-                }
             }
         }
         return pkg;
@@ -1641,22 +1749,18 @@ public abstract class ClassLoader {
      * @since  1.2
      */
     protected Package[] getPackages() {
-        Map<String, Package> map;
-        synchronized (packages) {
-            map = new HashMap<>(packages);
-        }
         Package[] pkgs;
         if (parent != null) {
             pkgs = parent.getPackages();
         } else {
             pkgs = Package.getSystemPackages();
         }
+
+        Map<String, Package> map = packages;
         if (pkgs != null) {
-            for (int i = 0; i < pkgs.length; i++) {
-                String pkgName = pkgs[i].getName();
-                if (map.get(pkgName) == null) {
-                    map.put(pkgName, pkgs[i]);
-                }
+            map = new HashMap<>(packages);
+            for (Package pkg : pkgs) {
+                map.putIfAbsent(pkg.getName(), pkg);
             }
         }
         return map.values().toArray(new Package[map.size()]);

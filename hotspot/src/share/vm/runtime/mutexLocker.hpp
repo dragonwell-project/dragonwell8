@@ -49,6 +49,7 @@
 extern Mutex*   Patching_lock;                   // a lock used to guard code patching of compiled code
 extern Monitor* SystemDictionary_monitor_lock;   // a lock on the system dictonary
 extern SystemDictMonitor* SystemDictionary_lock; // a lock on the system dictonary, transform to ObjectMonitor after wisp is booted
+extern Mutex*   DumpLoadedClassList_lock;        // a lock for printing the CDS class list
 extern Mutex*   ProfileRecorder_lock;            // a lock on the JWarmUP class ProfileRecorder
 extern Mutex*   PreloadClassChain_lock;          // a lock on the JWarmUP preload class chain
 extern Mutex*   JitWarmUpPrint_lock;             // a lock on the JWarmUP jstack print

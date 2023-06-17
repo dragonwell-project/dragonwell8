@@ -142,6 +142,7 @@ LIBJAVA_SRC_DIRS += $(JDK_TOPDIR)/src/$(OPENJDK_TARGET_OS_API_DIR)/native/java/l
     $(JDK_TOPDIR)/src/share/native/java/security \
     $(JDK_TOPDIR)/src/share/native/common \
     $(JDK_TOPDIR)/src/share/native/com/alibaba/jwarmup \
+    $(JDK_TOPDIR)/src/share/native/com/alibaba/util \
     $(JDK_TOPDIR)/src/share/native/com/alibaba/jvm/gc \
     $(JDK_TOPDIR)/src/share/native/com/alibaba/tenant \
     $(JDK_TOPDIR)/src/share/native/java/dyn \

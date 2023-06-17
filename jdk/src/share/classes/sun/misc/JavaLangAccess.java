@@ -28,6 +28,7 @@ package sun.misc;
 import java.dyn.CoroutineSupport;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Executable;
+import java.net.URL;
 import java.security.AccessControlContext;
 import java.util.Map;
 
@@ -177,4 +178,16 @@ public interface JavaLangAccess {
     void threadExit(Thread thread);
 
     void wispBooted();
+
+    Package definePackage(ClassLoader loader,
+                          String name, String specTitle,
+                          String specVersion, String specVendor,
+                          String implTitle, String implVersion,
+                          String implVendor, URL sealBase);
+
+    Package getPackage(ClassLoader loader, String name);
+
+    Object getClassLoadingLock(ClassLoader loader, String className);
+
+    Class<?> findLoadedClass(ClassLoader loader, String name);
 }

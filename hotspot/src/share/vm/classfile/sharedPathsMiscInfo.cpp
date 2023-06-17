@@ -26,6 +26,7 @@
 #include "classfile/classLoader.hpp"
 #include "classfile/classLoaderData.inline.hpp"
 #include "classfile/sharedPathsMiscInfo.hpp"
+#include "classfile/sharedClassUtil.hpp"
 #include "memory/allocation.inline.hpp"
 #include "memory/metaspaceShared.hpp"
 #include "runtime/arguments.hpp"
@@ -111,7 +112,24 @@ bool SharedPathsMiscInfo::check(jint type, const char* path) {
   switch (type) {
   case BOOT:
     if (strcmp(path, Arguments::get_sysclasspath()) != 0) {
-      return fail("[BOOT classpath mismatch, actual: -Dsun.boot.class.path=", Arguments::get_sysclasspath());
+      char* sys_cp = Arguments::get_sysclasspath();
+      int path_len = strlen(path);
+      int sys_cp_len = strlen(sys_cp);
+      if(path_len >= sys_cp_len || strncmp(path, sys_cp, path_len) != 0 || !EagerAppCDS || !CDSIgnoreBootClasspathAppend) {
+        return fail("[BOOT classpath mismatch, actual: -Dsun.boot.class.path=", sys_cp);
+      } else {
+        int start = path_len;
+        int end = start + 1;
+        while(end <= sys_cp_len) {
+          if(end == sys_cp_len || sys_cp[end] == os::path_separator()[0]) {
+            if (!SharedClassUtil::is_appended_boot_cp(sys_cp + start + 1, end - start - 1)) {
+              return fail("[BOOT classpath mismatch, actual: -Dsun.boot.class.path=", sys_cp);
+            }
+          }
+          start = end;
+          end++;
+        }
+      }
     }
     break;
   case NON_EXIST: // fall-through

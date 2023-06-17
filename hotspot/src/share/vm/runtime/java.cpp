@@ -661,6 +661,19 @@ void vm_notify_during_shutdown(const char* error, const char* message) {
   }
 }
 
+void vm_warning(const char* warning, const char* message) {
+  if (warning != NULL) {
+    tty->print_cr("Warning occurred during initialization of VM");
+    tty->print("%s", warning);
+    if (message != NULL) {
+      tty->print_cr(": %s", message);
+    }
+    else {
+      tty->cr();
+    }
+  }
+}
+
 void vm_exit_during_initialization(Handle exception) {
   tty->print_cr("Error occurred during initialization of VM");
   // If there are exceptions on this thread it must be cleared

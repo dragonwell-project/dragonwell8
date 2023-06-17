@@ -151,7 +151,7 @@ public:
   void copy_table(char** top, char* end);
 
   // Bucket handling
-  int hash_to_index(unsigned int full_hash) {
+  int hash_to_index(unsigned int full_hash) const {
     int h = full_hash % _table_size;
     assert(h >= 0 && h < _table_size, "Illegal hash value");
     return h;
@@ -186,7 +186,7 @@ protected:
   int entry_size() const { return _entry_size; }
 
   // The following method is MT-safe and may be used with caution.
-  BasicHashtableEntry<F>* bucket(int i);
+  BasicHashtableEntry<F>* bucket(int i) const;
 
   // The following method is not MT-safe and must be done under lock.
   BasicHashtableEntry<F>** bucket_addr(int i) { return _buckets[i].entry_addr(); }
@@ -306,12 +306,12 @@ public:
   // addresses, and appear first in the list.
   void reverse(void* boundary = NULL);
 
-protected:
 
-  unsigned int compute_hash(Symbol* name) {
+  unsigned int compute_hash(Symbol* name) const  {
     return (unsigned int) name->identity_hash();
   }
 
+protected:
   int index_for(Symbol* name) {
     return this->hash_to_index(compute_hash(name));
   }
@@ -320,7 +320,7 @@ protected:
   HashtableEntry<T, F>* new_entry(unsigned int hashValue, T obj);
 
   // The following method is MT-safe and may be used with caution.
-  HashtableEntry<T, F>* bucket(int i) {
+  HashtableEntry<T, F>* bucket(int i) const {
     return (HashtableEntry<T, F>*)BasicHashtable<F>::bucket(i);
   }
 
@@ -389,8 +389,8 @@ protected:
     : Hashtable<T, F>(table_size, entry_size, t, number_of_entries) {}
 
 public:
-  unsigned int compute_hash(Symbol* name, ClassLoaderData* loader_data) {
-    unsigned int name_hash = name->identity_hash();
+  unsigned int compute_hash(const Symbol* name, ClassLoaderData* loader_data) const {
+    unsigned int name_hash = (unsigned int)name->identity_hash();
     // loader is null with CDS
     assert(loader_data != NULL || UseSharedSpaces || DumpSharedSpaces,
            "only allowed with shared spaces");

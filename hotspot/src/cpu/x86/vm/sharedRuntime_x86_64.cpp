@@ -4518,6 +4518,10 @@ void create_switchTo_contents(MacroAssembler *masm, int start, OopMapSet* oop_ma
     __ movl(temp, Address(thread, JavaThread::java_call_counter_offset()));
     __ movl(Address(old_coroutine, Coroutine::java_call_counter_offset()), temp);
 
+    if (EagerAppCDS && !UseSharedSpaces) {
+      __ movptr(temp, Address(thread, JavaThread::initiating_loader_offset()));
+      __ movptr(Address(old_coroutine, Coroutine::initiating_loader_offset()), temp);
+    }
     __ movptr(Address(old_stack, CoroutineStack::last_sp_offset()), rsp);
   }
   Register target_stack = r12;
@@ -4564,6 +4568,11 @@ void create_switchTo_contents(MacroAssembler *masm, int start, OopMapSet* oop_ma
       __ movptr(Address(target_coroutine, Coroutine::last_handle_mark_offset()), (intptr_t)NULL_WORD);
       __ movl(Address(target_coroutine, Coroutine::java_call_counter_offset()), 0);
 #endif
+
+      if (EagerAppCDS && !UseSharedSpaces) {
+        __ movptr(temp, Address(target_coroutine, Coroutine::initiating_loader_offset()));
+        __ movptr(Address(thread, JavaThread::initiating_loader_offset()), temp);
+      }
 
       // update the thread's stack base and size
       __ movptr(temp, Address(target_stack, CoroutineStack::stack_base_offset()));
