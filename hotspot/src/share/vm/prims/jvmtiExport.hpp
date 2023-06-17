@@ -98,6 +98,7 @@ class JvmtiExport : public AllStatic {
   JVMTI_SUPPORT_FLAG(should_post_class_load)
   JVMTI_SUPPORT_FLAG(should_post_class_prepare)
   JVMTI_SUPPORT_FLAG(should_post_class_unload)
+  JVMTI_SUPPORT_FLAG(should_post_first_class_load_prepare)
   JVMTI_SUPPORT_FLAG(should_post_native_method_bind)
   JVMTI_SUPPORT_FLAG(should_post_compiled_method_load)
   JVMTI_SUPPORT_FLAG(should_post_compiled_method_unload)
@@ -313,6 +314,7 @@ class JvmtiExport : public AllStatic {
   static void post_thread_start          (JavaThread *thread) NOT_JVMTI_RETURN;
   static void post_thread_end            (JavaThread *thread) NOT_JVMTI_RETURN;
 
+  static void post_first_class_load_prepare    (JavaThread *thread, Handle object) NOT_JVMTI_RETURN;
   // Support for java.lang.instrument agent loading.
   static bool _should_post_class_file_load_hook;
   inline static void set_should_post_class_file_load_hook(bool on)     { _should_post_class_file_load_hook = on;  }

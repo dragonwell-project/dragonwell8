@@ -28,6 +28,7 @@ import java.dyn.CoroutineSupport;
 import java.io.*;
 import java.lang.reflect.Executable;
 import java.lang.annotation.Annotation;
+import java.net.URL;
 import java.security.AccessControlContext;
 import java.util.Properties;
 import java.util.PropertyPermission;
@@ -1254,6 +1255,7 @@ public final class System {
 
         // register shared secrets
         setJavaLangAccess();
+        setJavaLangClassLoaderAccess();
 
         // Subsystems that are invoked during initialization can invoke
         // sun.misc.VM.isBooted() in order to avoid doing things that should
@@ -1370,6 +1372,37 @@ public final class System {
             @Override
             public void wispBooted() {
                 Thread.wispBooted();
+            }
+
+            @Override
+            public Package definePackage(ClassLoader loader, String name, String specTitle, String specVersion, String specVendor, String implTitle, String implVersion, String implVendor, URL sealBase) {
+                return loader.definePackage(name, specTitle, specVersion, specVendor, implTitle, implVersion, implVendor, sealBase);
+            }
+            @Override
+            public Package getPackage(ClassLoader loader, String name) {
+                return loader.getPackage(name);
+            }
+            @Override
+            public Object getClassLoadingLock(ClassLoader loader, String className) {
+                return loader.getClassLoadingLock(className);
+            }
+            @Override
+            public Class<?> findLoadedClass(ClassLoader loader, String name) {
+                return loader.findLoadedClass0(name, true);
+            }
+        });
+    }
+
+    private static void setJavaLangClassLoaderAccess() {
+        sun.misc.SharedSecrets.setJavaLangClassLoaderAccess(new sun.misc.JavaLangClassLoaderAccess(){
+            @Override
+            public int getSignature(ClassLoader cl) {
+                return cl.getSignature();
+            }
+
+            @Override
+            public void setSignature(ClassLoader cl, int value) {
+                cl.setSignature(value);
             }
         });
     }

@@ -159,6 +159,8 @@ class ClassFileStream: public ResourceObj {
 
   bool need_verify() const { return _need_verify; }
 #endif
+
+  uint64_t compute_fingerprint() const;
 };
 
 #endif // SHARE_VM_CLASSFILE_CLASSFILESTREAM_HPP

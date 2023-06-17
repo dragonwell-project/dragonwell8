@@ -191,16 +191,25 @@ jint ArrayKlass::jvmti_class_status() const {
   return JVMTI_CLASS_STATUS_ARRAY;
 }
 
+void ArrayKlass::remove_java_mirror() {
+  Klass::remove_java_mirror();
+  if (_higher_dimension != NULL) {
+    ArrayKlass *ak = ArrayKlass::cast(higher_dimension());
+    ak->remove_java_mirror();
+  }
+}
+
 void ArrayKlass::remove_unshareable_info() {
   Klass::remove_unshareable_info();
-  // Clear the java mirror
-  set_component_mirror(NULL);
+  _higher_dimension = NULL;
+  init_component_mirror();
 }
 
 void ArrayKlass::restore_unshareable_info(ClassLoaderData* loader_data, Handle protection_domain, TRAPS) {
   assert(loader_data == ClassLoaderData::the_null_class_loader_data(), "array classes belong to null loader");
   Klass::restore_unshareable_info(loader_data, protection_domain, CHECK);
   // Klass recreates the component mirror also
+  assert(_higher_dimension == NULL, "archiving of object array classes not supported");
 }
 
 // Printing

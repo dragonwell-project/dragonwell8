@@ -1,0 +1,6 @@
+java/lang/Object id: 1
+java/io/Serializable id: 2
+java/lang/Comparable id: 3
+java/lang/CharSequence id: 4
+java/lang/String id: 5
+TestSimple id: 640 super: 1 source: /ssd1/home/shiyue.xw/wisp11/tmp/classes/com/alibaba/cds/TestDumpAndLoadClass.d/test.war initiating_loader_hash: fa474cbf defining_loader_hash: fa474cbf fingerprint: 0x00000199e3c89ea7

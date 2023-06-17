@@ -170,6 +170,35 @@ public final class Utils {
         return opts.toArray(new String[0]);
     }
 
+    // This method is intended to be called from a jtreg test.
+    // It will identify the name of the test by means of stack walking.
+    // It can handle both jtreg tests and a testng tests wrapped inside jtreg tests.
+    // For jtreg tests the name of the test will be searched by stack-walking
+    // until the method main() is found; the class containing that method is the
+    // main test class and will be returned as the name of the test.
+    // Special handling is used for testng tests.
+    public static String getTestName() {
+        String result = null;
+
+        StackTraceElement[] elms = (new Throwable()).getStackTrace();
+        for (StackTraceElement n: elms) {
+            String className = n.getClassName();
+
+            // If this is a "main" method, then use its class name, but only
+            // if we are not using testng.
+            if ("main".equals(n.getMethodName())) {
+                result = className;
+                break;
+            }
+        }
+
+        if (result == null) {
+            throw new RuntimeException("Couldn't find main test class in stack trace");
+        }
+
+        return result;
+    }
+
     /**
      * Splits a string by white space.
      * Works like String.split(), but returns an empty array

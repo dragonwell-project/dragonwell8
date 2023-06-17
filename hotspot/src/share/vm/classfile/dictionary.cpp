@@ -23,10 +23,12 @@
  */
 
 #include "precompiled.hpp"
+#include "classfile/sharedClassUtil.hpp"
 #include "classfile/dictionary.hpp"
 #include "classfile/systemDictionary.hpp"
 #include "classfile/systemDictionaryShared.hpp"
 #include "memory/iterator.hpp"
+#include "memory/resourceArea.hpp"
 #include "oops/oop.inline.hpp"
 #include "prims/jvmtiRedefineClassesTrace.hpp"
 #include "runtime/orderAccess.inline.hpp"
@@ -375,6 +377,13 @@ DictionaryEntry* Dictionary::get_entry(int index, unsigned int hash,
                         entry != NULL;
                         entry = entry->next()) {
     if (entry->hash() == hash && entry->equals(class_name, loader_data)) {
+      // _shared_classpath_index = -1: just created from stream and not recorded yet.
+      if (DumpSharedSpaces &&
+          entry->klass()->shared_classpath_index() < 0 &&
+          entry->klass()->shared_classpath_index() != -1) {
+          // This is a shared class intended for custom loaders. Ignore it.
+          continue;
+      }
       return entry;
     }
     debug_only(_lookup_length++);
@@ -442,26 +451,63 @@ bool Dictionary::is_valid_protection_domain(int index, unsigned int hash,
   return entry->is_valid_protection_domain(protection_domain);
 }
 
+// Used for two backward compatibility reasons:
+// - to check for new additions to the class file format in JDK1.5
+// - to check for bug fixes in the format checker in JDK1.5
+#define JAVA_1_5_VERSION                  49
 
 void Dictionary::reorder_dictionary() {
 
   // Copy all the dictionary entries into a single master list.
-
+  assert(DumpSharedSpaces, "Only called in dump time");
   DictionaryEntry* master_list = NULL;
   for (int i = 0; i < table_size(); ++i) {
     DictionaryEntry* p = bucket(i);
     while (p != NULL) {
-      DictionaryEntry* tmp;
-      tmp = p->next();
-      p->set_next(master_list);
-      master_list = p;
-      p = tmp;
+      ResourceMark rm;
+      DictionaryEntry* next = p->next();
+      InstanceKlass* ik = InstanceKlass::cast(p->klass());
+
+      bool removed = false;
+      if (ik->signers() != NULL) {
+        // We cannot include signed classes in the archive because the certificates
+        // used during dump time may be different than those used during
+        // runtime (due to expiration, etc).
+        tty->print_cr("Preload Warning: Skipping %s is signed",
+                       ik->name()->as_C_string());
+        removed = true;
+      }
+      if (ik->major_version() < JAVA_1_5_VERSION && !EagerAppCDSLegacyVerisonSupport) {
+        tty->print_cr("Preload Warning: Skipping %s version is too low: %d", ik->name()->as_C_string(), ik->major_version());
+        removed = true;
+      }
+      if (ik->is_anonymous()) {
+        // in regular class paths, anonmous class was skipped. There is a path from Unsafe_DefineAnonymousClass
+        tty->print_cr("Preload Warning: Skipping %s it is anonymous class", ik->name()->as_C_string());
+        removed = true;
+      }
+      /*
+      if (!removed && is_jfr_event_class(ik)) {
+        // We cannot include JFR event classes because they need runtime-specific
+        // instrumentation in order to work with -XX:FlightRecorderOptions=retransform=false.
+        // There are only a small number of these classes, so it's not worthwhile to
+        // support them and make CDS more complicated.
+        tty->print_cr("Skipping JFR event class %s", ik->name()->as_C_string());
+      }*/
+      if (removed) {
+        free_entry(p);
+      } else {
+        p->set_next(master_list);
+        master_list = p;
+      }
+      p = next;
     }
     set_entry(i, NULL);
   }
 
   // Add the dictionary entries back to the list in the correct buckets.
   while (master_list != NULL) {
+    ResourceMark rm;
     DictionaryEntry* p = master_list;
     master_list = master_list->next();
     p->set_next(NULL);
@@ -764,3 +810,73 @@ void Dictionary::verify() {
 
   _pd_cache_table->verify();
 }
+
+NotFoundClassTable::NotFoundClassTable(int table_size)
+        : Hashtable<Symbol*, mtSymbol>(table_size, sizeof(NotFoundClassEntry))
+{
+}
+NotFoundClassTable::NotFoundClassTable(int table_size, HashtableBucket<mtSymbol>* t,
+                                       int number_of_entries)
+        : Hashtable<Symbol*, mtSymbol>(table_size, sizeof(NotFoundClassEntry), t, number_of_entries)
+{
+}
+
+NotFoundClassEntry* NotFoundClassTable::find_entry(int index, unsigned int hash,
+                                                   Symbol* sym,
+                                                   int initiating_loader_hash) {
+  for (NotFoundClassEntry* p = bucket(index); p != NULL; p = p->next()) {
+    if (p->hash() == hash && p->symbol() == sym && p->initiating_loader_hash() == initiating_loader_hash) {
+      return p;
+    }
+  }
+  return NULL;
+}
+
+NotFoundClassEntry* NotFoundClassTable::add_entry(int index, unsigned int hash,
+                                                  Symbol* sym, int initiating_loader_hash) {
+  NotFoundClassEntry* p = new_entry(hash, sym, initiating_loader_hash);
+  Hashtable<Symbol*, mtSymbol>::add_entry(index, p);
+  return p;
+}
+
+//void NotFoundClassTable::metaspace_pointers_do(MetaspaceClosure* it) {
+//  assert(DumpSharedSpaces, "must be in dump phase");
+//  for (int index = 0; index < table_size(); index++) {
+//    for (NotFoundClassEntry* probe = bucket(index);
+//         probe != NULL;
+//         probe = probe->next()) {
+//      it->push(probe->literal_addr());
+//    }
+//  }
+//}
+
+void NotFoundClassTable::reorder_not_found_class_table_for_sharing() {
+  // Copy all the dictionary entries into a single master list.
+  assert(DumpSharedSpaces, "must be in dump phase");
+
+  NotFoundClassEntry* master_list = NULL;
+  for (int i = 0; i < table_size(); ++i) {
+    NotFoundClassEntry* p = bucket(i);
+    while (p != NULL) {
+      NotFoundClassEntry* next = p->next();
+      p->set_next(master_list);
+      master_list = p;
+      p = next;
+    }
+    set_entry(i, NULL);
+  }
+
+  // Add the entries back to the list in the correct buckets.
+  while (master_list != NULL) {
+    NotFoundClassEntry* p = master_list;
+    master_list = master_list->next();
+    p->set_next(NULL);
+    Symbol* class_name = p->symbol();
+    unsigned int hash = compute_hash(class_name);
+    int index = hash_to_index(hash);
+    p->set_hash(hash);
+    p->set_next(bucket(index));
+    set_entry(index, p);
+  }
+}
+

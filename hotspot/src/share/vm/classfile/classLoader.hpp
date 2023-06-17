@@ -25,12 +25,13 @@
 #ifndef SHARE_VM_CLASSFILE_CLASSLOADER_HPP
 #define SHARE_VM_CLASSFILE_CLASSLOADER_HPP
 
-#include "classfile/classFileParser.hpp"
+#include "runtime/orderAccess.hpp"
 #include "runtime/perfData.hpp"
 
 // The VM class loader.
 #include <sys/stat.h>
 
+class ClassFileStream;
 
 // Meta-index (optional, to be able to skip opening boot classpath jar files)
 class MetaIndex: public CHeapObj<mtClass> {
@@ -54,7 +55,7 @@ class ClassPathEntry: public CHeapObj<mtClass> {
   ClassPathEntry* next()              { return _next; }
   void set_next(ClassPathEntry* next) {
     // may have unlocked readers, so write atomically.
-    OrderAccess::release_store_ptr(&_next, next);
+    OrderAccess::store_fence((intptr_t*)&_next, (intptr_t)next);
   }
   virtual bool is_jar_file() = 0;
   virtual const char* name() = 0;
@@ -156,6 +157,24 @@ class ClassLoader: AllStatic {
   enum SomeConstants {
     package_hash_table_size = 31  // Number of buckets
   };
+  enum ClassLoaderType {
+    BOOT_LOADER = 1,      /* boot loader */
+    EXT_LOADER  = 2,      /* ext loader */
+    APP_LOADER  = 3,      /* system(app) class loader */
+    CUS_LOADER  = 4       /* custom loader*/
+  };
+
+  static const char* loader_name(s2 type) {
+    switch (type) {
+    case BOOT_LOADER: return "<boot loader>";
+    case EXT_LOADER:  return "ext_loader";
+    case APP_LOADER:  return "app_loader";
+    case CUS_LOADER:  return "cus_loader";
+    default:
+      return "Unknown loader";
+    }
+  }
+
  protected:
   friend class LazyClassPathEntry;
 
@@ -178,6 +197,12 @@ class ClassLoader: AllStatic {
   static PerfCounter* _perf_app_classload_time;
   static PerfCounter* _perf_app_classload_selftime;
   static PerfCounter* _perf_app_classload_count;
+  static PerfCounter* _perf_cds_cust_classload_time;
+  static PerfCounter* _perf_cds_cust_classload_selftime;
+  static PerfCounter* _perf_cds_cust_classload_count;
+  static PerfCounter* _perf_cds_cust_classload_call_java_time;
+  static PerfCounter* _perf_cds_cust_classload_call_java_selftime;
+  static PerfCounter* _perf_cds_cust_classload_call_java_count;
   static PerfCounter* _perf_define_appclasses;
   static PerfCounter* _perf_define_appclass_time;
   static PerfCounter* _perf_define_appclass_selftime;
@@ -209,6 +234,7 @@ class ClassLoader: AllStatic {
 
   // Hash function
   static unsigned int hash(const char *s, int n);
+ public:
   // Returns the package file name corresponding to the specified package
   // or class name, or null if not found.
   static PackageInfo* lookup_package(const char *pkgname);
@@ -230,7 +256,6 @@ class ClassLoader: AllStatic {
   // Canonicalizes path names, so strcmp will work properly. This is mainly
   // to avoid confusing the zip library
   static bool get_canonical_path(const char* orig, char* out, int len);
- public:
   static int crc32(int crc, const char* buf, int len);
   static bool update_class_path_entry_list(const char *path,
                                            bool check_for_duplicates,
@@ -256,6 +281,12 @@ class ClassLoader: AllStatic {
   static PerfCounter* perf_app_classload_time()       { return _perf_app_classload_time; }
   static PerfCounter* perf_app_classload_selftime()   { return _perf_app_classload_selftime; }
   static PerfCounter* perf_app_classload_count()      { return _perf_app_classload_count; }
+  static PerfCounter* perf_cds_cust_classload_time()       { return _perf_cds_cust_classload_time; }
+  static PerfCounter* perf_cds_cust_classload_selftime()   { return _perf_cds_cust_classload_selftime; }
+  static PerfCounter* perf_cds_cust_classload_count()      { return _perf_cds_cust_classload_count; }
+  static PerfCounter* perf_cds_cust_classload_call_java_time()       { return _perf_cds_cust_classload_call_java_time; }
+  static PerfCounter* perf_cds_cust_classload_call_java_selftime()   { return _perf_cds_cust_classload_call_java_selftime; }
+  static PerfCounter* perf_cds_cust_classload_call_java_count()      { return _perf_cds_cust_classload_call_java_count; }
   static PerfCounter* perf_define_appclasses()        { return _perf_define_appclasses; }
   static PerfCounter* perf_define_appclass_time()     { return _perf_define_appclass_time; }
   static PerfCounter* perf_define_appclass_selftime() { return _perf_define_appclass_selftime; }
@@ -387,6 +418,8 @@ class ClassLoader: AllStatic {
   static void compile_the_world_in(char* name, Handle loader, TRAPS);
   static int  compile_the_world_counter() { return _compile_the_world_class_counter; }
 #endif //PRODUCT
+  static void record_shared_class_loader_type(InstanceKlass* ik, const ClassFileStream* stream);
+  static const char* file_name_for_class_name(const char* class_name, int class_name_len);
 };
 
 // PerfClassTraceTime is used to measure time for class loading related events.
@@ -405,7 +438,9 @@ class PerfClassTraceTime {
     CLASS_VERIFY = 3,
     CLASS_CLINIT = 4,
     DEFINE_CLASS = 5,
-    EVENT_TYPE_COUNT = 6
+    CDS_CUST_LOAD = 6,
+    CDS_CUST_LOAD_CALL_JAVA = 7,
+    EVENT_TYPE_COUNT = 8
   };
  protected:
   // _t tracks time from initialization to destruction of this timer instance

@@ -39,6 +39,7 @@
 #include "memory/genOopClosures.inline.hpp"
 #include "memory/generation.inline.hpp"
 #include "memory/generationSpec.hpp"
+#include "memory/metaspaceCounters.hpp"
 #include "memory/resourceArea.hpp"
 #include "memory/sharedHeap.hpp"
 #include "memory/space.hpp"

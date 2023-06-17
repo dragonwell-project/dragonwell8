@@ -67,6 +67,7 @@ static const jlong  VM_INIT_BIT = (((jlong)1) << (JVMTI_EVENT_VM_INIT - TOTAL_MI
 static const jlong  VM_DEATH_BIT = (((jlong)1) << (JVMTI_EVENT_VM_DEATH - TOTAL_MIN_EVENT_TYPE_VAL));
 static const jlong  CLASS_LOAD_BIT = (((jlong)1) << (JVMTI_EVENT_CLASS_LOAD - TOTAL_MIN_EVENT_TYPE_VAL));
 static const jlong  CLASS_PREPARE_BIT = (((jlong)1) << (JVMTI_EVENT_CLASS_PREPARE - TOTAL_MIN_EVENT_TYPE_VAL));
+static const jlong  FIRST_CLASS_LOAD_PREPARE_BIT = (((jlong)1) << (JVMTI_EVENT_FIRST_CLASS_LOAD_PREPARE - TOTAL_MIN_EVENT_TYPE_VAL));
 static const jlong  THREAD_START_BIT = (((jlong)1) << (JVMTI_EVENT_THREAD_START - TOTAL_MIN_EVENT_TYPE_VAL));
 static const jlong  THREAD_END_BIT = (((jlong)1) << (JVMTI_EVENT_THREAD_END - TOTAL_MIN_EVENT_TYPE_VAL));
 static const jlong  EXCEPTION_THROW_BIT = (((jlong)1) << (JVMTI_EVENT_EXCEPTION - TOTAL_MIN_EVENT_TYPE_VAL));
@@ -94,7 +95,7 @@ static const jlong  MONITOR_BITS = MONITOR_CONTENDED_ENTER_BIT | MONITOR_CONTEND
 static const jlong  EXCEPTION_BITS = EXCEPTION_THROW_BIT | EXCEPTION_CATCH_BIT;
 static const jlong  INTERP_EVENT_BITS =  SINGLE_STEP_BIT | METHOD_ENTRY_BIT | METHOD_EXIT_BIT |
                                 FRAME_POP_BIT | FIELD_ACCESS_BIT | FIELD_MODIFICATION_BIT;
-static const jlong  THREAD_FILTERED_EVENT_BITS = INTERP_EVENT_BITS | EXCEPTION_BITS | MONITOR_BITS |
+static const jlong  THREAD_FILTERED_EVENT_BITS = INTERP_EVENT_BITS | EXCEPTION_BITS | MONITOR_BITS | FIRST_CLASS_LOAD_PREPARE_BIT |
                                         BREAKPOINT_BIT | CLASS_LOAD_BIT | CLASS_PREPARE_BIT | THREAD_END_BIT;
 static const jlong  NEED_THREAD_LIFE_EVENTS = THREAD_FILTERED_EVENT_BITS | THREAD_START_BIT;
 static const jlong  EARLY_EVENT_BITS = CLASS_FILE_LOAD_HOOK_BIT |
@@ -606,6 +607,7 @@ JvmtiEventControllerPrivate::recompute_enabled() {
     JvmtiExport::set_should_post_data_dump((any_env_thread_enabled & DATA_DUMP_BIT) != 0);
     JvmtiExport::set_should_post_class_prepare((any_env_thread_enabled & CLASS_PREPARE_BIT) != 0);
     JvmtiExport::set_should_post_class_unload((any_env_thread_enabled & CLASS_UNLOAD_BIT) != 0);
+    JvmtiExport::set_should_post_first_class_load_prepare((any_env_thread_enabled & FIRST_CLASS_LOAD_PREPARE_BIT) != 0);
     JvmtiExport::set_should_post_monitor_contended_enter((any_env_thread_enabled & MONITOR_CONTENDED_ENTER_BIT) != 0);
     JvmtiExport::set_should_post_monitor_contended_entered((any_env_thread_enabled & MONITOR_CONTENDED_ENTERED_BIT) != 0);
     JvmtiExport::set_should_post_monitor_wait((any_env_thread_enabled & MONITOR_WAIT_BIT) != 0);

@@ -75,21 +75,6 @@ bool VerificationType::is_reference_assignable_from(
           from.name(), Handle(THREAD, klass->class_loader()),
           Handle(THREAD, klass->protection_domain()), true, CHECK_false);
       bool result = InstanceKlass::cast(from_class)->is_subclass_of(this_class());
-      if (result && DumpSharedSpaces) {
-        if (klass()->is_subclass_of(from_class) && klass()->is_subclass_of(this_class())) {
-          // No need to save verification dependency. At run time, <klass> will be
-          // loaded from the archived only if <from_class> and <this_class> are
-          // also loaded from the archive. I.e., all 3 classes are exactly the same
-          // as we saw at archive creation time.
-        } else {
-          // Save the dependency. At run time, we need to check that the condition
-          // from_class->is_subclass_of(this_class() is still true.
-          Symbol* accessor_clsname = from.name();
-          Symbol* target_clsname = this_class()->name();
-          SystemDictionaryShared::add_verification_dependency(klass(),
-                       accessor_clsname, target_clsname);
-        }
-      }
       return result;
     }
   } else if (is_array() && from.is_array()) {
@@ -129,6 +114,38 @@ VerificationType VerificationType::get_component(ClassVerifier *context, TRAPS) 
       // Met an invalid type signature, e.g. [X
       return VerificationType::bogus_type();
   }
+}
+
+bool VerificationType::resolve_and_check_assignability(InstanceKlass* klass, Symbol* name,
+         Symbol* from_name, bool from_field_is_protected, bool from_is_array, bool from_is_object, TRAPS) {
+  HandleMark hm(THREAD);
+  Klass* this_class = SystemDictionary::resolve_or_fail(
+      name, Handle(THREAD, klass->class_loader()),
+      Handle(THREAD, klass->protection_domain()), true, CHECK_false);
+  if (TraceClassResolution) {
+    Verifier::trace_class_resolution(this_class, klass);
+  }
+
+  if (this_class->is_interface() && (!from_field_is_protected ||
+      from_name != vmSymbols::java_lang_Object())) {
+    // If we are not trying to access a protected field or method in
+    // java.lang.Object then, for arrays, we only allow assignability
+    // to interfaces java.lang.Cloneable and java.io.Serializable.
+    // Otherwise, we treat interfaces as java.lang.Object.
+    return !from_is_array ||
+      this_class == SystemDictionary::Cloneable_klass() ||
+      this_class == SystemDictionary::Serializable_klass();
+  } else if (from_is_object) {
+    Klass* from_class = SystemDictionary::resolve_or_fail(
+        from_name, Handle(THREAD, klass->class_loader()),
+        Handle(THREAD, klass->protection_domain()), true, CHECK_false);
+    if (TraceClassResolution) {
+      Verifier::trace_class_resolution(from_class, klass);
+    }
+    return InstanceKlass::cast(from_class)->is_subclass_of(this_class);
+  }
+
+  return false;
 }
 
 void VerificationType::print_on(outputStream* st) const {

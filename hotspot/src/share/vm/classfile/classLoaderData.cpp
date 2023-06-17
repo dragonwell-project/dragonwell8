@@ -415,6 +415,16 @@ bool ClassLoaderData::is_ext_class_loader_data() const {
   return SystemDictionary::is_ext_class_loader(class_loader());
 }
 
+bool ClassLoaderData::is_builtin_class_loader_data() const {
+  return (class_loader() == NULL ||
+          SystemDictionary::is_system_class_loader(class_loader()) ||
+          is_ext_class_loader_data());
+}
+
+bool ClassLoaderData::is_system_class_loader_data() const {
+  return SystemDictionary::is_system_class_loader(class_loader());
+}
+
 Metaspace* ClassLoaderData::metaspace_non_null() {
   assert(!DumpSharedSpaces, "wrong metaspace!");
   // If the metaspace has not been allocated, create a new one.  Might want
@@ -498,7 +508,8 @@ void ClassLoaderData::free_deallocate_list() {
 // These anonymous class loaders are to contain classes used for JSR292
 ClassLoaderData* ClassLoaderData::anonymous_class_loader_data(oop loader, TRAPS) {
   // Add a new class loader data to the graph.
-  return ClassLoaderDataGraph::add(loader, true, THREAD);
+  bool created_by_current_thread = false;
+  return ClassLoaderDataGraph::add(loader, true, created_by_current_thread, THREAD);
 }
 
 const char* ClassLoaderData::loader_name() {
@@ -582,7 +593,7 @@ bool ClassLoaderDataGraph::_should_purge = false;
 
 // Add a new class loader data node to the list.  Assign the newly created
 // ClassLoaderData into the java/lang/ClassLoader object as a hidden field
-ClassLoaderData* ClassLoaderDataGraph::add(Handle loader, bool is_anonymous, TRAPS) {
+ClassLoaderData* ClassLoaderDataGraph::add(Handle loader, bool is_anonymous, bool& is_created, TRAPS) {
   // We need to allocate all the oops for the ClassLoaderData before allocating the
   // actual ClassLoaderData object.
   ClassLoaderData::Dependencies dependencies(CHECK_NULL);
@@ -603,6 +614,7 @@ ClassLoaderData* ClassLoaderDataGraph::add(Handle loader, bool is_anonymous, TRA
       // Returns the data.
       return old;
     }
+    is_created = true;
   }
 
   // We won the race, and therefore the task of adding the data to the list of

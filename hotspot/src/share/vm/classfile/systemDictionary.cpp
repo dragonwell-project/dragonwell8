@@ -70,6 +70,7 @@
 Dictionary*            SystemDictionary::_dictionary          = NULL;
 PlaceholderTable*      SystemDictionary::_placeholders        = NULL;
 Dictionary*            SystemDictionary::_shared_dictionary   = NULL;
+NotFoundClassTable*    SystemDictionary::_not_found_class_table = NULL;
 LoaderConstraintTable* SystemDictionary::_loader_constraints  = NULL;
 ResolutionErrorTable*  SystemDictionary::_resolution_errors   = NULL;
 SymbolPropertyTable*   SystemDictionary::_invoke_method_table = NULL;
@@ -166,6 +167,16 @@ bool SystemDictionary::is_parallelDefine(Handle class_loader) {
 }
 
 /**
+ * Returns true if the passed class loader is the system class loader.
+ */
+bool SystemDictionary::is_system_class_loader(Handle class_loader) {
+  if (class_loader.is_null()) {
+    return false;
+  }
+  return (class_loader->klass()->name() == vmSymbols::sun_misc_Launcher_AppClassLoader());
+}
+
+/**
  * Returns true if the passed class loader is the extension class loader.
  */
 bool SystemDictionary::is_ext_class_loader(Handle class_loader) {
@@ -173,6 +184,18 @@ bool SystemDictionary::is_ext_class_loader(Handle class_loader) {
     return false;
   }
   return (class_loader->klass()->name() == vmSymbols::sun_misc_Launcher_ExtClassLoader());
+}
+
+/**
+ * Returns true if the passed class loader is the custom class loader.
+ */
+bool SystemDictionary::is_cus_class_loader(Handle class_loader) {
+  if (class_loader.is_null() ||
+      is_ext_class_loader(class_loader) ||
+      is_system_class_loader(class_loader)) {
+    return false;
+  }
+  return true;
 }
 
 // ----------------------------------------------------------------------------
@@ -183,6 +206,11 @@ bool SystemDictionary::is_ext_class_loader(Handle class_loader) {
 Klass* SystemDictionary::resolve_or_fail(Symbol* class_name, Handle class_loader, Handle protection_domain, bool throw_error, TRAPS) {
   Klass* klass = resolve_or_null(class_name, class_loader, protection_domain, THREAD);
   if (HAS_PENDING_EXCEPTION || klass == NULL) {
+    if (EagerAppCDS) {
+      ResourceMark rm(THREAD);
+      const char *name = class_name->as_C_string();
+      SystemDictionaryShared::log_not_founded_klass(name, class_loader, THREAD);
+    }
     KlassHandle k_h(THREAD, klass);
     // can return a null klass
     klass = handle_resolution_exception(class_name, throw_error, k_h, THREAD);
@@ -345,6 +373,16 @@ Klass* SystemDictionary::resolve_super_or_fail(Symbol* child_name,
                                                  Handle protection_domain,
                                                  bool is_superclass,
                                                  TRAPS) {
+#if INCLUDE_CDS
+  if (DumpSharedSpaces) {
+    // Special processing for CDS dump time.
+    Klass* k = SystemDictionaryShared::dump_time_resolve_super_or_fail(child_name,
+        class_name, class_loader, protection_domain, is_superclass, CHECK_NULL);
+    if (k) {
+      return k;
+    }
+  }
+#endif // INCLUDE_CDS
   // Double-check, if child class is already loaded, just return super-class,interface
   // Don't add a placedholder if already loaded, i.e. already in system dictionary
   // Make sure there's a placeholder for the *child* before resolving.
@@ -1054,7 +1092,7 @@ Klass* SystemDictionary::parse_stream(Symbol* class_name,
     // as the host_klass
     assert(EnableInvokeDynamic, "");
     guarantee(host_klass->class_loader() == class_loader(), "should be the same");
-    guarantee(!DumpSharedSpaces, "must not create anonymous classes when dumping");
+
     loader_data = ClassLoaderData::anonymous_class_loader_data(class_loader(), CHECK_NULL);
     loader_data->record_dependency(host_klass(), CHECK_NULL);
   } else {
@@ -1119,6 +1157,8 @@ Klass* SystemDictionary::parse_stream(Symbol* class_name,
   assert(host_klass.not_null() || cp_patches == NULL,
          "cp_patches only found with host_klass");
 
+  SystemDictionaryShared::log_loaded_klass(k(), st, loader_data, THREAD);
+
   return k();
 }
 
@@ -1146,6 +1186,16 @@ Klass* SystemDictionary::resolve_from_stream(Symbol* class_name,
                                              bool verify,
                                              TRAPS) {
 
+#if INCLUDE_CDS
+  ResourceMark rm(THREAD);
+  if (DumpSharedSpaces && !class_loader.is_null() &&
+      !UseAppCDS && strcmp(class_name->as_C_string(), "Unnamed") != 0) {
+    // If AppCDS is not enabled, don't define the class at dump time (except for the "Unnamed"
+    // class, which is used by MethodHandles).
+    THROW_MSG_NULL(vmSymbols::java_lang_ClassNotFoundException(), class_name->as_C_string());
+  }
+#endif
+
   // Classloaders that support parallelism, e.g. bootstrap classloader,
   // or all classloaders with UnsyncloadClass do not acquire lock here
   bool DoObjectLock = true;
@@ -1160,6 +1210,24 @@ Klass* SystemDictionary::resolve_from_stream(Symbol* class_name,
   check_loader_lock_contention(lockObject, THREAD);
   ObjectLocker ol(lockObject, THREAD, DoObjectLock);
 
+  assert(st != NULL, "invariant");
+
+  // Parse the stream and create a klass.
+  // Note that we do this even though this klass might
+  // already be present in the SystemDictionary, otherwise we would not
+  // throw potential ClassFormatErrors.
+ instanceKlassHandle k;
+#if INCLUDE_CDS
+  if (!DumpSharedSpaces) {
+    InstanceKlass* klass = SystemDictionaryShared::lookup_from_stream(class_name,
+                                                   class_loader,
+                                                   protection_domain,
+                                                   st,
+                                                   CHECK_NULL);
+    k = instanceKlassHandle(THREAD, klass);
+  }
+#endif
+
   TempNewSymbol parsed_name = NULL;
 
   // Parse the stream. Note that we do this even though this klass might
@@ -1167,18 +1235,21 @@ Klass* SystemDictionary::resolve_from_stream(Symbol* class_name,
   // throw potential ClassFormatErrors.
   //
   // Note: "name" is updated.
+  if (k.is_null() && st->buffer() == NULL) {
+    return NULL;
+  }
 
-  // Callers are expected to declare a ResourceMark to determine
-  // the lifetime of any updated (resource) allocated under
-  // this call to parseClassFile
-  ResourceMark rm(THREAD);
-  ClassFileParser parser(st);
-  instanceKlassHandle k = parser.parseClassFile(class_name,
-                                                loader_data,
-                                                protection_domain,
-                                                parsed_name,
-                                                verify,
-                                                THREAD);
+  ClassFileParser parser(st, true);
+  if (k.is_null()) {
+    k = parser.parseClassFile(class_name,
+                              loader_data,
+                              protection_domain,
+                              parsed_name,
+                              verify,
+                              THREAD);
+  } else {
+    parsed_name = class_name;
+  }
 
   const char* pkg = "java/";
   size_t pkglen = strlen(pkg);
@@ -1186,6 +1257,7 @@ Klass* SystemDictionary::resolve_from_stream(Symbol* class_name,
       !class_loader.is_null() &&
       parsed_name != NULL &&
       parsed_name->utf8_length() >= (int)pkglen) {
+    assert(k.not_null(), "Sanity");
     ResourceMark rm(THREAD);
     bool prohibited;
     const jbyte* base = parsed_name->base();
@@ -1263,10 +1335,58 @@ Klass* SystemDictionary::resolve_from_stream(Symbol* class_name,
     jwp->preloader()->resolve_loaded_klass(k());
   }
 
+  SystemDictionaryShared::log_loaded_klass(k(), st, loader_data, THREAD);
+
   return k();
 }
 
 #if INCLUDE_CDS
+void SystemDictionary::set_not_found_class_table(HashtableBucket<mtSymbol>* t, int length,
+                                                 int number_of_entries) {
+  assert(UseSharedSpaces, "must be");
+  _not_found_class_table = new NotFoundClassTable(_nof_buckets, t, number_of_entries);
+}
+
+void SystemDictionary::create_not_found_class_table() {
+  assert(DumpSharedSpaces, "must be in dump phase");
+  _not_found_class_table = new NotFoundClassTable(_nof_buckets);
+}
+
+void SystemDictionary::not_found_class_reverse() {
+  assert(DumpSharedSpaces, "must be in dump phase");
+  if (_not_found_class_table != NULL) {
+    _not_found_class_table->reverse();
+  }
+}
+
+void SystemDictionary::copy_not_found_class_buckets(char** top, char* end) {
+  assert(DumpSharedSpaces, "must be in dump phase");
+  if (_not_found_class_table != NULL) {
+    _not_found_class_table->copy_buckets(top, end);
+  } else {
+    *(intptr_t*)(*top) = 0;
+    *top += sizeof(intptr_t);
+
+    *(intptr_t*)(*top) = 0;
+    *top += sizeof(intptr_t);
+  }
+}
+
+void SystemDictionary::copy_not_found_class_table(char** top, char* end) {
+  assert(DumpSharedSpaces, "must be in dump phase");
+  // always create table size
+  intptr_t* tableSize = (intptr_t*)(*top);
+  *top += sizeof(intptr_t);  // For table size
+  char* tableStart = *top;
+  if (_not_found_class_table != NULL) {
+    _not_found_class_table->copy_table(top, end);
+    intptr_t len = *top - tableStart;
+    *tableSize = len;
+  } else {
+    *tableSize = 0;
+  }
+}
+
 void SystemDictionary::set_shared_dictionary(HashtableBucket<mtClass>* t, int length,
                                              int number_of_entries) {
   assert(length == _nof_buckets * sizeof(HashtableBucket<mtClass>),
@@ -1301,7 +1421,8 @@ instanceKlassHandle SystemDictionary::load_shared_class(
   instanceKlassHandle ik (THREAD, find_shared_class(class_name));
   // Make sure we only return the boot class for the NULL classloader.
   if (ik.not_null() &&
-      SharedClassUtil::is_shared_boot_class(ik()) && class_loader.is_null()) {
+      ik->is_shared_boot_class() && class_loader.is_null() &&
+      ik->shared_classpath_index() >= 0) {
     Handle protection_domain;
     return load_shared_class(ik, class_loader, protection_domain, THREAD);
   }
@@ -1367,23 +1488,25 @@ instanceKlassHandle SystemDictionary::load_shared_class(instanceKlassHandle ik,
       ik->restore_unshareable_info(loader_data, protection_domain, CHECK_(nh));
     }
 
+    // For boot loader, ensure that GetSystemPackage knows that a class in this
+    // package was loaded.
+    if (class_loader.is_null()) {
+      int path_index = ik->shared_classpath_index();
+      ResourceMark rm;
+      ClassLoader::add_package(ik->name()->as_C_string(), path_index, THREAD);
+    }
+
     if (TraceClassLoading) {
       ResourceMark rm;
       tty->print("[Loaded %s", ik->external_name());
-      tty->print(" from shared objects file");
+      tty->print(" from shared objects file shared_classpath_index = %d", ik->shared_classpath_index());
+#ifndef PRODUCT
+      tty->print(" ik = %p cds = %d", ik(), ik->cds_id());
+#endif
       if (class_loader.not_null()) {
         tty->print(" by %s", loader_data->loader_name());
       }
       tty->print_cr("]");
-    }
-
-    if (DumpLoadedClassList != NULL && classlist_file->is_open()) {
-      // Only dump the classes that can be stored into CDS archive
-      if (SystemDictionaryShared::is_sharing_possible(loader_data)) {
-        ResourceMark rm(THREAD);
-        classlist_file->print_cr("%s", ik->name()->as_C_string());
-        classlist_file->flush();
-      }
     }
 
     // notify a class loaded from shared object
@@ -1392,7 +1515,87 @@ instanceKlassHandle SystemDictionary::load_shared_class(instanceKlassHandle ik,
   }
   return ik;
 }
+
+void SystemDictionary::clear_invoke_method_table() {
+  SymbolPropertyEntry* spe = NULL;
+  for (int index = 0; index < _invoke_method_table->table_size(); index++) {
+    SymbolPropertyEntry* p = _invoke_method_table->bucket(index);
+    while (p != NULL) {
+      spe = p;
+      p = p->next();
+      _invoke_method_table->free_entry(spe);
+    }
+  }
+}
+
+bool SystemDictionary::should_not_dump_class(InstanceKlass* k) {
+  if (k->is_anonymous()) {
+    // Anonymous classes such as generated LambdaForm classes are not supported
+    return true;
+  }
+
+  const char *name = k->name()->as_C_string();
+  if (name[0] == '$') {
+    // ignore the name starts with "$", which is gened by javac.
+    return true;
+  }
+
+  if (strstr(name, "$$")) {
+    // ignore the class which is dynamically generated.
+    return true;
+  }
+  return false;
+}
+
+bool SystemDictionary::invalid_class_name_for_EagerAppCDS(const char* name) {
+  // ignore the class which is dynamically generated.
+  return strstr(name, "$$") != NULL;
+}
+
+bool SystemDictionary::invalid_class_name(const char* name) {
+  // ignore the class name with LF or spaces.
+  // CDS list parser could not tolerate LF: it would see it as an EOF.
+  return strstr(name, "\n") != NULL || strstr(name, " ") != NULL;
+}
+
+// Sample:
+// TestSimple klass: 0x0000000800066840 defining_loader_hash: fa474cbf initiating_loader_hash: fa474cbf
+void SystemDictionary::dump_class_and_loader_relationship(InstanceKlass* k, ClassLoaderData* initiating_loader_data, TRAPS) {
+  if (DumpLoadedClassList == NULL || !classlist_file->is_open()) {
+    return;
+  }
+
+  ResourceMark rm(THREAD);
+  if (should_not_dump_class(k)) {
+    return;
+  }
+
+  ClassLoaderData *defining_loader_data = k->class_loader_data();
+
+  bool is_builtin = SystemDictionaryShared::is_builtin_loader(defining_loader_data);
+  if (is_builtin) {
+    return;    // don't dump the bootstrap. dummy.
+  }
+
+  int hash = java_lang_ClassLoader::signature(defining_loader_data->class_loader());
+
+  if (hash == 0 || java_lang_ClassLoader::signature(initiating_loader_data->class_loader()) == 0) {
+    return;
+  }
+
+  MutexLocker mu(DumpLoadedClassList_lock, THREAD);
+
+  classlist_file->print("%s klass: " INTPTR_FORMAT, k->name()->as_C_string(), p2i(k));
+  classlist_file->print(" defining_loader_hash: %x", hash);
+  classlist_file->print(" initiating_loader_hash: %x",
+                        java_lang_ClassLoader::signature(initiating_loader_data->class_loader()));
+  classlist_file->cr();
+  classlist_file->flush();
+}
+
 #endif // INCLUDE_CDS
+
+#define JAVA_1_5_VERSION                  49
 
 instanceKlassHandle SystemDictionary::load_instance_class(Symbol* class_name, Handle class_loader, TRAPS) {
   instanceKlassHandle nh = instanceKlassHandle(); // null Handle
@@ -1438,11 +1641,41 @@ instanceKlassHandle SystemDictionary::load_instance_class(Symbol* class_name, Ha
 
     return k;
   } else {
+
     // Use user specified class loader to load class. Call loadClass operation on class_loader.
     ResourceMark rm(THREAD);
 
     assert(THREAD->is_Java_thread(), "must be a JavaThread");
     JavaThread* jt = (JavaThread*) THREAD;
+
+    // when coming here, class_loader() can not be null.
+    if (EagerAppCDS && UseSharedSpaces && java_lang_ClassLoader::signature(class_loader()) != 0 &&
+        (strncmp(class_name->as_C_string(), "java/", 5) != 0) && !invalid_class_name_for_EagerAppCDS(class_name->as_C_string())) {
+      /* skip JDK defined ClassLoaders which have no names */
+
+      PerfClassTraceTime vmtimer(ClassLoader::perf_cds_cust_classload_time(),
+                                 ClassLoader::perf_cds_cust_classload_selftime(),
+                                 ClassLoader::perf_cds_cust_classload_count(),
+                                 jt->get_thread_stat()->perf_recursion_counts_addr(),
+                                 jt->get_thread_stat()->perf_timers_addr(),
+                                 PerfClassTraceTime::CDS_CUST_LOAD);
+
+      bool not_found = false;
+      instanceKlassHandle k = SystemDictionaryShared::lookup_shared(class_name, class_loader, not_found, true, CHECK_NULL);
+      if (!k.is_null()) {
+        return k;
+      } else if (not_found) {
+        return NULL;
+      }
+    }
+
+    ClassLoaderData* back_initiating_loader = NULL;
+    ClassLoaderData* current_loader = NULL;
+    if (EagerAppCDS && !UseSharedSpaces) {
+      back_initiating_loader = THREAD->initiating_loader();
+      current_loader = java_lang_ClassLoader::loader_data(class_loader());
+      THREAD->set_initiating_loader(current_loader);
+    }
 
     PerfClassTraceTime vmtimer(ClassLoader::perf_app_classload_time(),
                                ClassLoader::perf_app_classload_selftime(),
@@ -1483,7 +1716,7 @@ instanceKlassHandle SystemDictionary::load_instance_class(Symbol* class_name, Ha
                               vmSymbols::loadClassInternal_name(),
                               vmSymbols::string_class_signature(),
                               string,
-                              CHECK_(nh));
+                              THREAD);
     } else {
       JavaCalls::call_virtual(&result,
                               class_loader,
@@ -1491,9 +1724,17 @@ instanceKlassHandle SystemDictionary::load_instance_class(Symbol* class_name, Ha
                               vmSymbols::loadClass_name(),
                               vmSymbols::string_class_signature(),
                               string,
-                              CHECK_(nh));
+                              THREAD);
     }
 
+    if (EagerAppCDS && !UseSharedSpaces) {
+      guarantee(current_loader == THREAD->initiating_loader(), "should be the same");
+      THREAD->set_initiating_loader(back_initiating_loader);
+    }
+
+    if (HAS_PENDING_EXCEPTION) {
+      return nh;
+    }
     assert(result.get_type() == T_OBJECT, "just checking");
     oop obj = (oop) result.get_jobject();
 
@@ -1502,10 +1743,14 @@ instanceKlassHandle SystemDictionary::load_instance_class(Symbol* class_name, Ha
     if ((obj != NULL) && !(java_lang_Class::is_primitive(obj))) {
       instanceKlassHandle k =
                 instanceKlassHandle(THREAD, java_lang_Class::as_Klass(obj));
+
       // For user defined Java class loaders, check that the name returned is
       // the same as that requested.  This check is done for the bootstrap
       // loader when parsing the class file.
       if (class_name == k->name()) {
+        if (EagerAppCDS && DumpLoadedClassList != NULL) {
+          dump_class_and_loader_relationship(k(), java_lang_ClassLoader::loader_data(class_loader()), THREAD);
+        }
         return k;
       }
     }
@@ -2206,7 +2451,6 @@ void SystemDictionary::check_constraints(int d_index, unsigned int d_hash,
   }
 }
 
-
 // Update system dictionary - done after check_constraint and add_to_hierachy
 // have been called.
 void SystemDictionary::update_dictionary(int d_index, unsigned int d_hash,
@@ -2600,6 +2844,7 @@ Handle SystemDictionary::find_method_handle_type(Symbol* signature,
   vmIntrinsics::ID null_iid = vmIntrinsics::_none;  // distinct from all method handle invoker intrinsics
   unsigned int hash  = invoke_method_table()->compute_hash(signature, null_iid);
   int          index = invoke_method_table()->hash_to_index(hash);
+
   SymbolPropertyEntry* spe = invoke_method_table()->find_entry(index, hash, signature, null_iid);
   if (spe != NULL && spe->method_type() != NULL) {
     assert(java_lang_invoke_MethodType::is_instance(spe->method_type()), "");
@@ -2797,6 +3042,12 @@ void SystemDictionary::reorder_dictionary() {
   dictionary()->reorder_dictionary();
 }
 
+void SystemDictionary::reorder_not_found_class_table_for_sharing() {
+  assert(DumpSharedSpaces, "must be in dump phase");
+  if (_not_found_class_table != NULL) {
+    _not_found_class_table->reorder_not_found_class_table_for_sharing();
+  }
+}
 
 void SystemDictionary::copy_buckets(char** top, char* end) {
   dictionary()->copy_buckets(top, end);

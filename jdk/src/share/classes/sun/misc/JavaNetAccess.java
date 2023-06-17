@@ -39,4 +39,10 @@ public interface JavaNetAccess {
      * the given InetAddress object.
      */
     String getOriginalHostName(InetAddress ia);
+
+    /**
+     * for AppCDS: we could use all jar path as the
+     * classloader's name.
+     */
+    String getJarPathsAsCDSLoaderName(URLClassLoader u);
 }

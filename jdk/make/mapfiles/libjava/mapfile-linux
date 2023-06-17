@@ -310,6 +310,7 @@ SUNWprivate_1.1 {
     Java_com_alibaba_wisp_engine_WispSysmon_registerNatives;
     Java_com_alibaba_wisp_engine_WispTask_registerNatives;
     Java_java_dyn_Coroutine_registerNatives;
+	Java_com_alibaba_util_QuickStart_registerNatives;
 
 	local:
 		*;

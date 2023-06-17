@@ -3082,6 +3082,8 @@ oop java_security_AccessControlContext::create(objArrayHandle context, bool isPr
 
 bool java_lang_ClassLoader::offsets_computed = false;
 int  java_lang_ClassLoader::_loader_data_offset = -1;
+int  java_lang_ClassLoader::_is_dead_offset = -1;
+int  java_lang_ClassLoader::_signature_offset = -1;
 int  java_lang_ClassLoader::parallelCapable_offset = -1;
 
 ClassLoaderData** java_lang_ClassLoader::loader_data_addr(oop loader) {
@@ -3101,6 +3103,9 @@ void java_lang_ClassLoader::compute_offsets() {
   Klass* k1 = SystemDictionary::ClassLoader_klass();
   compute_optional_offset(parallelCapable_offset,
     k1, vmSymbols::parallelCapable_name(), vmSymbols::concurrenthashmap_signature());
+
+  compute_offset(_is_dead_offset, k1, vmSymbols::is_dead_name(), vmSymbols::bool_signature());
+  compute_offset(_signature_offset, k1, vmSymbols::signature_name(), vmSymbols::int_signature());
 
   CLASSLOADER_INJECTED_FIELDS(INJECTED_FIELD_COMPUTE_OFFSET);
 }
@@ -3166,6 +3171,15 @@ oop java_lang_ClassLoader::non_reflection_class_loader(oop loader) {
   return loader;
 }
 
+bool java_lang_ClassLoader::is_dead(oop loader) {
+  assert(loader != NULL && loader->is_oop(), "loader must be oop");
+  return JNI_TRUE == loader->bool_field(_is_dead_offset);
+}
+
+int java_lang_ClassLoader::signature(oop loader) {
+  assert(loader != NULL && loader->is_oop(), "loader must be oop");
+  return loader->int_field(_signature_offset);
+}
 
 // Support for java_lang_System
 int java_lang_System::in_offset_in_bytes() {

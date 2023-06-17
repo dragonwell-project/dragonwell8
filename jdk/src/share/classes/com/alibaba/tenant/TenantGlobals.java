@@ -116,4 +116,5 @@ public class TenantGlobals {
     public static boolean isDataIsolationEnabled() {
         return 0 != (flags & TENANT_FLAG_DATA_ISOLATION_ENABLED);
     }
+
 }

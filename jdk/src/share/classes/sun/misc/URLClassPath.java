@@ -26,11 +26,13 @@
 package sun.misc;
 
 import java.util.*;
+import java.util.function.Function;
 import java.util.jar.JarFile;
-import sun.misc.JarIndex;
-import sun.misc.InvalidJarIndexException;
+
 import sun.net.www.ParseUtil;
 import java.util.zip.CRC32;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import java.util.zip.ZipEntry;
 import java.util.jar.JarEntry;
 import java.util.jar.Manifest;
@@ -40,7 +42,6 @@ import java.net.JarURLConnection;
 import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URL;
-import java.net.URLClassLoader;
 import java.net.URLConnection;
 import java.net.HttpURLConnection;
 import java.net.URLStreamHandler;
@@ -51,10 +52,9 @@ import java.security.AccessController;
 import java.security.AccessControlException;
 import java.security.CodeSigner;
 import java.security.Permission;
-import java.security.PrivilegedAction;
 import java.security.PrivilegedExceptionAction;
 import java.security.cert.Certificate;
-import sun.misc.FileURLMapper;
+
 import sun.net.util.URLUtil;
 import sun.security.action.GetPropertyAction;
 

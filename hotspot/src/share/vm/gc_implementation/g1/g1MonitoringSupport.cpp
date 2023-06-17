@@ -26,6 +26,7 @@
 #include "gc_implementation/g1/g1MonitoringSupport.hpp"
 #include "gc_implementation/g1/g1CollectedHeap.inline.hpp"
 #include "gc_implementation/g1/g1CollectorPolicy.hpp"
+#include "memory/metaspaceCounters.hpp"
 
 G1GenerationCounters::G1GenerationCounters(G1MonitoringSupport* g1mm,
                                            const char* name,

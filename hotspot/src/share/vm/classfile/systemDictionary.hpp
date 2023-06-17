@@ -73,6 +73,7 @@
 //
 
 class Dictionary;
+class NotFoundClassTable;
 class PlaceholderTable;
 class LoaderConstraintTable;
 template <MEMFLAGS F> class HashtableBucket;
@@ -219,6 +220,8 @@ class SymbolPropertyTable;
   do_klass(com_alibaba_wisp_engine_WispEngine_klass,    com_alibaba_wisp_engine_WispEngine,        Opt                 ) \
   do_klass(com_alibaba_wisp_engine_WispCarrier_klass,   com_alibaba_wisp_engine_WispCarrier,       Opt                 ) \
   do_klass(com_alibaba_wisp_engine_WispEventPump_klass, com_alibaba_wisp_engine_WispEventPump,     Opt                 ) \
+  do_klass(com_alibaba_util_QuickStart_klass,           com_alibaba_util_QuickStart,               Opt                 ) \
+  do_klass(com_alibaba_util_CDSDumpHook_klass,          com_alibaba_util_CDSDumpHook,              Opt                 ) \
   /*end*/
 
 
@@ -395,6 +398,18 @@ public:
   static void reverse();
   static void set_shared_dictionary(HashtableBucket<mtClass>* t, int length,
                                     int number_of_entries);
+  // Sharing support for not found.
+  static void reorder_not_found_class_table_for_sharing() NOT_CDS_RETURN;
+  static void create_not_found_class_table();
+  static size_t count_bytes_for_not_found_class_buckets();
+  static size_t count_bytes_for_not_found_class_table();
+  static void not_found_class_reverse();
+  static void copy_not_found_class_buckets(char** top, char* end);
+  static void copy_not_found_class_table(char** top, char* end);
+  static void set_not_found_class_table(HashtableBucket<mtSymbol>* t, int length,
+                                        int number_of_entries);
+  static NotFoundClassTable* not_found_class_table() { return _not_found_class_table; }
+
   // Printing
   static void print(bool details = true);
   static void print_shared(bool details = true);
@@ -612,6 +627,8 @@ public:
   // Hashtable holding classes from the shared archive.
   static Dictionary*             _shared_dictionary;
 
+  static NotFoundClassTable*     _not_found_class_table;
+
   // Monotonically increasing counter which grows with
   // _number_of_classes as well as hot-swapping and breakpoint setting
   // and removal.
@@ -634,6 +651,7 @@ public:
   friend class CounterDecay;
   static Klass* try_get_next_class();
 
+  static Dictionary*         shared_dictionary() { return _shared_dictionary; }
 protected:
   static void validate_protection_domain(instanceKlassHandle klass,
                                          Handle class_loader,
@@ -642,7 +660,6 @@ protected:
   friend class VM_PopulateDumpSharedSpace;
   friend class TraversePlaceholdersClosure;
   static Dictionary*         dictionary() { return _dictionary; }
-  static Dictionary*         shared_dictionary() { return _shared_dictionary; }
   static PlaceholderTable*   placeholders() { return _placeholders; }
   static LoaderConstraintTable* constraints() { return _loader_constraints; }
   static ResolutionErrorTable* resolution_errors() { return _resolution_errors; }
@@ -657,7 +674,6 @@ protected:
   // after waiting, but before reentering SystemDictionary_lock
   // to preserve lock order semantics.
   static void double_lock_wait(SystemDictLocker* mu, Handle lockObject, TRAPS);
-  static void define_instance_class(instanceKlassHandle k, TRAPS);
   static instanceKlassHandle find_or_define_instance_class(Symbol* class_name,
                                                 Handle class_loader,
                                                 instanceKlassHandle k, TRAPS);
@@ -666,16 +682,28 @@ protected:
                                                Handle protection_domain,
                                                TRAPS);
   static instanceKlassHandle load_instance_class(Symbol* class_name, Handle class_loader, TRAPS);
+  static bool invalid_class_name_for_EagerAppCDS(const char* name);
+  static bool invalid_class_name(const char* name);
+#if INCLUDE_CDS
+  static void dump_class_and_loader_relationship(InstanceKlass* k, ClassLoaderData* initiating_loader_data, TRAPS);
+#endif
   static Handle compute_loader_lock_object(Handle class_loader, TRAPS);
   static void check_loader_lock_contention(Handle loader_lock, TRAPS);
   static bool is_parallelCapable(Handle class_loader);
   static bool is_parallelDefine(Handle class_loader);
 
 public:
+  static void define_instance_class(instanceKlassHandle k, TRAPS);
   static instanceKlassHandle load_shared_class(Symbol* class_name,
                                                Handle class_loader,
                                                TRAPS);
+  static bool is_system_class_loader(Handle class_loader);
   static bool is_ext_class_loader(Handle class_loader);
+  static bool is_cus_class_loader(Handle class_loader);
+  static void clear_invoke_method_table();
+#if INCLUDE_CDS
+  static bool should_not_dump_class(InstanceKlass* k);
+#endif
 
 protected:
   static Klass* find_shared_class(Symbol* class_name);

@@ -28,6 +28,9 @@ package java.security;
 import java.util.HashMap;
 import java.util.ArrayList;
 import java.net.URL;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Function;
 
 import sun.security.util.Debug;
 
@@ -49,8 +52,8 @@ public class SecureClassLoader extends ClassLoader {
 
     // HashMap that maps CodeSource to ProtectionDomain
     // @GuardedBy("pdcache")
-    private final HashMap<CodeSource, ProtectionDomain> pdcache =
-                        new HashMap<>(11);
+    private final Map<String, ProtectionDomain> pdcache
+            = new ConcurrentHashMap<>(11);
 
     private static final Debug debug = Debug.getInstance("scl");
 
@@ -175,6 +178,24 @@ public class SecureClassLoader extends ClassLoader {
     }
 
     /**
+     * Define a class for CDS flow
+     *
+     * @param       name the expected name of the class
+     *
+     * @param       cs   the associated CodeSource, or {@code null} if none
+     *
+     * @param       ik   instance class
+     *
+     * @return the {@code Class} object created from the data
+     *
+     * @throws NoClassDefFoundError
+     *         If the ik's super/interfaces are transformed.
+     */
+    protected final Class<?> defineClassFromCDS(String name, long ik, CodeSource cs) {
+        return defineClassFromCDS(name, ik, getProtectionDomain(cs));
+    }
+
+    /**
      * Returns the permissions for the given CodeSource object.
      * <p>
      * This method is invoked by the defineClass method which takes
@@ -195,24 +216,33 @@ public class SecureClassLoader extends ClassLoader {
     /*
      * Returned cached ProtectionDomain for the specified CodeSource.
      */
-    private ProtectionDomain getProtectionDomain(CodeSource cs) {
-        if (cs == null)
+    public ProtectionDomain getProtectionDomain(CodeSource cs) {
+        if (cs == null) {
             return null;
+        }
 
-        ProtectionDomain pd = null;
-        synchronized (pdcache) {
-            pd = pdcache.get(cs);
-            if (pd == null) {
-                PermissionCollection perms = getPermissions(cs);
-                pd = new ProtectionDomain(cs, perms, this, null);
-                pdcache.put(cs, pd);
+        // Use a String form of the URL as the key. It should behave in the
+        // same manner as the URL when compared for equality except that no
+        // nameservice lookup is done on the hostname (String comparison
+        // only), and the fragment is not considered.
+        String key = cs.getLocationNoFragString();
+        if (key == null) {
+            key = "<null>";
+        }
+        return pdcache.computeIfAbsent(key, new Function<String, ProtectionDomain>() {
+            @Override
+            public ProtectionDomain apply(String key /* not used */) {
+                PermissionCollection perms
+                        = SecureClassLoader.this.getPermissions(cs);
+                ProtectionDomain pd = new ProtectionDomain(
+                        cs, perms, SecureClassLoader.this, null);
                 if (debug != null) {
-                    debug.println(" getPermissions "+ pd);
+                    debug.println(" getPermissions " + pd);
                     debug.println("");
                 }
+                return pd;
             }
-        }
-        return pd;
+        });
     }
 
     /*

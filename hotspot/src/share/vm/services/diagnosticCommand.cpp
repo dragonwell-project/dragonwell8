@@ -38,6 +38,7 @@
 #include "utilities/ticks.hpp"
 #include "memory/metaspace.hpp"
 #include "memory/metaspaceDumper.hpp"
+#include "runtime/quickStart.hpp"
 
 PRAGMA_FORMAT_MUTE_WARNINGS_FOR_GCC
 
@@ -79,6 +80,8 @@ void DCmdRegistrant::register_dcmds(){
   DCmdFactory::register_DCmdFactory(new DCmdFactoryImpl<JMXStopRemoteDCmd>(jmx_agent_export_flags, true,false));
 
   DCmdFactory::register_DCmdFactory(new DCmdFactoryImpl<ElasticHeapDCmd>(full_export, true, false));
+
+  DCmdFactory::register_DCmdFactory(new DCmdFactoryImpl<QuickStartDumpDCMD>(full_export, true, false));
 }
 
 #ifndef HAVE_EXTRA_DCMD
@@ -1026,4 +1029,53 @@ void MetaspaceDumpDCmd::execute(DCmdSource source, TRAPS) {
   }
 
   os::free(real_path_buf, mtInternal);
+}
+
+QuickStartDumpDCMD::QuickStartDumpDCMD(outputStream* output, bool heap)
+  :DCmdWithParser(output,heap),
+   _cachedir("cache_dir", "cache directory.This option only support when do profiling.", "STRING", false, "") {
+  _dcmdparser.add_dcmd_option(&_cachedir);
+}
+
+int QuickStartDumpDCMD::num_arguments() {
+  ResourceMark rm;
+  int num_args = 0;
+  QuickStartDumpDCMD* dcmd = new QuickStartDumpDCMD(NULL, false);
+
+  if (dcmd != NULL) {
+    DCmdMark mark(dcmd);
+    num_args = dcmd->_dcmdparser.num_arguments();
+  }
+
+  return num_args;
+}
+
+void QuickStartDumpDCMD::execute(DCmdSource source, TRAPS) {
+  Ticks start_time = Ticks::now();
+  if (!QuickStart::is_profiler()) {
+    char* cache_dir = _cachedir.value();
+    if (cache_dir != NULL && strlen(cache_dir) > 0) {
+      output()->print_cr("cache_dir parameter only support when do profiling.");
+      return;
+    }
+  }
+
+  if (QuickStart::is_tracer() || QuickStart::is_profiler()) {
+    ResourceMark rm(THREAD);
+    HandleMark hm(THREAD);
+
+    Klass* klass = SystemDictionary::com_alibaba_util_QuickStart_klass();
+    JavaValue result(T_VOID);
+    JavaCallArguments args(1);
+    Handle str = java_lang_String::create_from_str(_cachedir.value(), CHECK);
+    args.push_oop(str);
+
+    JavaCalls::call_static(&result, klass, vmSymbols::notifyDump_name(),
+                           vmSymbols::string_void_signature(), &args, CHECK);
+  }
+  Ticks end_time = Ticks::now();
+
+  Tickspan duration = end_time - start_time;
+  long ms = TimeHelper::counter_to_milliseconds(duration.value());
+  output()->print_cr("It took %lu ms to execute Quickstart.dump .", ms);
 }

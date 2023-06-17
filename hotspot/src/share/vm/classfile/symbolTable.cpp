@@ -184,7 +184,10 @@ void SymbolTable::possibly_parallel_unlink(int* processed, int* removed) {
 void SymbolTable::rehash_table() {
   assert(SafepointSynchronize::is_at_safepoint(), "must be at safepoint");
   // This should never happen with -Xshare:dump but it might in testing mode.
-  if (DumpSharedSpaces) return;
+  if (DumpSharedSpaces) {
+    tty->print_cr("Warning: rehash_table should not be called while dumping archive");
+    return;
+  }
   // Create a new symbol table
   SymbolTable* new_table = new SymbolTable();
 

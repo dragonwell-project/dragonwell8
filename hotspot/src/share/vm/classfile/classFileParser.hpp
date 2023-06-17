@@ -465,6 +465,13 @@ PRAGMA_DIAG_POP
  public:
   // Constructor
   ClassFileParser(ClassFileStream* st) { set_stream(st); }
+
+  ClassFileParser(ClassFileStream* st, bool dummy) {
+    // A safe constructor: the ClassFileParser's constructor is UB.
+    memset((void*)this, 0, sizeof(ClassFileParser));
+    set_stream(st);
+  }
+
   ~ClassFileParser();
 
   // Parse .class file and return new Klass*. The Klass* is not hooked up

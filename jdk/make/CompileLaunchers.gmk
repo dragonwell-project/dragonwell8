@@ -352,6 +352,9 @@ $(eval $(call SetupLauncher,jmap, \
 $(eval $(call SetupLauncher,jps, \
     -DJAVA_ARGS='{ "-J-ms8m"$(COMMA) "sun.tools.jps.Jps"$(COMMA) }'))
 
+$(eval $(call SetupLauncher,jclass4cds, \
+    -DJAVA_ARGS='{ "-J-ms8m"$(COMMA) "sun.tools.jclass4cds.Classes4CDS"$(COMMA) }'))
+
 $(eval $(call SetupLauncher,jrunscript, \
     -DJAVA_ARGS='{ "-J-ms8m"$(COMMA) "com.sun.tools.script.shell.Main"$(COMMA) }'))
 

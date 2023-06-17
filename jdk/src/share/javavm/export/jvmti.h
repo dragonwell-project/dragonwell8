@@ -413,6 +413,7 @@ typedef enum {
     JVMTI_EVENT_COMPILED_METHOD_UNLOAD = 69,
     JVMTI_EVENT_DYNAMIC_CODE_GENERATED = 70,
     JVMTI_EVENT_DATA_DUMP_REQUEST = 71,
+    JVMTI_EVENT_FIRST_CLASS_LOAD_PREPARE = 72,
     JVMTI_EVENT_MONITOR_WAIT = 73,
     JVMTI_EVENT_MONITOR_WAITED = 74,
     JVMTI_EVENT_MONITOR_CONTENDED_ENTER = 75,
@@ -765,6 +766,12 @@ typedef void (JNICALL *jvmtiEventCompiledMethodUnload)
 typedef void (JNICALL *jvmtiEventDataDumpRequest)
     (jvmtiEnv *jvmti_env);
 
+typedef void (JNICALL *jvmtiEventFirstClassLoadPrepare)
+    (jvmtiEnv *jvmti_env,
+     JNIEnv* jni_env,
+     jthread thread,
+     jobject cld);
+
 typedef void (JNICALL *jvmtiEventDynamicCodeGenerated)
     (jvmtiEnv *jvmti_env,
      const char* name,
@@ -969,7 +976,7 @@ typedef struct {
                               /*   71 : Data Dump Request */
     jvmtiEventDataDumpRequest DataDumpRequest;
                               /*   72 */
-    jvmtiEventReserved reserved72;
+    jvmtiEventFirstClassLoadPrepare FirstClassLoadPrepare;
                               /*   73 : Monitor Wait */
     jvmtiEventMonitorWait MonitorWait;
                               /*   74 : Monitor Waited */

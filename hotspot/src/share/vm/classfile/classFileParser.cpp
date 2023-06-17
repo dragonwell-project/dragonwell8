@@ -38,6 +38,7 @@
 #include "classfile/verifier.hpp"
 #include "classfile/vmSymbols.hpp"
 #include "memory/allocation.hpp"
+#include "memory/metaspaceShared.hpp"
 #include "memory/gcLocker.hpp"
 #include "memory/metadataFactory.hpp"
 #include "memory/oopFactory.hpp"
@@ -3918,17 +3919,13 @@ instanceKlassHandle ClassFileParser::parseClassFile(Symbol* name,
   u2 minor_version = cfs->get_u2_fast();
   u2 major_version = cfs->get_u2_fast();
 
-  if (DumpSharedSpaces && major_version < JAVA_1_5_VERSION) {
-    ResourceMark rm;
+#if INCLUDE_CDS
+  if (DumpSharedSpaces && major_version < JAVA_1_5_VERSION && !EagerAppCDSLegacyVerisonSupport) {
+    ResourceMark rm(THREAD);
     warning("Pre JDK 1.5 class not supported by CDS: %u.%u %s",
             major_version,  minor_version, name->as_C_string());
-    Exceptions::fthrow(
-      THREAD_AND_LOCATION,
-      vmSymbols::java_lang_UnsupportedClassVersionError(),
-      "Unsupported major.minor version for dump time %u.%u",
-      major_version,
-      minor_version);
   }
+#endif
 
   // Check version numbers - we check this even with verifier off
   if (!is_supported_version(major_version, minor_version)) {
@@ -4037,18 +4034,6 @@ instanceKlassHandle ClassFileParser::parseClassFile(Symbol* name,
       if (cfs->source() != NULL) tty->print(" from %s", cfs->source());
       tty->print_cr("]");
     }
-#if INCLUDE_CDS
-    if (DumpLoadedClassList != NULL && cfs->source() != NULL && classlist_file->is_open()) {
-      // Only dump the classes that can be stored into CDS archive
-      if (SystemDictionaryShared::is_sharing_possible(loader_data)) {
-        if (name != NULL) {
-          ResourceMark rm(THREAD);
-          classlist_file->print_cr("%s", name->as_C_string());
-          classlist_file->flush();
-        }
-      }
-    }
-#endif
 
     u2 super_class_index = cfs->get_u2_fast();
     instanceKlassHandle super_klass = parse_super_class(super_class_index,
@@ -4232,7 +4217,7 @@ instanceKlassHandle ClassFileParser::parseClassFile(Symbol* name,
     this_klass->set_has_default_methods(has_default_methods);
     this_klass->set_declares_default_methods(declares_default_methods);
 
-    if (CompilationWarmUp || CompilationWarmUpRecording) {
+    if (EagerAppCDS || CompilationWarmUp || CompilationWarmUpRecording) {
       if (_stream->source() == NULL) {
         this_klass->set_source_file_path(NULL);
       } else {
@@ -4378,12 +4363,19 @@ instanceKlassHandle ClassFileParser::parseClassFile(Symbol* name,
   instanceKlassHandle this_klass (THREAD, preserve_this_klass);
   debug_only(this_klass->verify();)
 
-  if (CompilationWarmUp || CompilationWarmUpRecording) {
+  if (CompilationWarmUp || CompilationWarmUpRecording || (EagerAppCDS && DumpLoadedClassList)) {
     unsigned int crc32 = ClassLoader::crc32(0, (char*)(_stream->buffer()), _stream->length());
     unsigned int class_bytes_size = _stream->length();
     this_klass->set_crc32(crc32);
     this_klass->set_bytes_size(class_bytes_size);
   }
+
+#if INCLUDE_CDS
+   // CDS set shared_classpath_index
+   if (DumpSharedSpaces) {
+     ClassLoader::record_shared_class_loader_type(this_klass(), cfs);
+   }
+#endif
 
   // Clear class if no error has occurred so destructor doesn't deallocate it
   _klass = NULL;

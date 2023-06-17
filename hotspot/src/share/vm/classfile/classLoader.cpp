@@ -34,6 +34,7 @@
 #include "classfile/sharedClassUtil.hpp"
 #endif
 #include "classfile/systemDictionary.hpp"
+#include "classfile/systemDictionaryShared.hpp"
 #include "classfile/vmSymbols.hpp"
 #include "compiler/compileBroker.hpp"
 #include "gc_interface/collectedHeap.inline.hpp"
@@ -121,6 +122,12 @@ PerfCounter*    ClassLoader::_perf_sys_classload_time = NULL;
 PerfCounter*    ClassLoader::_perf_app_classload_time = NULL;
 PerfCounter*    ClassLoader::_perf_app_classload_selftime = NULL;
 PerfCounter*    ClassLoader::_perf_app_classload_count = NULL;
+PerfCounter*    ClassLoader::_perf_cds_cust_classload_time = NULL;
+PerfCounter*    ClassLoader::_perf_cds_cust_classload_selftime = NULL;
+PerfCounter*    ClassLoader::_perf_cds_cust_classload_count = NULL;
+PerfCounter*    ClassLoader::_perf_cds_cust_classload_call_java_time = NULL;
+PerfCounter*    ClassLoader::_perf_cds_cust_classload_call_java_selftime = NULL;
+PerfCounter*    ClassLoader::_perf_cds_cust_classload_call_java_count = NULL;
 PerfCounter*    ClassLoader::_perf_define_appclasses = NULL;
 PerfCounter*    ClassLoader::_perf_define_appclass_time = NULL;
 PerfCounter*    ClassLoader::_perf_define_appclass_selftime = NULL;
@@ -281,7 +288,7 @@ ClassFileStream* ClassPathDirEntry::open_stream(const char* name, TRAPS) {
   struct stat st;
   if (os::stat(path, &st) == 0) {
 #if INCLUDE_CDS
-    if (DumpSharedSpaces) {
+    if (DumpSharedSpaces && !UseAppCDS) {
       // We have already check in ClassLoader::check_shared_classpath() that the directory is empty, so
       // we should never find a file underneath it -- unless user has added a new file while we are running
       // the dump, in which case let's quit!
@@ -625,7 +632,7 @@ void ClassLoader::check_shared_classpath(const char *path) {
   struct stat st;
   if (os::stat(path, &st) == 0) {
     if ((st.st_mode & S_IFREG) != S_IFREG) { // is directory
-      if (!os::dir_is_empty(path)) {
+      if (!IgnoreAppCDSDirCheck && !os::dir_is_empty(path)) {
         tty->print_cr("Error: non-empty directory '%s'", path);
         exit_with_path_failure("CDS allows only empty directories in archived classpaths", NULL);
       }
@@ -701,8 +708,33 @@ void ClassLoader::setup_search_path(const char *class_path, bool canonicalize) {
   }
 }
 
+
+bool is_jar_file(const char *path) {
+  int len = 0;
+  while(path[len] != '\0') {
+    len++;
+  }
+  return len >= 5 && (strncmp(path + (len-4), ".jar", 4) == 0);
+}
+
+bool is_dir(const char *path) {
+  struct stat mystat;
+  int ret_val = 0;
+  ret_val = stat(path, &mystat);
+  if (ret_val < 0) {
+    return false;
+  }
+  ret_val = S_ISDIR(mystat.st_mode);
+  return ret_val > 0;
+}
+
 ClassPathEntry* ClassLoader::create_class_path_entry(const char *path, const struct stat* st,
                                                      bool lazy, bool throw_exception, TRAPS) {
+  // must be jar file or dir
+  if(!is_jar_file(path) && !is_dir(path)) {
+    return NULL;
+  }
+
   JavaThread* thread = JavaThread::current();
   if (lazy) {
     return new LazyClassPathEntry(path, st, throw_exception);
@@ -1135,7 +1167,6 @@ objArrayOop ClassLoader::get_system_packages(TRAPS) {
   return result();
 }
 
-
 instanceKlassHandle ClassLoader::load_classfile(Symbol* h_name, TRAPS) {
   ResourceMark rm(THREAD);
   const char* class_name = h_name->as_C_string();
@@ -1170,6 +1201,11 @@ instanceKlassHandle ClassLoader::load_classfile(Symbol* h_name, TRAPS) {
       }
       e = e->next();
       ++classpath_index;
+      if (DumpSharedSpaces && classpath_index >= ClassLoaderExt::app_paths_start_index()) {
+        if (strncmp(file_name, "java/", 5) == 0) {
+          break; // Don't search for prohibited classes in the app classpath
+        }
+      }
     }
   }
 
@@ -1206,7 +1242,9 @@ instanceKlassHandle ClassLoader::load_classfile(Symbol* h_name, TRAPS) {
   }
 #endif
 
-    h = context.record_result(classpath_index, e, result, THREAD);
+    h = context.record_result(h_name, e, classpath_index, result(), THREAD);
+
+    SystemDictionaryShared::log_loaded_klass(h(), stream, loader_data, THREAD);
   } else {
     if (DumpSharedSpaces) {
       tty->print_cr("Preload Warning: Cannot find %s", class_name);
@@ -1263,6 +1301,12 @@ void ClassLoader::initialize() {
     NEWPERFTICKCOUNTER(_perf_app_classload_time, SUN_CLS, "appClassLoadTime");
     NEWPERFTICKCOUNTER(_perf_app_classload_selftime, SUN_CLS, "appClassLoadTime.self");
     NEWPERFEVENTCOUNTER(_perf_app_classload_count, SUN_CLS, "appClassLoadCount");
+    NEWPERFTICKCOUNTER(_perf_cds_cust_classload_time, SUN_CLS, "CDSCustClassLoadTime");
+    NEWPERFTICKCOUNTER(_perf_cds_cust_classload_selftime, SUN_CLS, "CDSCustClassLoadTime.self");
+    NEWPERFEVENTCOUNTER(_perf_cds_cust_classload_count, SUN_CLS, "CDSCustClassLoadCount");
+    NEWPERFTICKCOUNTER(_perf_cds_cust_classload_call_java_time, SUN_CLS, "CDSCustClassLoadCallJavaTime");
+    NEWPERFTICKCOUNTER(_perf_cds_cust_classload_call_java_selftime, SUN_CLS, "CDSCustClassLoadCallJavaTime.self");
+    NEWPERFEVENTCOUNTER(_perf_cds_cust_classload_call_java_count, SUN_CLS, "CDSCustClassLoadCallJavaCount");
     NEWPERFTICKCOUNTER(_perf_define_appclasses, SUN_CLS, "defineAppClasses");
     NEWPERFTICKCOUNTER(_perf_define_appclass_time, SUN_CLS, "defineAppClassTime");
     NEWPERFTICKCOUNTER(_perf_define_appclass_selftime, SUN_CLS, "defineAppClassTime.self");
@@ -1784,4 +1828,96 @@ PerfClassTraceTime::~PerfClassTraceTime() {
 
   // reset the timer
   _timers[_event_type].reset();
+}
+
+#if INCLUDE_CDS
+static char* skip_uri_protocol(char* source) {
+  if (strncmp(source, "file:", 5) == 0) {
+    // file: protocol path could start with file:/ or file:///
+    // locate the char after all the forward slashes
+    int offset = 5;
+    while (*(source + offset) == '/') {
+        offset++;
+    }
+    source += offset;
+  // for non-windows platforms, move back one char as the path begins with a '/'
+#ifndef _WINDOWS
+    source -= 1;
+#endif
+  } else if (strncmp(source, "jrt:/", 5) == 0) {
+    source += 5;
+  }
+  return source;
+}
+
+void ClassLoader::record_shared_class_loader_type(InstanceKlass* ik, const ClassFileStream* stream) {
+  assert(DumpSharedSpaces, "sanity");
+  assert(stream != NULL, "sanity");
+
+  if (ik->is_anonymous()) {
+    // We do not archive anonymous classes.
+    return;
+  }
+
+  if (stream->source() == NULL) {
+    if (ik->class_loader() == NULL) {
+      // JFR classes
+      ik->set_shared_classpath_index(0);
+      ik->set_class_loader_type(ClassLoader::BOOT_LOADER);
+    }
+    return;
+  }
+
+  // set classpath_index = 0 to match the real order.
+  ClassPathEntry* e = NULL;
+  int classpath_index = 0;
+  {
+    ResourceMark rm;
+    char* canonical_path = NEW_RESOURCE_ARRAY(char, JVM_MAXPATHLEN);
+    char* src = (char*)stream->source();
+    for (e = _first_entry; e != NULL; e = e->next()) {
+      if (get_canonical_path(e->name(), canonical_path, JVM_MAXPATHLEN)) {
+        // save the path from the file: protocol
+        // if no protocol prefix is found, src is the same as stream->source() after the following call
+        src = skip_uri_protocol(src);
+        if (strcmp(canonical_path, os::native_path((char*)src)) == 0) {
+          break;
+        }
+        classpath_index ++;
+      }
+    }
+
+    if (e == NULL) {
+      assert(ik->shared_classpath_index() < 0,
+        "must be a class from a custom jar which isn't in the class path or boot class path");
+      return;
+    }
+
+    const char* const class_name = ik->name()->as_C_string();
+    const char* const file_name = file_name_for_class_name(class_name,
+                                                         ik->name()->utf8_length());
+    assert(file_name != NULL, "invariant");
+    Thread* THREAD = Thread::current();
+    ClassLoaderExt::Context context(class_name, file_name, CATCH);
+    context.record_result(ik->name(), e, classpath_index, ik, THREAD);
+  }
+}
+#endif // INCLUDE_CDS
+
+// caller needs ResourceMark
+const char* ClassLoader::file_name_for_class_name(const char* class_name,
+                                                  int class_name_len) {
+  assert(class_name != NULL, "invariant");
+  assert((int)strlen(class_name) == class_name_len, "invariant");
+
+  static const char class_suffix[] = ".class";
+
+  char* const file_name = NEW_RESOURCE_ARRAY(char,
+                                             class_name_len +
+                                             sizeof(class_suffix)); // includes term NULL
+
+  strncpy(file_name, class_name, class_name_len);
+  strncpy(&file_name[class_name_len], class_suffix, sizeof(class_suffix));
+
+  return file_name;
 }
