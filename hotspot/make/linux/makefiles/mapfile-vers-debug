@@ -33,6 +33,7 @@ SUNWprivate_1.1 {
 
                 # JVM
                 JVM_Accept;
+                JVM_DefineClassFromCDS;
                 JVM_ActiveProcessorCount;
                 JVM_AllocateNewArray;
                 JVM_AllocateNewObject;
@@ -221,6 +222,7 @@ SUNWprivate_1.1 {
                 JVM_NewInstanceFromConstructor;
                 JVM_NewMultiArray;
                 JVM_NotifyApplicationStartUpIsDone;
+                JVM_NotifyDump;
                 JVM_NotifyJVMDeoptWarmUpMethods;
                 JVM_OnExit;
                 JVM_Open;

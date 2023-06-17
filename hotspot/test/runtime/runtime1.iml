@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<module type="JAVA_MODULE" version="4">
+  <component name="NewModuleRootManager" inherit-compiler-output="true">
+    <exclude-output />
+    <content url="file://$MODULE_DIR$">
+      <sourceFolder url="file://$MODULE_DIR$/6294277" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/6626217" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/6819213" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/6888954" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/6925573" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/6929067" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/6981737" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/7100935" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/7107135" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/7110720" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/7116786" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/7158988" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/7160757" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/7162488" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/7167069" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/7194254" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/8001071" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/8003720" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/8007320" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/8007475" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/8010389" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/8024804" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/8026365" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/8026394" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/CDSCompressedKPtrs" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/CheckEndorsedAndExtDirs" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/ClassFile" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/classFileParserBug" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/ClassUnload" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/CommandLine" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/CompressedOops" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/contended" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/coroutine" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/EnableTracing" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/ErrorHandling" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/execstack" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/FDO" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/Final" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/finalStatic" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/GetAllThreadEnvInfo" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/handlerInTry" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/InitializeClass" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/InitialThreadOverflow" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/InternalApi" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/interned" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/invokedynamic" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/jsig" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/lambda-features" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/LoadAgentCommands" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/LoadClass" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/memory" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/Metaspace" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/NMT" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/os" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/PerfMemDestroy" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/RedefineObject" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/RedefineTests" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/Safepoint" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/SharedArchiveFile" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/StackGap" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/stackMapCheck" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/testlibrary" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/Thread" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/verifier" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/XCheckJniJsig" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/appcds/customLoader/test-classes" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/appcds/test-classes" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/appcds/customLoader" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/appcds" isTestSource="true" />
+    </content>
+    <orderEntry type="inheritedJdk" />
+    <orderEntry type="sourceFolder" forTests="false" />
+    <orderEntry type="module" module-name="jdk" />
+    <orderEntry type="module" module-name="testlibrary" />
+  </component>
+</module>

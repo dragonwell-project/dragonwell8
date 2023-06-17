@@ -24,6 +24,7 @@
 
 #include "classfile/classLoaderData.hpp"
 #include "classfile/javaClasses.hpp"
+#include "classfile/systemDictionaryShared.hpp"
 
 inline ClassLoaderData* ClassLoaderData::class_loader_data_or_null(oop loader) {
   if (loader == NULL) {
@@ -38,7 +39,6 @@ inline ClassLoaderData* ClassLoaderData::class_loader_data(oop loader) {
   return loader_data;
 }
 
-
 inline ClassLoaderData *ClassLoaderDataGraph::find_or_create(Handle loader, TRAPS) {
   guarantee(loader() != NULL && loader()->is_oop(), "Loader must be oop");
   // Gets the class loader data out of the java/lang/ClassLoader object, if non-null
@@ -47,5 +47,12 @@ inline ClassLoaderData *ClassLoaderDataGraph::find_or_create(Handle loader, TRAP
   if (loader_data) {
      return loader_data;
   }
-  return ClassLoaderDataGraph::add(loader, false, THREAD);
+  bool created_by_current_thread = false;
+  loader_data = ClassLoaderDataGraph::add(loader, false, created_by_current_thread, THREAD);
+  if (created_by_current_thread && JvmtiExport::should_post_first_class_load_prepare() &&
+    !SystemDictionaryShared::is_builtin_loader(loader_data) &&
+    !loader()->is_a(SystemDictionary::reflect_DelegatingClassLoader_klass())) {
+    JvmtiExport::post_first_class_load_prepare((JavaThread *) THREAD, loader);
+  }
+  return loader_data;
 }

@@ -110,7 +110,8 @@ class ConstantPool : public Metadata {
 
   enum {
     _has_preresolution = 1,           // Flags
-    _on_stack          = 2
+    _on_stack          = 2,
+    _is_shared         = 4
   };
 
   int                  _flags;  // old fashioned bit twiddling
@@ -209,6 +210,9 @@ class ConstantPool : public Metadata {
   // class.
   bool on_stack() const                      { return (_flags &_on_stack) != 0; }
   void set_on_stack(const bool value);
+
+  // Faster than MetaspaceObj::is_shared() - used by set_on_stack()
+  bool is_shared() const                     { return (_flags & _is_shared) != 0; }
 
   // Klass holding pool
   InstanceKlass* pool_holder() const      { return _pool_holder; }

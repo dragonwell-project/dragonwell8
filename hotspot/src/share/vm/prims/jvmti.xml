@@ -12351,6 +12351,40 @@ myInit() {
     </parameters>
   </event>
 
+  <event label="First Class Load Prepare"
+	 id="FirstClassLoadPrepare" const="JVMTI_EVENT_FIRST_CLASS_LOAD_PREPARE" filtered="thread" phase="start" num="72">
+    <description>
+      A first class load prepare event is generated before the class loader loads the first class.
+      The API is only used for customer class loader.
+    </description>
+    <origin>jvmdi</origin>
+    <capabilities>
+    </capabilities>
+    <parameters>
+      <param id="jni_env">
+        <outptr>
+          <struct>JNIEnv</struct>
+        </outptr>
+          <description>
+            The JNI environment of the event (current) thread
+          </description>
+      </param>
+      <param id="thread">
+	<jthread/>
+	  <description>
+	    Thread the class loader first loading class
+	  </description>
+      </param>
+      <param id="loader">
+	<jobject/>
+	  <description>
+	    The class loader which first loads the class.
+	  </description>
+      </param>
+    </parameters>
+  </event>
+
+
   <event label="Class File Load Hook" phase="any"
 	 id="ClassFileLoadHook" const="JVMTI_EVENT_CLASS_FILE_LOAD_HOOK" num="54">
     <description>

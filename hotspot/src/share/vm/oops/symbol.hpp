@@ -148,10 +148,13 @@ class Symbol : private SymbolBase {
 
   int size()                { return size(utf8_length()); }
 
+  // Symbols should be stored in the read-only region of CDS archive.
+  static bool is_read_only_by_default() { return true; }
+
   // Returns the largest size symbol we can safely hold.
   static int max_length()   { return max_symbol_length; }
 
-  int identity_hash()       { return _identity_hash; }
+  int identity_hash() const { return _identity_hash; }
 
   // For symbol table alternate hashing
   unsigned int new_hash(juint seed);
@@ -223,6 +226,11 @@ class Symbol : private SymbolBase {
   void print()         { print_on(tty);       }
   void print_value()   { print_value_on(tty); }
 
+  MetaspaceObj::Type type() const { return SymbolType; }
+  // Following function is used when dump heap to CDS
+  // void metaspace_pointers_do(MetaspaceClosure* it) {
+  //   do nothing.
+  // }
 #ifndef PRODUCT
   // Empty constructor to create a dummy symbol object on stack
   // only for getting its vtable pointer.

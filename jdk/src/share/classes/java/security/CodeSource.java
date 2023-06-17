@@ -35,6 +35,7 @@ import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.security.cert.*;
 import sun.misc.IOUtils;
+import sun.net.util.URLUtil;
 
 /**
  *
@@ -74,6 +75,15 @@ public class CodeSource implements java.io.Serializable {
     private transient CertificateFactory factory = null;
 
     /**
+     * A String form of the URL for use as a key in HashMaps/Sets. The String
+     * form should be behave in the same manner as the URL when compared for
+     * equality in a HashMap/Set, except that no nameservice lookup is done
+     * on the hostname (only string comparison), and the fragment is not
+     * considered.
+     */
+    private transient String locationNoFragString;
+
+    /**
      * Constructs a CodeSource and associates it with the specified
      * location and set of certificates.
      *
@@ -84,6 +94,9 @@ public class CodeSource implements java.io.Serializable {
      */
     public CodeSource(URL url, java.security.cert.Certificate certs[]) {
         this.location = url;
+        if (url != null) {
+            this.locationNoFragString = URLUtil.urlNoFragString(url);
+        }
 
         // Copy the supplied certs
         if (certs != null) {
@@ -103,6 +116,9 @@ public class CodeSource implements java.io.Serializable {
      */
     public CodeSource(URL url, CodeSigner[] signers) {
         this.location = url;
+        if (url != null) {
+            this.locationNoFragString = URLUtil.urlNoFragString(url);
+        }
 
         // Copy the supplied signers
         if (signers != null) {
@@ -167,6 +183,13 @@ public class CodeSource implements java.io.Serializable {
         /* since URL is practically immutable, returning itself is not
            a security problem */
         return this.location;
+    }
+
+    /**
+     * Returns a String form of the URL for use as a key in HashMaps/Sets.
+     */
+    String getLocationNoFragString() {
+        return locationNoFragString;
     }
 
     /**
@@ -589,6 +612,10 @@ public class CodeSource implements java.io.Serializable {
             this.signers = ((CodeSigner[])ois.readObject()).clone();
         } catch (IOException ioe) {
             // no signers present
+        }
+
+        if (location != null) {
+            locationNoFragString = URLUtil.urlNoFragString(location);
         }
     }
 

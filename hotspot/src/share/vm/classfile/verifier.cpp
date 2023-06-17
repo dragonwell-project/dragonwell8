@@ -193,8 +193,13 @@ bool Verifier::is_eligible_for_verification(instanceKlassHandle klass, bool shou
   Klass* refl_magic_klass = SystemDictionary::reflect_MagicAccessorImpl_klass();
 
   bool is_reflect = refl_magic_klass != NULL && klass->is_subtype_of(refl_magic_klass);
-
-  return (should_verify_for(klass->class_loader(), should_verify_class) &&
+  bool can_verify = false;
+  if (DumpSharedSpaces) {
+    can_verify = (klass->loader_type() != ClassLoader::BOOT_LOADER) && should_verify_class;
+  } else {
+    can_verify = should_verify_for(klass->class_loader(), should_verify_class);
+  }
+  return (can_verify &&
     // return if the class is a bootstrapping class
     // or defineClass specified not to verify by default (flags override passed arg)
     // We need to skip the following four for bootstraping
@@ -1952,9 +1957,25 @@ Klass* ClassVerifier::load_class(Symbol* name, TRAPS) {
   oop loader = current_class()->class_loader();
   oop protection_domain = current_class()->protection_domain();
 
-  return SystemDictionary::resolve_or_fail(
+  Klass *kls = SystemDictionary::resolve_or_fail(
     name, Handle(THREAD, loader), Handle(THREAD, protection_domain),
-    true, CHECK_NULL);
+    true, THREAD);
+  if (kls == NULL && DumpSharedSpaces) {
+    // During CDS dump time, classes loaded by custom loaders cannot be found
+    // using SystemDictionary::resolve_or_fail, but since load_class is always
+    // called to find a super class, we can just walk up the hierarchy.
+    Klass* super = current_class()->super();
+    while (super != NULL) {
+      if (super->name() == name) {
+        kls = super;
+        CLEAR_PENDING_EXCEPTION;
+        break;
+      }
+      super = super->super();
+    }
+  }
+  current_class()->class_loader_data()->record_dependency(kls, CHECK_NULL);
+  return kls;
 }
 
 bool ClassVerifier::is_protected_access(instanceKlassHandle this_class,
@@ -3007,6 +3028,21 @@ void ClassVerifier::verify_return_value(
         current_frame->stack_top_ctx(), TypeOrigin::signature(return_type)),
         "Bad return type");
     return;
+  }
+}
+
+void Verifier::trace_class_resolution(Klass* resolve_class, InstanceKlass* verify_class) {
+  assert(verify_class != NULL, "Unexpected null verify_class");
+  ResourceMark rm;
+  Symbol* s = verify_class->source_file_name();
+  const char* source_file = (s != NULL ? s->as_C_string() : NULL);
+  const char* verify = verify_class->external_name();
+  const char* resolve = resolve_class->external_name();
+  // print in a single call to reduce interleaving between threads
+  if (source_file != NULL) {
+    tty->print_cr("%s %s %s (verification)", verify, resolve, source_file);
+  } else {
+    tty->print_cr("%s %s (verification)", verify, resolve);
   }
 }
 

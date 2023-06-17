@@ -46,6 +46,10 @@
 #include "utilities/macros.hpp"
 #include "utilities/exceptions.hpp"
 
+#if INCLUDE_CDS
+#include "prims/cdsoffsets.hpp"
+#endif // INCLUDE_CDS
+
 #if INCLUDE_ALL_GCS
 #include "gc_implementation/parallelScavenge/parallelScavengeHeap.inline.hpp"
 #include "gc_implementation/g1/concurrentMark.hpp"
@@ -1549,6 +1553,15 @@ WB_ENTRY(jboolean, WB_IsInCurrentTLAB(JNIEnv* env, jobject wb, jobject o))
   return JNI_FALSE;
 WB_END
 
+#if INCLUDE_CDS
+WB_ENTRY(jint, WB_GetOffsetForName(JNIEnv* env, jobject o, jstring name))
+  ResourceMark rm;
+  char* c_name = java_lang_String::as_utf8_string(JNIHandles::resolve_non_null(name));
+  int result = CDSOffsets::find_offset(c_name);
+  return (jint)result;
+WB_END
+#endif // INCLUDE_CDS
+
 #define CC (char*)
 
 static JNINativeMethod methods[] = {
@@ -1580,6 +1593,9 @@ static JNINativeMethod methods[] = {
   {CC"readFromNoaccessArea",CC"()V",                  (void*)&WB_ReadFromNoaccessArea},
   {CC"stressVirtualSpaceResize",CC"(JJJ)I",           (void*)&WB_StressVirtualSpaceResize},
   {CC"isSharedClass", CC"(Ljava/lang/Class;)Z",       (void*)&WB_IsSharedClass },
+#if INCLUDE_CDS
+  {CC"getOffsetForName0", CC"(Ljava/lang/String;)I",  (void*)&WB_GetOffsetForName},
+#endif
 #if INCLUDE_ALL_GCS
   {CC"g1InConcurrentMark", CC"()Z",                   (void*)&WB_G1InConcurrentMark},
   {CC"g1IsHumongous",      CC"(Ljava/lang/Object;)Z", (void*)&WB_G1IsHumongous     },

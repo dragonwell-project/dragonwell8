@@ -25,6 +25,7 @@
 #ifndef SHARE_VM_OOPS_INSTANCEKLASS_HPP
 #define SHARE_VM_OOPS_INSTANCEKLASS_HPP
 
+#include "classfile/classLoader.hpp"
 #include "classfile/classLoaderData.hpp"
 #include "memory/referenceType.hpp"
 #include "oops/annotations.hpp"
@@ -221,6 +222,9 @@ class InstanceKlass: public Klass {
   // source file path, e.g. /home/xxx/liba.jar
   Symbol*         _source_file_path;
 
+  Monitor*        _shared_locker;
+  int             _shared_load_status;
+
 #ifndef PRODUCT
   int             _initialize_order;
 #endif
@@ -246,15 +250,22 @@ class InstanceKlass: public Klass {
   bool            _has_unloaded_dependent;
 
   enum {
-    _misc_rewritten                = 1 << 0, // methods rewritten.
-    _misc_has_nonstatic_fields     = 1 << 1, // for sizing with UseCompressedOops
-    _misc_should_verify_class      = 1 << 2, // allow caching of preverification
-    _misc_is_anonymous             = 1 << 3, // has embedded _host_klass field
-    _misc_is_contended             = 1 << 4, // marked with contended annotation
-    _misc_has_default_methods      = 1 << 5, // class/superclass/implemented interfaces has default methods
-    _misc_declares_default_methods = 1 << 6, // directly declares default methods (any access)
-    _misc_has_been_redefined       = 1 << 7  // class has been redefined
+    _misc_rewritten                = 1 << 0,  // methods rewritten.
+    _misc_has_nonstatic_fields     = 1 << 1,  // for sizing with UseCompressedOops
+    _misc_should_verify_class      = 1 << 2,  // allow caching of preverification
+    _misc_is_anonymous             = 1 << 3,  // has embedded _host_klass field
+    _misc_is_contended             = 1 << 4,  // marked with contended annotation
+    _misc_has_default_methods      = 1 << 5,  // class/superclass/implemented interfaces has default methods
+    _misc_declares_default_methods = 1 << 6,  // directly declares default methods (any access)
+    _misc_has_been_redefined       = 1 << 7,  // class has been redefined
+    _misc_is_shared_boot_class     = 1 << 12, // defining class loader is boot class loader
+    _misc_is_shared_ext_class      = 1 << 13, // defining class loader is ext class loader
+    _misc_is_shared_app_class      = 1 << 14, // defining class loader is app class loader
+    _misc_is_shared_cus_class      = 1 << 15  // defining class loader is custom loader
   };
+  u2 loader_type_bits() {
+    return _misc_is_shared_boot_class|_misc_is_shared_ext_class|_misc_is_shared_app_class|_misc_is_shared_cus_class;
+  }
   u2              _misc_flags;
   u2              _minor_version;        // minor version number of class file
   u2              _major_version;        // major version number of class file
@@ -285,6 +296,7 @@ class InstanceKlass: public Klass {
   JvmtiCachedClassFieldMap* _jvmti_cached_class_field_map;  // JVMTI: used during heap iteration
 
   NOT_PRODUCT(int _verify_count;)  // to avoid redundant verifies
+  NOT_PRODUCT(int _cds_id;)        // _id in classlist at dump time
 
   // Method array.
   Array<Method*>* _methods;
@@ -338,6 +350,82 @@ class InstanceKlass: public Klass {
   friend class SystemDictionary;
 
  public:
+  u2 loader_type() {
+    return _misc_flags & loader_type_bits();
+  }
+
+  bool is_shared_boot_class() const {
+    return (_misc_flags & _misc_is_shared_boot_class) != 0;
+  }
+  bool is_shared_ext_class() const {
+    return (_misc_flags & _misc_is_shared_ext_class) != 0;
+  }
+  bool is_shared_app_class() const {
+    return (_misc_flags & _misc_is_shared_app_class) != 0;
+  }
+  bool is_shared_cus_class() const {
+    return (_misc_flags & _misc_is_shared_cus_class) != 0;
+  }
+  bool is_shared_class() const {
+    return is_shared_boot_class()   ||
+           is_shared_ext_class()    ||
+           is_shared_app_class()    ||
+           is_shared_cus_class();
+  }
+
+  void set_class_loader_type(s2 loader_type) {
+    // clear loader type bits
+    clear_loader_type_bits();
+
+    switch (loader_type) {
+    case ClassLoader::BOOT_LOADER:
+      _misc_flags |= _misc_is_shared_boot_class;
+      break;
+    case ClassLoader::EXT_LOADER:
+      _misc_flags |= _misc_is_shared_ext_class;
+      break;
+    case ClassLoader::APP_LOADER:
+      _misc_flags |= _misc_is_shared_app_class;
+      break;
+    case ClassLoader::CUS_LOADER:
+      _misc_flags |= _misc_is_shared_cus_class;
+      break;
+    default:
+      ShouldNotReachHere();
+      break;
+    }
+  }
+
+  static const char* class_loader_type_name(s2 loader_type) {
+    switch (loader_type) {
+    case ClassLoader::BOOT_LOADER:
+      return "BOOT_LOADER";
+      break;
+    case ClassLoader::EXT_LOADER:
+      return "EXT_LOADER";
+      break;
+    case ClassLoader::APP_LOADER:
+      return "APP_LOADER";;
+      break;
+    case ClassLoader::CUS_LOADER:
+      return "CUS_LOADER";
+      break;
+    default:
+      ShouldNotReachHere();
+      break;
+    }
+  }
+
+#ifndef PRODUCT
+  int cds_id() const { return _cds_id;}
+  void set_cds_id(int id) { _cds_id = id;}
+#endif
+
+  void clear_loader_type_bits() {
+    u2 clr = loader_type_bits();
+    _misc_flags &= ~clr;
+  }
+
   bool has_nonstatic_fields() const        {
     return (_misc_flags & _misc_has_nonstatic_fields) != 0;
   }
@@ -686,6 +774,12 @@ class InstanceKlass: public Klass {
   bool is_jwarmup_recorded()               { return _is_jwarmup_recorded; }
   void set_jwarmup_recorded(bool value)    { _is_jwarmup_recorded = value; }
 
+  Monitor* shared_locker()                 { return _shared_locker; }
+  void set_shared_locker(Monitor* locker)  { _shared_locker = locker; }
+
+  int get_shared_load_status()             { return _shared_load_status; }
+  void set_shared_load_status(int value)   { _shared_load_status = value; }
+
   Symbol* source_file_path()               { return _source_file_path; }
   void set_source_file_path(Symbol* value) { _source_file_path = value; }
 
@@ -736,6 +830,14 @@ class InstanceKlass: public Klass {
   }
 
   static void purge_previous_versions(InstanceKlass* ik);
+
+#if INCLUDE_CDS
+  void set_archived_class_data(JvmtiCachedClassFileData* data) {
+    _cached_class_file = data;
+  }
+
+  JvmtiCachedClassFileData * get_archived_class_data();
+#endif // INCLUDE_CDS
 
   // JVMTI: Support for caching a class file before it is modified by an agent that can do retransformation
   void set_cached_class_file(JvmtiCachedClassFileData *data) {
@@ -1179,8 +1281,9 @@ private:
   // RedefineClasses support
   void link_previous_versions(InstanceKlass* pv) { _previous_versions = pv; }
   void mark_newly_obsolete_methods(Array<Method*>* old_methods, int emcp_method_count);
-public:
+ public:
   // CDS support - remove and restore oops from metadata. Oops are not shared.
+  virtual void remove_java_mirror();
   virtual void remove_unshareable_info();
   virtual void restore_unshareable_info(ClassLoaderData* loader_data, Handle protection_domain, TRAPS);
 
@@ -1192,9 +1295,15 @@ public:
   void set_member_names(MemberNameTable* member_names) { _member_names = member_names; }
   oop add_member_name(Handle member_name, bool intern);
 
-public:
+ public:
   // JVMTI support
   jint jvmti_class_status() const;
+
+  template <class ITERATOR>
+  void itable_pointers_do(ITERATOR* iter);
+
+  template <class ITERATOR>
+  void klass_and_method_pointers_do(ITERATOR* iter);
 
  public:
   // Printing

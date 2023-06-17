@@ -1267,6 +1267,8 @@ class java_lang_ClassLoader : AllStatic {
    hc_parent_offset = 0
   };
   static int _loader_data_offset;
+  static int _is_dead_offset;
+  static int _signature_offset;
   static bool offsets_computed;
   static int parent_offset;
   static int parallelCapable_offset;
@@ -1295,6 +1297,10 @@ class java_lang_ClassLoader : AllStatic {
   static bool is_instance(oop obj) {
     return obj != NULL && is_subclass(obj->klass());
   }
+
+  static bool is_dead(oop loader);
+
+  static int signature(oop loader);
 
   // Debugging
   friend class JavaClasses;

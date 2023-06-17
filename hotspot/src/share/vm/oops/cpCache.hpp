@@ -213,6 +213,10 @@ class ConstantPoolCacheEntry VALUE_OBJ_CLASS_SPEC {
     _f2 = ref_index;
   }
 
+  // CDS support
+  void verify_just_initialized(bool f2_used);
+  void reinitialize(bool f2_used);
+
   void set_field(                                // sets entry to resolved field state
     Bytecodes::Code get_code,                    // the bytecode used for reading the field
     Bytecodes::Code put_code,                    // the bytecode used for writing the field
@@ -479,6 +483,12 @@ class ConstantPoolCache: public MetaspaceObj {
   bool check_no_old_or_obsolete_entries();
   void dump_cache();
 #endif // INCLUDE_JVMTI
+
+#if INCLUDE_CDS
+  void remove_unshareable_info();
+  void verify_just_initialized();
+  void walk_entries_for_initialization(bool check_only);
+#endif // INCLUDE_CDS
 
   // Deallocate - no fields to deallocate
   DEBUG_ONLY(bool on_stack() { return false; })

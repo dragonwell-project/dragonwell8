@@ -125,7 +125,7 @@
   experimental(bool, UseWispMonitor, false,                                 \
           "yields to next coroutine when ObjectMonitor is contended")       \
                                                                             \
-  experimental(bool, UseWisp2, false,                                       \
+  product(bool, UseWisp2, false,                                            \
           "Enable Wisp2")                                                   \
                                                                             \
   diagnostic(bool, VerboseWisp, false,                                      \
@@ -156,6 +156,33 @@
   diagnostic(ccstr, ClassLoaderModuleFieldName, "moduleName",               \
           "For distinguishing the instances of class loader")               \
                                                                             \
+  product(bool, EagerAppCDS, false,                                         \
+          "aggressively skip over loadClass() to speed up boot time")       \
+                                                                            \
+  diagnostic(bool, PrintEagerAppCDSExceptions, false,                       \
+          "aggressively skip over loadClass() to speed up boot time")       \
+                                                                            \
+  product(bool, DumpAppCDSWithKlassId, false,                               \
+          "default appcds won't dump klasses with klass id - dump it for using Classes4CDS") \
+  product(bool, NotFoundClassOpt, false,                                    \
+          "optimization for not found class in EagerAppCDS flow")           \
+                                                                            \
+  experimental(bool, EagerAppCDSLegacyVerisonSupport, false,                \
+          "dump the classes which is compiled JDK1.5 or below")             \
+                                                                            \
+  product(bool, IgnoreAppCDSDirCheck, false,                                \
+          "Ignore non-empty dir check in AppCDS")                           \
+  product(bool, CDSIgnoreBootClasspathAppend, false,                        \
+          "keep AppCDS on after appending boot classpath")                  \
+                                                                            \
+  product(bool, SuppressAppCDSErrors, false,                                \
+          "Suppress AppCDS errors during initialization; use warnings instead") \
+                                                                            \
+  product(bool, TraceAppCDSLoading, false,                                  \
+          "trace appcds loading")                                           \
+                                                                            \
+  product(bool, TraceCDSLoading, false,                                     \
+          "trace cds loading")                                              \
   product(intx, CodeSweeperTriggerTime, 0,                                  \
           "code sweeper trigger period time (in seconds, "                  \
           "0 means disable periodly trigger)" )                             \
@@ -163,6 +190,8 @@
   product(intx, MemNodeLoopContinueThres, 200,                              \
           "Max coninuation number in MemNode loop")                         \
                                                                             \
+  product(bool, AppCDSVerifyClassPathOrder, true,                           \
+          "The classpath order when dump is the same as when run")          \
   //add new AJVM specific flags here
 
 

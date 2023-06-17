@@ -500,4 +500,20 @@ public:
   virtual void execute(DCmdSource source, TRAPS);
 };
 
+class QuickStartDumpDCMD : public DCmdWithParser {
+protected:
+    DCmdArgument<char *> _cachedir;
+public:
+    QuickStartDumpDCMD(outputStream* output, bool heap);
+    static const char* name() { return "QuickStart.dump"; }
+    static const char* description() {
+      return "Use `jcmd <pid> QuickStart.dump <cache dir>` to dump shared archive etc. things in the "
+             "tracer process which enables `-Xquickstart` option. "
+             "Call `com.alibaba.util.QuickStart.notifyDump()` to dump files.";
+    }
+    static const char* impact() { return "Low"; }
+    static int num_arguments();
+    virtual void execute(DCmdSource source, TRAPS);
+};
+
 #endif // SHARE_VM_SERVICES_DIAGNOSTICCOMMAND_HPP

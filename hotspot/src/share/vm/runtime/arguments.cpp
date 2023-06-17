@@ -38,6 +38,7 @@
 #include "runtime/arguments_ext.hpp"
 #include "runtime/globals_extension.hpp"
 #include "runtime/java.hpp"
+#include "runtime/quickStart.hpp"
 #include "services/management.hpp"
 #include "services/memTracker.hpp"
 #include "utilities/defaultStream.hpp"
@@ -3271,6 +3272,20 @@ jint Arguments::parse_each_vm_init_arg(const JavaVMInitArgs* args,
       }
       FLAG_SET_CMDLINE(bool, PrintGC, true);
       FLAG_SET_CMDLINE(bool, PrintGCTimeStamps, true);
+    } else if (match_option(option, "-Xquickstart", &tail)) {
+      bool ret = false;
+      if (*tail == '\0') {
+        ret = QuickStart::parse_command_line_arguments();
+        assert(ret, "-Xquickstart without arguments should never fail to parse");
+      } else if (*tail == ':') {
+        ret = QuickStart::parse_command_line_arguments(tail + 1);
+      }
+      if (!ret) {
+        jio_fprintf(defaultStream::error_stream(),
+                    "Invalid -Xquickstart option '-Xquickstart%s', see the error log for details.\n",
+                    tail);
+        return JNI_EINVAL;
+      }
 
     // JNI hooks
     } else if (match_option(option, "-Xcheck", &tail)) {
@@ -4041,6 +4056,23 @@ jint Arguments::parse(const JavaVMInitArgs* args) {
 #endif
     }
 
+    // If UseAppCDS, we need to unlock SharedArchiveFile so can be used under product.
+    if (match_option(option, "-XX:+UseAppCDS", &tail)) {
+      Flag* flag = Flag::find_flag("SharedArchiveFile", 17, true, true);
+      if (flag->is_diagnostic()) {
+        flag->unlock_diagnostic();
+      }
+      continue;
+    }
+
+    // If -UseAppCDS, we need to set SharedArchiveFile to default
+    if (match_option(option, "-XX:-UseAppCDS", &tail)) {
+      Flag* flag = Flag::find_flag("SharedArchiveFile", 17, true, true);
+      if (!flag->is_diagnostic()) {
+        flag->set_origin(flag->get_origin());
+      }
+      continue;
+    }
 
 #ifndef PRODUCT
     if (match_option(option, "-XX:+PrintFlagsWithComments", &tail)) {
@@ -4087,6 +4119,10 @@ jint Arguments::parse(const JavaVMInitArgs* args) {
   jint result = parse_vm_init_args(args);
   if (result != JNI_OK) {
     return result;
+  }
+
+  if (QuickStart::is_enabled()) {
+    QuickStart::post_process_arguments(args);
   }
 
   // Call get_shared_archive_path() here, after possible SharedArchiveFile option got parsed.
@@ -4195,6 +4231,15 @@ jint Arguments::parse(const JavaVMInitArgs* args) {
   }
 #endif
 
+  if (EagerAppCDS) {
+    UseAppCDS = true;
+    if (!FLAG_IS_CMDLINE(NotFoundClassOpt)) {
+      NotFoundClassOpt = true;
+    }
+    // Need to use Classes4CDS.java to parse the result.
+    DumpAppCDSWithKlassId = true;
+  }
+
   // Set object alignment values.
   set_object_alignment();
 
@@ -4253,7 +4298,6 @@ jint Arguments::apply_ergo() {
   if (FLAG_IS_DEFAULT(NmethodSweepFraction)) {
     FLAG_SET_DEFAULT(NmethodSweepFraction, 1 + ReservedCodeCacheSize / (16 * M));
   }
-
 
   // Set heap size based on available physical memory
   set_heap_size();
@@ -4371,6 +4415,14 @@ jint Arguments::apply_ergo() {
       FLAG_SET_DEFAULT(PauseAtExit, true);
     }
   }
+
+#if INCLUDE_CDS
+  if (DumpSharedSpaces) {
+    // Disable biased locking now as it interferes with the clean up of
+    // the archived Klasses and Java string objects (at dump time only).
+    UseBiasedLocking = false;
+  }
+#endif
 
   return JNI_OK;
 }

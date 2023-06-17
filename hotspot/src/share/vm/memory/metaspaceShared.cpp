@@ -25,6 +25,7 @@
 #include "precompiled.hpp"
 #include "classfile/dictionary.hpp"
 #include "classfile/classLoaderExt.hpp"
+#include "classfile/classListParser.hpp"
 #include "classfile/loaderConstraints.hpp"
 #include "classfile/placeholders.hpp"
 #include "classfile/sharedClassUtil.hpp"
@@ -32,6 +33,7 @@
 #include "classfile/systemDictionary.hpp"
 #include "classfile/systemDictionaryShared.hpp"
 #include "code/codeCache.hpp"
+#include "interpreter/bytecodeStream.hpp"
 #include "memory/filemap.hpp"
 #include "memory/gcLocker.hpp"
 #include "memory/metaspace.hpp"
@@ -101,7 +103,84 @@ static void collect_classes(Klass* k) {
 static void remove_unshareable_in_classes() {
   for (int i = 0; i < _global_klass_objects->length(); i++) {
     Klass* k = _global_klass_objects->at(i);
-    k->remove_unshareable_info();
+    if (!k->oop_is_objArray()) {
+      // InstanceKlass and TypeArrayKlass will in turn call remove_unshareable_info
+      // on their array classes.
+      assert(k->oop_is_instance() || k->oop_is_typeArray(), "must be");
+      k->remove_unshareable_info();
+    }
+  }
+}
+
+static void undo_fast_bytecode() {
+  ResourceMark rm;
+  for (int i = 0; i < _global_klass_objects->length(); i++) {
+    bool is_target = false;
+    Klass* k = _global_klass_objects->at(i);
+
+    if (k->oop_is_instance()) {
+      InstanceKlass* ik = InstanceKlass::cast(k);
+      for (int i = 0; i < ik->methods()->length(); i++) {
+        Method* m = ik->methods()->at(i);
+        BytecodeStream bcs(m);
+        while (!bcs.is_last_bytecode()) {
+          Bytecodes::Code opcode = bcs.next();
+          switch (opcode) {
+          case Bytecodes::_getfield:
+          case Bytecodes::_fast_agetfield:
+          case Bytecodes::_fast_bgetfield:
+          case Bytecodes::_fast_cgetfield:
+          case Bytecodes::_fast_dgetfield:
+          case Bytecodes::_fast_fgetfield:
+          case Bytecodes::_fast_igetfield:
+          case Bytecodes::_fast_lgetfield:
+          case Bytecodes::_fast_sgetfield:
+            *bcs.bcp() = Bytecodes::_getfield;
+            break;
+          case Bytecodes::_putfield:
+          case Bytecodes::_fast_aputfield:
+          case Bytecodes::_fast_bputfield:
+          case Bytecodes::_fast_cputfield:
+          case Bytecodes::_fast_dputfield:
+          case Bytecodes::_fast_fputfield:
+          case Bytecodes::_fast_iputfield:
+          case Bytecodes::_fast_lputfield:
+          case Bytecodes::_fast_sputfield:
+          case Bytecodes::_fast_zputfield:
+            *bcs.bcp() = Bytecodes::_putfield;
+            break;
+          case Bytecodes::_aload_0:
+          case Bytecodes::_fast_aload_0:
+            *bcs.bcp() = Bytecodes::_aload_0;
+            break;
+          case Bytecodes::_iload:
+          case Bytecodes::_fast_iload:
+          case Bytecodes::_fast_iload2:
+            if (!bcs.is_wide()) {
+              *bcs.bcp() = Bytecodes::_iload;
+            }
+            break;
+          case Bytecodes::_fast_icaload:
+            *bcs.bcp() = Bytecodes::_caload;
+            break;
+          case Bytecodes::_fast_invokevfinal:
+            *bcs.bcp() = Bytecodes::_invokevirtual;
+            break;
+          case Bytecodes::_fast_linearswitch:
+          case Bytecodes::_fast_binaryswitch:
+            *bcs.bcp() = Bytecodes::_lookupswitch;
+            break;
+          case Bytecodes::_fast_aldc:
+            *bcs.bcp() = Bytecodes::_ldc;
+            break;
+          case Bytecodes::_fast_aldc_w:
+            *bcs.bcp() = Bytecodes::_ldc_w;
+            break;
+          default: break;
+          }
+        }
+      }
+    }
   }
 }
 
@@ -477,10 +556,59 @@ void VM_PopulateDumpSharedSpace::doit() {
   calculate_fingerprints();
   tty->print_cr("done. ");
 
+
+  tty->print("Undo fast bytecodes ... ");
+  undo_fast_bytecode();
+  tty->print_cr("done.");
+
+  // Reorder the system dictionary.  (Moving the symbols affects
+  // how the hash table indices are calculated.)
+  // Not doing this either.
+  if (EagerAppCDS && EagerAppCDSLegacyVerisonSupport) {
+    tty->print_cr("Reorder SystemDictionary (remove anonymous classes) ... ");
+  } else {
+    tty->print_cr("Reorder SystemDictionary (remove class < 1.5, remove anonymous classes) ... ");
+  }
+  SystemDictionary::reorder_dictionary();
+  tty->print_cr(" done.");
+
+  if (NotFoundClassOpt) {
+    tty->print_cr("Reorder NotFound classes ... ");
+    SystemDictionary::reorder_not_found_class_table_for_sharing();
+    tty->print_cr(" done.");
+  }
+
   // Remove all references outside the metadata
   tty->print("Removing unshareable information ... ");
   remove_unshareable_in_classes();
-  tty->print_cr("done. ");
+  tty->print_cr("done.");
+
+  // after reorder, recalculate
+  _global_klass_objects = new GrowableArray<Klass*>(1000);
+  Universe::basic_type_classes_do(collect_classes);
+  SystemDictionary::classes_do(collect_classes);
+  tty->print_cr("After remove unshareable classes: ");
+  tty->print_cr("Number of classes %d", _global_klass_objects->length());
+  {
+    int num_type_array = 0, num_obj_array = 0, num_inst = 0;
+    for (int i = 0; i < _global_klass_objects->length(); i++) {
+      Klass* k = _global_klass_objects->at(i);
+      if (k->oop_is_instance()) {
+        num_inst ++;
+      } else if (k->oop_is_objArray()) {
+        num_obj_array ++;
+      } else {
+        assert(k->oop_is_typeArray(), "sanity");
+        num_type_array ++;
+      }
+    }
+    tty->print_cr("    instance classes   = %5d", num_inst);
+    tty->print_cr("    obj array classes  = %5d", num_obj_array);
+    tty->print_cr("    type array classes = %5d", num_type_array);
+  }
+
+  SystemDictionaryShared::finalize_verification_constraints();
+  SystemDictionaryShared::record_class_hierarchy();
 
   // Set up the share data and shared code segments.
   char* md_low = _md_vs.low();
@@ -507,12 +635,6 @@ void VM_PopulateDumpSharedSpace::doit() {
                                      &md_top, md_end,
                                      &mc_top, mc_end);
 
-  // Reorder the system dictionary.  (Moving the symbols affects
-  // how the hash table indices are calculated.)
-  // Not doing this either.
-
-  SystemDictionary::reorder_dictionary();
-
   NOT_PRODUCT(SystemDictionary::verify();)
 
   // Copy the the symbol table, and the system dictionary to the shared
@@ -527,6 +649,9 @@ void VM_PopulateDumpSharedSpace::doit() {
   SystemDictionary::reverse();
   SystemDictionary::copy_buckets(&md_top, md_end);
 
+  SystemDictionary::not_found_class_reverse();
+  SystemDictionary::copy_not_found_class_buckets(&md_top, md_end);
+
   ClassLoader::verify();
   ClassLoader::copy_package_info_buckets(&md_top, md_end);
   ClassLoader::verify();
@@ -534,10 +659,11 @@ void VM_PopulateDumpSharedSpace::doit() {
   SymbolTable::copy_table(&md_top, md_end);
   SystemDictionary::copy_table(&md_top, md_end);
   ClassLoader::verify();
+
+  SystemDictionary::copy_not_found_class_table(&md_top, md_end);
+
   ClassLoader::copy_package_info_table(&md_top, md_end);
   ClassLoader::verify();
-
-  ClassLoaderExt::copy_lookup_cache_to_archive(&md_top, md_end);
 
   // Write the other data to the output array.
   WriteClosure wc(md_top, md_end);
@@ -636,7 +762,14 @@ void VM_PopulateDumpSharedSpace::doit() {
 
     dac.dump_stats(int(ro_bytes), int(rw_bytes), int(md_bytes), int(mc_bytes));
   }
+
+  NOT_PRODUCT(if (PrintSystemDictionaryAtExit) {SystemDictionaryShared::print();});
+
 #undef fmt_space
+  // There may be other pending VM operations that operate on the InstanceKlasses,
+  // which will fail because InstanceKlasses::remove_unshareable_info()
+  // has been called. Forget these operations and exit the VM directly.
+  vm_direct_exit(0);
 }
 
 
@@ -686,10 +819,6 @@ void MetaspaceShared::link_and_cleanup_shared_classes(TRAPS) {
       exit(1);
     }
   }
-
-  // Copy the dependencies from C_HEAP-alloced GrowableArrays to RO-alloced
-  // Arrays
-  SystemDictionaryShared::finalize_verification_dependencies();
 }
 
 void MetaspaceShared::prepare_for_dumping() {
@@ -758,21 +887,23 @@ void MetaspaceShared::preload_and_dump(TRAPS) {
   }
   tty->print_cr("Loading classes to share: done.");
 
-  ClassLoaderExt::init_lookup_cache(THREAD);
-
   if (PrintSharedSpaces) {
     tty->print_cr("Shared spaces: preloaded %d classes", class_count);
   }
 
   // Rewrite and link classes
-  tty->print_cr("Rewriting and linking classes ...");
+  tty->print("Rewriting and linking classes ...");
 
   // Link any classes which got missed. This would happen if we have loaded classes that
   // were not explicitly specified in the classlist. E.g., if an interface implemented by class K
   // fails verification, all other interfaces that were not specified in the classlist but
   // are implemented by K are not verified.
   link_and_cleanup_shared_classes(CATCH);
-  tty->print_cr("Rewriting and linking classes: done");
+  tty->print_cr(" done");
+
+  tty->print("clear _invoke_method_table ...");
+  SystemDictionary::clear_invoke_method_table();
+  tty->print_cr(" done");
 
   // Create and dump the shared spaces.   Everything so far is loaded
   // with the null class loader.
@@ -788,57 +919,45 @@ void MetaspaceShared::preload_and_dump(TRAPS) {
 int MetaspaceShared::preload_and_dump(const char * class_list_path,
                                       GrowableArray<Klass*>* class_promote_order,
                                       TRAPS) {
-  FILE* file = fopen(class_list_path, "r");
-  char class_name[256];
+  ClassListParser parser(class_list_path);
   int class_count = 0;
-
-  if (file != NULL) {
-    while ((fgets(class_name, sizeof class_name, file)) != NULL) {
-      if (*class_name == '#') { // comment
-        continue;
-      }
-      // Remove trailing newline
-      size_t name_len = strlen(class_name);
-      if (class_name[name_len-1] == '\n') {
-        class_name[name_len-1] = '\0';
+  {
+    while (parser.parse_one_line()) {
+      if (parser.has_error()) {
+        continue;   // this klass can't be loaded since the interface or super isn't loaded.
       }
 
-      // Got a class name - load it.
-      TempNewSymbol class_name_symbol = SymbolTable::new_permanent_symbol(class_name, THREAD);
-      guarantee(!HAS_PENDING_EXCEPTION, "Exception creating a symbol.");
-      Klass* klass = SystemDictionary::resolve_or_null(class_name_symbol,
-                                                         THREAD);
-      CLEAR_PENDING_EXCEPTION;
-      if (klass != NULL) {
-        if (PrintSharedSpaces && Verbose && WizardMode) {
-          tty->print_cr("Shared spaces preloaded: %s", class_name);
+      Klass* klass = ClassLoaderExt::load_one_class(&parser, THREAD);
+
+      if (HAS_PENDING_EXCEPTION) {
+        if (klass == NULL &&
+             (PENDING_EXCEPTION->klass()->name() == vmSymbols::java_lang_ClassNotFoundException())) {
+          // print a warning only when the pending exception is class not found
+          tty->print_cr("Preload Warning: Cannot find %s", parser.current_class_name());
         }
+        CLEAR_PENDING_EXCEPTION;
+      }
+      if (klass != NULL) {
+        if (klass->oop_is_instance()) {
+          InstanceKlass* ik = InstanceKlass::cast(klass);
 
-        InstanceKlass* ik = InstanceKlass::cast(klass);
-
-        // Should be class load order as per -XX:+TraceClassLoadingPreorder
-        class_promote_order->append(ik);
-
-        // Link the class to cause the bytecodes to be rewritten and the
-        // cpcache to be created. The linking is done as soon as classes
-        // are loaded in order that the related data structures (klass and
-        // cpCache) are located together.
-        try_link_class(ik, THREAD);
-        guarantee(!HAS_PENDING_EXCEPTION, "exception in link_class");
-
-        class_count++;
-      } else {
-        //tty->print_cr("Preload failed: %s", class_name);
+          // Link the class to cause the bytecodes to be rewritten and the
+          // cpcache to be created. The linking is done as soon as classes
+          // are loaded in order that the related data structures (klass and
+          // cpCache) are located together.
+          if (ik->is_linked()) {
+            if (TraceClassLoading) {
+              tty->print_cr("Preload Warning: %s is already loaded and linked!", klass->external_name());
+            }
+            continue;
+          }
+          try_link_class(ik, THREAD);
+          guarantee(!HAS_PENDING_EXCEPTION, "exception in link_class");
+          class_count ++;
+        }
       }
     }
-    fclose(file);
-  } else {
-    char errmsg[JVM_MAXPATHLEN];
-    os::lasterror(errmsg, JVM_MAXPATHLEN);
-    tty->print_cr("Loading classlist failed: %s", errmsg);
-    exit(1);
   }
-
   return class_count;
 }
 
@@ -847,7 +966,7 @@ bool MetaspaceShared::try_link_class(InstanceKlass* ik, TRAPS) {
   assert(DumpSharedSpaces, "should only be called during dumping");
   if (ik->init_state() < InstanceKlass::linked) {
     bool saved = BytecodeVerificationLocal;
-    if (!SharedClassUtil::is_shared_boot_class(ik)) {
+    if (ik->is_shared_boot_class()) {
       // The verification decision is based on BytecodeVerificationRemote
       // for non-system classes. Since we are using the NULL classloader
       // to load non-system classes during dumping, we need to temporarily
@@ -1033,6 +1152,18 @@ void MetaspaceShared::initialize_shared_spaces() {
                                           number_of_entries);
   buffer += sharedDictionaryLen;
 
+  // for not found
+  int notFoundTableLen = *(intptr_t*)buffer;
+  buffer += sizeof(intptr_t);
+  number_of_entries = *(intptr_t*)buffer;
+  buffer += sizeof(intptr_t);
+  if (notFoundTableLen != 0) {
+    SystemDictionary::set_not_found_class_table((HashtableBucket<mtSymbol>*)buffer,
+                                                sharedDictionaryLen,
+                                                number_of_entries);
+    buffer += notFoundTableLen;
+  }
+
   // Create the package info table using the bucket array at this spot in
   // the misc data space.  Since the package info table is never
   // modified, this region (of mapped pages) will be (effectively, if
@@ -1063,6 +1194,10 @@ void MetaspaceShared::initialize_shared_spaces() {
   buffer += sizeof(intptr_t);
   buffer += len;
 
+  len = *(intptr_t*)buffer;     // skip over not found dictionary entries
+  buffer += sizeof(intptr_t);
+  buffer += len;
+
   len = *(intptr_t*)buffer;     // skip over package info table entries
   buffer += sizeof(intptr_t);
   buffer += len;
@@ -1070,8 +1205,6 @@ void MetaspaceShared::initialize_shared_spaces() {
   len = *(intptr_t*)buffer;     // skip over package info table char[] arrays.
   buffer += sizeof(intptr_t);
   buffer += len;
-
-  buffer = ClassLoaderExt::restore_lookup_cache_from_archive(buffer);
 
   intptr_t* array = (intptr_t*)buffer;
   ReadClosure rc(&array);

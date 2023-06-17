@@ -93,6 +93,7 @@ class klassVtable;
 class ParCompactionManager;
 class KlassSizeStats;
 class fieldDescriptor;
+class vtableEntry;
 
 class Klass : public Metadata {
   friend class VMStructs;
@@ -491,8 +492,12 @@ protected:
   virtual Klass* array_klass_impl(bool or_null, int rank, TRAPS);
   virtual Klass* array_klass_impl(bool or_null, TRAPS);
 
+  static ByteSize vtable_start_offset();
+  vtableEntry* start_of_vtable() const;
+
  public:
   // CDS support - remove and restore oops from metadata. Oops are not shared.
+  virtual void remove_java_mirror();
   virtual void remove_unshareable_info();
   virtual void restore_unshareable_info(ClassLoaderData* loader_data, Handle protection_domain, TRAPS);
 
@@ -591,7 +596,8 @@ protected:
   void set_has_vanilla_constructor()    { _access_flags.set_has_vanilla_constructor(); }
   bool has_miranda_methods () const     { return access_flags().has_miranda_methods(); }
   void set_has_miranda_methods()        { _access_flags.set_has_miranda_methods(); }
-
+  bool is_shared() const                { return access_flags().is_shared_class(); } // shadows MetaspaceObj::is_shared()
+  void set_is_shared()                  { _access_flags.set_is_shared_class(); }
   // Biased locking support
   // Note: the prototype header is always set up to be at least the
   // prototype markOop. If biased locking is enabled it may further be
@@ -736,6 +742,13 @@ protected:
   // barriers used by klass_oop_store
   void klass_update_barrier_set(oop v);
   void klass_update_barrier_set_pre(oop* p, oop v);
+ public:
+  template <class ITERATOR>
+  void klass_and_method_pointers_do(ITERATOR* iter);
+
+ protected:
+  template <class ITERATOR, typename T>
+  void iterate_array(ITERATOR* iter, Array<T>* array);
 };
 
 #endif // SHARE_VM_OOPS_KLASS_HPP

@@ -71,6 +71,7 @@ class ArrayKlass: public Klass {
   // type of elements (T_OBJECT for both oop arrays and array-arrays)
   BasicType element_type() const        { return layout_helper_element_type(layout_helper()); }
 
+  void init_component_mirror()          { _component_mirror = NULL; }
   oop  component_mirror() const         { return _component_mirror; }
   void set_component_mirror(oop m)      { klass_oop_store(&_component_mirror, m); }
   oop* adr_component_mirror()           { return (oop*)&this->_component_mirror;}
@@ -140,6 +141,7 @@ class ArrayKlass: public Klass {
   jint jvmti_class_status() const;
 
   // CDS support - remove and restore oops from metadata. Oops are not shared.
+  virtual void remove_java_mirror();
   virtual void remove_unshareable_info();
   virtual void restore_unshareable_info(ClassLoaderData* loader_data, Handle protection_domain, TRAPS);
 

@@ -54,7 +54,7 @@ private:
                              Symbol* name, ClassLoaderData* loader_data);
 
 protected:
-  DictionaryEntry* bucket(int i) {
+  DictionaryEntry* bucket(int i) const {
     return (DictionaryEntry*)Hashtable<Klass*, mtClass>::bucket(i);
   }
 
@@ -394,6 +394,7 @@ class SymbolPropertyEntry : public HashtableEntry<Symbol*, mtSymbol> {
 // MethodHandle.invoke(S)T, for all signatures (S)T.
 class SymbolPropertyTable : public Hashtable<Symbol*, mtSymbol> {
   friend class VMStructs;
+  friend class SystemDictionary;
 private:
   SymbolPropertyEntry* bucket(int i) {
     return (SymbolPropertyEntry*) Hashtable<Symbol*, mtSymbol>::bucket(i);
@@ -459,4 +460,80 @@ public:
 #endif
   void verify();
 };
+
+
+class NotFoundClassEntry : public HashtableEntry<Symbol*, mtSymbol> {
+  friend class VMStructs;
+private:
+  int _initiating_loader_hash;
+public:
+  Symbol* symbol() const            { return literal(); }
+  int initiating_loader_hash() const  { return _initiating_loader_hash; }
+  void set_initiating_loader_hash(int hash) {
+    _initiating_loader_hash = hash;
+  }
+
+  NotFoundClassEntry* next() const {
+    return (NotFoundClassEntry*)HashtableEntry<Symbol*, mtSymbol>::next();
+  }
+
+  NotFoundClassEntry** next_addr() {
+    return (NotFoundClassEntry**)HashtableEntry<Symbol*, mtSymbol>::next_addr();
+  }
+
+  // void metaspace_pointers_do(MetaspaceClosure* it);
+};
+
+class NotFoundClassTable : public Hashtable<Symbol*, mtSymbol> {
+  friend class VMStructs;
+private:
+  // The following method is not MT-safe and must be done under lock.
+  NotFoundClassTable** bucket_addr(int i) {
+    return (NotFoundClassTable**) Hashtable<Symbol*, mtSymbol>::bucket_addr(i);
+  }
+
+  void add_entry(int index, NotFoundClassEntry* new_entry) {
+    ShouldNotReachHere();
+  }
+
+  NotFoundClassEntry* new_entry(unsigned int hash, Symbol* symbol, int initiating_loader_hash) {
+    NotFoundClassEntry* entry = (NotFoundClassEntry*) Hashtable<Symbol*, mtSymbol>::new_entry(hash, symbol);
+    // Hashtable with Symbol* literal must increment and decrement refcount.
+    symbol->increment_refcount();
+    entry->set_initiating_loader_hash(initiating_loader_hash);
+    return entry;
+  }
+
+public:
+  NotFoundClassTable(int table_size);
+  NotFoundClassTable(int table_size, HashtableBucket<mtSymbol>* t, int number_of_entries);
+
+  void free_entry(NotFoundClassEntry* entry) {
+    // no need to free NotFoundClassTable
+    ShouldNotReachHere();
+  }
+
+  unsigned int compute_hash(Symbol* sym) {
+    // Use the regular identity_hash.
+    return Hashtable<Symbol*, mtSymbol>::compute_hash(sym);
+  }
+
+  int index_for(Symbol* name) {
+    return hash_to_index(compute_hash(name));
+  }
+
+  // need not be locked; no state change
+  NotFoundClassEntry* find_entry(int index, unsigned int hash, Symbol* name, int initiating_loader_hash);
+
+  // must be done under SystemDictionary_lock
+  NotFoundClassEntry* add_entry(int index, unsigned int hash, Symbol* name, int initiating_loader_hash);
+
+  NotFoundClassEntry* bucket(int i) {
+    return (NotFoundClassEntry*) Hashtable<Symbol*, mtSymbol>::bucket(i);
+  }
+
+  // void metaspace_pointers_do(MetaspaceClosure* it);
+  void reorder_not_found_class_table_for_sharing();
+};
+
 #endif // SHARE_VM_CLASSFILE_DICTIONARY_HPP

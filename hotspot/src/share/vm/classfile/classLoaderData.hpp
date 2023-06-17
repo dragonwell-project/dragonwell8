@@ -28,7 +28,6 @@
 #include "memory/allocation.hpp"
 #include "memory/memRegion.hpp"
 #include "memory/metaspace.hpp"
-#include "memory/metaspaceCounters.hpp"
 #include "runtime/mutex.hpp"
 #include "utilities/growableArray.hpp"
 #include "utilities/macros.hpp"
@@ -70,7 +69,7 @@ class ClassLoaderDataGraph : public AllStatic {
   static ClassLoaderData* _saved_unloading;
   static bool _should_purge;
 
-  static ClassLoaderData* add(Handle class_loader, bool anonymous, TRAPS);
+  static ClassLoaderData* add(Handle class_loader, bool anonymous, bool& is_created, TRAPS);
   static void clean_metaspaces();
  public:
   static ClassLoaderData* find_or_create(Handle class_loader, TRAPS);
@@ -266,6 +265,10 @@ class ClassLoaderData : public CHeapObj<mtClass> {
     return this == _the_null_class_loader_data;
   }
   bool is_ext_class_loader_data() const;
+
+  bool is_builtin_class_loader_data() const;
+
+  bool is_system_class_loader_data() const;
 
   // The Metaspace is created lazily so may be NULL.  This
   // method will allocate a Metaspace if needed.

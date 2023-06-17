@@ -38,6 +38,7 @@
 #include "gc_implementation/shared/gcHeapSummary.hpp"
 #include "gc_implementation/shared/gcWhen.hpp"
 #include "memory/gcLocker.inline.hpp"
+#include "memory/metaspaceCounters.hpp"
 #include "oops/oop.inline.hpp"
 #include "runtime/handles.inline.hpp"
 #include "runtime/java.hpp"

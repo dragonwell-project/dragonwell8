@@ -53,6 +53,8 @@ extern void vm_exit_during_initialization(Symbol* exception_name, const char* me
 extern void vm_exit_during_initialization(const char* error, const char* message = NULL);
 extern void vm_shutdown_during_initialization(const char* error, const char* message = NULL);
 
+extern void vm_warning(const char* warning, const char* message = NULL);
+
 /**
  * Discovering the JDK_Version during initialization is tricky when the
  * running JDK is less than JDK6.  For JDK6 and greater, a "GetVersion"

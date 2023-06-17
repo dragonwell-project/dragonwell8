@@ -46,9 +46,20 @@ public:
   const char *_name;
   time_t _timestamp;          // jar timestamp,  0 if is directory
   long   _filesize;           // jar file size, -1 if is directory
+  Array<u1>*   _manifest;
   bool is_dir() {
     return _filesize == -1;
   }
+  int manifest_size() const {
+    return (_manifest == NULL) ? 0 : _manifest->length();
+  }
+  const char* manifest() const {
+    return (_manifest == NULL) ? NULL : (const char*)_manifest->data();
+  }
+  void set_manifest(Array<u1>* man) {
+    _manifest = man;
+  }
+  const char* name() { return _name; }
 };
 
 class FileMapInfo : public CHeapObj<mtInternal> {

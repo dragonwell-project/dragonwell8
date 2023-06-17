@@ -305,7 +305,10 @@ class VerificationType VALUE_OBJ_CLASS_SPEC {
     while (name()->byte_at(index) == '[') index++;
     return index;
   }
-
+  static bool resolve_and_check_assignability(InstanceKlass* klass, Symbol* name,
+                                              Symbol* from_name, bool from_field_is_protected,
+                                              bool from_is_array, bool from_is_object,
+                                              TRAPS);
   void print_on(outputStream* st) const;
 
  private:

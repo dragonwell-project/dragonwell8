@@ -524,6 +524,16 @@ void Klass::oops_do(OopClosure* cl) {
   cl->do_oop(&_java_mirror);
 }
 
+void Klass::remove_java_mirror() {
+  assert (DumpSharedSpaces, "only called for DumpSharedSpaces");
+  if (TraceClassLoading) {
+    ResourceMark rm;
+    tty->print_cr("remove java_mirror: %s", external_name());
+  }
+  // Just null out the mirror. The class_loader_data() no longer exists.
+  set_java_mirror(NULL);
+}
+
 void Klass::remove_unshareable_info() {
   assert (DumpSharedSpaces, "only called for DumpSharedSpaces");
 
@@ -536,6 +546,7 @@ void Klass::remove_unshareable_info() {
 
   // Null out class_loader_data because we don't share that yet.
   set_class_loader_data(NULL);
+  set_is_shared();
 }
 
 void Klass::restore_unshareable_info(ClassLoaderData* loader_data, Handle protection_domain, TRAPS) {
@@ -682,6 +693,14 @@ void Klass::collect_statistics(KlassSizeStats *sz) const {
   sz->_rw_bytes += sz->_klass_bytes + sz->_mirror_bytes;
 }
 #endif // INCLUDE_SERVICES
+
+vtableEntry* Klass::start_of_vtable() const {
+  return (vtableEntry*) ((address)this + in_bytes(vtable_start_offset()));
+}
+
+ByteSize Klass::vtable_start_offset() {
+  return in_ByteSize(InstanceKlass::header_size() * wordSize);
+}
 
 // Verification
 
