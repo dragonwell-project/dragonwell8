@@ -28,6 +28,18 @@
 
 #include "gssapi.h"
 
+#ifdef WIN32
+#include <windows.h>
+#define GETLIB(libName) LoadLibrary(libName)
+#define GETFUNC(lib,name) GetProcAddress(lib,name)
+#define CLOSELIB(lib) CloseHandle(lib)
+#else
+#include <dlfcn.h>
+#define GETLIB(libName) dlopen(libName, RTLD_NOW)
+#define GETFUNC(lib,name) dlsym(lib,name)
+#define CLOSELIB(lib) dlclose(lib)
+#endif
+
 #ifndef TRUE
 #define TRUE    1
 #endif
@@ -36,7 +48,7 @@
 #define FALSE   0
 #endif
 
-char* loadNative(const char *libName);
+int loadNative(const char *libName);
 
 /* function pointer definitions */
 typedef OM_uint32 (*RELEASE_NAME_FN_PTR)
