@@ -708,32 +708,8 @@ void ClassLoader::setup_search_path(const char *class_path, bool canonicalize) {
   }
 }
 
-
-bool is_jar_file(const char *path) {
-  int len = 0;
-  while(path[len] != '\0') {
-    len++;
-  }
-  return len >= 5 && (strncmp(path + (len-4), ".jar", 4) == 0);
-}
-
-bool is_dir(const char *path) {
-  struct stat mystat;
-  int ret_val = 0;
-  ret_val = stat(path, &mystat);
-  if (ret_val < 0) {
-    return false;
-  }
-  ret_val = S_ISDIR(mystat.st_mode);
-  return ret_val > 0;
-}
-
 ClassPathEntry* ClassLoader::create_class_path_entry(const char *path, const struct stat* st,
                                                      bool lazy, bool throw_exception, TRAPS) {
-  // must be jar file or dir
-  if(!is_jar_file(path) && !is_dir(path)) {
-    return NULL;
-  }
 
   JavaThread* thread = JavaThread::current();
   if (lazy) {
