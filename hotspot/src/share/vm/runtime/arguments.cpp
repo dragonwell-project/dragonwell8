@@ -1605,7 +1605,11 @@ void Arguments::select_gc_ergonomically() {
 
 void Arguments::select_gc() {
   if (!gc_selected()) {
+#ifdef AARCH64
+    select_gc_ergonomically();
+#else
     FLAG_SET_ERGO(bool, UseConcMarkSweepGC, true);
+#endif
   }
 }
 

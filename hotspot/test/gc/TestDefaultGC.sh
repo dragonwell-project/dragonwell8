@@ -25,7 +25,13 @@
 # @run shell TestDefaultGC.sh
 #
 
+
+arch=$(uname -m)
+if [[ ${arch} == 'aarch64' ]]; then
+${TESTJAVA}/bin/java -XX:+PrintFlagsFinal -version | grep UseParallelGC |grep true
+else
 ${TESTJAVA}/bin/java -XX:+PrintFlagsFinal -version | grep UseConcMarkSweepGC |grep true
+fi
 
 if [ "0" == $? ];
 then
