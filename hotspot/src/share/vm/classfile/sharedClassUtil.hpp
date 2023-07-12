@@ -107,28 +107,9 @@ class SharedClassPathEntryExt: public SharedClassPathEntry {
   }
 };
 
-class AgentEntry: public CHeapObj<mtInternal> {
-private:
-  char* _name;
-  AgentEntry* _next;
-public:
-  const char* name()  { return _name; }
-  AgentEntry* next() { return _next; }
-  AgentEntry(const char* name);
-  void set_next(AgentEntry* entry) {
-    _next = entry;
-  }
-  ~AgentEntry();
-};
 
 class SharedClassUtil : AllStatic {
-private:
-  static AgentEntry* _agentlib_head;
-  static AgentEntry* _agentlib_tail;
 public:
-  static void append_lib_in_bootclasspath(const char* path);
-  static bool is_appended_boot_cp(const char* path, int len);
-
   static SharedPathsMiscInfo* allocate_shared_paths_misc_info() {
     return new SharedPathsMiscInfoExt();
   }

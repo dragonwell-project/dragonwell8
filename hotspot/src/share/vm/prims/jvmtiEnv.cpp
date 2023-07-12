@@ -449,7 +449,6 @@ JvmtiEnv::AddToBootstrapClassLoaderSearch(const char* segment) {
   jvmtiPhase phase = get_phase();
   if (phase == JVMTI_PHASE_ONLOAD) {
     Arguments::append_sysclasspath(segment);
-    SharedClassUtil::append_lib_in_bootclasspath(segment);
     return JVMTI_ERROR_NONE;
   } else if (use_version_1_0_semantics()) {
     // This JvmtiEnv requested version 1.0 semantics and this function
@@ -479,7 +478,6 @@ JvmtiEnv::AddToBootstrapClassLoaderSearch(const char* segment) {
       tty->print_cr("[Opened %s]", zip_entry->name());
     }
     ClassLoaderExt::append_boot_classpath(zip_entry);
-    SharedClassUtil::append_lib_in_bootclasspath(segment);
     return JVMTI_ERROR_NONE;
   } else {
     return JVMTI_ERROR_WRONG_PHASE;

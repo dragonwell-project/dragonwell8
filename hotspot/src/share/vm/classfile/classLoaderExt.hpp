@@ -133,7 +133,7 @@ public:
   static void append_boot_classpath(ClassPathEntry* new_entry) {
 #if INCLUDE_CDS
     if (UseAppCDS) {
-      if (CDSIgnoreBootClasspathAppend) {
+      if (CDSIgnoreBootClasspathDiff) {
         warning("AppCDS is still enabled, but bootstrap classpath has been appended");
       } else {
         warning("UseAppCDS is disabled because bootstrap classpath has been appended");
