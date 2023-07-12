@@ -39,19 +39,6 @@
 #include "runtime/java.hpp"
 #include "runtime/os.hpp"
 
-AgentEntry* SharedClassUtil::_agentlib_head = NULL;
-AgentEntry* SharedClassUtil::_agentlib_tail = NULL;
-
-AgentEntry::AgentEntry(const char* name) {
-  char* copy = NEW_C_HEAP_ARRAY(char, strlen(name)+1, mtInternal);
-  strcpy(copy, name);
-  _name = copy;
-  _next = NULL;
-}
-
-AgentEntry::~AgentEntry() {
-  FREE_C_HEAP_ARRAY(char, _name, mtInternal);
-}
 
 class ManifestStream: public ResourceObj {
   private:
@@ -151,9 +138,9 @@ ClassPathSegment* SharedPathsMiscInfoExt::to_sorted_segments(const char* path, i
   }
   ClassPathSegment *cps = NEW_RESOURCE_ARRAY(ClassPathSegment, max_seg_num + 1);
 
-  int len = strlen(path);
+  size_t len = strlen(path);
   //not use i < len,but use i<= len for processing the last segment conveniently
-  for (int i = 0, j = 0; i <= len; i++) {
+  for (uint i = 0, j = 0; i <= len; i++) {
     if (i == len || path[i] == os::path_separator()[0]) {
       //i == j mean a empty string
       if (i != j) {
@@ -227,29 +214,6 @@ bool SharedPathsMiscInfoExt::check(jint type, const char* path) {
   }
 
   return true;
-}
-
-void SharedClassUtil::append_lib_in_bootclasspath(const char* path) {
-  if(*path == '\0') return;
-  AgentEntry* agent_entry = new AgentEntry(path);
-  if (_agentlib_head == NULL) {
-    _agentlib_head = agent_entry;
-    _agentlib_tail = agent_entry;
-  } else {
-    _agentlib_tail->set_next(agent_entry);
-    _agentlib_tail = agent_entry;
-  }
-}
-
-bool SharedClassUtil::is_appended_boot_cp(const char* path, int len) {
-  AgentEntry* e = _agentlib_head;
-  while(e != NULL) {
-    if (strncmp(e->name(), path, len) == 0) {
-      return true;
-    }
-    e = e->next();
-  }
-  return false;
 }
 
 void SharedClassUtil::update_shared_classpath(ClassPathEntry *cpe, SharedClassPathEntry* e,

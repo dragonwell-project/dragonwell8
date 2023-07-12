@@ -172,7 +172,7 @@
                                                                             \
   product(bool, IgnoreAppCDSDirCheck, false,                                \
           "Ignore non-empty dir check in AppCDS")                           \
-  product(bool, CDSIgnoreBootClasspathAppend, false,                        \
+  product(bool, CDSIgnoreBootClasspathDiff, false,                        \
           "keep AppCDS on after appending boot classpath")                  \
                                                                             \
   product(bool, SuppressAppCDSErrors, false,                                \
