@@ -34,17 +34,20 @@ import java.io.OutputStream;
 import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.net.UnknownHostException;
-import java.util.ArrayList;
-import java.util.List;
+
 import java.util.Arrays;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.List;
 import java.util.LinkedList;
+import java.util.Objects;
+import java.util.Set;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.attribute.FileAttribute;
 
-import java.util.Collections;
-import java.util.Objects;
 import java.util.regex.Pattern;
 import java.util.regex.Matcher;
 import java.util.concurrent.TimeUnit;
@@ -463,5 +466,729 @@ public final class Utils {
     public static Path createTempDirectory(String prefix, FileAttribute<?>... attrs) throws IOException {
         Path dir = Paths.get(System.getProperty("user.dir", "."));
         return Files.createTempDirectory(dir, prefix);
+    }
+
+    /*
+       List.of implementations
+       These methods are intended to provide replacements
+       for the use of List.of() methods in backports,
+       using existing 8u methods. The returned collections
+       share the key property of the List.of collections
+       in being unmodifiable, but may not be equivalent
+       with regard to other properties such as serialization
+       and access order.
+    */
+
+    /**
+     * Returns an unmodifiable list containing zero elements.
+     *
+     * @param <E> the {@code List}'s element type
+     * @return an empty {@code List}
+     */
+    public static <E> List<E> listOf() {
+        return Collections.emptyList();
+    }
+
+    /**
+     * Returns an unmodifiable list containing one element.
+     *
+     * @param <E> the {@code List}'s element type
+     * @param e1 the single element
+     * @return a {@code List} containing the specified element
+     * @throws NullPointerException if the element is {@code null}
+     */
+    public static <E> List<E> listOf(E e1) {
+        Objects.requireNonNull(e1, "e1");
+        return Collections.singletonList(e1);
+    }
+
+    /**
+     * Returns an unmodifiable list containing two elements.
+     *
+     * @param <E> the {@code List}'s element type
+     * @param e1 the first element
+     * @param e2 the second element
+     * @return a {@code List} containing the specified elements
+     * @throws NullPointerException if an element is {@code null}
+     */
+    public static <E> List<E> listOf(E e1, E e2) {
+        Objects.requireNonNull(e1, "e1");
+        Objects.requireNonNull(e2, "e2");
+        List<E> l = new ArrayList<>(2);
+        l.add(e1);
+        l.add(e2);
+        return Collections.unmodifiableList(l);
+    }
+
+    /**
+     * Returns an unmodifiable list containing three elements.
+     *
+     * @param <E> the {@code List}'s element type
+     * @param e1 the first element
+     * @param e2 the second element
+     * @param e3 the third element
+     * @return a {@code List} containing the specified elements
+     * @throws NullPointerException if an element is {@code null}
+     */
+    public static <E> List<E> listOf(E e1, E e2, E e3) {
+        Objects.requireNonNull(e1, "e1");
+        Objects.requireNonNull(e2, "e2");
+        Objects.requireNonNull(e3, "e3");
+        List<E> l = new ArrayList<>(3);
+        l.add(e1);
+        l.add(e2);
+        l.add(e3);
+        return Collections.unmodifiableList(l);
+    }
+
+    /**
+     * Returns an unmodifiable list containing four elements.
+     *
+     * @param <E> the {@code List}'s element type
+     * @param e1 the first element
+     * @param e2 the second element
+     * @param e3 the third element
+     * @param e4 the fourth element
+     * @return a {@code List} containing the specified elements
+     * @throws NullPointerException if an element is {@code null}
+     */
+    public static <E> List<E> listOf(E e1, E e2, E e3, E e4) {
+        Objects.requireNonNull(e1, "e1");
+        Objects.requireNonNull(e2, "e2");
+        Objects.requireNonNull(e3, "e3");
+        Objects.requireNonNull(e4, "e4");
+        List<E> l = new ArrayList<>(4);
+        l.add(e1);
+        l.add(e2);
+        l.add(e3);
+        l.add(e4);
+        return Collections.unmodifiableList(l);
+    }
+
+    /**
+     * Returns an unmodifiable list containing five elements.
+     *
+     * @param <E> the {@code List}'s element type
+     * @param e1 the first element
+     * @param e2 the second element
+     * @param e3 the third element
+     * @param e4 the fourth element
+     * @param e5 the fifth element
+     * @return a {@code List} containing the specified elements
+     * @throws NullPointerException if an element is {@code null}
+     */
+    public static <E> List<E> listOf(E e1, E e2, E e3, E e4, E e5) {
+        Objects.requireNonNull(e1, "e1");
+        Objects.requireNonNull(e2, "e2");
+        Objects.requireNonNull(e3, "e3");
+        Objects.requireNonNull(e4, "e4");
+        Objects.requireNonNull(e5, "e5");
+        List<E> l = new ArrayList<>(5);
+        l.add(e1);
+        l.add(e2);
+        l.add(e3);
+        l.add(e4);
+        l.add(e5);
+        return Collections.unmodifiableList(l);
+    }
+
+    /**
+     * Returns an unmodifiable list containing six elements.
+     *
+     * @param <E> the {@code List}'s element type
+     * @param e1 the first element
+     * @param e2 the second element
+     * @param e3 the third element
+     * @param e4 the fourth element
+     * @param e5 the fifth element
+     * @param e6 the sixth element
+     * @return a {@code List} containing the specified elements
+     * @throws NullPointerException if an element is {@code null}
+     */
+    public static <E> List<E> listOf(E e1, E e2, E e3, E e4, E e5, E e6) {
+        Objects.requireNonNull(e1, "e1");
+        Objects.requireNonNull(e2, "e2");
+        Objects.requireNonNull(e3, "e3");
+        Objects.requireNonNull(e4, "e4");
+        Objects.requireNonNull(e5, "e5");
+        Objects.requireNonNull(e6, "e6");
+        List<E> l = new ArrayList<>(6);
+        l.add(e1);
+        l.add(e2);
+        l.add(e3);
+        l.add(e4);
+        l.add(e5);
+        l.add(e6);
+        return Collections.unmodifiableList(l);
+    }
+
+    /**
+     * Returns an unmodifiable list containing seven elements.
+     *
+     * @param <E> the {@code List}'s element type
+     * @param e1 the first element
+     * @param e2 the second element
+     * @param e3 the third element
+     * @param e4 the fourth element
+     * @param e5 the fifth element
+     * @param e6 the sixth element
+     * @param e7 the seventh element
+     * @return a {@code List} containing the specified elements
+     * @throws NullPointerException if an element is {@code null}
+     */
+    public static <E> List<E> listOf(E e1, E e2, E e3, E e4, E e5, E e6, E e7) {
+        Objects.requireNonNull(e1, "e1");
+        Objects.requireNonNull(e2, "e2");
+        Objects.requireNonNull(e3, "e3");
+        Objects.requireNonNull(e4, "e4");
+        Objects.requireNonNull(e5, "e5");
+        Objects.requireNonNull(e6, "e6");
+        Objects.requireNonNull(e7, "e7");
+        List<E> l = new ArrayList<>(7);
+        l.add(e1);
+        l.add(e2);
+        l.add(e3);
+        l.add(e4);
+        l.add(e5);
+        l.add(e6);
+        l.add(e7);
+        return Collections.unmodifiableList(l);
+    }
+
+    /**
+     * Returns an unmodifiable list containing eight elements.
+     *
+     * @param <E> the {@code List}'s element type
+     * @param e1 the first element
+     * @param e2 the second element
+     * @param e3 the third element
+     * @param e4 the fourth element
+     * @param e5 the fifth element
+     * @param e6 the sixth element
+     * @param e7 the seventh element
+     * @param e8 the eighth element
+     * @return a {@code List} containing the specified elements
+     * @throws NullPointerException if an element is {@code null}
+     */
+    public static <E> List<E> listOf(E e1, E e2, E e3, E e4, E e5, E e6, E e7, E e8) {
+        Objects.requireNonNull(e1, "e1");
+        Objects.requireNonNull(e2, "e2");
+        Objects.requireNonNull(e3, "e3");
+        Objects.requireNonNull(e4, "e4");
+        Objects.requireNonNull(e5, "e5");
+        Objects.requireNonNull(e6, "e6");
+        Objects.requireNonNull(e7, "e7");
+        Objects.requireNonNull(e8, "e8");
+        List<E> l = new ArrayList<>(8);
+        l.add(e1);
+        l.add(e2);
+        l.add(e3);
+        l.add(e4);
+        l.add(e5);
+        l.add(e6);
+        l.add(e7);
+        l.add(e8);
+        return Collections.unmodifiableList(l);
+    }
+
+    /**
+     * Returns an unmodifiable list containing nine elements.
+     *
+     * @param <E> the {@code List}'s element type
+     * @param e1 the first element
+     * @param e2 the second element
+     * @param e3 the third element
+     * @param e4 the fourth element
+     * @param e5 the fifth element
+     * @param e6 the sixth element
+     * @param e7 the seventh element
+     * @param e8 the eighth element
+     * @param e9 the ninth element
+     * @return a {@code List} containing the specified elements
+     * @throws NullPointerException if an element is {@code null}
+     */
+    public static <E> List<E> listOf(E e1, E e2, E e3, E e4, E e5, E e6, E e7, E e8, E e9) {
+        Objects.requireNonNull(e1, "e1");
+        Objects.requireNonNull(e2, "e2");
+        Objects.requireNonNull(e3, "e3");
+        Objects.requireNonNull(e4, "e4");
+        Objects.requireNonNull(e5, "e5");
+        Objects.requireNonNull(e6, "e6");
+        Objects.requireNonNull(e7, "e7");
+        Objects.requireNonNull(e8, "e8");
+        Objects.requireNonNull(e9, "e9");
+        List<E> l = new ArrayList<>(9);
+        l.add(e1);
+        l.add(e2);
+        l.add(e3);
+        l.add(e4);
+        l.add(e5);
+        l.add(e6);
+        l.add(e7);
+        l.add(e8);
+        l.add(e9);
+        return Collections.unmodifiableList(l);
+    }
+
+    /**
+     * Returns an unmodifiable list containing ten elements.
+     *
+     * @param <E> the {@code List}'s element type
+     * @param e1 the first element
+     * @param e2 the second element
+     * @param e3 the third element
+     * @param e4 the fourth element
+     * @param e5 the fifth element
+     * @param e6 the sixth element
+     * @param e7 the seventh element
+     * @param e8 the eighth element
+     * @param e9 the ninth element
+     * @param e10 the tenth element
+     * @return a {@code List} containing the specified elements
+     * @throws NullPointerException if an element is {@code null}
+     */
+    public static <E> List<E> listOf(E e1, E e2, E e3, E e4, E e5, E e6, E e7, E e8, E e9, E e10) {
+        Objects.requireNonNull(e1, "e1");
+        Objects.requireNonNull(e2, "e2");
+        Objects.requireNonNull(e3, "e3");
+        Objects.requireNonNull(e4, "e4");
+        Objects.requireNonNull(e5, "e5");
+        Objects.requireNonNull(e6, "e6");
+        Objects.requireNonNull(e7, "e7");
+        Objects.requireNonNull(e8, "e8");
+        Objects.requireNonNull(e9, "e9");
+        Objects.requireNonNull(e10, "e10");
+        List<E> l = new ArrayList<>(10);
+        l.add(e1);
+        l.add(e2);
+        l.add(e3);
+        l.add(e4);
+        l.add(e5);
+        l.add(e6);
+        l.add(e7);
+        l.add(e8);
+        l.add(e9);
+        l.add(e10);
+        return Collections.unmodifiableList(l);
+    }
+
+    /**
+     * Returns an unmodifiable list containing an arbitrary number of elements.
+     *
+     * @apiNote
+     * This method also accepts a single array as an argument. The element type of
+     * the resulting list will be the component type of the array, and the size of
+     * the list will be equal to the length of the array. To create a list with
+     * a single element that is an array, do the following:
+     *
+     * <pre>{@code
+     *     String[] array = ... ;
+     *     List<String[]> list = Utils.<String[]>listOf(array);
+     * }</pre>
+     *
+     * This will cause the {@link Utils#listOf(Object) listOf(E)} method
+     * to be invoked instead.
+     *
+     * @param <E> the {@code List}'s element type
+     * @param elements the elements to be contained in the list
+     * @return a {@code List} containing the specified elements
+     * @throws NullPointerException if an element is {@code null} or if the array is {@code null}
+     */
+    @SafeVarargs
+    @SuppressWarnings("varargs")
+    public static <E> List<E> listOf(E... elements) {
+        switch (elements.length) { // implicit null check of elements
+            case 0:
+                return listOf();
+            case 1:
+                return listOf(elements[0]);
+            case 2:
+                return listOf(elements[0], elements[1]);
+            default:
+                for (int a = 0; a < elements.length; ++a) {
+                    Objects.requireNonNull(elements[a], "e" + a);
+                }
+                return Collections.unmodifiableList(Arrays.asList(elements));
+        }
+    }
+
+    /*
+       Set.of implementations
+       These methods are intended to provide replacements
+       for the use of Set.of() methods in backports,
+       using existing 8u methods. The returned collections
+       share the key property of the Set.of collections
+       in being unmodifiable, but may not be equivalent
+       with regard to other properties such as serialization
+       and access order.
+    */
+
+    /**
+     * Returns an unmodifiable set containing zero elements.
+     *
+     * @param <E> the {@code Set}'s element type
+     * @return an empty {@code Set}
+     */
+    public static <E> Set<E> setOf() {
+        return Collections.emptySet();
+    }
+
+    /**
+     * Returns an unmodifiable set containing one element.
+     *
+     * @param <E> the {@code Set}'s element type
+     * @param e1 the single element
+     * @return a {@code Set} containing the specified element
+     * @throws NullPointerException if the element is {@code null}
+     */
+    public static <E> Set<E> setOf(E e1) {
+        Objects.requireNonNull(e1, "e1");
+
+        Set<E> s = new HashSet<>(1);
+        if (!s.add(e1)) { throw new IllegalArgumentException("duplicate 1"); }
+
+        return Collections.unmodifiableSet(s);
+    }
+
+    /**
+     * Returns an unmodifiable set containing two elements.
+     *
+     * @param <E> the {@code Set}'s element type
+     * @param e1 the first element
+     * @param e2 the second element
+     * @return a {@code Set} containing the specified elements
+     * @throws IllegalArgumentException if the elements are duplicates
+     * @throws NullPointerException if an element is {@code null}
+     */
+    public static <E> Set<E> setOf(E e1, E e2) {
+        Objects.requireNonNull(e1, "e1");
+        Objects.requireNonNull(e2, "e2");
+
+        Set<E> s = new HashSet<>(2);
+        if (!s.add(e1)) { throw new IllegalArgumentException("duplicate 1"); }
+        if (!s.add(e2)) { throw new IllegalArgumentException("duplicate 2"); }
+
+        return Collections.unmodifiableSet(s);
+    }
+
+    /**
+     * Returns an unmodifiable set containing three elements.
+     *
+     * @param <E> the {@code Set}'s element type
+     * @param e1 the first element
+     * @param e2 the second element
+     * @param e3 the third element
+     * @return a {@code Set} containing the specified elements
+     * @throws IllegalArgumentException if there are any duplicate elements
+     * @throws NullPointerException if an element is {@code null}
+     */
+    public static <E> Set<E> setOf(E e1, E e2, E e3) {
+        Objects.requireNonNull(e1, "e1");
+        Objects.requireNonNull(e2, "e2");
+        Objects.requireNonNull(e3, "e3");
+
+        Set<E> s = new HashSet<>(10);
+        if (!s.add(e1)) { throw new IllegalArgumentException("duplicate 1"); }
+        if (!s.add(e2)) { throw new IllegalArgumentException("duplicate 2"); }
+        if (!s.add(e3)) { throw new IllegalArgumentException("duplicate 3"); }
+
+        return Collections.unmodifiableSet(s);
+    }
+
+    /**
+     * Returns an unmodifiable set containing four elements.
+     *
+     * @param <E> the {@code Set}'s element type
+     * @param e1 the first element
+     * @param e2 the second element
+     * @param e3 the third element
+     * @param e4 the fourth element
+     * @return a {@code Set} containing the specified elements
+     * @throws IllegalArgumentException if there are any duplicate elements
+     * @throws NullPointerException if an element is {@code null}
+     */
+    public static <E> Set<E> setOf(E e1, E e2, E e3, E e4) {
+        Objects.requireNonNull(e1, "e1");
+        Objects.requireNonNull(e2, "e2");
+        Objects.requireNonNull(e3, "e3");
+        Objects.requireNonNull(e4, "e4");
+
+        Set<E> s = new HashSet<>(10);
+        if (!s.add(e1)) { throw new IllegalArgumentException("duplicate 1"); }
+        if (!s.add(e2)) { throw new IllegalArgumentException("duplicate 2"); }
+        if (!s.add(e3)) { throw new IllegalArgumentException("duplicate 3"); }
+        if (!s.add(e4)) { throw new IllegalArgumentException("duplicate 4"); }
+
+        return Collections.unmodifiableSet(s);
+    }
+
+    /**
+     * Returns an unmodifiable set containing five elements.
+     *
+     * @param <E> the {@code Set}'s element type
+     * @param e1 the first element
+     * @param e2 the second element
+     * @param e3 the third element
+     * @param e4 the fourth element
+     * @param e5 the fifth element
+     * @return a {@code Set} containing the specified elements
+     * @throws IllegalArgumentException if there are any duplicate elements
+     * @throws NullPointerException if an element is {@code null}
+     */
+    public static <E> Set<E> setOf(E e1, E e2, E e3, E e4, E e5) {
+        Objects.requireNonNull(e1, "e1");
+        Objects.requireNonNull(e2, "e2");
+        Objects.requireNonNull(e3, "e3");
+        Objects.requireNonNull(e4, "e4");
+        Objects.requireNonNull(e5, "e5");
+
+        Set<E> s = new HashSet<>(10);
+        if (!s.add(e1)) { throw new IllegalArgumentException("duplicate 1"); }
+        if (!s.add(e2)) { throw new IllegalArgumentException("duplicate 2"); }
+        if (!s.add(e3)) { throw new IllegalArgumentException("duplicate 3"); }
+        if (!s.add(e4)) { throw new IllegalArgumentException("duplicate 4"); }
+        if (!s.add(e5)) { throw new IllegalArgumentException("duplicate 5"); }
+
+        return Collections.unmodifiableSet(s);
+    }
+
+    /**
+     * Returns an unmodifiable set containing six elements.
+     *
+     * @param <E> the {@code Set}'s element type
+     * @param e1 the first element
+     * @param e2 the second element
+     * @param e3 the third element
+     * @param e4 the fourth element
+     * @param e5 the fifth element
+     * @param e6 the sixth element
+     * @return a {@code Set} containing the specified elements
+     * @throws IllegalArgumentException if there are any duplicate elements
+     * @throws NullPointerException if an element is {@code null}
+     */
+    public static <E> Set<E> setOf(E e1, E e2, E e3, E e4, E e5, E e6) {
+        Objects.requireNonNull(e1, "e1");
+        Objects.requireNonNull(e2, "e2");
+        Objects.requireNonNull(e3, "e3");
+        Objects.requireNonNull(e4, "e4");
+        Objects.requireNonNull(e5, "e5");
+        Objects.requireNonNull(e6, "e6");
+
+        Set<E> s = new HashSet<>(10);
+        if (!s.add(e1)) { throw new IllegalArgumentException("duplicate 1"); }
+        if (!s.add(e2)) { throw new IllegalArgumentException("duplicate 2"); }
+        if (!s.add(e3)) { throw new IllegalArgumentException("duplicate 3"); }
+        if (!s.add(e4)) { throw new IllegalArgumentException("duplicate 4"); }
+        if (!s.add(e5)) { throw new IllegalArgumentException("duplicate 5"); }
+        if (!s.add(e6)) { throw new IllegalArgumentException("duplicate 6"); }
+
+        return Collections.unmodifiableSet(s);
+    }
+
+    /**
+     * Returns an unmodifiable set containing seven elements.
+     *
+     * @param <E> the {@code Set}'s element type
+     * @param e1 the first element
+     * @param e2 the second element
+     * @param e3 the third element
+     * @param e4 the fourth element
+     * @param e5 the fifth element
+     * @param e6 the sixth element
+     * @param e7 the seventh element
+     * @return a {@code Set} containing the specified elements
+     * @throws IllegalArgumentException if there are any duplicate elements
+     * @throws NullPointerException if an element is {@code null}
+     */
+    public static <E> Set<E> setOf(E e1, E e2, E e3, E e4, E e5, E e6, E e7) {
+        Objects.requireNonNull(e1, "e1");
+        Objects.requireNonNull(e2, "e2");
+        Objects.requireNonNull(e3, "e3");
+        Objects.requireNonNull(e4, "e4");
+        Objects.requireNonNull(e5, "e5");
+        Objects.requireNonNull(e6, "e6");
+        Objects.requireNonNull(e7, "e7");
+
+        Set<E> s = new HashSet<>(10);
+        if (!s.add(e1)) { throw new IllegalArgumentException("duplicate 1"); }
+        if (!s.add(e2)) { throw new IllegalArgumentException("duplicate 2"); }
+        if (!s.add(e3)) { throw new IllegalArgumentException("duplicate 3"); }
+        if (!s.add(e4)) { throw new IllegalArgumentException("duplicate 4"); }
+        if (!s.add(e5)) { throw new IllegalArgumentException("duplicate 5"); }
+        if (!s.add(e6)) { throw new IllegalArgumentException("duplicate 6"); }
+        if (!s.add(e7)) { throw new IllegalArgumentException("duplicate 7"); }
+
+        return Collections.unmodifiableSet(s);
+    }
+
+    /**
+     * Returns an unmodifiable set containing eight elements.
+     *
+     * @param <E> the {@code Set}'s element type
+     * @param e1 the first element
+     * @param e2 the second element
+     * @param e3 the third element
+     * @param e4 the fourth element
+     * @param e5 the fifth element
+     * @param e6 the sixth element
+     * @param e7 the seventh element
+     * @param e8 the eighth element
+     * @return a {@code Set} containing the specified elements
+     * @throws IllegalArgumentException if there are any duplicate elements
+     * @throws NullPointerException if an element is {@code null}
+     */
+    public static <E> Set<E> setOf(E e1, E e2, E e3, E e4, E e5, E e6, E e7, E e8) {
+        Objects.requireNonNull(e1, "e1");
+        Objects.requireNonNull(e2, "e2");
+        Objects.requireNonNull(e3, "e3");
+        Objects.requireNonNull(e4, "e4");
+        Objects.requireNonNull(e5, "e5");
+        Objects.requireNonNull(e6, "e6");
+        Objects.requireNonNull(e7, "e7");
+        Objects.requireNonNull(e8, "e8");
+
+        Set<E> s = new HashSet<>(10);
+        if (!s.add(e1)) { throw new IllegalArgumentException("duplicate 1"); }
+        if (!s.add(e2)) { throw new IllegalArgumentException("duplicate 2"); }
+        if (!s.add(e3)) { throw new IllegalArgumentException("duplicate 3"); }
+        if (!s.add(e4)) { throw new IllegalArgumentException("duplicate 4"); }
+        if (!s.add(e5)) { throw new IllegalArgumentException("duplicate 5"); }
+        if (!s.add(e6)) { throw new IllegalArgumentException("duplicate 6"); }
+        if (!s.add(e7)) { throw new IllegalArgumentException("duplicate 7"); }
+        if (!s.add(e8)) { throw new IllegalArgumentException("duplicate 8"); }
+
+        return Collections.unmodifiableSet(s);
+    }
+
+    /**
+     * Returns an unmodifiable set containing nine elements.
+     *
+     * @param <E> the {@code Set}'s element type
+     * @param e1 the first element
+     * @param e2 the second element
+     * @param e3 the third element
+     * @param e4 the fourth element
+     * @param e5 the fifth element
+     * @param e6 the sixth element
+     * @param e7 the seventh element
+     * @param e8 the eighth element
+     * @param e9 the ninth element
+     * @return a {@code Set} containing the specified elements
+     * @throws IllegalArgumentException if there are any duplicate elements
+     * @throws NullPointerException if an element is {@code null}
+     */
+    public static <E> Set<E> setOf(E e1, E e2, E e3, E e4, E e5, E e6, E e7, E e8, E e9) {
+        Objects.requireNonNull(e1, "e1");
+        Objects.requireNonNull(e2, "e2");
+        Objects.requireNonNull(e3, "e3");
+        Objects.requireNonNull(e4, "e4");
+        Objects.requireNonNull(e5, "e5");
+        Objects.requireNonNull(e6, "e6");
+        Objects.requireNonNull(e7, "e7");
+        Objects.requireNonNull(e8, "e8");
+        Objects.requireNonNull(e9, "e9");
+
+        Set<E> s = new HashSet<>(10);
+        if (!s.add(e1)) { throw new IllegalArgumentException("duplicate 1"); }
+        if (!s.add(e2)) { throw new IllegalArgumentException("duplicate 2"); }
+        if (!s.add(e3)) { throw new IllegalArgumentException("duplicate 3"); }
+        if (!s.add(e4)) { throw new IllegalArgumentException("duplicate 4"); }
+        if (!s.add(e5)) { throw new IllegalArgumentException("duplicate 5"); }
+        if (!s.add(e6)) { throw new IllegalArgumentException("duplicate 6"); }
+        if (!s.add(e7)) { throw new IllegalArgumentException("duplicate 7"); }
+        if (!s.add(e8)) { throw new IllegalArgumentException("duplicate 8"); }
+        if (!s.add(e9)) { throw new IllegalArgumentException("duplicate 9"); }
+
+        return Collections.unmodifiableSet(s);
+    }
+
+    /**
+     * Returns an unmodifiable set containing ten elements.
+     *
+     * @param <E> the {@code Set}'s element type
+     * @param e1 the first element
+     * @param e2 the second element
+     * @param e3 the third element
+     * @param e4 the fourth element
+     * @param e5 the fifth element
+     * @param e6 the sixth element
+     * @param e7 the seventh element
+     * @param e8 the eighth element
+     * @param e9 the ninth element
+     * @param e10 the tenth element
+     * @return a {@code Set} containing the specified elements
+     * @throws IllegalArgumentException if there are any duplicate elements
+     * @throws NullPointerException if an element is {@code null}
+     */
+    public static <E> Set<E> setOf(E e1, E e2, E e3, E e4, E e5, E e6, E e7, E e8, E e9, E e10) {
+        Objects.requireNonNull(e1, "e1");
+        Objects.requireNonNull(e2, "e2");
+        Objects.requireNonNull(e3, "e3");
+        Objects.requireNonNull(e4, "e4");
+        Objects.requireNonNull(e5, "e5");
+        Objects.requireNonNull(e6, "e6");
+        Objects.requireNonNull(e7, "e7");
+        Objects.requireNonNull(e8, "e8");
+        Objects.requireNonNull(e9, "e9");
+        Objects.requireNonNull(e10, "e10");
+
+        Set<E> s = new HashSet<>(10);
+        if (!s.add(e1)) { throw new IllegalArgumentException("duplicate 1"); }
+        if (!s.add(e2)) { throw new IllegalArgumentException("duplicate 2"); }
+        if (!s.add(e3)) { throw new IllegalArgumentException("duplicate 3"); }
+        if (!s.add(e4)) { throw new IllegalArgumentException("duplicate 4"); }
+        if (!s.add(e5)) { throw new IllegalArgumentException("duplicate 5"); }
+        if (!s.add(e6)) { throw new IllegalArgumentException("duplicate 6"); }
+        if (!s.add(e7)) { throw new IllegalArgumentException("duplicate 7"); }
+        if (!s.add(e8)) { throw new IllegalArgumentException("duplicate 8"); }
+        if (!s.add(e9)) { throw new IllegalArgumentException("duplicate 9"); }
+        if (!s.add(e10)) { throw new IllegalArgumentException("duplicate 10"); }
+
+        return Collections.unmodifiableSet(s);
+    }
+
+    /**
+     * Returns an unmodifiable set containing an arbitrary number of elements.
+     *
+     * @apiNote
+     * This method also accepts a single array as an argument. The element type of
+     * the resulting set will be the component type of the array, and the size of
+     * the set will be equal to the length of the array. To create a set with
+     * a single element that is an array, do the following:
+     *
+     * <pre>{@code
+     *     String[] array = ... ;
+     *     Set<String[]> list = Utils.<String[]>setOf(array);
+     * }</pre>
+     *
+     * This will cause the {@link Utils#setOf(Object) Utils.setOf(E)} method
+     * to be invoked instead.
+     *
+     * @param <E> the {@code Set}'s element type
+     * @param elements the elements to be contained in the set
+     * @return a {@code Set} containing the specified elements
+     * @throws IllegalArgumentException if there are any duplicate elements
+     * @throws NullPointerException if an element is {@code null} or if the array is {@code null}
+     */
+    @SafeVarargs
+    @SuppressWarnings("varargs")
+    public static <E> Set<E> setOf(E... elements) {
+        switch (elements.length) { // implicit null check of elements
+            case 0:
+                return setOf();
+            case 1:
+                return setOf(elements[0]);
+            case 2:
+                return setOf(elements[1]);
+            default:
+                Set<E> s = new HashSet<>(elements.length);
+                for (int a = 0; a < elements.length; ++a) {
+                    Objects.requireNonNull(elements[a], "e" + a);
+                    if (!s.add(elements[a])) {
+                        throw new IllegalArgumentException("duplicate " + a);
+                    }
+                }
+                return Collections.unmodifiableSet(s);
+        }
     }
 }
