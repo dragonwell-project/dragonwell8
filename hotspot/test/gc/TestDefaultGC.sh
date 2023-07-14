@@ -25,14 +25,14 @@
 # @run shell TestDefaultGC.sh
 #
 
-${TESTJAVA}/bin/java -XX:+PrintFlagsFinal -version | grep UseConcMarkSweepGC |grep true
+${TESTJAVA}/bin/java -XX:+PrintFlagsFinal -version | grep UseParallelGC |grep true
 
 if [ "0" == $? ];
 then
-    echo "CMS is Default GC"
+    echo "PS is Default GC"
     echo "--- Test passed"
 else
-    echo "CMS is not Default GC"
+    echo "PS is not Default GC"
     echo "--- Test failed"
     exit 1
 fi
