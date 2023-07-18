@@ -161,7 +161,7 @@ bool SharedPathsMiscInfoExt::check(jint type, const char* path) {
 
   switch (type) {
   case APP:
-    {
+    if (!IgnoreAppCDSPathCheck) {
       size_t len = strlen(path);
       const char *appcp = Arguments::get_appclasspath();
       assert(appcp != NULL, "NULL app classpath");
