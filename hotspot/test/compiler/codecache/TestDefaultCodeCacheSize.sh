@@ -22,7 +22,7 @@
 #
 # @test
 # @summary test the default value of ReservedCodeCacheSize. It should be 240m
-# @run shell TestDefaultCodeCacheSize.sh 
+# @run shell TestDefaultCodeCacheSize.sh
 #
 
 ${TESTJAVA}/bin/java -XX:+PrintFlagsFinal -version | grep ReservedCodeCacheSize |grep 251658240
