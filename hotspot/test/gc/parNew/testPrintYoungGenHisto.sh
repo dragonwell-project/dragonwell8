@@ -22,7 +22,7 @@
 #
 
 # @test
-# @summary Test for the young generation histogram once after a parnew gc 
+# @summary Test for the young generation histogram once after a parnew gc
 # @build TestPrintYoungGenHistoAfterParNewGC
 # @run shell testPrintYoungGenHisto.sh
 
@@ -33,24 +33,26 @@ printYongGenHistoTest() {
     echo "Tetsting setting the PrintYoungGenHistoAfterParNewGC flag by using the vm tools(jinfo -flag)"
     ${TESTJAVA}/bin/java ${TESTVMOPTS}  -Xmx1g -Xmn500m -verbose:gc -XX:+UseConcMarkSweepGC -XX:+PrintGCDetails \
                          -cp ${TESTCLASSES} TestPrintYoungGenHistoAfterParNewGC  >${TMP1} 2>&1 &
-    PID=$(ps aux | grep TestPrintYoungGenHistoAfterParNewGC | grep -v "grep" | awk '{print $2}')
+    PID=$!
     echo "hello"
     echo $PID
-    ${TESTJAVA}/bin/jinfo -flag +PrintYoungGenHistoAfterParNewGC $PID
-    sleep 1s
-    cat ${TMP1}
-    RESULT=$(cat ${TMP1} | grep -o 'Total' | wc -l)
-    if [ $RESULT -gt 0 ]
-    then echo "--- passed as expected "
-    else
-        echo "--- failed"
-        exit 1
-    fi
-
-    kill -9 $PID
+    trap "kill -9 $PID" exit
+    i=0
+    while [[ true ]]
+    do
+        ${TESTJAVA}/bin/jinfo -flag +PrintYoungGenHistoAfterParNewGC $PID
+        RESULT=$(cat ${TMP1} | grep -o 'Total' | wc -l)
+        if [[ $RESULT -gt 0 ]] ; then
+            echo "--- passed as expected "
+            break
+        elif [[ $i -gt 60 ]] ; then
+            echo "--- failed"
+            exit 1
+        fi
+        i=`expr $i + 1`
+    done
 }
 
+set -x
 printYongGenHistoTest
-
-
-rm ${TMP1}
+rm -rf ${TMP1}
