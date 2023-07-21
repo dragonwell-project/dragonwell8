@@ -383,3 +383,11 @@ sun/tools/jps/TestJpsJarRelative.java				generic-all
 
 sample/mergesort/MergeSortTest.java				8178912 generic-all
 sample/chatserver/ChatTest.java					8178912 generic-all
+
+############################################################################
+
+# china mainland network
+
+############################################################################
+
+security/infra/java/security/cert/CertPathValidator/certification/CertignaCA.java generic-all
