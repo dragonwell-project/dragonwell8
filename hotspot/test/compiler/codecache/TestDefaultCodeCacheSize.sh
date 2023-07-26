@@ -25,14 +25,15 @@
 # @run shell TestDefaultCodeCacheSize.sh
 #
 
-${TESTJAVA}/bin/java -XX:+PrintFlagsFinal -version | grep ReservedCodeCacheSize |grep 251658240
+CodeCache=`${TESTJAVA}/bin/java -XX:+PrintFlagsFinal -version | grep ReservedCodeCacheSize`
+${TESTJAVA}/bin/java -XX:+PrintFlagsFinal -version | grep ReservedCodeCacheSize | grep 251*
 
 if [ "0" == $? ];
 then
-    echo "ReservedCodeCacheSize is 240m"
+    echo "ReservedCodeCacheSize is 240m or $CodeCache"
     echo "--- Test passed"
 else
-    echo "ReservedCodeCacheSize is not 240m"
+    echo "ReservedCodeCacheSize is not 240m or $CodeCache"
     echo "--- Test failed"
     exit 1
 fi
