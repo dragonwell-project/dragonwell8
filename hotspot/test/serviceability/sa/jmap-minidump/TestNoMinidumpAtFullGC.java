@@ -60,6 +60,7 @@ public class TestNoMinidumpAtFullGC {
                 ProcessBuilder pb = ProcessTools.createJavaProcessBuilder(
                         "-Xmx128m",
                         "-Xms128m",
+                        "-XX:+UseConcMarkSweepGC",
                         oomOpt,
                         OOMWorker.class.getName()
                 );
