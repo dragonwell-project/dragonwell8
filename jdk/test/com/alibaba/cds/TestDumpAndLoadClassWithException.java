@@ -55,6 +55,8 @@ public class TestDumpAndLoadClassWithException {
             "-XX:DumpLoadedClassList=" + CLASSLIST_FILE,
             // trigger JVMCI runtime init so that JVMCI classes will be
             // included in the classlist
+            "-XX:+UseCompressedOops",
+            "-XX:+UseCompressedClassPointers",
             "-XX:+EagerAppCDS",
             "-cp",
             TESTJAR,
@@ -75,6 +77,8 @@ public class TestDumpAndLoadClassWithException {
         ProcessBuilder pb = ProcessTools.createJavaProcessBuilder(true,
             "-cp",
             TESTJAR,
+            "-XX:+UseCompressedOops",
+            "-XX:+UseCompressedClassPointers",
             "-XX:+EagerAppCDS",
             "-XX:SharedClassListFile=" + CLASSLIST_FILE_2,
             "-XX:SharedArchiveFile=" + ARCHIVE_FILE,
@@ -107,6 +111,8 @@ public class TestDumpAndLoadClassWithException {
     static void startWithJsa() throws Exception {
         ProcessBuilder pb = ProcessTools.createJavaProcessBuilder(true,
             "-Dtest.classes=" + TEST_CLASS,
+            "-XX:+UseCompressedOops",
+            "-XX:+UseCompressedClassPointers",
             "-XX:+EagerAppCDS",
             "-Xshare:on",
             "-XX:SharedArchiveFile=" + ARCHIVE_FILE,

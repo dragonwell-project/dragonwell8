@@ -125,7 +125,7 @@
   experimental(bool, UseWispMonitor, false,                                 \
           "yields to next coroutine when ObjectMonitor is contended")       \
                                                                             \
-  product(bool, UseWisp2, false,                                            \
+  experimental(bool, UseWisp2, false,                                       \
           "Enable Wisp2")                                                   \
                                                                             \
   diagnostic(bool, VerboseWisp, false,                                      \

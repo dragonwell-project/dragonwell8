@@ -73,6 +73,8 @@ public class TestDumpAndLoadForAppCDS {
             // trigger JVMCI runtime init so that JVMCI classes will be
             // included in the classlist
             // "-Xlog:class+load=debug",
+            "-XX:+UseCompressedOops",
+            "-XX:+UseCompressedClassPointers",
             "-XX:+UseAppCDS",
             "-XX:DumpLoadedClassList=" + Paths.get(CLASSLIST_FILE),
             "-Xshare:off",
@@ -124,6 +126,8 @@ public class TestDumpAndLoadForAppCDS {
         ProcessBuilder pb = ProcessTools.createJavaProcessBuilder(true,
             "-cp",
             TESTJAR,
+            "-XX:+UseCompressedOops",
+            "-XX:+UseCompressedClassPointers",
             "-XX:SharedClassListFile=" + CLASSLIST_FILE_2,
             "-XX:SharedArchiveFile=" + ARCHIVE_FILE,
             "-Xshare:dump",
@@ -145,6 +149,8 @@ public class TestDumpAndLoadForAppCDS {
         ProcessBuilder pb = ProcessTools.createJavaProcessBuilder(true,
             "-Dtest.classes=" + TEST_CLASS,
             "-Xshare:on",
+            "-XX:+UseCompressedOops",
+            "-XX:+UseCompressedClassPointers",
             "-XX:SharedArchiveFile=" + ARCHIVE_FILE,
             "-cp",
             TESTJAR,

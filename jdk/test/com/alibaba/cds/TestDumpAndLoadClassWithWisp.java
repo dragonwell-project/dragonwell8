@@ -69,6 +69,9 @@ public class TestDumpAndLoadClassWithWisp {
             "-XX:DumpLoadedClassList=" + CLASSLIST_FILE,
             // trigger JVMCI runtime init so that JVMCI classes will be
             // included in the classlist
+            "-XX:+UnlockExperimentalVMOptions",
+            "-XX:+UseCompressedOops",
+            "-XX:+UseCompressedClassPointers",
             "-XX:+EagerAppCDS",
             "-XX:+UseWisp2",
             "-cp",
@@ -114,8 +117,11 @@ public class TestDumpAndLoadClassWithWisp {
     }
     static void dumpArchive() throws Exception {
         ProcessBuilder pb = ProcessTools.createJavaProcessBuilder(true,
+            "-XX:+UnlockExperimentalVMOptions",
             "-cp",
             TESTJAR,
+            "-XX:+UseCompressedOops",
+            "-XX:+UseCompressedClassPointers",
             "-XX:+EagerAppCDS",
             "-XX:SharedClassListFile=" + CLASSLIST_FILE_2,
             "-XX:SharedArchiveFile=" + ARCHIVE_FILE,
@@ -139,6 +145,9 @@ public class TestDumpAndLoadClassWithWisp {
     static void startWithJsa() throws Exception {
         ProcessBuilder pb = ProcessTools.createJavaProcessBuilder(true,
             "-Dtest.classes=" + TEST_CLASS,
+            "-XX:+UnlockExperimentalVMOptions",
+            "-XX:+UseCompressedOops",
+            "-XX:+UseCompressedClassPointers",
             "-XX:+EagerAppCDS",
             "-Xshare:on",
             "-XX:SharedArchiveFile=" + ARCHIVE_FILE,

@@ -32,6 +32,8 @@ public class TestRegisterClassLoader {
         if (args.length == 0) {
             ProcessBuilder pb = ProcessTools.createJavaProcessBuilder(
                         "-Dtest.src=" + TEST_SRC,
+                        "-XX:+UseCompressedOops",
+                        "-XX:+UseCompressedClassPointers",
                         TestRegisterClassLoader.class.getName(), "1");
             OutputAnalyzer output = new OutputAnalyzer(pb.start());
             output.shouldContain("[Register CL Exception] identifier or loader is null")
