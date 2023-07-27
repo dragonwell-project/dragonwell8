@@ -1,16 +1,15 @@
-#include <limits.h>
-#include <stdlib.h>
-#include <strings.h>
+#include "precompiled.hpp"
 #include "classfile/vmSymbols.hpp"
 #include "classfile/javaClasses.hpp"
 #include "memory/resourceArea.hpp"
+#include "memory/oopFactory.hpp"
 #include "runtime/arguments.hpp"
 #include "runtime/java.hpp"
 #include "runtime/javaCalls.hpp"
 #include "runtime/quickStart.hpp"
 #include "runtime/vm_version.hpp"
 #include "utilities/defaultStream.hpp"
-#include "jfr/recorder/service/jfrOptionSet.hpp"
+#include "runtime/globals_extension.hpp"
 #include "runtime/handles.hpp"
 #include "runtime/handles.inline.hpp"
 #include "oops/oop.inline.hpp"
@@ -411,7 +410,7 @@ void QuickStart::check_features(const char* &str) {
     if (str[end] == ',' || (exit = (str[end] == '\n'))) {
       // handle feature
       for (int i = 0; i < QuickStart::Count; i++) {
-        int len = MIN2(::strlen(&str[begin]), ::strlen(_opt_name[i]));
+        size_t len = MIN2(::strlen(&str[begin]), ::strlen(_opt_name[i]));
         if (::strncmp(&str[begin], _opt_name[i], len) == 0) {
           // find a feature which is enabled at tracer phase.
           tracer_features[i] = true;
@@ -440,7 +439,7 @@ void QuickStart::check_features(const char* &str) {
 }
 
 bool QuickStart::load_and_validate(const JavaVMInitArgs* options_args) {
-  char line[PATH_MAX];
+  char line[JVM_MAXPATHLEN];
   const char* tail          = NULL;
   bool feature_checked      = false;
   bool version_checked      = false;
@@ -469,9 +468,9 @@ bool QuickStart::load_and_validate(const JavaVMInitArgs* options_args) {
         continue;
       }
       // ignore \n
-      int size = strlen(tail) - 1;
+      size_t size = strlen(tail) - 1;
       const char *image_ident = QuickStart::image_id();
-      int ident_size = image_ident != NULL ? strlen(image_ident) : 0;
+      size_t ident_size = image_ident != NULL ? strlen(image_ident) : 0;
       if (size != ident_size) {
         tty->print_cr("Container image isn't the same.");
         return false;
@@ -575,8 +574,8 @@ void QuickStart::calculate_cache_path() {
       tty->print_cr("Cannot get temp directory");
       vm_exit(1);
     }
-    char buf[PATH_MAX];
-    jio_snprintf(buf, PATH_MAX, "%s%s%s_%d_%ld", temp, os::file_separator(), DEFAULT_SHARED_DIRECTORY, os::current_process_id(), os::javaTimeMillis());
+    char buf[JVM_MAXPATHLEN];
+    jio_snprintf(buf, JVM_MAXPATHLEN, "%s%s%s_%d_%ld", temp, os::file_separator(), DEFAULT_SHARED_DIRECTORY, os::current_process_id(), os::javaTimeMillis());
     _cache_path = os::strdup(buf);
   } else {
     const char* home = ::getenv("HOME");
@@ -588,8 +587,8 @@ void QuickStart::calculate_cache_path() {
         vm_exit(1);
       }
     }
-    char buf[PATH_MAX];
-    jio_snprintf(buf, PATH_MAX, "%s%s%s", home, os::file_separator(), DEFAULT_SHARED_DIRECTORY);
+    char buf[JVM_MAXPATHLEN];
+    jio_snprintf(buf, JVM_MAXPATHLEN, "%s%s%s", home, os::file_separator(), DEFAULT_SHARED_DIRECTORY);
     _cache_path = os::strdup(buf);
   }
   tty->print_cr("cache path is set as default with %s", _cache_path);
@@ -655,7 +654,11 @@ void QuickStart::setenv_for_roles() {
   } else {
     ShouldNotReachHere();
   }
+#if defined(_WINDOWS)
+  Unimplemented();
+#else
   setenv("ALIBABA_QUICKSTART_ROLE", role, 1);
+#endif
 }
 
 void QuickStart::process_argument_for_optimization() {
@@ -740,8 +743,12 @@ void QuickStart::add_CDSDumpHook(TRAPS) {
 }
 
 bool QuickStart::determine_role(const JavaVMInitArgs* options_args) {
+#if defined(_WINDOWS)
+  Unimplemented();
+  return false;
+#else
   struct stat st;
-  char buf[PATH_MAX];
+  char buf[JVM_MAXPATHLEN];
   int ret = os::stat(_cache_path, &st);
   if (ret != 0) {
     if (_print_stat_enabled) {
@@ -761,7 +768,7 @@ bool QuickStart::determine_role(const JavaVMInitArgs* options_args) {
   }
 
   // check whether the metadata file exists.
-  jio_snprintf(buf, PATH_MAX, "%s%s%s", _cache_path, os::file_separator(), METADATA_FILE);
+  jio_snprintf(buf, JVM_MAXPATHLEN, "%s%s%s", _cache_path, os::file_separator(), METADATA_FILE);
   _metadata_file_path = os::strdup(buf, mtInternal);
   ret = os::stat(_metadata_file_path, &st);
   if (ret < 0 && errno == ENOENT) {
@@ -769,7 +776,7 @@ bool QuickStart::determine_role(const JavaVMInitArgs* options_args) {
       print_stat(false);
     }
     // Create a LOCK file
-    jio_snprintf(buf, PATH_MAX, "%s%s%s", _cache_path, os::file_separator(), LOCK_FILE);
+    jio_snprintf(buf, JVM_MAXPATHLEN, "%s%s%s", _cache_path, os::file_separator(), LOCK_FILE);
     _lock_path = os::strdup(buf, mtInternal);
     // if the lock exists, it returns -1.
     _lock_file_fd = os::create_binary_file(_lock_path, false);
@@ -777,7 +784,7 @@ bool QuickStart::determine_role(const JavaVMInitArgs* options_args) {
       tty->print_cr("Fail to create LOCK file");
       return false;
     }
-    jio_snprintf(buf, PATH_MAX, "%s%s%s", _cache_path, os::file_separator(), TEMP_METADATA_FILE);
+    jio_snprintf(buf, JVM_MAXPATHLEN, "%s%s%s", _cache_path, os::file_separator(), TEMP_METADATA_FILE);
     _temp_metadata_file_path = os::strdup(buf, mtInternal);
     ret = os::stat(buf, &st);
     if (ret == 0) {
@@ -808,14 +815,19 @@ bool QuickStart::determine_role(const JavaVMInitArgs* options_args) {
     return true;
   }
   return false;
+#endif
 }
 
 bool QuickStart::prepare_dump(const JavaVMInitArgs *options_args) {
+#if defined(_WINDOWS)
+  Unimplemented();
+  return false;
+#else
   struct stat st;
-  char buf[PATH_MAX];
+  char buf[JVM_MAXPATHLEN];
   // check whether the metadata file exists.
   // when run quickstart with profile,then dump.In the profile stage,the metadata.tmp not rename to metadata.
-  jio_snprintf(buf, PATH_MAX, "%s%s%s", _cache_path, os::file_separator(), TEMP_METADATA_FILE);
+  jio_snprintf(buf, JVM_MAXPATHLEN, "%s%s%s", _cache_path, os::file_separator(), TEMP_METADATA_FILE);
   _temp_metadata_file_path = os::strdup(buf);
   int ret = os::stat(_temp_metadata_file_path, &st);
   if (ret < 0 && errno == ENOENT) {
@@ -823,7 +835,7 @@ bool QuickStart::prepare_dump(const JavaVMInitArgs *options_args) {
     return false;
   } else if (ret == 0 && check_integrity(options_args, _temp_metadata_file_path)) {
     // Create a LOCK file
-    jio_snprintf(buf, PATH_MAX, "%s%s%s", _cache_path, os::file_separator(), LOCK_FILE);
+    jio_snprintf(buf, JVM_MAXPATHLEN, "%s%s%s", _cache_path, os::file_separator(), LOCK_FILE);
     _lock_path = os::strdup(buf);
     // if the lock exists, it returns -1.
     _lock_file_fd = os::create_binary_file(_lock_path, false);
@@ -831,7 +843,7 @@ bool QuickStart::prepare_dump(const JavaVMInitArgs *options_args) {
       tty->print_cr("Fail to create LOCK file");
       return false;
     }
-    jio_snprintf(buf, PATH_MAX, "%s%s%s", _cache_path, os::file_separator(), METADATA_FILE);
+    jio_snprintf(buf, JVM_MAXPATHLEN, "%s%s%s", _cache_path, os::file_separator(), METADATA_FILE);
     _metadata_file_path = os::strdup(buf);
     _role = Dumper;
     tty->print_cr("Running as dumper");
@@ -839,6 +851,7 @@ bool QuickStart::prepare_dump(const JavaVMInitArgs *options_args) {
   }
   tty->print_cr("Cannot dump,maybe the %s is invalid!ret: %d", TEMP_METADATA_FILE, ret);
   return false;
+#endif
 }
 void QuickStart::settle_opt_pass_table() {
   // If a feature is disabled by quickstart, we have no need to check it
@@ -896,9 +909,13 @@ void QuickStart::generate_metadata_file(bool rename_metafile) {
 }
 
 int QuickStart::remove_dir(const char* dir) {
+#if defined(_WINDOWS)
+  Unimplemented();
+  return -1;
+#else
   char cur_dir[] = ".";
   char up_dir[]  = "..";
-  char dir_name[PATH_MAX];
+  char dir_name[JVM_MAXPATHLEN];
   DIR *dirp = NULL;
   struct dirent *dp;
   struct stat dir_stat;
@@ -917,7 +934,7 @@ int QuickStart::remove_dir(const char* dir) {
       if ((strcmp(cur_dir, dp->d_name) == 0) || (strcmp(up_dir, dp->d_name) == 0)) {
         continue;
       }
-      jio_snprintf(dir_name, PATH_MAX, "%s%s%s", dir, os::file_separator(), dp->d_name);
+      jio_snprintf(dir_name, JVM_MAXPATHLEN, "%s%s%s", dir, os::file_separator(), dp->d_name);
       ret = remove_dir(dir_name);
       if (ret != 0) {
         break;
@@ -933,6 +950,7 @@ int QuickStart::remove_dir(const char* dir) {
     tty->print_cr("unknow file type\n");
   }
   return ret;
+#endif
 }
 
 void QuickStart::notify_dump() {
@@ -976,7 +994,7 @@ bool QuickStart::dump_cached_info(const JavaVMInitArgs* options_args) {
     _temp_metadata_file->print_cr("%s", _identifier_name[ContainerImageID]);
   }
 
-  int cp_len = strlen(Arguments::get_appclasspath());
+  int cp_len = (int)strlen(Arguments::get_appclasspath());
   _temp_metadata_file->print_cr("%s%d", _identifier_name[ClassPathLength], cp_len);
   _temp_metadata_file->write(Arguments::get_appclasspath(), cp_len);
   _temp_metadata_file->cr();

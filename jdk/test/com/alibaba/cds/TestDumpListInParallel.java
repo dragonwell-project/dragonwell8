@@ -51,6 +51,8 @@ public class TestDumpListInParallel {
         ProcessBuilder pb = ProcessTools.createJavaProcessBuilder(true,
             "-Dtest.classes=" + TEST_CLASS,
             "-XX:DumpLoadedClassList=" + CLASSLIST_FILE,
+            "-XX:+UseCompressedOops",
+            "-XX:+UseCompressedClassPointers",
             // trigger JVMCI runtime init so that JVMCI classes will be
             // included in the classlist
             "-XX:+EagerAppCDS",
@@ -73,6 +75,8 @@ public class TestDumpListInParallel {
         ProcessBuilder pb = ProcessTools.createJavaProcessBuilder(true,
             "-cp",
             TESTJAR,
+            "-XX:+UseCompressedOops",
+            "-XX:+UseCompressedClassPointers",
             "-XX:+EagerAppCDS",
             "-XX:SharedClassListFile=" + CLASSLIST_FILE_2,
             "-XX:SharedArchiveFile=" + ARCHIVE_FILE,

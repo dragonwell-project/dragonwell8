@@ -31,6 +31,8 @@ public class TestDumpUnsupportedCheck {
 
     static void dumpArchive() throws Exception {
         ProcessBuilder pb = ProcessTools.createJavaProcessBuilder(true,
+            "-XX:+UseCompressedOops",
+            "-XX:+UseCompressedClassPointers",
             "-XX:+EagerAppCDS",
             "-XX:SharedClassListFile=" + System.getProperty("test.src", ".") + File.separator + CLASSLIST_FILE,
             "-XX:SharedArchiveFile=" + ARCHIVE_FILE,
