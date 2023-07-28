@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,20 +22,24 @@
  */
 
 /* @test
- * @bug 8211382
+ * @bug 8211382 8301119
  * @summary Check GB18030
- * @modules jdk.charsets
+ * @library /lib/testlibrary
+ * @build jdk.testlibrary.Utils
+ * @run main TestGB18030
+ * @run main/othervm -Djdk.charset.GB18030=2000 TestGB18030
  */
 
-import java.io.*;
 import java.nio.*;
 import java.nio.charset.*;
+import java.util.Set;
+import jdk.testlibrary.Utils;
 
 public class TestGB18030 {
+    private static final Charset cs = Charset.forName("GB18030");
     public static void gb18030_1(boolean useDirect) throws Exception {
         for(char ch : new char[]{'\uFFFE', '\uFFFF'}) {
             char[] ca = new char[]{ch};
-            Charset cs = Charset.forName("GB18030");
             CharsetEncoder ce = cs.newEncoder();
             CharsetDecoder cd = cs.newDecoder();
             CharBuffer cb = CharBuffer.wrap(ca);
@@ -75,8 +79,19 @@ public class TestGB18030 {
             }
         }
     }
+
+    static void checkAlias() {
+        boolean IS_2000 = "2000".equals(System.getProperty("jdk.charset.GB18030"));
+        Set<String> expected = IS_2000 ? Utils.setOf("gb18030-2000") : Utils.setOf("gb18030-2022");
+        Set<String> found = cs.aliases();
+        System.out.printf("checkAlias(): IS_2000: %s, expected: %s, found: %s\n", IS_2000, expected, found);
+        if (!cs.aliases().equals(expected)) {
+            throw new RuntimeException("Result mismatch");
+        }
+    }
     public static void main(String args[]) throws Exception {
         gb18030_1(false);
         gb18030_1(true);
+        checkAlias();
     }
 }

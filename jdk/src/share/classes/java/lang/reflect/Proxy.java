@@ -579,7 +579,7 @@ public class Proxy implements java.io.Serializable {
                 }
                 if (interfaceClass != intf) {
                     throw new IllegalArgumentException(
-                        intf + " is not visible from class loader");
+                        intf + " is not visible from class loader: " + loader);
                 }
                 /*
                  * Verify that the Class object actually represents an
