@@ -80,20 +80,26 @@ public final class RSAPrivateCrtKeyImpl
         RSAPrivateCrtKeyImpl key = new RSAPrivateCrtKeyImpl(encoded);
         // check all CRT-specific components are available, if any one
         // missing, return a non-CRT key instead
-        if ((key.getPublicExponent().signum() == 0) ||
+        if (checkComponents(key)) {
+            return key;
+        } else {
+            return new RSAPrivateKeyImpl(
+                key.algid,
+                key.getModulus(),
+                key.getPrivateExponent());
+        }
+    }
+
+    /**
+     * Validate if all CRT-specific components are available.
+     */
+    static boolean checkComponents(RSAPrivateCrtKey key) {
+        return !((key.getPublicExponent().signum() == 0) ||
             (key.getPrimeExponentP().signum() == 0) ||
             (key.getPrimeExponentQ().signum() == 0) ||
             (key.getPrimeP().signum() == 0) ||
             (key.getPrimeQ().signum() == 0) ||
-            (key.getCrtCoefficient().signum() == 0)) {
-            return new RSAPrivateKeyImpl(
-                key.algid,
-                key.getModulus(),
-                key.getPrivateExponent()
-            );
-        } else {
-            return key;
-        }
+            (key.getCrtCoefficient().signum() == 0));
     }
 
     /**

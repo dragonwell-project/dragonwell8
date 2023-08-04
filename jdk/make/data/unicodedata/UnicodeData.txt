@@ -11732,7 +11732,7 @@
 4DFE;HEXAGRAM FOR AFTER COMPLETION;So;0;ON;;;;;N;;;;;
 4DFF;HEXAGRAM FOR BEFORE COMPLETION;So;0;ON;;;;;N;;;;;
 4E00;<CJK Ideograph, First>;Lo;0;L;;;;;N;;;;;
-9FCC;<CJK Ideograph, Last>;Lo;0;L;;;;;N;;;;;
+9FEF;<CJK Ideograph, Last>;Lo;0;L;;;;;N;;;;;
 A000;YI SYLLABLE IT;Lo;0;L;;;;;N;;;;;
 A001;YI SYLLABLE IX;Lo;0;L;;;;;N;;;;;
 A002;YI SYLLABLE I;Lo;0;L;;;;;N;;;;;
@@ -23550,6 +23550,8 @@ FFFD;REPLACEMENT CHARACTER;So;0;ON;;;;;N;;;;;
 2B734;<CJK Ideograph Extension C, Last>;Lo;0;L;;;;;N;;;;;
 2B740;<CJK Ideograph Extension D, First>;Lo;0;L;;;;;N;;;;;
 2B81D;<CJK Ideograph Extension D, Last>;Lo;0;L;;;;;N;;;;;
+2B820;<CJK Ideograph Extension E, First>;Lo;0;L;;;;;N;;;;;
+2CEA1;<CJK Ideograph Extension E, Last>;Lo;0;L;;;;;N;;;;;
 2F800;CJK COMPATIBILITY IDEOGRAPH-2F800;Lo;0;L;4E3D;;;;N;;;;;
 2F801;CJK COMPATIBILITY IDEOGRAPH-2F801;Lo;0;L;4E38;;;;N;;;;;
 2F802;CJK COMPATIBILITY IDEOGRAPH-2F802;Lo;0;L;4E41;;;;N;;;;;
