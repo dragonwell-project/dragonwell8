@@ -63,6 +63,7 @@ JvmtiThreadState::JvmtiThreadState(JavaThread* thread)
   _vm_object_alloc_event_collector = NULL;
   _the_class_for_redefinition_verification = NULL;
   _scratch_class_for_redefinition_verification = NULL;
+  _cur_stack_depth = UNKNOWN_STACK_DEPTH;
 
   // JVMTI ForceEarlyReturn support
   _pending_step_for_earlyret = false;

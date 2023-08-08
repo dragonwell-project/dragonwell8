@@ -89,9 +89,10 @@ Java_sun_nio_ch_DatagramChannelImpl_disconnect0(JNIEnv *env, jobject this,
 
 #ifdef __solaris__
     rv = connect(fd, 0, 0);
-#endif
-
-#if defined(__linux__) || defined(_ALLBSD_SOURCE) || defined(_AIX)
+#elif defined(__APPLE__)
+    // On macOS systems we use disconnectx
+    rv = disconnectx(fd, SAE_ASSOCID_ANY, SAE_CONNID_ANY);
+#elif defined(__linux__) || defined(_ALLBSD_SOURCE) || defined(_AIX)
     {
         int len;
         SOCKADDR sa;
@@ -120,8 +121,16 @@ Java_sun_nio_ch_DatagramChannelImpl_disconnect0(JNIEnv *env, jobject this,
         }
 
         rv = connect(fd, (struct sockaddr *)&sa, len);
+    }
 
-#if defined(_ALLBSD_SOURCE)
+#endif
+
+#if defined(_ALLBSD_SOURCE) && !defined(__APPLE__)
+        // On _ALLBSD_SOURCE except __APPLE__ we consider EADDRNOTAVAIL
+        // error to be OK and ignore it. __APPLE__ systems are excluded
+        // in this check since for __APPLE__ systems, unlike other BSD systems,
+        // we issue a "disconnectx" call (a few lines above),
+        // which isn't expected to return this error code.
         if (rv < 0 && errno == EADDRNOTAVAIL)
                 rv = errno = 0;
 #endif
@@ -132,8 +141,6 @@ Java_sun_nio_ch_DatagramChannelImpl_disconnect0(JNIEnv *env, jobject this,
          */
         if (rv < 0 && errno == EAFNOSUPPORT)
             rv = errno = 0;
-#endif
-    }
 #endif
 
     if (rv < 0)
