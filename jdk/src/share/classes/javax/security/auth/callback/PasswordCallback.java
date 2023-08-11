@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,6 +25,9 @@
 
 package javax.security.auth.callback;
 
+import java.util.Arrays;
+import sun.misc.Cleaner;
+
 /**
  * <p> Underlying security services instantiate and pass a
  * {@code PasswordCallback} to the {@code handle}
@@ -40,17 +43,21 @@ public class PasswordCallback implements Callback, java.io.Serializable {
      * @serial
      * @since 1.4
      */
-    private String prompt;
+    private final String prompt;
+
     /**
      * @serial
      * @since 1.4
      */
-    private boolean echoOn;
+    private final boolean echoOn;
+
     /**
      * @serial
      * @since 1.4
      */
     private char[] inputPassword;
+
+    private transient Cleaner cleaner;
 
     /**
      * Construct a {@code PasswordCallback} with a prompt
@@ -112,7 +119,18 @@ public class PasswordCallback implements Callback, java.io.Serializable {
      * @see #getPassword
      */
     public void setPassword(char[] password) {
+        // Cleanup the last buffered password copy.
+        if (cleaner != null) {
+            cleaner.clean();
+            cleaner = null;
+        }
+
+        // Set the retrieved password.
         this.inputPassword = (password == null ? null : password.clone());
+
+        if (this.inputPassword != null) {
+            cleaner = Cleaner.create(this, cleanerFor(inputPassword));
+        }
     }
 
     /**
@@ -134,9 +152,17 @@ public class PasswordCallback implements Callback, java.io.Serializable {
      * Clear the retrieved password.
      */
     public void clearPassword() {
-        if (inputPassword != null) {
-            for (int i = 0; i < inputPassword.length; i++)
-                inputPassword[i] = ' ';
+        // Cleanup the last retrieved password copy.
+        if (cleaner != null) {
+            cleaner.clean();
+            cleaner = null;
         }
     }
+
+    private static Runnable cleanerFor(char[] password) {
+        return () -> {
+            Arrays.fill(password, ' ');
+        };
+    }
+
 }
