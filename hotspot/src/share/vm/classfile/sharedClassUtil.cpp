@@ -38,6 +38,7 @@
 #include "runtime/arguments.hpp"
 #include "runtime/java.hpp"
 #include "runtime/os.hpp"
+#include "runtime/quickStart.hpp"
 
 
 class ManifestStream: public ResourceObj {
@@ -156,56 +157,69 @@ ClassPathSegment* SharedPathsMiscInfoExt::to_sorted_segments(const char* path, i
   return cps;
 }
 
+bool SharedPathsMiscInfoExt::checkAPP(const char* path) {
+  size_t len = strlen(path);
+  const char *appcp = Arguments::get_appclasspath();
+  assert(appcp != NULL, "NULL app classpath");
+  size_t appcp_len = strlen(appcp);
+  if (appcp_len < len) {
+    return fail("Run time APP classpath is shorter than the one at dump time: ", appcp);
+  }
+  // Prefix is OK: E.g., dump with -cp foo.jar, but run with -cp foo.jar:bar.jar
+  if (AppCDSVerifyClassPathOrder) {
+    if (strncmp(path, appcp, len) != 0) {
+      return fail("[APP classpath mismatch, actual: -Djava.class.path=", appcp);
+    }
+    if (appcp[len] != '\0' && appcp[len] != os::path_separator()[0]) {
+      return fail("Dump time APP classpath is not a proper prefix of run time APP classpath: ", appcp);
+    }
+  } else{
+    ResourceMark rm;
+    int app_seg_num = 0;
+    int path_seg_num = 0;
+    ClassPathSegment* app_cps = to_sorted_segments(appcp, app_seg_num);
+    ClassPathSegment* path_cps = to_sorted_segments(path, path_seg_num);
+    if (app_seg_num < path_seg_num) {
+      return fail("[APP classpath mismatch, actual: -Djava.class.path=", appcp);
+    } else {
+      int i = 0, j = 0;
+      while(i < path_seg_num && j < app_seg_num){
+        if (app_cps[j]._len != path_cps[i]._len){
+          j++;
+        } else {
+          int c = strncmp(app_cps[j]._start, path_cps[i]._start, app_cps[j]._len);
+          if (c == 0) {
+            i++;
+            j++;
+          } else if (c < 0) {
+            j++;
+          } else {
+            break;
+          }
+        }
+      }
+      if (i != path_seg_num) {
+        return fail("[APP classpath mismatch, actual: -Djava.class.path=", appcp);
+      }
+    }
+  }
+  return true;
+}
 
 bool SharedPathsMiscInfoExt::check(jint type, const char* path) {
-
   switch (type) {
   case APP:
     {
-      size_t len = strlen(path);
-      const char *appcp = Arguments::get_appclasspath();
-      assert(appcp != NULL, "NULL app classpath");
-      size_t appcp_len = strlen(appcp);
-      if (appcp_len < len) {
-        return fail("Run time APP classpath is shorter than the one at dump time: ", appcp);
-      }
-      // Prefix is OK: E.g., dump with -cp foo.jar, but run with -cp foo.jar:bar.jar
-      if (AppCDSVerifyClassPathOrder) {
-        if (strncmp(path, appcp, len) != 0) {
-          return fail("[APP classpath mismatch, actual: -Djava.class.path=", appcp);
-        }
-        if (appcp[len] != '\0' && appcp[len] != os::path_separator()[0]) {
-          return fail("Dump time APP classpath is not a proper prefix of run time APP classpath: ", appcp);
-        }
-      } else{
-        ResourceMark rm;
-        int app_seg_num = 0;
-        int path_seg_num = 0;
-        ClassPathSegment* app_cps = to_sorted_segments(appcp, app_seg_num);
-        ClassPathSegment* path_cps = to_sorted_segments(path, path_seg_num);
-        if (app_seg_num < path_seg_num) {
-          return fail("[APP classpath mismatch, actual: -Djava.class.path=", appcp);
-        } else {
-          int i = 0, j = 0;
-          while(i < path_seg_num && j < app_seg_num){
-            if (app_cps[j]._len != path_cps[i]._len){
-              j++;
-            } else {
-              int c = strncmp(app_cps[j]._start, path_cps[i]._start, app_cps[j]._len);
-              if (c == 0) {
-                i++;
-                j++;
-              } else if (c < 0) {
-                j++;
-              } else {
-                break;
-              }
-            }
-          }
-          if (i != path_seg_num) {
-            return fail("[APP classpath mismatch, actual: -Djava.class.path=", appcp);
-          }
-        }
+      if (QuickStart::need_convert_path_by_env()) {
+        int new_path_len = QuickStart::get_max_replaced_path_len(path) + 1;
+        char* new_path = NEW_C_HEAP_ARRAY(char, new_path_len, mtInternal);
+        QuickStart::convert_path_by_env(path, new_path);
+        ClassLoader::trace_class_path(tty, "new_path: ", new_path);
+        bool result = checkAPP(new_path);
+        FREE_C_HEAP_ARRAY(char, new_path, mtInternal);
+        return result;
+      } else {
+        return checkAPP(path);
       }
     }
     break;

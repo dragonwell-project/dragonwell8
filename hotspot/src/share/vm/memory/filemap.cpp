@@ -34,6 +34,7 @@
 #include "oops/objArrayOop.hpp"
 #include "runtime/arguments.hpp"
 #include "runtime/java.hpp"
+#include "runtime/quickStart.hpp"
 #include "runtime/os.hpp"
 #include "services/memTracker.hpp"
 #include "utilities/defaultStream.hpp"
@@ -264,6 +265,13 @@ bool FileMapInfo::validate_classpath_entry_table() {
     SharedClassPathEntry* ent = shared_classpath(i);
     struct stat st;
     const char* name = ent->_name;
+    char* new_ent_name = QuickStart::replace_if_contains(name);
+    if (new_ent_name != NULL) {
+      if (TraceClassPaths || (TraceClassLoading && Verbose)) {
+        tty->print_cr("replace %s with %s", name, new_ent_name);
+      }
+      name = new_ent_name;
+    }
     bool ok = true;
     if (TraceClassPaths || (TraceClassLoading && Verbose)) {
       tty->print_cr("[Checking shared classpath entry: %s]", name);
@@ -277,7 +285,7 @@ bool FileMapInfo::validate_classpath_entry_table() {
         ok = false;
       }
     } else {
-      if (ent->_timestamp != st.st_mtime ||
+      if ((ent->_timestamp != st.st_mtime && !CDSIgnoreFileTimeCheck) ||
           ent->_filesize != st.st_size) {
         ok = false;
         if (PrintSharedArchiveAndExit) {
@@ -289,6 +297,9 @@ bool FileMapInfo::validate_classpath_entry_table() {
                         " the shared archive file: %s", name);
         }
       }
+    }
+    if (new_ent_name != NULL) {
+      FREE_C_HEAP_ARRAY(char, new_ent_name, mtInternal);
     }
     if (ok) {
       if (TraceClassPaths || (TraceClassLoading && Verbose)) {

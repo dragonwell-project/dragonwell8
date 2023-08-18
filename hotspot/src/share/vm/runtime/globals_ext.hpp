@@ -174,6 +174,8 @@
           "Ignore non-empty dir check in AppCDS")                           \
   product(bool, CDSIgnoreBootClasspathDiff, false,                        \
           "keep AppCDS on after appending boot classpath")                  \
+  product(bool, CDSIgnoreFileTimeCheck, false,                           \
+          "do not check timestamp of jar file when using CDS")              \
                                                                             \
   product(bool, SuppressAppCDSErrors, false,                                \
           "Suppress AppCDS errors during initialization; use warnings instead") \

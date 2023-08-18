@@ -87,6 +87,11 @@ private:
   static const char** _jvm_options;
   static const char* _cp_in_metadata_file;
 
+  // old env, new env
+  static GrowableArray<const char *>* old_envs;
+  static GrowableArray<const char *>* new_envs;
+  static int _max_env_diff_len; // len(new_env) - len(old_env)
+
   static bool set_optimization(const char* option, bool enabled);
   static bool determine_role(const JavaVMInitArgs* options_args);
   static bool prepare_dump(const JavaVMInitArgs* options_args);
@@ -110,6 +115,13 @@ private:
 public:
   static void set_opt_passed(opt feature);
   static void notify_dump();
+
+  static bool need_convert_path_by_env();
+  static void convert_path_by_env(const char* origin_path, char* new_path);
+  static char* replace_if_contains(const char* path);
+  static int get_max_replaced_path_len(const char* origin_path);
+private:
+  static void read_env_from_file_and_environment(char* line);
 
   // cds stuff
 private:
