@@ -23,6 +23,15 @@
                  SPARC_ONLY("sparc")
 #endif
 
+#ifdef log_error
+#undef log_error
+#endif
+#ifdef log_info
+#undef log_info
+#endif
+#define log_error(...)     (!verbose())   ? (void)0 : tty->print_cr
+#define log_info(...)      (!verbose())   ? (void)0 : tty->print_cr
+
 bool QuickStart::_is_starting = true;
 bool QuickStart::_is_enabled = false;
 bool QuickStart::_verbose = false;
@@ -49,6 +58,10 @@ const char* QuickStart::_eagerappcds_agentlib = NULL;
 int QuickStart::_jvm_option_count = 0;
 const char** QuickStart::_jvm_options = NULL;
 const char* QuickStart::_cp_in_metadata_file = NULL;
+
+GrowableArray<const char *>* QuickStart::old_envs = NULL;
+GrowableArray<const char *>* QuickStart::new_envs = NULL;
+int QuickStart::_max_env_diff_len = 0;
 
 const char* QuickStart::_opt_name[] = {
 #define OPT_TAG(name) #name,
@@ -104,6 +117,8 @@ int QuickStart::_lock_file_fd = 0;
 #define LOCK_FILE                     "LOCK"
 #define JVM_CONF_FILE                 "jvm_conf"
 #define CDS_DIFF_CLASSES              "cds_diff_classes.lst"
+
+#define ENV_MARK                      "ENV."
 
 QuickStart::~QuickStart() {
   if (_cache_path) {
@@ -167,32 +182,32 @@ bool QuickStart::parse_command_line_arguments(const char* options) {
       } else if (match_option(cur, "printStat", &tail)) {
         if (tail[0] != '\0') {
           success = false;
-          tty->print_cr("Invalid -Xquickstart option '%s'", cur);
+          log_error(quickstart)("Invalid -Xquickstart option '%s'", cur);
         }
         _print_stat_enabled = true;
       } else if (match_option(cur, "destroy", &tail)) {
         if (tail[0] != '\0') {
           success = false;
-          tty->print_cr("Invalid -Xquickstart option '%s'", cur);
+          log_error(quickstart)("Invalid -Xquickstart option '%s'", cur);
         }
         _need_destroy = true;
       } else if (match_option(cur, "profile", &tail)) {
         if (tail[0] != '\0') {
           success = false;
-          tty->print_cr("Invalid -Xquickstart option '%s'", cur);
+          log_error(quickstart)("Invalid -Xquickstart option '%s'", cur);
         }
         _profile_only = true;
       } else if (match_option(cur, "dump", &tail)) {
         if (tail[0] != '\0') {
           success = false;
-          tty->print_cr("Invalid -Xquickstart option '%s'", cur);
+          log_error(quickstart)("Invalid -Xquickstart option '%s'", cur);
         }
         _dump_only = true;
       }
     } else {
       for (int i = 0; i < first_level_options_size; i++) {
         if (match_option(cur, first_level_options[i], &tail)) {
-          tty->print_cr("-Xquickstart option '%s' should be put in front of other options", cur);
+          log_error(quickstart)("-Xquickstart option '%s' should be put in front of other options", cur);
           fileStream stream(defaultStream::output_stream());
           print_command_line_help(&stream);
           success = false;
@@ -212,7 +227,7 @@ bool QuickStart::parse_command_line_arguments(const char* options) {
     } else if (match_option(cur, "verbose", &tail)) {
       if (tail[0] != '\0') {
         success = false;
-        tty->print_cr("Invalid -Xquickstart option '%s'", cur);
+        log_error(quickstart)("Invalid -Xquickstart option '%s'", cur);
       }
       _verbose = true;
     } else if (match_option(cur, "path=", &tail)) {
@@ -235,7 +250,7 @@ bool QuickStart::parse_command_line_arguments(const char* options) {
       }
       if (!ignore) {
         success = false;
-        tty->print_cr("Invalid -Xquickstart option '%s'", cur);
+        log_error(quickstart)("Invalid -Xquickstart option '%s'", cur);
       }
     }
   }
@@ -253,7 +268,7 @@ bool QuickStart::set_optimization(const char* option, bool enabled) {
     }
   }
 
-  tty->print_cr("Invalid -Xquickstart optimization option '%s'", option);
+  log_error(quickstart)("Invalid -Xquickstart optimization option '%s'", option);
   return false;
 }
 
@@ -393,7 +408,7 @@ bool QuickStart::check_integrity(const JavaVMInitArgs* options_args, const char*
   _metadata_file = os::fopen(meta_file, "r");
   if (!_metadata_file) {
     // if one process removes metadata here, will NULL.
-    tty->print_cr("metadata file may be destroyed by another process.");
+    log_error(quickstart)("metadata file may be destroyed by another process.");
     return false;
   }
   bool result = load_and_validate(options_args);
@@ -450,14 +465,13 @@ bool QuickStart::load_and_validate(const JavaVMInitArgs* options_args) {
   _vm_version = VM_Version::internal_vm_info_string();
 
   while (fgets(line, sizeof(line), _metadata_file) != NULL) {
-
     if (!feature_checked && match_option(line, _identifier_name[Features], &tail)) {
       check_features(tail);
       feature_checked = true;
     } else if (!version_checked && match_option(line, _identifier_name[VMVersion], &tail)) {
       // read jvm info
       if (options_args != NULL && strncmp(tail, _vm_version, strlen(_vm_version)) != 0) {
-        tty->print_cr("VM Version isn't the same.");
+        log_error(quickstart)("VM Version isn't the same.");
         return false;
       }
       version_checked = true;
@@ -472,18 +486,18 @@ bool QuickStart::load_and_validate(const JavaVMInitArgs* options_args) {
       const char *image_ident = QuickStart::image_id();
       size_t ident_size = image_ident != NULL ? strlen(image_ident) : 0;
       if (size != ident_size) {
-        tty->print_cr("Container image isn't the same.");
+        log_error(quickstart)("Container image isn't the same.");
         return false;
       }
 
       if (strncmp(tail, QuickStart::image_id(), size) != 0) {
-        tty->print_cr("Container image isn't the same.");
+        log_error(quickstart)("Container image isn't the same.");
         return false;
       }
     } else if (!option_checked && match_option(line, _identifier_name[JVMOptionCount], &tail)) {
       // read previous jvm options count
       if (sscanf(tail, "%d", &_jvm_option_count) != 1) {
-        tty->print_cr("Unable to read the option number.");
+        log_error(quickstart)("Unable to read the option number.");
         return false;
       }
       option_checked = true;
@@ -492,7 +506,7 @@ bool QuickStart::load_and_validate(const JavaVMInitArgs* options_args) {
       // Note: at this time of argument parsing, we cannot use Thread local and ResourceMark
       for (int index = 0; index < _jvm_option_count; index++) {
         if (fgets(line, sizeof(line), _metadata_file) == NULL) {
-          tty->print_cr("Unable to read JVM option.");
+          log_error(quickstart)("Unable to read JVM option.");
           return false;
         } else if (_dump_only) {
           //when run with dump stage.JVM option and features only can get from metadata
@@ -507,11 +521,11 @@ bool QuickStart::load_and_validate(const JavaVMInitArgs* options_args) {
     } else if (!cp_len_checked && match_option(line, _identifier_name[ClassPathLength], &tail)) {
       int cp_len = 0;
       if (sscanf(tail, "%d", &cp_len) != 1) {
-        tty->print_cr("Unable read class path length.");
+        log_error(quickstart)("Unable read class path length.");
         return false;
       }
       if (cp_len <= 0 ) {
-        tty->print_cr("Invalid %s 's value %d.It should > 0." ,_identifier_name[ClassPathLength], cp_len);
+        log_error(quickstart)("Invalid %s 's value %d.It should > 0." ,_identifier_name[ClassPathLength], cp_len);
         return false;
       }
 
@@ -520,16 +534,63 @@ bool QuickStart::load_and_validate(const JavaVMInitArgs* options_args) {
       cp_len += 2;
       char *cp_buff = NEW_C_HEAP_ARRAY(char, cp_len, mtInternal);
       if (fgets(cp_buff, cp_len, _metadata_file) == NULL) {
-        tty->print_cr("Unable to read classpath option.");
+        log_error(quickstart)("Unable to read classpath option.");
         FREE_C_HEAP_ARRAY(char, cp_buff, mtInternal);
         return false;
       }
       trim_tail_newline(cp_buff);
       _cp_in_metadata_file = os::strdup(cp_buff);
       FREE_C_HEAP_ARRAY(char, cp_buff, mtInternal);
+    } else if (match_option(line, ENV_MARK, &tail)) {
+      if (old_envs == NULL) {
+        old_envs = new (ResourceObj::C_HEAP, mtInternal) GrowableArray<const char *>(5, true);
+        new_envs = new (ResourceObj::C_HEAP, mtInternal) GrowableArray<const char *>(5, true);
+      }
+      // remove line_separator in line
+      char* pos = strstr(line, os::line_separator());
+      if (pos != NULL) {
+        *pos = '\0';
+      }
+      if (tail[0] != '\0') {
+        read_env_from_file_and_environment(line);
+      }
     }
   }
   return true;
+}
+
+void QuickStart::read_env_from_file_and_environment(char* line) {
+
+  // 1. read old env from file
+  int p1 = strlen(ENV_MARK);
+  int p2 = strchr(line, '=') - line;
+  // e.g. from ENV.PWD=Path get Path
+  int old_env_len = strlen(line) - p2 -1;
+  char* old_env = NEW_C_HEAP_ARRAY(char, old_env_len + 1, mtInternal); // char + \0
+  strncpy(old_env, &line[p2+1], old_env_len);
+  old_env[old_env_len] = '\0';
+
+  // 2. read new env from environment
+  // e.g. from ENV.PWD=PATH get PWD
+  char* env_name = NEW_C_HEAP_ARRAY(char, p2 - p1 + 1, mtInternal);
+  strncpy(env_name, &line[p1], p2-p1);
+  env_name[p2-p1] = '\0';
+  // e.g. ::getenv(PWD)
+  char* new_env_val = ::getenv(env_name);
+  FREE_C_HEAP_ARRAY(char, env_name, mtInternal);
+
+  // 3. append val into old_envs and new_envs
+  if (new_env_val != NULL) {
+    old_envs->append(old_env);
+    new_envs->append(new_env_val);
+    log_info(quickstart)("old_env: %s", old_env);
+    log_info(quickstart)("new_env: %s", new_env_val);
+    // record _max_env_diff_len
+    int new_env_len = strlen(new_env_val);
+    if (new_env_len - old_env_len > _max_env_diff_len) {
+      _max_env_diff_len = new_env_len - old_env_len;
+    }
+  }
 }
 
 void QuickStart::trim_tail_newline(char *str) {
@@ -554,24 +615,20 @@ void QuickStart::trim_tail_newline(char *str) {
 }
 void QuickStart::calculate_cache_path() {
   if (_cache_path != NULL) {
-    if (_verbose) {
-      tty->print_cr("cache path is set from -Xquickstart:path=%s", _cache_path);
-    }
+    log_info(quickstart)("cache path is set from -Xquickstart:path=%s", _cache_path);
     return;
   }
 
   const char *buffer = ::getenv("QUICKSTART_CACHE_PATH");
   if (buffer != NULL && (_cache_path = os::strdup(buffer)) != NULL) {
-    if (_verbose) {
-      tty->print_cr("set from env with %s", _cache_path);
-    }
+    log_info(quickstart)("set from env with %s", _cache_path);
     return;
   }
 
   if (_profile_only) {
     const char* temp = os::get_temp_directory();
     if (temp == NULL) {
-      tty->print_cr("Cannot get temp directory");
+      log_error(quickstart)("Cannot get temp directory");
       vm_exit(1);
     }
     char buf[JVM_MAXPATHLEN];
@@ -583,7 +640,7 @@ void QuickStart::calculate_cache_path() {
     if (home == NULL) {
       home = os::get_current_directory(buf_pwd, sizeof(buf_pwd));
       if (home == NULL) {
-        tty->print_cr("neither HOME env nor current_dir is available");
+        log_error(quickstart)("neither HOME env nor current_dir is available");
         vm_exit(1);
       }
     }
@@ -591,15 +648,15 @@ void QuickStart::calculate_cache_path() {
     jio_snprintf(buf, JVM_MAXPATHLEN, "%s%s%s", home, os::file_separator(), DEFAULT_SHARED_DIRECTORY);
     _cache_path = os::strdup(buf);
   }
-  tty->print_cr("cache path is set as default with %s", _cache_path);
+  log_info(quickstart)("cache path is set as default with %s", _cache_path);
 }
 
 void QuickStart::destroy_cache_folder() {
   if (_need_destroy && _cache_path != NULL) {
     if (remove_dir(_cache_path) < 0) {
-      tty->print_cr("failed to destroy the cache folder: %s", _cache_path);
+      log_error(quickstart)("failed to destroy the cache folder: %s", _cache_path);
     } else {
-      tty->print_cr("destroy the cache folder: %s", _cache_path);
+      log_info(quickstart)("destroy the cache folder: %s", _cache_path);
     }
     vm_exit(0);
   }
@@ -608,9 +665,9 @@ void QuickStart::destroy_cache_folder() {
   if (_profile_only && _cache_path != NULL) {
     if (!os::dir_is_empty(_cache_path)) {
       if (remove_dir(_cache_path) < 0) {
-        tty->print_cr("failed to destroy the cache folder: %s", _cache_path);
+        log_error(quickstart)("failed to destroy the cache folder: %s", _cache_path);
       } else {
-        tty->print_cr("destroy the cache folder: %s", _cache_path);
+        log_info(quickstart)("destroy the cache folder: %s", _cache_path);
       }
     }
   }
@@ -756,11 +813,11 @@ bool QuickStart::determine_role(const JavaVMInitArgs* options_args) {
     }
     ret = ::mkdir(_cache_path, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
     if (ret != 0) {
-      tty->print_cr("Could not mkdir [%s] because [%s]", _cache_path, strerror(errno));
+      log_error(quickstart)("Could not mkdir [%s] because [%s]", _cache_path, strerror(errno));
       return false;
     }
   } else if (!S_ISDIR(st.st_mode)) {
-    tty->print_cr("Cache path [%s] is not a directory, "
+    log_error(quickstart)("Cache path [%s] is not a directory, "
         "please use -Xquickstart:path=<path> or environment variable "
         "QUICKSTART_CACHE_PATH to specify.\n",
         _cache_path);
@@ -781,7 +838,7 @@ bool QuickStart::determine_role(const JavaVMInitArgs* options_args) {
     // if the lock exists, it returns -1.
     _lock_file_fd = os::create_binary_file(_lock_path, false);
     if (_lock_file_fd == -1) {
-      tty->print_cr("Fail to create LOCK file");
+      log_error(quickstart)("Fail to create LOCK file");
       return false;
     }
     jio_snprintf(buf, JVM_MAXPATHLEN, "%s%s%s", _cache_path, os::file_separator(), TEMP_METADATA_FILE);
@@ -789,29 +846,29 @@ bool QuickStart::determine_role(const JavaVMInitArgs* options_args) {
     ret = os::stat(buf, &st);
     if (ret == 0) {
       // error: A file exists, determine failed. Maybe this is a user's file.
-      tty->print_cr("The %s file exists\n", TEMP_METADATA_FILE);
+      log_error(quickstart)("The %s file exists\n", TEMP_METADATA_FILE);
       return false;
     }
     _temp_metadata_file = new(ResourceObj::C_HEAP, mtInternal) fileStream(_temp_metadata_file_path, "w");
     if (!_temp_metadata_file) {
-      tty->print_cr("Failed to create %s file\n", TEMP_METADATA_FILE);
+      log_error(quickstart)("Failed to create %s file\n", TEMP_METADATA_FILE);
       return false;
     }
     if (!dump_cached_info(options_args)) {
-      tty->print_cr("Failed to dump cached information\n");
+      log_error(quickstart)("Failed to dump cached information\n");
       return false;
     }
     if (_profile_only) {
       _role = Profiler;
-      tty->print_cr("Running as profiler");
+      log_info(quickstart)("Running as profiler");
     } else {
       _role = Tracer;
-      tty->print_cr("Running as tracer");
+      log_info(quickstart)("Running as tracer");
     }
     return true;
   } else if (ret == 0 && check_integrity(options_args, _metadata_file_path)) {
     _role = Replayer;
-    tty->print_cr("Running as replayer");
+    log_info(quickstart)("Running as replayer");
     return true;
   }
   return false;
@@ -831,7 +888,7 @@ bool QuickStart::prepare_dump(const JavaVMInitArgs *options_args) {
   _temp_metadata_file_path = os::strdup(buf);
   int ret = os::stat(_temp_metadata_file_path, &st);
   if (ret < 0 && errno == ENOENT) {
-    tty->print_cr("The %s file not exists\n", _temp_metadata_file_path);
+    log_error(quickstart)("The %s file not exists\n", _temp_metadata_file_path);
     return false;
   } else if (ret == 0 && check_integrity(options_args, _temp_metadata_file_path)) {
     // Create a LOCK file
@@ -840,16 +897,16 @@ bool QuickStart::prepare_dump(const JavaVMInitArgs *options_args) {
     // if the lock exists, it returns -1.
     _lock_file_fd = os::create_binary_file(_lock_path, false);
     if (_lock_file_fd == -1) {
-      tty->print_cr("Fail to create LOCK file");
+      log_error(quickstart)("Fail to create LOCK file");
       return false;
     }
     jio_snprintf(buf, JVM_MAXPATHLEN, "%s%s%s", _cache_path, os::file_separator(), METADATA_FILE);
     _metadata_file_path = os::strdup(buf);
     _role = Dumper;
-    tty->print_cr("Running as dumper");
+    log_info(quickstart)("Running as dumper");
     return true;
   }
-  tty->print_cr("Cannot dump,maybe the %s is invalid!ret: %d", TEMP_METADATA_FILE, ret);
+  log_error(quickstart)("Cannot dump,maybe the %s is invalid!ret: %d", TEMP_METADATA_FILE, ret);
   return false;
 #endif
 }
@@ -865,9 +922,8 @@ void QuickStart::settle_opt_pass_table() {
 void QuickStart::set_opt_passed(opt feature) {
   // set a feature passed
   _opt_passed[feature] = true;
-  if (_verbose) {
-    tty->print_cr("feature %s is enabled and passed", _opt_name[feature]);
-  }
+
+  log_info(quickstart)("feature %s is enabled and passed", _opt_name[feature]);
 
   // If all features are passed, we set the environment for roles of this process
   bool opt_all_passed = true;
@@ -875,9 +931,7 @@ void QuickStart::set_opt_passed(opt feature) {
     opt_all_passed &= _opt_passed[i];
   }
   if (opt_all_passed) {
-    if (_verbose) {
-      tty->print_cr("all enabled features are passed");
-    }
+    log_info(quickstart)("all enabled features are passed");
     setenv_for_roles();
   }
 }
@@ -889,7 +943,7 @@ void QuickStart::generate_metadata_file(bool rename_metafile) {
   if (rename_metafile) {
     ret = ::rename(_temp_metadata_file_path, _metadata_file_path);
   if (ret != 0) {
-      tty->print_cr("Could not mv [%s] to [%s] because [%s]\n",
+      log_error(quickstart)("Could not mv [%s] to [%s] because [%s]\n",
                             TEMP_METADATA_FILE, METADATA_FILE, strerror(errno));
     }
   }
@@ -897,13 +951,13 @@ void QuickStart::generate_metadata_file(bool rename_metafile) {
   // remove lock file
   ret = ::close(_lock_file_fd);
   if (ret != 0) {
-    tty->print_cr("Could not close [%s] because [%s]\n",
+    log_error(quickstart)("Could not close [%s] because [%s]\n",
                           LOCK_FILE, strerror(errno));
   }
 
   ret = ::remove(_lock_path);
   if (ret != 0) {
-    tty->print_cr("Could not delete [%s] because [%s]\n",
+    log_error(quickstart)("Could not delete [%s] because [%s]\n",
                           LOCK_FILE, strerror(errno));
   }
 }
@@ -922,7 +976,7 @@ int QuickStart::remove_dir(const char* dir) {
 
   int ret = os::stat(dir, &dir_stat);
   if (ret < 0) {
-    tty->print_cr("Fail to get the stat for directory %s\n", dir);
+    log_error(quickstart)("Fail to get the stat for directory %s\n", dir);
     return ret;
   }
 
@@ -947,7 +1001,7 @@ int QuickStart::remove_dir(const char* dir) {
     }
     ret = ::rmdir(dir);
   } else {
-    tty->print_cr("unknow file type\n");
+    log_error(quickstart)("unknow file type\n");
   }
   return ret;
 #endif
@@ -957,7 +1011,7 @@ void QuickStart::notify_dump() {
   if (_role == Tracer || _role == Profiler || _role == Dumper) {
     generate_metadata_file(_role != Profiler);
   }
-  tty->print_cr("notifying dump done.");
+  log_info(quickstart)("notifying dump done.");
 }
 
 bool QuickStart::dump_cached_info(const JavaVMInitArgs* options_args) {
@@ -1006,7 +1060,103 @@ bool QuickStart::dump_cached_info(const JavaVMInitArgs* options_args) {
     _temp_metadata_file->print_cr("%s", option->optionString);
   }
 
+  const char* envs = Arguments::get_property("com.alibaba.cds.cp.reloc.envs");
+  if (envs != NULL) {
+    char env_i[JVM_MAXPATHLEN];
+    int p1 = 0, p2 = 0;
+    bool envs_process_end = false;
+    while(!envs_process_end) {
+      if (envs[p2] == '\0') {
+        envs_process_end = true;
+      }
+      if((envs[p2] == ',' || envs[p2] == '\0')) {
+        strncpy(env_i, &envs[p1], p2-p1);
+        env_i[p2-p1] = '\0';
+        p1 = p2 + 1;
+        const char* env_i_value = ::getenv(env_i);
+        if(env_i_value != NULL) {
+          _temp_metadata_file->print_cr("%s%s=%s", ENV_MARK, env_i, env_i_value);
+        }
+      }
+      p2++;
+    }
+  }
+
   _temp_metadata_file->flush();
   return true;
 }
 
+bool QuickStart::need_convert_path_by_env() {
+  return old_envs != NULL;
+}
+
+void QuickStart::convert_path_by_env(const char* origin_path, char* new_path) {
+  if (old_envs == NULL) {
+    log_error(quickstart)("Shouldn't convert path according to environment variables when envs is NULL.");
+    return;
+  }
+
+  int p1 = 0, p2 = p1;
+  bool process_end = false;
+  while (!process_end) {
+    if (origin_path[p2] == '\0') {
+      process_end = true;
+    }
+    if((origin_path[p2] == *os::path_separator() || origin_path[p2] == '\0')) {
+      char split[JVM_MAXPATHLEN];
+      strncpy(split, &origin_path[p1], p2-p1);
+      split[p2-p1] = '\0';
+      char* path = replace_if_contains(split);
+      if (path != NULL) {
+        strcat(new_path, path);
+        FREE_C_HEAP_ARRAY(char, path, mtInternal);
+      } else {
+        strcat(new_path, split);
+      }
+      if (origin_path[p2] == *os::path_separator()) {
+        strcat(new_path, os::path_separator());
+      } else {
+        strcat(new_path, "\0");
+      }
+      p1 = p2 + 1;
+    }
+    p2++;
+  }
+}
+
+char* QuickStart::replace_if_contains(const char* path) {
+  if(old_envs != NULL) {
+    int array_cnt = old_envs->length();
+    for(int i = 0; i < array_cnt; i++) {
+      const char* target = old_envs->at(i);
+      if(strstr(path, target) != NULL) {
+        int target_len = strlen(target);
+        const char* new_target = new_envs->at(i);
+        int new_target_len = strlen(new_target);
+        char* new_path = NEW_C_HEAP_ARRAY(char, new_target_len + strlen(path) - target_len + 1, mtInternal);
+        new_path[0] = '\0'; // clear the buffer
+        strcat(new_path, new_target);
+        strcat(new_path, &path[target_len]);
+        strcat(new_path, "\0");
+        return new_path;
+      }
+    }
+  }
+
+  return NULL;
+}
+
+int QuickStart::get_max_replaced_path_len(const char* origin_path) {
+  int origin_path_len = (int)strlen(origin_path);
+  if (_max_env_diff_len <= 0) return origin_path_len;
+  int count = 1;
+  int p = 0;
+  while(origin_path[p] != '\0') {
+    if (origin_path[p] == *os::path_separator()) {
+      count++;
+    }
+    p++;
+  }
+
+  return origin_path_len + (count * _max_env_diff_len);
+}

@@ -82,6 +82,8 @@ class SharedPathsMiscInfoExt : public SharedPathsMiscInfo {
 
   virtual bool check(jint type, const char* path);
 
+  virtual bool checkAPP(const char* path);
+
   void add_app_classpath(const char* path) {
     add_path(path, APP);
   }
