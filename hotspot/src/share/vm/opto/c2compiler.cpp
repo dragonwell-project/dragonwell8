@@ -54,6 +54,9 @@ const char* C2Compiler::retry_no_escape_analysis() {
 const char* C2Compiler::retry_class_loading_during_parsing() {
   return "retry class loading during parsing";
 }
+const char* C2Compiler::dead_loop_in_stored_value() {
+  return "Possible dead loop in can_see_stored_value";
+}
 bool C2Compiler::init_c2_runtime() {
 
   // Check assumptions used while running ADLC

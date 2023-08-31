@@ -28,6 +28,7 @@
 #include "memory/allocation.inline.hpp"
 #include "oops/objArrayKlass.hpp"
 #include "opto/addnode.hpp"
+#include "opto/c2compiler.hpp"
 #include "opto/cfgnode.hpp"
 #include "opto/compile.hpp"
 #include "opto/connode.hpp"
@@ -1038,7 +1039,7 @@ Node* MemNode::can_see_stored_value(Node* st, PhaseTransform* phase) const {
             if (opc == Op_MemBarCPUOrder)
               cont_times++;
             if (cont_times > MemNodeLoopContinueThres) {
-              phase->C->record_method_not_compilable("Possible deap loop");
+              phase->C->record_method_not_compilable(C2Compiler::dead_loop_in_stored_value());
               return NULL;
             }
             continue;

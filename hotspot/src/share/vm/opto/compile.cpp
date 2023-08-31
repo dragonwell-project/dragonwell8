@@ -3648,7 +3648,10 @@ void Compile::record_failure(const char* reason) {
   if (!C->failure_reason_is(C2Compiler::retry_no_subsuming_loads())) {
     C->print_method(PHASE_FAILURE);
   }
-  _root = NULL;  // flush the graph, too
+  // IGVN is still in progress, can not clear root node in can_see_stored_value()
+  if (!C->failure_reason_is(C2Compiler::dead_loop_in_stored_value())) {
+    _root = NULL;  // flush the graph, too
+  }
 }
 
 Compile::TracePhase::TracePhase(const char* name, elapsedTimer* accumulator, bool dolog)
