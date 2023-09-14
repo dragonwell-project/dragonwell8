@@ -317,7 +317,13 @@ public class ORBConstants {
     public static final String DYNAMIC_STUB_FACTORY_FACTORY_CLASS =
         SUN_PREFIX + "ORBDynamicStubFactoryFactoryClass" ;
 
+    // This property is provided for backward compatibility reasons
     public static final String ALLOW_DESERIALIZE_OBJECT = SUN_PREFIX + "ORBAllowDeserializeObject" ;
+
+    // Disables the IOR check for the ORB constrained stubs
+    public static final String DISABLE_IOR_CHECK_FOR_LOCAL_STUBS = ORG_OMG_PREFIX + "DynamicAny.disableIORCheck" ;
+    // Enables the IOR check for the Remote CORBA services stubs
+    public static final String ENABLE_IOR_CHECK_FOR_REMOTE_STUBS = ORG_OMG_CORBA_PREFIX + "IDL.Stubs.enableIORCheck";
 
     // Constants for NameService properties ************************************
 
