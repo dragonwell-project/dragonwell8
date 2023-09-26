@@ -1472,7 +1472,7 @@ included with JDK 8 and OpenJDK 8 source distributions.
 
 -------------------------------------------------------------------------------
 
-%% This notice is provided with respect to libpng 1.6.38, which may be
+%% This notice is provided with respect to libpng 1.6.39, which may be
 included with JRE 8, JDK 8, and OpenJDK 8.
 
 --- begin of LICENSE ---
@@ -1678,9 +1678,10 @@ Authors, for copyright and licensing purposes.
  * Arm Holdings
    - Richard Townsend
  * Google Inc.
+   - Dan Field
+   - Leon Scroggins III
    - Matt Sarett
    - Mike Klein
-   - Dan Field
    - Sami Boukortt
 
 The build projects, the build scripts, the test scripts, and other
