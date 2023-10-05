@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -120,31 +120,32 @@ public class ConfirmationCallback implements Callback, java.io.Serializable {
 
     /** ERROR message type. */
     public static final int ERROR                       = 2;
+
     /**
      * @serial
      * @since 1.4
      */
-    private String prompt;
+    private final String prompt;
     /**
      * @serial
      * @since 1.4
      */
-    private int messageType;
+    private final int messageType;
     /**
      * @serial
      * @since 1.4
      */
-    private int optionType = UNSPECIFIED_OPTION;
+    private final int optionType;
     /**
      * @serial
      * @since 1.4
      */
-    private int defaultOption;
+    private final int defaultOption;
     /**
      * @serial
      * @since 1.4
      */
-    private String[] options;
+    private final String[] options;
     /**
      * @serial
      * @since 1.4
@@ -206,8 +207,10 @@ public class ConfirmationCallback implements Callback, java.io.Serializable {
             break;
         }
 
+        this.prompt = null;
         this.messageType = messageType;
         this.optionType = optionType;
+        this.options = null;
         this.defaultOption = defaultOption;
     }
 
@@ -255,8 +258,10 @@ public class ConfirmationCallback implements Callback, java.io.Serializable {
                 throw new IllegalArgumentException();
         }
 
+        this.prompt = null;
         this.messageType = messageType;
-        this.options = options;
+        this.optionType = UNSPECIFIED_OPTION;
+        this.options = options.clone();
         this.defaultOption = defaultOption;
     }
 
@@ -323,6 +328,7 @@ public class ConfirmationCallback implements Callback, java.io.Serializable {
         this.prompt = prompt;
         this.messageType = messageType;
         this.optionType = optionType;
+        this.options = null;
         this.defaultOption = defaultOption;
     }
 
@@ -377,7 +383,8 @@ public class ConfirmationCallback implements Callback, java.io.Serializable {
 
         this.prompt = prompt;
         this.messageType = messageType;
-        this.options = options;
+        this.optionType = UNSPECIFIED_OPTION;
+        this.options = options.clone();
         this.defaultOption = defaultOption;
     }
 
@@ -437,7 +444,7 @@ public class ConfirmationCallback implements Callback, java.io.Serializable {
      *          an {@code optionType} instead of {@code options}.
      */
     public String[] getOptions() {
-        return options;
+        return options == null ? null : options.clone();
     }
 
     /**
