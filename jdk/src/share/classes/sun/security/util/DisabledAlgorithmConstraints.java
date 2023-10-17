@@ -162,6 +162,9 @@ public class DisabledAlgorithmConstraints extends AbstractAlgorithmConstraints {
     @Override
     public final boolean permits(Set<CryptoPrimitive> primitives,
             String algorithm, AlgorithmParameters parameters) {
+        if (algorithm == null || algorithm.isEmpty()) {
+            throw new IllegalArgumentException("No algorithm name specified");
+        }
         if (!cachedCheckAlgorithm(algorithm)) {
             return false;
         }
