@@ -125,7 +125,8 @@ public class LogGeneratedClassesTest extends LUtils {
                                "-Djava.security.manager",
                                "com.example.TestLambda");
         // dump/com/example + 2 class files
-        assertEquals(Files.walk(Paths.get("dump")).count(), 5, "Two lambda captured");
+        // dump/java/lang + 1 class file
+        assertEquals(Files.walk(Paths.get("dump")).count(), 8, "Two lambda captured");
         tr.assertZero("Should still return 0");
     }
 
@@ -236,7 +237,8 @@ public class LogGeneratedClassesTest extends LUtils {
                                   .count(),
                      2, "show error each capture");
         // dumpLong/com/example/nosense/nosense
-        assertEquals(Files.walk(Paths.get("dumpLong")).count(), 5, "Two lambda captured failed to log");
+        // dumpLong/java/lang + 1 file
+        assertEquals(Files.walk(Paths.get("dumpLong")).count(), 8, "Two lambda captured failed to log");
         tr.assertZero("Should still return 0");
     }
 }
