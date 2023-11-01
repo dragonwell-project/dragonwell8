@@ -562,10 +562,10 @@ bool QuickStart::load_and_validate(const JavaVMInitArgs* options_args) {
 void QuickStart::read_env_from_file_and_environment(char* line) {
 
   // 1. read old env from file
-  int p1 = strlen(ENV_MARK);
+  int p1 = (int)strlen(ENV_MARK);
   int p2 = strchr(line, '=') - line;
   // e.g. from ENV.PWD=Path get Path
-  int old_env_len = strlen(line) - p2 -1;
+  int old_env_len = (int)strlen(line) - p2 -1;
   char* old_env = NEW_C_HEAP_ARRAY(char, old_env_len + 1, mtInternal); // char + \0
   strncpy(old_env, &line[p2+1], old_env_len);
   old_env[old_env_len] = '\0';
@@ -586,7 +586,7 @@ void QuickStart::read_env_from_file_and_environment(char* line) {
     log_info(quickstart)("old_env: %s", old_env);
     log_info(quickstart)("new_env: %s", new_env_val);
     // record _max_env_diff_len
-    int new_env_len = strlen(new_env_val);
+    int new_env_len = (int)strlen(new_env_val);
     if (new_env_len - old_env_len > _max_env_diff_len) {
       _max_env_diff_len = new_env_len - old_env_len;
     }
@@ -1130,9 +1130,9 @@ char* QuickStart::replace_if_contains(const char* path) {
     for(int i = 0; i < array_cnt; i++) {
       const char* target = old_envs->at(i);
       if(strstr(path, target) != NULL) {
-        int target_len = strlen(target);
+        int target_len = (int)strlen(target);
         const char* new_target = new_envs->at(i);
-        int new_target_len = strlen(new_target);
+        int new_target_len = (int)strlen(new_target);
         char* new_path = NEW_C_HEAP_ARRAY(char, new_target_len + strlen(path) - target_len + 1, mtInternal);
         new_path[0] = '\0'; // clear the buffer
         strcat(new_path, new_target);
