@@ -24,7 +24,7 @@
 /*
  * @test
  * @summary Test JDK Metrics class when running inside docker container
- * @library /lib
+ * @library /test/lib
  * @run main TestSystemMetrics
  */
 

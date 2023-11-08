@@ -40,7 +40,7 @@ import jdk.test.lib.Asserts;
  * @key jfr
  * @summary Test with minimal needed permissions. All functions should work.
  *
- * @library /lib /
+ * @library /test/lib /
  * @run main/othervm/secure=java.lang.SecurityManager/java.security.policy=enough.policy jdk.jfr.jmx.security.TestEnoughPermission
  */
 public class TestEnoughPermission {

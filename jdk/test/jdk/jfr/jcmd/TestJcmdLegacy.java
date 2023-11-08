@@ -42,7 +42,7 @@ import jdk.test.lib.process.OutputAnalyzer;
  * @test TestClassId
  * @key jfr
  *
- * @library /lib /
+ * @library /test/lib /
  *
  * @run main/othervm jdk.jfr.jcmd.TestJcmdLegacy
  */

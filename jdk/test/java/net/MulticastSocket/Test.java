@@ -34,7 +34,7 @@ import jdk.test.lib.NetworkConfiguration;
  * @test
  * @bug 4488458
  * @summary IPv4 and IPv6 multicasting broken on Linux
- * @library /lib
+ * @library /test/lib
  * @build jdk.test.lib.NetworkConfiguration
  *        jdk.test.lib.Platform
  * @run main Test

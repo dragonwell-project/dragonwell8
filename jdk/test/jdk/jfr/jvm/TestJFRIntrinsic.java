@@ -28,7 +28,7 @@
  * @summary Intrinsic for JFR
  * @key jfr
  *
- * @library /lib /
+ * @library /test/lib /
  *
  *
  *

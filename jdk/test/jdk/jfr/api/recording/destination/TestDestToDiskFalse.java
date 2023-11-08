@@ -44,7 +44,7 @@ import jdk.test.lib.jfr.SimpleEventHelper;
  * @summary Basic test for setDestination with disk=false
  * @key jfr
  *
- * @library /lib /
+ * @library /test/lib /
  * @run main/othervm jdk.jfr.api.recording.destination.TestDestToDiskFalse
  */
 public class TestDestToDiskFalse {

@@ -44,7 +44,7 @@ import jdk.test.lib.jfr.Events;
  * @test
  * @key jfr
  *
- * @library /lib /
+ * @library /test/lib /
  * @run main/othervm jdk.jfr.api.consumer.TestRecordedMethodDescriptor
  */
 public final class TestRecordedMethodDescriptor {

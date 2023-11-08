@@ -38,7 +38,7 @@ import jdk.test.lib.Utils;
  * @summary The test verifies JFR.configure command
  * @key jfr
  *
- * @library /lib /
+ * @library /test/lib /
  *
  * @run main/othervm jdk.jfr.jcmd.TestJcmdConfigure
  */

@@ -49,7 +49,7 @@ import jdk.test.lib.process.OutputAnalyzer;
  * @key jfr
  * @summary Tests print --json
  *
- * @library /lib /
+ * @library /test/lib /
  * @modules jdk.scripting.nashorn
  *          jdk.jfr
  *

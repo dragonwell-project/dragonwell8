@@ -38,7 +38,7 @@ import jdk.test.lib.jfr.CommonHelper;
  * @key jfr
  * @summary Test Recording.scheduleStart() and Recording.get*Time()
  *
- * @library /lib /
+ * @library /test/lib /
  * @run main/othervm jdk.jfr.api.recording.time.TestTimeScheduleStart
  */
 

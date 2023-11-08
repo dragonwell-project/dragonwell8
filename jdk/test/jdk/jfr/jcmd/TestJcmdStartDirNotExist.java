@@ -35,7 +35,7 @@ import jdk.test.lib.process.OutputAnalyzer;
  * @summary Verify error when starting with a dir that does not exist.
  * @key jfr
  *
- * @library /lib /
+ * @library /test/lib /
  * @run main/othervm jdk.jfr.jcmd.TestJcmdStartDirNotExist
  */
 public class TestJcmdStartDirNotExist {

@@ -64,7 +64,7 @@ import jdk.test.lib.process.OutputAnalyzer;
  * @key jfr
  * @summary Tests print --xml
  *
- * @library /lib /
+ * @library /test/lib /
  * @modules java.scripting java.xml jdk.jfr
  *
  * @run main/othervm jdk.jfr.tool.TestPrintXML

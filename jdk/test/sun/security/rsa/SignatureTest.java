@@ -38,7 +38,7 @@ import static jdk.test.lib.SigTestUtil.SignatureType;
  * @summary Create a signature for RSA and get its signed data. re-initiate
  *          the signature with the public key. The signature can be verified
  *          by acquired signed data.
- * @library /lib
+ * @library /test/lib
  * @key randomness
  * @library ../../../lib/testlibrary
  * @run main SignatureTest MD2withRSA 512

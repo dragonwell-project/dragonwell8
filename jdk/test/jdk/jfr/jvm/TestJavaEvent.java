@@ -45,7 +45,7 @@ import jdk.test.lib.Utils;
  * @test TestGetThreadId
  * @key jfr
  *
- * @library /lib /
+ * @library /test/lib /
  *
  * @run main/othervm jdk.jfr.jvm.TestJavaEvent
  */

@@ -45,7 +45,7 @@ import jdk.test.lib.process.OutputAnalyzer;
  * @test
  * @summary Test jfr reconstruct
  * @key jfr
- * @library /lib /
+ * @library /test/lib /
  * @modules jdk.jfr/jdk.jfr.internal
  * @run main/othervm jdk.jfr.tool.TestAssemble
  */

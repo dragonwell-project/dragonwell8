@@ -34,7 +34,7 @@ import jdk.test.lib.Asserts;
  * @summary Test getEventType()
  * @key jfr
  *
- * @library /lib /
+ * @library /test/lib /
  * @run main/othervm jdk.jfr.api.metadata.eventtype.TestGetEventType
  */
 public class TestGetEventType {

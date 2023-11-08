@@ -32,7 +32,7 @@ import jdk.test.lib.NetworkConfiguration;
  * @test
  * @bug 6458027
  * @summary Disabling IPv6 on a specific network interface causes problems.
- * @library /lib
+ * @library /test/lib
  * @build jdk.test.lib.NetworkConfiguration
  *        jdk.test.lib.Platform
  * @run main SetGetNetworkInterfaceTest

@@ -26,7 +26,7 @@
  * @bug 8072909
  * @summary Test TimSort stack size on big arrays
  * @key intermittent
- * @library /lib/testlibrary /lib
+ * @library /lib/testlibrary /test/lib
  * @build jdk.testlibrary.*
  * @build TimSortStackSize2
  * @run driver ClassFileInstaller sun.hotspot.WhiteBox

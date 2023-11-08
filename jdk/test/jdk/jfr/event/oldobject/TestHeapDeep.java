@@ -38,7 +38,7 @@ import jdk.test.lib.jfr.Events;
  * @key jfr
  *
  *
- * @library /lib /
+ * @library /test/lib /
  *
  * @run main/othervm -XX:TLABSize=2k jdk.jfr.event.oldobject.TestHeapDeep
  */

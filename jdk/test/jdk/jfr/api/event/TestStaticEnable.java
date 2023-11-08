@@ -38,7 +38,7 @@ import jdk.test.lib.jfr.Events;
  * @summary Enable an event from a static function in the event.
  * @key jfr
  *
- * @library /lib /
+ * @library /test/lib /
  * @run main/othervm jdk.jfr.api.event.TestStaticEnable
  */
 public class TestStaticEnable {

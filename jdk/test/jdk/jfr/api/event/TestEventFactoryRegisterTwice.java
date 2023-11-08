@@ -38,7 +38,7 @@ import jdk.test.lib.Asserts;
  * @summary Verifies that EventFactory can register the same event twice
  * @key jfr
  *
- * @library /lib /
+ * @library /test/lib /
  * @run main/othervm jdk.jfr.api.event.TestEventFactoryRegisterTwice
  */
 public class TestEventFactoryRegisterTwice {

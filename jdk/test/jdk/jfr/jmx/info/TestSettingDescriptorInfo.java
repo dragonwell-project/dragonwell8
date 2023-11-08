@@ -42,7 +42,7 @@ import jdk.test.lib.Asserts;
  * @key jfr
  * @summary Test for SettingDescriptorInfo. Compare infos from java API and jmx API.
  *
- * @library /lib /
+ * @library /test/lib /
  * @run main/othervm jdk.jfr.jmx.info.TestSettingDescriptorInfo
  */
 public class TestSettingDescriptorInfo {

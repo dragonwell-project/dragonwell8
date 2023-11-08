@@ -45,7 +45,7 @@ import jdk.test.lib.jfr.VoidFunction;
  * @summary Test setDestination to read-only dir
  * @key jfr
  *
- * @library /lib /
+ * @library /test/lib /
  * @run main/othervm jdk.jfr.api.recording.destination.TestDestReadOnly
  */
 public class TestDestReadOnly {

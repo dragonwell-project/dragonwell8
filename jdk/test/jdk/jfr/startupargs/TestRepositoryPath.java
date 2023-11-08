@@ -36,7 +36,7 @@ import jdk.test.lib.Asserts;
  * @summary Set repository path. Verify recording created in repo.
  * @key jfr
  *
- * @library /lib /
+ * @library /test/lib /
  * @run main/othervm -XX:StartFlightRecording=name=TestStartRecording,settings=profile -XX:FlightRecorderOptions=repository=./repo jdk.jfr.startupargs.TestRepositoryPath
  */
 public class TestRepositoryPath {

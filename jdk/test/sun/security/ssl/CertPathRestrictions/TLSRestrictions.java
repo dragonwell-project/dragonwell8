@@ -54,7 +54,7 @@ import jdk.test.lib.process.ProcessTools;
  * @test
  * @bug 8165367
  * @summary Verify the restrictions for certificate path on JSSE with custom trust store.
- * @library /lib
+ * @library /test/lib
  * @build jdk.test.lib.Utils
  *        jdk.test.lib.Asserts
  *        jdk.test.lib.JDKToolFinder

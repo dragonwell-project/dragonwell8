@@ -36,7 +36,7 @@ import jdk.test.lib.jfr.VoidFunction;
  * @key jfr
  * @summary Verify we get SecurityExceptions when missing management permission "monitor".
  *
- * @library /lib /
+ * @library /test/lib /
  * @run main/othervm/secure=java.lang.SecurityManager/java.security.policy=nomonitor.policy jdk.jfr.jmx.security.TestNoMonitorPermission
  */
 public class TestNoMonitorPermission {

@@ -34,7 +34,7 @@ import java.util.List;
  * @test TestGetAllEventClasses
  * @key jfr
  *
- * @library /lib /
+ * @library /test/lib /
  *
  *
  * @build jdk.jfr.jvm.HelloWorldEvent1

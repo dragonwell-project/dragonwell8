@@ -28,7 +28,7 @@ package jdk.jfr.event.gc.detailed;
  * @test
  *
  *
- * @library /lib /
+ * @library /test/lib /
  * @run main/othervm -XX:+UseG1GC -Xmx64m jdk.jfr.event.gc.detailed.TestStressAllocationGCEventsWithG1
  */
 public class TestStressAllocationGCEventsWithG1 {

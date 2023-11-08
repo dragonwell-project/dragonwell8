@@ -25,7 +25,7 @@
  * @test
  * @bug 8293540
  * @summary Verify that -XshowSettings:system works
- * @library /lib /
+ * @library /test/lib /
  * @run main/timeout=360 TestDockerBasic
  */
 

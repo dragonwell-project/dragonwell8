@@ -37,7 +37,7 @@ import jdk.test.lib.Asserts;
  * @summary Test setName().
  * @key jfr
  *
- * @library /lib /
+ * @library /test/lib /
  * @run main/othervm jdk.jfr.api.metadata.eventtype.TestGetCategory
  */
 public class TestGetCategory {

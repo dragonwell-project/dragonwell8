@@ -40,7 +40,7 @@ import jdk.test.lib.jfr.Events;
  * @key jfr
  *
  *
- * @library /lib /
+ * @library /test/lib /
  * @run main/othervm -XX:+UnlockExperimentalVMOptions -XX:-UseFastUnorderedTimeStamps -XX:+UseParallelGC -XX:+UseParallelOldGC -XX:ParallelGCThreads=3 -XX:ConcGCThreads=2 -XX:+UseDynamicNumberOfGCThreads -XX:-ExplicitGCInvokesConcurrent -XX:-DisableExplicitGC -XX:MaxGCPauseMillis=800 -XX:GCTimeRatio=19 jdk.jfr.event.gc.configuration.TestGCConfigurationEvent
  */
 public class TestGCConfigurationEvent {

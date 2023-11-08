@@ -40,7 +40,7 @@ import jdk.test.lib.jfr.Events;
  * @key jfr
  *
  *
- * @library /lib /
+ * @library /test/lib /
  * @run main/othervm -XX:+UnlockExperimentalVMOptions -XX:-UseFastUnorderedTimeStamps -XX:+UseParallelGC -XX:+UseParallelOldGC -XX:+UseTLAB -XX:MinTLABSize=3k -XX:TLABRefillWasteFraction=96 jdk.jfr.event.gc.configuration.TestGCTLABConfigurationEvent
  */
 public class TestGCTLABConfigurationEvent {

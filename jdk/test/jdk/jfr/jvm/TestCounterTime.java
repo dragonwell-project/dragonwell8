@@ -33,7 +33,7 @@ import jdk.jfr.internal.JVM;
  * @test TestCounterTime
  * @key jfr
  *
- * @library /lib /
+ * @library /test/lib /
  *
  * @run main/othervm jdk.jfr.jvm.TestCounterTime
  */

@@ -40,7 +40,7 @@ import jdk.test.lib.jfr.Events;
  * @key jfr
  *
  *
- * @library /lib /
+ * @library /test/lib /
  * @run main/othervm -XX:+UnlockExperimentalVMOptions -XX:-UseFastUnorderedTimeStamps -XX:+UseParallelGC -XX:+UseParallelOldGC -XX:MaxTenuringThreshold=13 -XX:InitialTenuringThreshold=9 jdk.jfr.event.gc.configuration.TestGCSurvivorConfigurationEvent
  */
 public class TestGCSurvivorConfigurationEvent {

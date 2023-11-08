@@ -42,7 +42,7 @@ import jdk.test.lib.jfr.Events;
  * @summary Verifies that the recorded value descriptors are correct
  * @key jfr
  *
- * @library /lib /
+ * @library /test/lib /
  * @run main/othervm  jdk.jfr.api.consumer.TestValueDescriptorRecorded
  */
 public class TestValueDescriptorRecorded {
