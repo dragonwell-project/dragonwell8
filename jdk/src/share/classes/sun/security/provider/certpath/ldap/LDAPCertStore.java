@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -46,6 +46,7 @@ import java.security.*;
 import java.security.cert.Certificate;
 import java.security.cert.*;
 import javax.naming.ldap.LdapContext;
+import javax.naming.ldap.LdapName;
 import javax.security.auth.x500.X500Principal;
 
 import com.sun.jndi.ldap.LdapReferralException;
@@ -290,6 +291,49 @@ public final class LDAPCertStore extends CertStoreSpi {
         }
     }
 
+    private static String checkName(String name) throws CertStoreException {
+        if (name == null) {
+            throw new CertStoreException("Name absent");
+        }
+        try {
+            if (new CompositeName(name).size() > 1) {
+                throw new CertStoreException("Invalid name: " + name);
+            }
+        } catch (InvalidNameException ine) {
+            throw new CertStoreException("Invalid name: " + name, ine);
+        }
+        return name;
+    }
+
+    /**
+     * Get the values for the given attribute. If the attribute is null
+     * or does not contain any values, a zero length byte array is
+     * returned. NOTE that it is assumed that all values are byte arrays.
+     */
+    private static byte[][] getAttributeValues(Attribute attr)
+            throws NamingException {
+        byte[][] values;
+        if (attr == null) {
+            values = BB0;
+        } else {
+            values = new byte[attr.size()][];
+            int i = 0;
+            NamingEnumeration<?> enum_ = attr.getAll();
+            while (enum_.hasMore()) {
+                Object obj = enum_.next();
+                if (debug != null) {
+                    if (obj instanceof String) {
+                        debug.println("LDAPCertStore.getAttrValues() "
+                            + "enum.next is a string!: " + obj);
+                    }
+                }
+                byte[] value = (byte[])obj;
+                values[i++] = value;
+            }
+        }
+        return values;
+    }
+
     /**
      * Private class encapsulating the actual LDAP operations and cache
      * handling. Use:
@@ -308,31 +352,20 @@ public final class LDAPCertStore extends CertStoreSpi {
      */
     private class LDAPRequest {
 
-        private final String name;
+        private final LdapName name;
         private Map<String, byte[][]> valueMap;
         private final List<String> requestedAttributes;
 
         LDAPRequest(String name) throws CertStoreException {
-            this.name = checkName(name);
-            requestedAttributes = new ArrayList<>(5);
-        }
-
-        private String checkName(String name) throws CertStoreException {
-            if (name == null) {
-                throw new CertStoreException("Name absent");
-            }
             try {
-                if (new CompositeName(name).size() > 1) {
-                    throw new CertStoreException("Invalid name: " + name);
-                }
+                // Convert DN to an LdapName so that it is not treated as a
+                // composite name by JNDI. In JNDI, using a string name is
+                // equivalent to calling new CompositeName(stringName).
+                this.name = new LdapName(name);
             } catch (InvalidNameException ine) {
                 throw new CertStoreException("Invalid name: " + name, ine);
             }
-            return name;
-        }
-
-        String getName() {
-            return name;
+            requestedAttributes = new ArrayList<>(5);
         }
 
         void addRequestedAttribute(String attrId) {
@@ -409,6 +442,9 @@ public final class LDAPCertStore extends CertStoreSpi {
                         if (newDn != null && newDn.charAt(0) == '/') {
                             newDn = newDn.substring(1);
                         }
+                        // In JNDI, it is not possible to use an LdapName for
+                        // the referral DN, so we must validate the syntax of
+                        // the string DN.
                         checkName(newDn);
                     } catch (Exception e) {
                         throw new NamingException("Cannot follow referral to "
@@ -450,36 +486,6 @@ public final class LDAPCertStore extends CertStoreSpi {
             String cacheKey = name + "|" + attrId;
             valueCache.put(cacheKey, values);
         }
-
-        /**
-         * Get the values for the given attribute. If the attribute is null
-         * or does not contain any values, a zero length byte array is
-         * returned. NOTE that it is assumed that all values are byte arrays.
-         */
-        private byte[][] getAttributeValues(Attribute attr)
-                throws NamingException {
-            byte[][] values;
-            if (attr == null) {
-                values = BB0;
-            } else {
-                values = new byte[attr.size()][];
-                int i = 0;
-                NamingEnumeration<?> enum_ = attr.getAll();
-                while (enum_.hasMore()) {
-                    Object obj = enum_.next();
-                    if (debug != null) {
-                        if (obj instanceof String) {
-                            debug.println("LDAPCertStore.getAttrValues() "
-                                + "enum.next is a string!: " + obj);
-                        }
-                    }
-                    byte[] value = (byte[])obj;
-                    values[i++] = value;
-                }
-            }
-            return values;
-        }
-
     }
 
     /*
