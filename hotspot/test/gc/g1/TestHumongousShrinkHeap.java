@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,7 +27,7 @@
  * @requires vm.gc=="G1" | vm.gc=="null"
  * @summary Verify that heap shrinks after GC in the presence of fragmentation
  * due to humongous objects
- * @library /testlibrary
+ * @library /testlibrary /test/lib
  * @run main/othervm -XX:-ExplicitGCInvokesConcurrent -XX:MinHeapFreeRatio=10
  * -XX:MaxHeapFreeRatio=12 -XX:+UseG1GC -XX:G1HeapRegionSize=1M -verbose:gc
  * TestHumongousShrinkHeap
@@ -39,6 +39,7 @@ import java.util.ArrayList;
 import java.util.List;
 import sun.management.ManagementFactoryHelper;
 import static com.oracle.java.testlibrary.Asserts.*;
+import jtreg.SkippedException;
 
 public class TestHumongousShrinkHeap {
 
@@ -57,13 +58,11 @@ public class TestHumongousShrinkHeap {
 
     public static void main(String[] args) {
         if (HUMON_COUNT == 0) {
-            System.out.println("Skipped. Heap is too small");
-            return;
+            throw new SkippedException("Heap is too small");
         }
 
         if (TOTAL_MEMORY + REGION_SIZE * HUMON_COUNT > MAX_MEMORY) {
-            System.out.println("Skipped. Initial heap size is to close to max heap size.");
-            return;
+            throw new SkippedException("Initial heap size is to close to max heap size.");
         }
 
         System.out.format("Running with %s initial heap size of %s maximum heap size. "

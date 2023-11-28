@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -20,20 +20,24 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
-import java.io.File;
-import com.oracle.java.testlibrary.ProcessTools;
-import com.oracle.java.testlibrary.OutputAnalyzer;
-import java.util.ArrayList;
 
 /*
  * @test
  * @bug 6515172
  * @summary Check that availableProcessors reports the correct value when running in a cpuset on linux
  * @requires os.family == "linux"
- * @library /testlibrary
+ * @library /testlibrary /test/lib
  * @build com.oracle.java.testlibrary.*
  * @run driver AvailableProcessors
  */
+
+import com.oracle.java.testlibrary.ProcessTools;
+import com.oracle.java.testlibrary.OutputAnalyzer;
+import jtreg.SkippedException;
+
+import java.util.ArrayList;
+import java.io.File;
+
 public class AvailableProcessors {
 
     static final String SUCCESS_STRING = "Found expected processors: ";
@@ -47,20 +51,18 @@ public class AvailableProcessors {
             String taskset;
             final String taskset1 = "/bin/taskset";
             final String taskset2 = "/usr/bin/taskset";
-            if (new File(taskset1).exists())
+            if (new File(taskset1).exists()) {
                 taskset = taskset1;
-            else if (new File(taskset2).exists())
+            } else if (new File(taskset2).exists()) {
                 taskset = taskset2;
-            else {
-                System.out.println("Skipping test: could not find taskset command");
-                return;
+            } else {
+                throw new SkippedException("Could not find taskset command");
             }
 
             int available = Runtime.getRuntime().availableProcessors();
 
             if (available == 1) {
-                System.out.println("Skipping test: only one processor available");
-                return;
+                throw new SkippedException("only one processor available");
             }
 
             // Get the java command we want to execute

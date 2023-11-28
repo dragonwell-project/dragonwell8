@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,7 +23,7 @@
 
 /**
  * @test TieredLevelsTest
- * @library /testlibrary /testlibrary/whitebox /compiler/whitebox
+ * @library /testlibrary /testlibrary/whitebox /compiler/whitebox /test/lib
  * @build TieredLevelsTest
  * @run main ClassFileInstaller sun.hotspot.WhiteBox
  * @run main/othervm -Xbootclasspath/a:. -XX:+TieredCompilation
@@ -33,10 +33,13 @@
  * @summary Verify that all levels &lt; 'TieredStopAtLevel' can be used
  * @author igor.ignatyev@oracle.com
  */
+
+import jtreg.SkippedException;
+
 public class TieredLevelsTest extends CompLevelsTest {
     public static void main(String[] args) throws Exception, Throwable {
         if (CompilerWhiteBoxTest.skipOnTieredCompilation(false)) {
-            return;
+            throw new SkippedException("Test isn't applicable for non-tiered mode");
         }
         CompilerWhiteBoxTest.main(TieredLevelsTest::new, args);
     }

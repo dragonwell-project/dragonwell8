@@ -26,7 +26,7 @@ import com.oracle.java.testlibrary.OutputAnalyzer;
 
 /*
  * @test MaxMetaspaceSizeTest
- * @requires vm.bits == "64"
+ * @requires vm.bits == 64
  * @bug 8087291
  * @library /testlibrary
  * @run main/othervm MaxMetaspaceSizeTest

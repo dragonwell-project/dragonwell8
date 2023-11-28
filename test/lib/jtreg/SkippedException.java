@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,22 +21,18 @@
  * questions.
  */
 
-/**
- * @test TestShrinkAuxiliaryData20
- * @bug 8038423 8061715
- * @summary Checks that decommitment occurs for JVM with different
- * G1ConcRSLogCacheSize and ObjectAlignmentInBytes options values
- * @requires vm.gc=="G1" | vm.gc=="null"
- * @library /testlibrary /testlibrary/whitebox /test/lib
- * @build com.oracle.java.testlibrary.* sun.hotspot.WhiteBox
- * @build TestShrinkAuxiliaryData TestShrinkAuxiliaryData20
- * @run main ClassFileInstaller sun.hotspot.WhiteBox
- *                              sun.hotspot.WhiteBox$WhiteBoxPermission
- * @run driver/timeout=720 TestShrinkAuxiliaryData20
- */
-public class TestShrinkAuxiliaryData20 {
+package jtreg;
 
-    public static void main(String[] args) throws Exception {
-        new TestShrinkAuxiliaryData(20).test();
+/**
+ * {@code SkippedException} is an exception treaded by jtreg as an indication
+ * of skipped status.
+ */
+public final class SkippedException extends RuntimeException {
+    public SkippedException(String s, Throwable t) {
+        super(s, t);
+    }
+
+    public SkippedException(String s) {
+        super(s);
     }
 }

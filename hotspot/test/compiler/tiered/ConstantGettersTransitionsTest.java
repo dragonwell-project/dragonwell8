@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,12 +21,14 @@
  * questions.
  */
 
+import jtreg.SkippedException;
+
 import java.lang.reflect.Executable;
 import java.util.concurrent.Callable;
 
 /**
  * @test ConstantGettersTransitionsTest
- * @library /testlibrary /testlibrary/whitebox /compiler/whitebox
+ * @library /testlibrary /testlibrary/whitebox /compiler/whitebox /test/lib
  * @build TransitionsTestExecutor ConstantGettersTransitionsTest
  * @run main ClassFileInstaller sun.hotspot.WhiteBox sun.hotspot.WhiteBox$WhiteBoxPermission
  * @run main/othervm/timeout=240 -Xmixed -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions
@@ -37,7 +39,9 @@ import java.util.concurrent.Callable;
  */
 public class ConstantGettersTransitionsTest extends LevelTransitionTest {
     public static void main(String[] args) {
-        assert (!CompilerWhiteBoxTest.skipOnTieredCompilation(false));
+        if (CompilerWhiteBoxTest.skipOnTieredCompilation(false)) {
+            throw new SkippedException("Test isn't applicable for non-tiered mode");
+        }
 
         // run test cases
         for (TestCase testCase : ConstantGettersTestCase.values()) {

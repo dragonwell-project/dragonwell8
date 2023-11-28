@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,8 +25,8 @@
  * @test TestLargePageUseForAuxMemory.java
  * @bug 8058354
  * @key gc
- * @library /testlibrary /testlibrary/whitebox
- * @requires (vm.gc=="G1" | vm.gc=="null")
+ * @library /testlibrary /testlibrary/whitebox /test/lib
+ * @requires (vm.gc=="G1" | vm.gc=="null") & vm.debug
  * @build TestLargePageUseForAuxMemory
  * @run main ClassFileInstaller sun.hotspot.WhiteBox
  *                              sun.hotspot.WhiteBox$WhiteBoxPermission
@@ -35,6 +35,7 @@
  */
 
 import com.oracle.java.testlibrary.*;
+import jtreg.SkippedException;
 import sun.hotspot.WhiteBox;
 
 public class TestLargePageUseForAuxMemory {
@@ -88,18 +89,12 @@ public class TestLargePageUseForAuxMemory {
     }
 
     public static void main(String[] args) throws Exception {
-        if (!Platform.isDebugBuild()) {
-            System.out.println("Skip tests on non-debug builds because the required option TracePageSizes is a debug-only option.");
-            return;
-        }
-
         WhiteBox wb = WhiteBox.getWhiteBox();
         smallPageSize = wb.getVMPageSize();
         largePageSize = wb.getVMLargePageSize();
 
         if (largePageSize == 0) {
-            System.out.println("Skip tests because large page support does not seem to be available on this platform.");
-            return;
+            throw new SkippedException("Large page support does not seem to be available on this platform.");
         }
 
         // To get large pages for the card table etc. we need at least a 1G heap (with 4k page size).

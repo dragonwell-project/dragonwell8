@@ -27,7 +27,7 @@
  * @summary Checks that decommitment occurs for JVM with different
  * G1ConcRSLogCacheSize and ObjectAlignmentInBytes options values
  * @requires vm.gc=="G1" | vm.gc=="null"
- * @library /testlibrary /testlibrary/whitebox
+ * @library /testlibrary /testlibrary/whitebox /test/lib
  * @build com.oracle.java.testlibrary.* sun.hotspot.WhiteBox
  * @build TestShrinkAuxiliaryData TestShrinkAuxiliaryData25
  * @run main ClassFileInstaller sun.hotspot.WhiteBox
