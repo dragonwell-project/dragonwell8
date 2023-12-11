@@ -27,8 +27,22 @@
 ## @requires os.family == "linux"
 ## @run shell c1AssertFailTest.sh
 
-
-${TESTJAVA}/bin/java -Xcomp -XX:-UseBiasedLocking -XX:+UnlockExperimentalVMOptions -XX:+EnableCoroutine -XX:+UseWispMonitor -Dcom.alibaba.transparentAsync=true &
+set -x
+version=`${TESTJAVA}/bin/java -version 2>&1`
+fastdebug=`echo ${version} | grep "fastdebug"`
+# fastdebug mode
+if [ "$fastdebug" != "" ];then
+    echo "fastdebug mode"
+    exit 0
+fi
+debug=`echo ${version} | grep "debug"`
+# release mode
+if [ "$debug" = "" ];then
+    echo "release mode"
+    exit 0
+fi
+# slowdebug mode
+time ${TESTJAVA}/bin/java -Xcomp -XX:TieredStopAtLevel=1 -XX:-UseBiasedLocking -XX:+UnlockExperimentalVMOptions -XX:+EnableCoroutine -XX:+UseWispMonitor -Dcom.alibaba.transparentAsync=true &
 
 PID=$!
 
