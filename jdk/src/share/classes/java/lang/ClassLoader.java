@@ -1710,10 +1710,10 @@ public abstract class ClassLoader {
         if (pkg != null) {
             throw new IllegalArgumentException(name);
         }
-        final Package new_pkg = new Package(name, specTitle, specVersion, specVendor,
+        pkg= new Package(name, specTitle, specVersion, specVendor,
                           implTitle, implVersion, implVendor,
                           sealBase, this);
-        if (packages.computeIfAbsent(name, key -> new_pkg) != new_pkg) {
+        if (packages.putIfAbsent(name, pkg) != null) {
             throw new IllegalArgumentException(name);
         }
         return pkg;
