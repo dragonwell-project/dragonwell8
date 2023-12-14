@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,6 +25,10 @@
 
 package javax.security.auth.callback;
 
+import java.io.IOException;
+import java.io.InvalidObjectException;
+import java.io.ObjectInputStream;
+
 /**
  * <p> Underlying security services instantiate and pass a
  * {@code ChoiceCallback} to the {@code handle}
@@ -41,7 +45,7 @@ public class ChoiceCallback implements Callback, java.io.Serializable {
      * @serial
      * @since 1.4
      */
-    private String prompt;
+    private final String prompt;
     /**
      * @serial the list of choices
      * @since 1.4
@@ -51,13 +55,13 @@ public class ChoiceCallback implements Callback, java.io.Serializable {
      * @serial the choice to be used as the default choice
      * @since 1.4
      */
-    private int defaultChoice;
+    private final int defaultChoice;
     /**
      * @serial whether multiple selections are allowed from the list of
      * choices
      * @since 1.4
      */
-    private boolean multipleSelectionsAllowed;
+    private final boolean multipleSelectionsAllowed;
     /**
      * @serial the selected choices, represented as indexes into the
      *          {@code choices} list.
@@ -103,15 +107,15 @@ public class ChoiceCallback implements Callback, java.io.Serializable {
             defaultChoice < 0 || defaultChoice >= choices.length)
             throw new IllegalArgumentException();
 
+        this.prompt = prompt;
+        this.defaultChoice = defaultChoice;
+        this.multipleSelectionsAllowed = multipleSelectionsAllowed;
+
+        this.choices = choices.clone();
         for (int i = 0; i < choices.length; i++) {
             if (choices[i] == null || choices[i].length() == 0)
                 throw new IllegalArgumentException();
         }
-
-        this.prompt = prompt;
-        this.choices = choices;
-        this.defaultChoice = defaultChoice;
-        this.multipleSelectionsAllowed = multipleSelectionsAllowed;
     }
 
     /**
@@ -133,7 +137,7 @@ public class ChoiceCallback implements Callback, java.io.Serializable {
      * @return the list of choices.
      */
     public String[] getChoices() {
-        return choices;
+        return choices.clone();
     }
 
     /**
@@ -192,7 +196,7 @@ public class ChoiceCallback implements Callback, java.io.Serializable {
     public void setSelectedIndexes(int[] selections) {
         if (!multipleSelectionsAllowed)
             throw new UnsupportedOperationException();
-        this.selections = selections;
+        this.selections = selections == null ? null : selections.clone();
     }
 
     /**
@@ -206,6 +210,39 @@ public class ChoiceCallback implements Callback, java.io.Serializable {
      * @see #setSelectedIndexes
      */
     public int[] getSelectedIndexes() {
-        return selections;
+        return selections == null ? null : selections.clone();
+    }
+
+    /**
+     * Restores the state of this object from the stream.
+     *
+     * @param  stream the {@code ObjectInputStream} from which data is read
+     * @throws IOException if an I/O error occurs
+     * @throws ClassNotFoundException if a serialized class cannot be loaded
+     */
+    private void readObject(ObjectInputStream stream)
+            throws IOException, ClassNotFoundException {
+        stream.defaultReadObject();
+
+        if ((prompt == null) || prompt.isEmpty() ||
+                (choices == null) || (choices.length == 0) ||
+                (defaultChoice < 0) || (defaultChoice >= choices.length)) {
+            throw new InvalidObjectException(
+                    "Missing/invalid prompt/choices");
+        }
+
+        choices = choices.clone();
+        for (int i = 0; i < choices.length; i++) {
+            if ((choices[i] == null) || choices[i].isEmpty())
+                throw new InvalidObjectException("Null/empty choices");
+        }
+
+        if (selections != null) {
+            selections = selections.clone();
+            if (!multipleSelectionsAllowed && (selections.length != 1)) {
+                throw new InvalidObjectException(
+                        "Multiple selections not allowed");
+            }
+        }
     }
 }

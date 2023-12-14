@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2010, 2021, Oracle and/or its affiliates. All rights reserved.
 # DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 #
 # This code is free software; you can redistribute it and/or modify it
@@ -22,7 +22,7 @@
 #
 
 # @test
-# @bug 6950546
+# @bug 6950546 8139348
 # @summary "ktab -d name etype" to "ktab -d name [-e etype] [kvno | all | old]"
 # @run shell ktcheck.sh
 #
@@ -62,33 +62,35 @@ CHECK="${TESTJAVA}${FS}bin${FS}java ${TESTVMOPTS} ${EXTRA_OPTIONS} KtabCheck $KE
 
 echo ${EXTRA_OPTIONS}
 
+# This test uses a krb5.conf file (onlythree.conf) in which
+# only 2 etypes in the default_tkt_enctypes setting are enabled
+# by default: aes128-cts(17), aes256-cts(18).
+
 $KTAB -a me mine
-$CHECK 1 16 1 23 1 17 || exit 1
+$CHECK 1 17 1 18 || exit 1
 $KTAB -a me mine -n 0
-$CHECK 0 16 0 23 0 17 || exit 1
+$CHECK 0 17 0 18 || exit 1
 $KTAB -a me mine -n 1 -append
-$CHECK 0 16 0 23 0 17 1 16 1 23 1 17 || exit 1
+$CHECK 0 17 0 18 1 17 1 18 || exit 1
 $KTAB -a me mine -append
-$CHECK 0 16 0 23 0 17 1 16 1 23 1 17 2 16 2 23 2 17 || exit 1
+$CHECK 0 17 0 18 1 17 1 18 2 17 2 18 || exit 1
 $KTAB -a me mine
-$CHECK 3 16 3 23 3 17 || exit 1
+$CHECK 3 17 3 18 || exit 1
 $KTAB -a me mine -n 4 -append
-$CHECK 3 16 3 23 3 17 4 16 4 23 4 17 || exit 1
+$CHECK 3 17 3 18 4 17 4 18 || exit 1
 $KTAB -a me mine -n 5 -append
-$CHECK 3 16 3 23 3 17 4 16 4 23 4 17 5 16 5 23 5 17 || exit 1
+$CHECK 3 17 3 18 4 17 4 18 5 17 5 18 || exit 1
 $KTAB -a me mine -n 6 -append
-$CHECK 3 16 3 23 3 17 4 16 4 23 4 17 5 16 5 23 5 17 6 16 6 23 6 17 || exit 1
+$CHECK 3 17 3 18 4 17 4 18 5 17 5 18 6 17 6 18 || exit 1
 $KTAB -d me 3
-$CHECK 4 16 4 23 4 17 5 16 5 23 5 17 6 16 6 23 6 17 || exit 1
-$KTAB -d me -e 16 6
-$CHECK 4 16 4 23 4 17 5 16 5 23 5 17 6 23 6 17 || exit 1
+$CHECK 4 17 4 18 5 17 5 18 6 17 6 18 || exit 1
 $KTAB -d me -e 17 6
-$CHECK 4 16 4 23 4 17 5 16 5 23 5 17 6 23 || exit 1
-$KTAB -d me -e 16 5
-$CHECK 4 16 4 23 4 17 5 23 5 17 6 23 || exit 1
+$CHECK 4 17 4 18 5 17 5 18 6 18 || exit 1
+$KTAB -d me -e 17 5
+$CHECK 4 17 4 18 5 18 6 18 || exit 1
 $KTAB -d me old
-$CHECK 4 16 5 17 6 23 || exit 1
+$CHECK 4 17 6 18 || exit 1
 $KTAB -d me old
-$CHECK 4 16 5 17 6 23 || exit 1
+$CHECK 4 17 6 18 || exit 1
 $KTAB -d me
 $CHECK || exit 1

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -156,9 +156,9 @@ public final class CodeSigner implements Serializable {
     public String toString() {
         StringBuffer sb = new StringBuffer();
         sb.append("(");
-        sb.append("Signer: " + signerCertPath.getCertificates().get(0));
+        sb.append("Signer: ").append(signerCertPath.getCertificates().get(0));
         if (timestamp != null) {
-            sb.append("timestamp: " + timestamp);
+            sb.append("timestamp: ").append(timestamp);
         }
         sb.append(")");
         return sb.toString();
@@ -166,8 +166,11 @@ public final class CodeSigner implements Serializable {
 
     // Explicitly reset hash code value to -1
     private void readObject(ObjectInputStream ois)
-        throws IOException, ClassNotFoundException {
-     ois.defaultReadObject();
-     myhash = -1;
+            throws IOException, ClassNotFoundException {
+        ois.defaultReadObject();
+        if (signerCertPath == null) {
+            throw new InvalidObjectException("signerCertPath is null");
+        }
+        myhash = -1;
     }
 }
