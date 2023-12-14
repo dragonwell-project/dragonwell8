@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,6 +26,8 @@
 package sun.security.rsa;
 
 import java.io.IOException;
+import java.io.InvalidObjectException;
+import java.io.ObjectInputStream;
 import java.math.BigInteger;
 
 import java.security.*;
@@ -38,10 +40,11 @@ import sun.security.pkcs.PKCS8Key;
 
 /**
  * RSA private key implementation for "RSA", "RSASSA-PSS" algorithms in non-CRT
- * form (modulus, private exponent only). For CRT private keys, see
- * RSAPrivateCrtKeyImpl. We need separate classes to ensure correct behavior
- * in instanceof checks, etc.
- *
+ * form (modulus, private exponent only).
+ * <p>
+ * For CRT private keys, see RSAPrivateCrtKeyImpl. We need separate classes
+ * to ensure correct behavior in instanceof checks, etc.
+ * <p>
  * Note: RSA keys must be at least 512 bits long
  *
  * @see RSAPrivateCrtKeyImpl
@@ -126,5 +129,20 @@ public final class RSAPrivateKeyImpl extends PKCS8Key implements RSAPrivateKey {
         return "Sun " + getAlgorithm() + " private key, " + n.bitLength()
                + " bits" + "\n  params: " + keyParams + "\n  modulus: " + n
                + "\n  private exponent: " + d;
+    }
+
+    /**
+     * Restores the state of this object from the stream.
+     * <p>
+     * Deserialization of this object is not supported.
+     *
+     * @param  stream the {@code ObjectInputStream} from which data is read
+     * @throws IOException if an I/O error occurs
+     * @throws ClassNotFoundException if a serialized class cannot be loaded
+     */
+    private void readObject(ObjectInputStream stream)
+            throws IOException, ClassNotFoundException {
+        throw new InvalidObjectException(
+                "RSAPrivateKeyImpl keys are not directly deserializable");
     }
 }

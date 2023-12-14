@@ -1159,6 +1159,12 @@ ifndef BUILD_HEADLESS_ONLY
       -DPNG_ARM_NEON_OPT=0 -DPNG_ARM_NEON_IMPLEMENTATION=0 \
       $(foreach dir, $(LIBSPLASHSCREEN_DIRS), -I$(dir))
 
+  ifeq ($(OPENJDK_TARGET_OS), linux)
+    ifeq ($(OPENJDK_TARGET_CPU_ARCH), ppc)
+      LIBSPLASHSCREEN_CFLAGS += -DPNG_POWERPC_VSX_OPT=0
+    endif
+  endif
+
   ifeq ($(OPENJDK_TARGET_OS), macosx)
     LIBSPLASHSCREEN_CFLAGS := -I$(JDK_TOPDIR)/src/macosx/native/sun/awt/splashscreen \
         $(LIBSPLASHSCREEN_CFLAGS)

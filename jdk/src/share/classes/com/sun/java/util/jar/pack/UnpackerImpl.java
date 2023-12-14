@@ -139,6 +139,11 @@ public class UnpackerImpl extends TLGlobals implements Pack200.Unpacker {
                 } catch (UnsatisfiedLinkError | NoClassDefFoundError ex) {
                     // failover to java implementation
                     (new DoUnpack()).run(in0, out);
+                } finally {
+                    if (_nunp != null) {
+                       // Free up native memory and JNI handles to prevent leaks
+                       ((NativeUnpack) _nunp).finish();
+                    }
                 }
                 in0.close();
                 Utils.markJarFile(out);

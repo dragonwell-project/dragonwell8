@@ -60,7 +60,7 @@ class NativeUnpack {
 
     // Resets the engine and frees all resources.
     // Returns total number of bytes consumed by the engine.
-    private synchronized native long finish();
+    synchronized native long finish();
 
     // Setting state in the unpacker.
     protected  synchronized native boolean setOption(String opt, String value);
