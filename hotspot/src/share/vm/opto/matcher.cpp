@@ -2202,6 +2202,7 @@ void Matcher::find_shared( Node *n ) {
                 // AtomicAdd is not an addressing expression.
                 // Cheap to find it by looking for screwy base.
                 !adr->in(AddPNode::Base)->is_top() &&
+                X86_ONLY(LP64_ONLY( off->get_long() == (int) (off->get_long()) && )) // immL32
                 // Are there other uses besides address expressions?
                 !is_visited(adr) ) {
               address_visited.set(adr->_idx); // Flag as address_visited

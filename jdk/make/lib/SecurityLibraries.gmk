@@ -94,26 +94,40 @@ BUILD_LIBRARIES += $(BUILD_LIBJ2PCSC)
 
 ##########################################################################################
 
-ifneq ($(OPENJDK_TARGET_OS), windows)
-  $(eval $(call SetupNativeCompilation,BUILD_LIBJ2GSS, \
-      LIBRARY := j2gss, \
-      OUTPUT_DIR := $(INSTALL_LIBRARIES_HERE), \
-      SRC := $(JDK_TOPDIR)/src/share/native/sun/security/jgss/wrapper \
-          $(JDK_TOPDIR)/src/$(OPENJDK_TARGET_OS_API_DIR)/native/sun/security/jgss/wrapper, \
-      LANG := C, \
-      OPTIMIZATION := LOW, \
-      CFLAGS := $(CFLAGS_JDKLIB) \
-          -I$(JDK_TOPDIR)/src/share/native/sun/security/jgss/wrapper \
-          -I$(JDK_TOPDIR)/src/$(OPENJDK_TARGET_OS_API_DIR)/native/sun/security/jgss/wrapper, \
-      MAPFILE := $(JDK_TOPDIR)/make/mapfiles/libj2gss/mapfile-vers, \
-      LDFLAGS := $(LDFLAGS_JDKLIB) \
-          $(call SET_SHARED_LIBRARY_ORIGIN), \
-      LDFLAGS_SUFFIX := $(LIBDL), \
-      LDFLAGS_SUFFIX_solaris := -lc, \
-      OBJECT_DIR := $(JDK_OUTPUTDIR)/objs/libj2gss, \
-      DEBUG_SYMBOLS := $(DEBUG_ALL_BINARIES)))
+$(eval $(call SetupNativeCompilation,BUILD_LIBJ2GSS, \
+    LIBRARY := j2gss, \
+    OUTPUT_DIR := $(INSTALL_LIBRARIES_HERE), \
+    SRC := $(JDK_TOPDIR)/src/share/native/sun/security/jgss/wrapper, \
+    LANG := C, \
+    OPTIMIZATION := LOW, \
+    CFLAGS := $(CFLAGS_JDKLIB) \
+        -I$(JDK_TOPDIR)/src/share/native/sun/security/jgss/wrapper, \
+    MAPFILE := $(JDK_TOPDIR)/make/mapfiles/libj2gss/mapfile-vers, \
+    LDFLAGS := $(LDFLAGS_JDKLIB) \
+        $(call SET_SHARED_LIBRARY_ORIGIN), \
+    LDFLAGS_SUFFIX := $(LIBDL), \
+    LDFLAGS_SUFFIX_solaris := -lc, \
+    OBJECT_DIR := $(JDK_OUTPUTDIR)/objs/libj2gss, \
+    DEBUG_SYMBOLS := $(DEBUG_ALL_BINARIES)))
 
-  BUILD_LIBRARIES += $(BUILD_LIBJ2GSS)
+BUILD_LIBRARIES += $(BUILD_LIBJ2GSS)
+
+ifeq ($(OPENJDK_TARGET_OS), windows)
+  $(eval $(call SetupNativeCompilation,BUILD_LIBSSPI_BRIDGE, \
+    LIBRARY := sspi_bridge, \
+    OUTPUT_DIR := $(INSTALL_LIBRARIES_HERE), \
+    SRC := $(JDK_TOPDIR)/src/windows/native/sun/security/jgss/sspi_bridge, \
+    LANG := C, \
+    OPTIMIZATION := LOW, \
+    CFLAGS := $(CFLAGS_JDKLIB) \
+        -I$(JDK_TOPDIR)/src/share/native/sun/security/jgss/wrapper, \
+    LDFLAGS := $(LDFLAGS_JDKLIB) \
+        $(call SET_SHARED_LIBRARY_ORIGIN), \
+    LDFLAGS_SUFFIX := $(LIBDL), \
+    OBJECT_DIR := $(JDK_OUTPUTDIR)/objs/libsspi_bridge, \
+    DEBUG_SYMBOLS := $(DEBUG_ALL_BINARIES)))
+
+  BUILD_LIBRARIES += $(BUILD_LIBSSPI_BRIDGE)
 endif
 
 ##########################################################################################

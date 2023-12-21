@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -57,9 +57,17 @@ extern "C" {
  */
 #include <sys/types.h>
 
-typedef void * gss_name_t;
-typedef void * gss_cred_id_t;
-typedef void * gss_ctx_id_t;
+struct gss_name_struct;
+typedef struct gss_name_struct * gss_name_t;
+typedef const struct gss_name_struct *gss_const_name_t;
+
+struct gss_cred_id_struct;
+typedef struct gss_cred_id_struct * gss_cred_id_t;
+typedef const struct gss_cred_id_struct *gss_const_cred_id_t;
+
+struct gss_ctx_id_struct;
+typedef struct gss_ctx_id_struct * gss_ctx_id_t;
+typedef const struct gss_ctx_id_struct *gss_const_ctx_id_t;
 
 /*
  * The following type must be defined as the smallest natural unsigned integer
@@ -82,16 +90,19 @@ typedef struct gss_OID_desc_struct {
       OM_uint32 length;
       void *elements;
 } gss_OID_desc, *gss_OID;
+typedef const gss_OID_desc * gss_const_OID;
 
 typedef struct gss_OID_set_desc_struct  {
       size_t  count;
       gss_OID elements;
 } gss_OID_set_desc, *gss_OID_set;
+typedef const gss_OID_set_desc * gss_const_OID_set;
 
 typedef struct gss_buffer_desc_struct {
       size_t length;
       void *value;
 } gss_buffer_desc, *gss_buffer_t;
+typedef const gss_buffer_desc * gss_const_buffer_t;
 
 typedef struct gss_channel_bindings_struct {
       OM_uint32 initiator_addrtype;
@@ -100,6 +111,7 @@ typedef struct gss_channel_bindings_struct {
       gss_buffer_desc acceptor_address;
       gss_buffer_desc application_data;
 } *gss_channel_bindings_t;
+typedef const struct gss_channel_bindings_struct *gss_const_channel_bindings_t;
 
 /*
  * For now, define a QOP-type as an OM_uint32
@@ -119,6 +131,7 @@ typedef int             gss_cred_usage_t;
 #define GSS_C_ANON_FLAG 64
 #define GSS_C_PROT_READY_FLAG 128
 #define GSS_C_TRANS_FLAG 256
+#define GSS_C_DELEG_POLICY_FLAG 32768
 
 /*
  * Credential usage options
@@ -387,44 +400,44 @@ GSS_DLLIMP extern gss_OID GSS_C_NT_EXPORT_NAME;
 
 /* Function Prototypes */
 
-OM_uint32 gss_acquire_cred(
+GSS_DLLIMP OM_uint32 gss_acquire_cred(
         OM_uint32 *,            /* minor_status */
-        gss_name_t,             /* desired_name */
+        gss_const_name_t,       /* desired_name */
         OM_uint32,              /* time_req */
-        gss_OID_set,            /* desired_mechs */
+        gss_const_OID_set,      /* desired_mechs */
         gss_cred_usage_t,       /* cred_usage */
         gss_cred_id_t *,        /* output_cred_handle */
         gss_OID_set *,          /* actual_mechs */
         OM_uint32 *             /* time_rec */
 );
 
-OM_uint32 gss_release_cred(
+GSS_DLLIMP OM_uint32 gss_release_cred(
         OM_uint32 *,            /* minor_status */
         gss_cred_id_t *         /* cred_handle */
 );
 
-OM_uint32 gss_init_sec_context(
+GSS_DLLIMP OM_uint32 gss_init_sec_context(
         OM_uint32 *,            /* minor_status */
-        gss_cred_id_t,          /* claimant_cred_handle */
+        gss_const_cred_id_t,    /* claimant_cred_handle */
         gss_ctx_id_t *,         /* context_handle */
-        gss_name_t,             /* target_name */
-        gss_OID,                /* mech_type (used to be const) */
+        gss_const_name_t,       /* target_name */
+        gss_const_OID,          /* mech_type */
         OM_uint32,              /* req_flags */
         OM_uint32,              /* time_req */
-        gss_channel_bindings_t, /* input_chan_bindings */
-        gss_buffer_t,           /* input_token */
+        gss_const_channel_bindings_t, /* input_chan_bindings */
+        gss_const_buffer_t,     /* input_token */
         gss_OID *,              /* actual_mech_type */
         gss_buffer_t,           /* output_token */
         OM_uint32 *,            /* ret_flags */
         OM_uint32 *             /* time_rec */
 );
 
-OM_uint32 gss_accept_sec_context(
+GSS_DLLIMP OM_uint32 gss_accept_sec_context(
         OM_uint32 *,            /* minor_status */
         gss_ctx_id_t *,         /* context_handle */
-        gss_cred_id_t,          /* acceptor_cred_handle */
-        gss_buffer_t,           /* input_token_buffer */
-        gss_channel_bindings_t, /* input_chan_bindings */
+        gss_const_cred_id_t,    /* acceptor_cred_handle */
+        gss_const_buffer_t,     /* input_token_buffer */
+        gss_const_channel_bindings_t, /* input_chan_bindings */
         gss_name_t *,           /* src_name */
         gss_OID *,              /* mech_type */
         gss_buffer_t,           /* output_token */
@@ -433,116 +446,116 @@ OM_uint32 gss_accept_sec_context(
         gss_cred_id_t *         /* delegated_cred_handle */
 );
 
-OM_uint32 gss_process_context_token(
+GSS_DLLIMP OM_uint32 gss_process_context_token(
         OM_uint32 *,            /* minor_status */
-        gss_ctx_id_t,           /* context_handle */
-        gss_buffer_t            /* token_buffer */
+        gss_const_ctx_id_t,     /* context_handle */
+        gss_const_buffer_t      /* token_buffer */
 );
 
-OM_uint32 gss_delete_sec_context(
+GSS_DLLIMP OM_uint32 gss_delete_sec_context(
         OM_uint32 *,            /* minor_status */
         gss_ctx_id_t *,         /* context_handle */
         gss_buffer_t            /* output_token */
 );
 
-OM_uint32 gss_context_time(
+GSS_DLLIMP OM_uint32 gss_context_time(
         OM_uint32 *,            /* minor_status */
-        gss_ctx_id_t,           /* context_handle */
+        gss_const_ctx_id_t,     /* context_handle */
         OM_uint32 *             /* time_rec */
 );
 
 /* New for V2 */
-OM_uint32 gss_get_mic(
+GSS_DLLIMP OM_uint32 gss_get_mic(
         OM_uint32 *,            /* minor_status */
-        gss_ctx_id_t,           /* context_handle */
+        gss_const_ctx_id_t,     /* context_handle */
         gss_qop_t,              /* qop_req */
-        gss_buffer_t,           /* message_buffer */
+        gss_const_buffer_t,     /* message_buffer */
         gss_buffer_t            /* message_token */
 );
 
 /* New for V2 */
-OM_uint32 gss_verify_mic(
+GSS_DLLIMP OM_uint32 gss_verify_mic(
         OM_uint32 *,            /* minor_status */
-        gss_ctx_id_t,           /* context_handle */
-        gss_buffer_t,           /* message_buffer */
-        gss_buffer_t,           /* message_token */
+        gss_const_ctx_id_t,     /* context_handle */
+        gss_const_buffer_t,     /* message_buffer */
+        gss_const_buffer_t,     /* message_token */
         gss_qop_t *             /* qop_state */
 );
 
 /* New for V2 */
-OM_uint32 gss_wrap(
+GSS_DLLIMP OM_uint32 gss_wrap(
         OM_uint32 *,            /* minor_status */
-        gss_ctx_id_t,           /* context_handle */
+        gss_const_ctx_id_t,     /* context_handle */
         int,                    /* conf_req_flag */
         gss_qop_t,              /* qop_req */
-        gss_buffer_t,           /* input_message_buffer */
+        gss_const_buffer_t,     /* input_message_buffer */
         int *,                  /* conf_state */
         gss_buffer_t            /* output_message_buffer */
 );
 
 /* New for V2 */
-OM_uint32 gss_unwrap(
+GSS_DLLIMP OM_uint32 gss_unwrap(
         OM_uint32 *,            /* minor_status */
-        gss_ctx_id_t,           /* context_handle */
-        gss_buffer_t,           /* input_message_buffer */
+        gss_const_ctx_id_t,     /* context_handle */
+        gss_const_buffer_t,     /* input_message_buffer */
         gss_buffer_t,           /* output_message_buffer */
         int *,                  /* conf_state */
         gss_qop_t *             /* qop_state */
 );
 
-OM_uint32 gss_display_status(
+GSS_DLLIMP OM_uint32 gss_display_status(
         OM_uint32 *,            /* minor_status */
         OM_uint32,              /* status_value */
         int,                    /* status_type */
-        gss_OID,                /* mech_type (used to be const) */
+        gss_const_OID,          /* mech_type (used to be const) */
         OM_uint32 *,            /* message_context */
         gss_buffer_t            /* status_string */
 );
 
-OM_uint32 gss_indicate_mechs(
+GSS_DLLIMP OM_uint32 gss_indicate_mechs(
         OM_uint32 *,            /* minor_status */
         gss_OID_set *           /* mech_set */
 );
 
-OM_uint32 gss_compare_name(
+GSS_DLLIMP OM_uint32 gss_compare_name(
         OM_uint32 *,            /* minor_status */
-        gss_name_t,             /* name1 */
-        gss_name_t,             /* name2 */
+        gss_const_name_t,       /* name1 */
+        gss_const_name_t,       /* name2 */
         int *                   /* name_equal */
 );
 
-OM_uint32 gss_display_name(
+GSS_DLLIMP OM_uint32 gss_display_name(
         OM_uint32 *,            /* minor_status */
-        gss_name_t,             /* input_name */
+        gss_const_name_t,       /* input_name */
         gss_buffer_t,           /* output_name_buffer */
         gss_OID *               /* output_name_type */
 );
 
-OM_uint32 gss_import_name(
+GSS_DLLIMP OM_uint32 gss_import_name(
         OM_uint32 *,            /* minor_status */
-        gss_buffer_t,           /* input_name_buffer */
-        gss_OID,                /* input_name_type(used to be const) */
+        gss_const_buffer_t,     /* input_name_buffer */
+        gss_const_OID,          /* input_name_type(used to be const) */
         gss_name_t *            /* output_name */
 );
 
-OM_uint32 gss_release_name(
+GSS_DLLIMP OM_uint32 gss_release_name(
         OM_uint32 *,            /* minor_status */
         gss_name_t *            /* input_name */
 );
 
-OM_uint32 gss_release_buffer(
+GSS_DLLIMP OM_uint32 gss_release_buffer(
         OM_uint32 *,            /* minor_status */
         gss_buffer_t            /* buffer */
 );
 
-OM_uint32 gss_release_oid_set(
+GSS_DLLIMP OM_uint32 gss_release_oid_set(
         OM_uint32 *,            /* minor_status */
         gss_OID_set *           /* set */
 );
 
-OM_uint32 gss_inquire_cred(
+GSS_DLLIMP OM_uint32 gss_inquire_cred(
         OM_uint32 *,            /* minor_status */
-        gss_cred_id_t,          /* cred_handle */
+        gss_const_cred_id_t,    /* cred_handle */
         gss_name_t *,           /* name */
         OM_uint32 *,            /* lifetime */
         gss_cred_usage_t *,     /* cred_usage */
@@ -550,9 +563,9 @@ OM_uint32 gss_inquire_cred(
 );
 
 /* Last argument new for V2 */
-OM_uint32 gss_inquire_context(
+GSS_DLLIMP OM_uint32 gss_inquire_context(
         OM_uint32 *,            /* minor_status */
-        gss_ctx_id_t,           /* context_handle */
+        gss_const_ctx_id_t,     /* context_handle */
         gss_name_t *,           /* src_name */
         gss_name_t *,           /* targ_name */
         OM_uint32 *,            /* lifetime_rec */
@@ -563,9 +576,9 @@ OM_uint32 gss_inquire_context(
 );
 
 /* New for V2 */
-OM_uint32 gss_wrap_size_limit(
+GSS_DLLIMP OM_uint32 gss_wrap_size_limit(
         OM_uint32 *,            /* minor_status */
-        gss_ctx_id_t,           /* context_handle */
+        gss_const_ctx_id_t,     /* context_handle */
         int,                    /* conf_req_flag */
         gss_qop_t,              /* qop_req */
         OM_uint32,              /* req_output_size */
@@ -573,11 +586,11 @@ OM_uint32 gss_wrap_size_limit(
 );
 
 /* New for V2 */
-OM_uint32 gss_add_cred(
+GSS_DLLIMP OM_uint32 gss_add_cred(
         OM_uint32 *,            /* minor_status */
-        gss_cred_id_t,          /* input_cred_handle */
-        gss_name_t,             /* desired_name */
-        gss_OID,                /* desired_mech */
+        gss_const_cred_id_t,    /* input_cred_handle */
+        gss_const_name_t,       /* desired_name */
+        gss_const_OID,          /* desired_mech */
         gss_cred_usage_t,       /* cred_usage */
         OM_uint32,              /* initiator_time_req */
         OM_uint32,              /* acceptor_time_req */
@@ -588,10 +601,10 @@ OM_uint32 gss_add_cred(
 );
 
 /* New for V2 */
-OM_uint32 gss_inquire_cred_by_mech(
+GSS_DLLIMP OM_uint32 gss_inquire_cred_by_mech(
         OM_uint32 *,            /* minor_status */
-        gss_cred_id_t,          /* cred_handle */
-        gss_OID,                /* mech_type */
+        gss_const_cred_id_t,    /* cred_handle */
+        gss_const_OID,          /* mech_type */
         gss_name_t *,           /* name */
         OM_uint32 *,            /* initiator_lifetime */
         OM_uint32 *,            /* acceptor_lifetime */
@@ -599,86 +612,86 @@ OM_uint32 gss_inquire_cred_by_mech(
 );
 
 /* New for V2 */
-OM_uint32 gss_export_sec_context(
+GSS_DLLIMP OM_uint32 gss_export_sec_context(
         OM_uint32 *,            /* minor_status */
         gss_ctx_id_t *,         /* context_handle */
         gss_buffer_t            /* interprocess_token */
 );
 
 /* New for V2 */
-OM_uint32 gss_import_sec_context(
+GSS_DLLIMP OM_uint32 gss_import_sec_context(
         OM_uint32 *,            /* minor_status */
-        gss_buffer_t,           /* interprocess_token */
+        gss_const_buffer_t,     /* interprocess_token */
         gss_ctx_id_t *          /* context_handle */
 );
 
 /* New for V2 */
-OM_uint32 gss_release_oid(
+GSS_DLLIMP OM_uint32 gss_release_oid(
         OM_uint32 *,            /* minor_status */
         gss_OID *               /* oid */
 );
 
 /* New for V2 */
-OM_uint32 gss_create_empty_oid_set(
+GSS_DLLIMP OM_uint32 gss_create_empty_oid_set(
         OM_uint32 *,            /* minor_status */
         gss_OID_set *           /* oid_set */
 );
 
 /* New for V2 */
-OM_uint32 gss_add_oid_set_member(
+GSS_DLLIMP OM_uint32 gss_add_oid_set_member(
         OM_uint32 *,            /* minor_status */
-        gss_OID,                /* member_oid */
+        gss_const_OID,          /* member_oid */
         gss_OID_set *           /* oid_set */
 );
 
 /* New for V2 */
-OM_uint32 gss_test_oid_set_member(
+GSS_DLLIMP OM_uint32 gss_test_oid_set_member(
         OM_uint32 *,            /* minor_status */
-        gss_OID,                /* member */
-        gss_OID_set,            /* set */
+        gss_const_OID,          /* member */
+        gss_const_OID_set,      /* set */
         int *                   /* present */
 );
 
 /* New for V2 */
-OM_uint32 gss_str_to_oid(
+GSS_DLLIMP OM_uint32 gss_str_to_oid(
         OM_uint32 *,            /* minor_status */
-        gss_buffer_t,           /* oid_str */
+        gss_const_buffer_t,     /* oid_str */
         gss_OID *               /* oid */
 );
 
 /* New for V2 */
-OM_uint32 gss_oid_to_str(
+GSS_DLLIMP OM_uint32 gss_oid_to_str(
         OM_uint32 *,            /* minor_status */
         gss_OID,                /* oid */
         gss_buffer_t            /* oid_str */
 );
 
 /* New for V2 */
-OM_uint32 gss_inquire_names_for_mech(
+GSS_DLLIMP OM_uint32 gss_inquire_names_for_mech(
         OM_uint32 *,            /* minor_status */
-        gss_OID,                /* mechanism */
+        gss_const_OID,          /* mechanism */
         gss_OID_set *           /* name_types */
 );
 
 /* New for V2 */
-OM_uint32 gss_export_name(
+GSS_DLLIMP OM_uint32 gss_export_name(
         OM_uint32  *,           /* minor_status */
-        const gss_name_t,       /* input_name */
+        gss_const_name_t,       /* input_name */
         gss_buffer_t            /* exported_name */
 );
 
 /* New for V2 */
-OM_uint32 gss_duplicate_name(
+GSS_DLLIMP OM_uint32 gss_duplicate_name(
         OM_uint32  *,           /* minor_status */
-        const gss_name_t,       /* input_name */
+        gss_const_name_t,       /* input_name */
         gss_name_t *            /* dest_name */
 );
 
 /* New for V2 */
-OM_uint32 gss_canonicalize_name(
+GSS_DLLIMP OM_uint32 gss_canonicalize_name(
         OM_uint32  *,           /* minor_status */
-        const gss_name_t,       /* input_name */
-        const gss_OID,          /* mech_type */
+        gss_const_name_t,       /* input_name */
+        gss_const_OID,          /* mech_type */
         gss_name_t *            /* output_name */
 );
 

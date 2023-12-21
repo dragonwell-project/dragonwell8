@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,6 +25,9 @@
 
 package com.sun.security.auth;
 
+import java.io.IOException;
+import java.io.InvalidObjectException;
+import java.io.ObjectInputStream;
 import java.security.Principal;
 
 /**
@@ -85,7 +88,7 @@ public class NTSid implements Principal, java.io.Serializable {
                         ("Invalid.NTSid.value",
                         "sun.security.util.AuthResources"));
         }
-        sid = new String(stringSid);
+        sid = stringSid;
     }
 
     /**
@@ -140,10 +143,7 @@ public class NTSid implements Principal, java.io.Serializable {
             return false;
         NTSid that = (NTSid)o;
 
-        if (sid.equals(that.sid)) {
-            return true;
-        }
-        return false;
+        return sid.equals(that.sid);
     }
 
     /**
@@ -155,5 +155,31 @@ public class NTSid implements Principal, java.io.Serializable {
      */
     public int hashCode() {
         return sid.hashCode();
+    }
+
+    /**
+     * Restores the state of this object from the stream.
+     *
+     * @param  stream the {@code ObjectInputStream} from which data is read
+     * @throws IOException if an I/O error occurs
+     * @throws ClassNotFoundException if a serialized class cannot be loaded
+     */
+    private void readObject(ObjectInputStream stream)
+            throws IOException, ClassNotFoundException {
+        stream.defaultReadObject();
+        if (sid == null) {
+            java.text.MessageFormat form = new java.text.MessageFormat
+                    (sun.security.util.ResourcesMgr.getString
+                            ("invalid.null.input.value",
+                            "sun.security.util.AuthResources"));
+            Object[] source = {"stringSid"};
+            throw new InvalidObjectException(form.format(source));
+        }
+        if (sid.length() == 0) {
+            throw new InvalidObjectException
+                    (sun.security.util.ResourcesMgr.getString
+                            ("Invalid.NTSid.value",
+                            "sun.security.util.AuthResources"));
+        }
     }
 }

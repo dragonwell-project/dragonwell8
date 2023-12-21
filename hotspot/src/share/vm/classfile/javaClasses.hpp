@@ -177,7 +177,7 @@ class java_lang_String : AllStatic {
   // hash P(31) from Kernighan & Ritchie
   //
   // For this reason, THIS ALGORITHM MUST MATCH String.hashCode().
-  template <typename T> static unsigned int hash_code(T* s, int len) {
+  static unsigned int hash_code(const jchar* s, int len) {
     unsigned int h = 0;
     while (len-- > 0) {
       h = 31*h + (unsigned int) *s;
@@ -185,6 +185,16 @@ class java_lang_String : AllStatic {
     }
     return h;
   }
+
+  static unsigned int hash_code(const jbyte* s, int len) {
+    unsigned int h = 0;
+    while (len-- > 0) {
+      h = 31*h + (((unsigned int) *s) & 0xFF);
+      s++;
+    }
+    return h;
+  }
+
   static unsigned int hash_code(oop java_string);
 
   // This is the string hash code used by the StringTable, which may be

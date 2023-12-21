@@ -239,6 +239,9 @@ public class Proc {
         }
         if (debug != null) {
             System.out.println("PROC: " + debug + " cmdline: " + cmd);
+            for (String e : env.keySet()) {
+                System.out.print(e + "=" + env.get(e) + " ");
+            }
         }
         ProcessBuilder pb = new ProcessBuilder(cmd);
         for (Entry<String,String> e: env.entrySet()) {

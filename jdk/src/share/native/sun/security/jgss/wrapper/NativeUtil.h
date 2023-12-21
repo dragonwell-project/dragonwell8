@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,6 +26,9 @@
 #include <jni.h>
 #include <stdlib.h>
 #include <string.h>
+#if _MSC_VER >= 1800
+# include <inttypes.h>
+#endif
 #include "gssapi.h"
 
 #ifndef _Included_NATIVE_Util
@@ -85,11 +88,19 @@ extern "C" {
   extern jfieldID FID_NativeGSSContext_flags;
   extern jfieldID FID_NativeGSSContext_lifetime;
   extern jfieldID FID_NativeGSSContext_actualMech;
-  #define TRACE0(s) { if (JGSS_DEBUG) { puts(s); fflush(stdout); }}
-  #define TRACE1(s, p1) { if (JGSS_DEBUG) { printf(s"\n", p1); fflush(stdout); }}
-  #define TRACE2(s, p1, p2) { if (JGSS_DEBUG) { printf(s"\n", p1, p2); fflush(stdout); }}
-  #define TRACE3(s, p1, p2, p3) { if (JGSS_DEBUG) { printf(s"\n", p1, p2, p3); fflush(stdout); }}
+  #define TRACE0(s) { if (JGSS_DEBUG) { printf("[GSSLibStub:%d] %s\n", __LINE__, s); fflush(stdout); }}
+  #define TRACE1(s, p1) { if (JGSS_DEBUG) { printf("[GSSLibStub:%d] "s"\n", __LINE__, p1); fflush(stdout); }}
+  #define TRACE2(s, p1, p2) { if (JGSS_DEBUG) { printf("[GSSLibStub:%d] "s"\n", __LINE__, p1, p2); fflush(stdout); }}
+  #define TRACE3(s, p1, p2, p3) { if (JGSS_DEBUG) { printf("[GSSLibStub:%d] "s"\n", __LINE__, p1, p2, p3); fflush(stdout); }}
 
+  // Visual Studio 2010-2012 doesn't provide inttypes.h so provide appropriate definitions here.
+  #if _MSC_VER < 1800
+  #ifdef _LP64
+  #define PRIuPTR       "I64u"
+  #else
+  #define PRIuPTR       "u"
+  #endif
+  #endif
 
 #ifdef __cplusplus
 }
