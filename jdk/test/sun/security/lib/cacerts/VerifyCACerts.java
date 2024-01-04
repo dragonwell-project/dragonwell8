@@ -28,7 +28,7 @@
  *      8209452 8209506 8210432 8195793 8216577 8222089 8222133 8222137 8222136
  *      8223499 8225392 8232019 8234245 8233223 8225068 8225069 8243321 8243320
  *      8243559 8225072 8258630 8259312 8256421 8225081 8225082 8225083 8245654
- *      8305975 8304760 8307134
+ *      8305975 8304760 8307134 8295894 8314960
  * @summary Check root CA entries in cacerts file
  */
 import java.io.ByteArrayInputStream;
@@ -59,8 +59,7 @@ public class VerifyCACerts {
     // SHA-256 of cacerts, can be generated with
     // shasum -a 256 cacerts | sed -e 's/../&:/g' | tr '[:lower:]' '[:upper:]' | cut -c1-95
     private static final String CHECKSUM
-            = "72:C7:B8:9E:54:94:D2:D9:C0:E5:9F:F7:C3:8C:3B:18:D7:42:23:82:51:F2:AD:A1:14:26:E0:4A:F2:5F:AE:80";
-
+            = "88:72:92:56:FF:E5:A3:E4:39:98:6D:18:0B:BA:CC:0B:66:CB:1D:6D:52:CE:D7:C8:AD:63:B7:F1:5F:02:24:52";
     // map of cert alias to SHA-256 fingerprint
     @SuppressWarnings("serial")
     private static final Map<String, String> FINGERPRINT_MAP
@@ -166,8 +165,6 @@ public class VerifyCACerts {
                     "18:F1:FC:7F:20:5D:F8:AD:DD:EB:7F:E0:07:DD:57:E3:AF:37:5A:9C:4D:8D:73:54:6B:F4:F1:FE:D1:E1:8D:35");
             put("quovadisrootca3g3 [jdk]",
                     "88:EF:81:DE:20:2E:B0:18:45:2E:43:F8:64:72:5C:EA:5F:BD:1F:C2:D9:D2:05:73:07:09:C5:D8:B8:69:0F:46");
-            put("secomscrootca1 [jdk]",
-                    "E7:5E:72:ED:9F:56:0E:EC:6E:B4:80:00:73:A4:3F:C3:AD:19:19:5A:39:22:82:01:78:95:97:4A:99:02:6B:6C");
             put("secomscrootca2 [jdk]",
                     "51:3B:2C:EC:B8:10:D4:CD:E5:DD:85:39:1A:DF:C6:C2:DD:60:D8:7B:B7:36:D2:B5:21:48:4A:A4:7A:0E:BE:F6");
             put("swisssigngoldg2ca [jdk]",
@@ -260,6 +257,8 @@ public class VerifyCACerts {
                     "34:D8:A7:3E:E2:08:D9:BC:DB:0D:95:65:20:93:4B:4E:40:E6:94:82:59:6E:8B:6F:73:C8:42:6B:01:0A:6F:48");
             put("gtsrootecccar4 [jdk]",
                     "34:9D:FA:40:58:C5:E2:63:12:3B:39:8A:E7:95:57:3C:4E:13:13:C8:3F:E6:8F:93:55:6C:D5:E8:03:1B:3C:7D");
+            put("certignarootca [jdk]",
+                    "D4:8D:3D:23:EE:DB:50:A4:59:E5:51:97:60:1C:27:77:4B:9D:7B:18:C9:4D:5A:05:95:11:A1:02:50:B9:31:68");
         }
     };
 
