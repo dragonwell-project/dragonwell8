@@ -896,6 +896,10 @@ public:
   // Create a new if above the uncommon_trap_if_pattern for the predicate to be promoted
   ProjNode* create_new_if_for_predicate(ProjNode* cont_proj, Node* new_entry,
                                         Deoptimization::DeoptReason reason);
+  void insert_loop_limit_check(ProjNode* limit_check_proj, Node* cmp_limit, Node* bol);
+  bool has_dominating_loop_limit_check(Node* init_trip, Node* limit, int stride_con,
+                                       Node* loop_entry);
+
   void register_control(Node* n, IdealLoopTree *loop, Node* pred);
 
   // Clone loop predicates to cloned loops (peeled, unswitched)
