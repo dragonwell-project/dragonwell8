@@ -26,7 +26,7 @@
  * @bug 4422122
  * @summary Test that MulticastSocket.getInterface returns the
  *          same InetAddress set by MulticastSocket.setInterface
- * @library /lib
+ * @library /test/lib
  * @build jdk.test.lib.NetworkConfiguration
  *        jdk.test.lib.Platform
  * @run main TestInterfaces

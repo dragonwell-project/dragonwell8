@@ -28,7 +28,7 @@ package jdk.jfr.event.gc.detailed;
  * @test
  *
  *
- * @library /lib /
+ * @library /test/lib /
  * @run main/othervm -XX:+UseConcMarkSweepGC -Xmx64m jdk.jfr.event.gc.detailed.TestStressAllocationGCEventsWithCMS
  */
 public class TestStressAllocationGCEventsWithCMS {

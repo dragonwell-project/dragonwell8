@@ -39,7 +39,7 @@ import jdk.test.lib.process.ProcessTools;
  * @test
  * @bug 8220657
  * @key jfr
- * @library /lib /
+ * @library /test/lib /
  * @run main/othervm jdk.jfr.jcmd.TestJcmdDumpWithFileName
  */
 public class TestJcmdDumpWithFileName {

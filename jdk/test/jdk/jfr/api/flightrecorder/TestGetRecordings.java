@@ -38,7 +38,7 @@ import jdk.jfr.Recording;
  * @test
  * @key jfr
  *
- * @library /lib /
+ * @library /test/lib /
  * @run main/othervm jdk.jfr.api.flightrecorder.TestGetRecordings
  */
 public class TestGetRecordings {

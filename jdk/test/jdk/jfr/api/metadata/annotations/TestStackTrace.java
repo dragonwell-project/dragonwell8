@@ -35,7 +35,7 @@ import jdk.test.lib.jfr.Events;
  * @test
  * @key jfr
  *
- * @library /lib /
+ * @library /test/lib /
  * @run main/othervm jdk.jfr.api.metadata.annotations.TestStackTrace
  */
 public class TestStackTrace {

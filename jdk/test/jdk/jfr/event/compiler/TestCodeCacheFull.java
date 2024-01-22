@@ -39,7 +39,7 @@ import sun.hotspot.code.BlobType;
  * @test TestCodeCacheFull
  *
  *
- * @library /lib
+ * @library /test/lib
  *
  * @build sun.hotspot.WhiteBox
  * @run main ClassFileInstaller sun.hotspot.WhiteBox sun.hotspot.WhiteBox$WhiteBoxPermission

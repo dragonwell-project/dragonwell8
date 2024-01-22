@@ -25,7 +25,7 @@
  * @test
  * @bug 7126889
  * @summary Incorrect SSLEngine debug output
- * @library /lib /lib/security
+ * @library /test/lib /lib/security
  * @run main DebugReportsOneExtraByte
  */
 /*

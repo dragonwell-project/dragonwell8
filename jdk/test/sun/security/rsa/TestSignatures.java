@@ -25,7 +25,7 @@
  * @test
  * @bug 4853305 4963723 8146293
  * @summary Test signing/verifying using all the signature algorithms
- * @library /lib
+ * @library /test/lib
  * @build jdk.test.lib.SigTestUtil
  * @run main TestSignatures
  * @author Andreas Sterbenz

@@ -36,7 +36,7 @@ import jdk.test.lib.process.OutputAnalyzer;
  * @summary Verify error when stopping with read-only file.
  * @key jfr
  *
- * @library /lib /
+ * @library /test/lib /
  * @run main/othervm jdk.jfr.jcmd.TestJcmdStopReadOnlyFile
  */
 public class TestJcmdStopReadOnlyFile {

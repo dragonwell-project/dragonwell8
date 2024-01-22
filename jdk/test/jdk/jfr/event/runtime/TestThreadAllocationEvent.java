@@ -47,7 +47,7 @@ import jdk.test.lib.jfr.Events;
  * @test
  * @key jfr
  *
- * @library /lib /
+ * @library /test/lib /
  *
  *
  * @run main/othervm -XX:-UseTLAB jdk.jfr.event.runtime.TestThreadAllocationEvent

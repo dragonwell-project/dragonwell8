@@ -40,7 +40,7 @@ import jdk.test.lib.jfr.Events;
  *
  *
  * @summary Test leak profiler with G1 GC
- * @library /lib /
+ * @library /test/lib /
  *
  * @run main/othervm  -XX:TLABSize=2k -XX:+UseG1GC jdk.jfr.event.oldobject.TestG1
  */

@@ -67,7 +67,7 @@ import jdk.test.lib.Asserts;
  * @summary Test for AnnotationElement.getAnnotationElements()
  * @key jfr
  *
- * @library /lib /
+ * @library /test/lib /
  * @run main/othervm jdk.jfr.api.metadata.eventtype.TestGetAnnotationElements
  */
 public class TestGetAnnotationElements {

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -189,13 +189,15 @@ public abstract class RSASignature extends SignatureSpi {
         try {
             byte[] encoded = encodeSignature(digestOID, digest);
             byte[] padded = padding.pad(encoded);
-            byte[] encrypted = RSACore.rsa(padded, privateKey, true);
-            return encrypted;
+            if (padded != null) {
+                return RSACore.rsa(padded, privateKey, true);
+            }
         } catch (GeneralSecurityException e) {
             throw new SignatureException("Could not sign data", e);
         } catch (IOException e) {
             throw new SignatureException("Could not encode data", e);
         }
+        throw new SignatureException("Could not sign data");
     }
 
     // verify the data and return the result. See JCA doc
@@ -206,21 +208,30 @@ public abstract class RSASignature extends SignatureSpi {
         }
 
         if (sigBytes.length != RSACore.getByteLength(publicKey)) {
-            throw new SignatureException("Signature length not correct: got " +
+            throw new SignatureException("Bad signature length: got " +
                     sigBytes.length + " but was expecting " +
                     RSACore.getByteLength(publicKey));
         }
-        byte[] digest = getDigestValue();
+
         try {
+            // https://www.rfc-editor.org/rfc/rfc8017.html#section-8.2.2
+            // Step 4 suggests comparing the encoded message
             byte[] decrypted = RSACore.rsa(sigBytes, publicKey);
-            byte[] unpadded = padding.unpad(decrypted);
-            byte[] decodedDigest = decodeSignature(digestOID, unpadded);
-            return MessageDigest.isEqual(digest, decodedDigest);
+
+            byte[] digest = getDigestValue();
+
+            byte[] encoded = encodeSignature(digestOID, digest);
+            byte[] padded = padding.pad(encoded);
+            if (MessageDigest.isEqual(padded, decrypted)) {
+                return true;
+            }
+
+            // Some vendors might omit the NULL params in digest algorithm
+            // identifier. Try again.
+            encoded = encodeSignatureWithoutNULL(digestOID, digest);
+            padded = padding.pad(encoded);
+            return MessageDigest.isEqual(padded, decrypted);
         } catch (javax.crypto.BadPaddingException e) {
-            // occurs if the app has used the wrong RSA public key
-            // or if sigBytes is invalid
-            // return false rather than propagating the exception for
-            // compatibility/ease of use
             return false;
         } catch (IOException e) {
             throw new SignatureException("Signature encoding error", e);
@@ -242,27 +253,19 @@ public abstract class RSASignature extends SignatureSpi {
     }
 
     /**
-     * Decode the signature data. Verify that the object identifier matches
-     * and return the message digest.
+     * Encode the digest without the NULL params, return the to-be-signed data.
+     * This is only used by SunRsaSign.
      */
-    public static byte[] decodeSignature(ObjectIdentifier oid, byte[] sig)
+    static byte[] encodeSignatureWithoutNULL(ObjectIdentifier oid, byte[] digest)
             throws IOException {
-        // Enforce strict DER checking for signatures
-        DerInputStream in = new DerInputStream(sig, 0, sig.length, false);
-        DerValue[] values = in.getSequence(2);
-        if ((values.length != 2) || (in.available() != 0)) {
-            throw new IOException("SEQUENCE length error");
-        }
-        AlgorithmId algId = AlgorithmId.parse(values[0]);
-        if (algId.getOID().equals((Object)oid) == false) {
-            throw new IOException("ObjectIdentifier mismatch: "
-                + algId.getOID());
-        }
-        if (algId.getEncodedParams() != null) {
-            throw new IOException("Unexpected AlgorithmId parameters");
-        }
-        byte[] digest = values[1].getOctetString();
-        return digest;
+        DerOutputStream out = new DerOutputStream();
+        DerOutputStream oidout = new DerOutputStream();
+        oidout.putOID(oid);
+        out.write(DerValue.tag_Sequence, oidout);
+        out.putOctetString(digest);
+        DerValue result =
+                new DerValue(DerValue.tag_Sequence, out.toByteArray());
+        return result.toByteArray();
     }
 
     // set parameter, not supported. See JCA doc

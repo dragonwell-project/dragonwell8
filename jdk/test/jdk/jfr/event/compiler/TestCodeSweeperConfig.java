@@ -37,7 +37,7 @@ import jdk.test.lib.jfr.Events;
  * @test
  * @key jfr
  *
- * @library /lib /
+ * @library /test/lib /
  * @run main/othervm -XX:+UseCodeCacheFlushing jdk.jfr.event.compiler.TestCodeSweeperConfig
  */
 public class TestCodeSweeperConfig {

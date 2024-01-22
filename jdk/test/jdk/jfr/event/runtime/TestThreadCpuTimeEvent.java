@@ -47,7 +47,7 @@ import java.util.stream.Collectors;
  * @test
  * @key jfr
  *
- * @library /lib /
+ * @library /test/lib /
  *
  *
  * @run main/othervm jdk.jfr.event.runtime.TestThreadCpuTimeEvent

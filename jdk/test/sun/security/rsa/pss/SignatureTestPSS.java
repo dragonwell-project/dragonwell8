@@ -36,7 +36,7 @@ import static javax.crypto.Cipher.PUBLIC_KEY;
  * @summary Create a signature for RSASSA-PSS and get its signed data.
  *          re-initiate the signature with the public key. The signature
  *          can be verified by acquired signed data.
- * @library /lib
+ * @library /test/lib
  * @build jdk.test.lib.SigTestUtil
  * @run main SignatureTestPSS 512
  * @run main SignatureTestPSS 768

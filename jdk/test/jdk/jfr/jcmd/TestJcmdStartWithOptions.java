@@ -37,7 +37,7 @@ import jdk.test.lib.process.OutputAnalyzer;
  * @summary The test verifies that recording can be started with options delay|duration|maxage|maxsize
  * @key jfr
  *
- * @library /lib /
+ * @library /test/lib /
  * @run main/othervm -XX:+FlightRecorder -XX:FlightRecorderOptions=maxchunksize=2097152 jdk.jfr.jcmd.TestJcmdStartWithOptions
  */
 public class TestJcmdStartWithOptions {

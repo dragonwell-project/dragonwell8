@@ -42,7 +42,7 @@ import jdk.test.lib.Asserts;
  * @summary Test ValueDescriptor.getContentType()
  * @key jfr
  *
- * @library /lib /
+ * @library /test/lib /
  * @run main/othervm jdk.jfr.api.metadata.valuedescriptor.TestValueDescriptorContentType
  */
 public class TestValueDescriptorContentType {

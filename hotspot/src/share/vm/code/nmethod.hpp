@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -363,8 +363,8 @@ class nmethod : public CodeBlob {
 
   // type info
   bool is_nmethod() const                         { return true; }
-  bool is_java_method() const                     { return !method()->is_native(); }
-  bool is_native_method() const                   { return method()->is_native(); }
+  bool is_java_method() const                     { return _method != NULL && !method()->is_native(); }
+  bool is_native_method() const                   { return _method != NULL && method()->is_native(); }
   bool is_osr_method() const                      { return _entry_bci != InvocationEntryBci; }
 
   bool is_compiled_by_c1() const;

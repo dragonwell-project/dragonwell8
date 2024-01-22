@@ -35,7 +35,7 @@ import jdk.test.lib.jfr.Events;
 /**
  * @test TestPrimitiveClasses
  * @key jfr
- * @library /lib /
+ * @library /test/lib /
  * @run main/othervm jdk.jfr.jvm.TestPrimitiveClasses
  */
 public class TestPrimitiveClasses {

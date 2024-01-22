@@ -47,7 +47,7 @@ import sun.misc.Unsafe;
  * @test
  * @summary Test Shutdown event
  * @key jfr
- * @library /lib /
+ * @library /test/lib /
  * @run main/othervm jdk.jfr.event.runtime.TestShutdownEvent
  */
 public class TestShutdownEvent {

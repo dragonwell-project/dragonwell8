@@ -42,7 +42,7 @@ import jdk.test.lib.jfr.Events;
  * @test
  * @key jfr
  *
- * @library /lib /
+ * @library /test/lib /
  * @run main/othervm/timeout=600 jdk.jfr.api.flightrecorder.TestGetEventTypes
  */
 public class TestGetEventTypes {

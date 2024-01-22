@@ -277,7 +277,7 @@ jobs:
         run: >
           if cat test-results/testoutput/*/exitcode.txt | grep -q -v '^0$'
           || ! cat test-results/testoutput/*/Stats.txt | grep -q 'fail=0' ; then
-            cat test-results/testoutput/*/JTreport/text/newfailures.txt ;
+            cat test-results/testoutput/*/JTreport/text/{newfailures,other_errors}.txt ;
             exit 1 ;
           fi
 
@@ -638,7 +638,7 @@ jobs:
         run: >
           if cat test-results/testoutput/*/exitcode.txt | grep -q -v '^0$'
           || ! cat test-results/testoutput/*/Stats.txt | grep -q 'fail=0' ; then
-            cat test-results/testoutput/*/JTreport/text/newfailures.txt ;
+            cat test-results/testoutput/*/JTreport/text/{newfailures,other_errors}.txt ;
             exit 1 ;
           fi
 
@@ -1143,6 +1143,7 @@ jobs:
         run: >
           if ((Get-ChildItem -Path test-results\testoutput\*\exitcode.txt -Recurse | Select-String -Pattern '^0$' -NotMatch ).Count -gt 0) {
             Get-Content -Path test-results\testoutput\*\JTreport\text\newfailures.txt ;
+            Get-Content -Path test-results\testoutput\*\JTreport\text\other_errors.txt ;
             exit 1
           }
 
@@ -1299,6 +1300,7 @@ jobs:
         run: >
           if ((Get-ChildItem -Path test-results\testoutput\*\exitcode.txt -Recurse | Select-String -Pattern '^0$' -NotMatch ).Count -gt 0) {
             Get-Content -Path test-results\testoutput\*\JTreport\text\newfailures.txt ;
+            Get-Content -Path test-results\testoutput\*\JTreport\text\other_errors.txt ;
             exit 1
           }
 
@@ -1529,7 +1531,7 @@ jobs:
         run: >
           if cat test-results/testoutput/*/exitcode.txt | grep -q -v '^0$'
           || ! cat test-results/testoutput/*/Stats.txt | grep -q 'fail=0' ; then
-            cat test-results/testoutput/*/JTreport/text/newfailures.txt ;
+            cat test-results/testoutput/*/JTreport/text/{newfailures,other_errors}.txt ;
             exit 1 ;
           fi
 

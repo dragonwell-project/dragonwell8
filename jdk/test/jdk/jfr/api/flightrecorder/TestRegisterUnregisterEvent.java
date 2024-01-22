@@ -35,7 +35,7 @@ import jdk.jfr.FlightRecorder;
  * @test
  * @key jfr
  *
- * @library /lib /
+ * @library /test/lib /
  * @run main/othervm jdk.jfr.api.flightrecorder.TestRegisterUnregisterEvent
  */
 public class TestRegisterUnregisterEvent {

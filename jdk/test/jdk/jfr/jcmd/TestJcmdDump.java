@@ -43,7 +43,7 @@ import jdk.test.lib.process.OutputAnalyzer;
  * @summary The test verifies JFR.dump command
  * @key jfr
  *
- * @library /lib /
+ * @library /test/lib /
  * @run main/othervm -XX:FlightRecorderOptions:maxchunksize=1M jdk.jfr.jcmd.TestJcmdDump
  */
 public class TestJcmdDump {

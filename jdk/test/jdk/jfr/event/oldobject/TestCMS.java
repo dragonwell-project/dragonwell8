@@ -40,7 +40,7 @@ import jdk.test.lib.jfr.Events;
  *
  *
  * @summary Test leak profiler with CMS GC
- * @library /lib /
+ * @library /test/lib /
  *
  * @run main/othervm  -XX:TLABSize=2k -XX:+UseConcMarkSweepGC jdk.jfr.event.oldobject.TestCMS
  */

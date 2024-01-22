@@ -31,7 +31,7 @@ import jdk.test.lib.process.OutputAnalyzer;
  * @test
  * @summary Test help
  * @key jfr
- * @library /lib /
+ * @library /test/lib /
  * @run main/othervm jdk.jfr.tool.TestHelp
  */
 public class TestHelp {

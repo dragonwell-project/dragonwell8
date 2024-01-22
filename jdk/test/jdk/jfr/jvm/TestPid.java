@@ -34,7 +34,7 @@ import jdk.jfr.internal.JVM;
  * @test TestPid
  * @key jfr
  *
- * @library /lib /
+ * @library /test/lib /
  *
  * @run main/othervm jdk.jfr.jvm.TestPid
  */

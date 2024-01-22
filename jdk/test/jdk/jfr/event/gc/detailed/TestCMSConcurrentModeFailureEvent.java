@@ -44,7 +44,7 @@ import jdk.test.lib.jfr.EventNames;
  *
  *
  *
- * @library /lib /
+ * @library /test/lib /
  *
  * @run main jdk.jfr.event.gc.detailed.TestCMSConcurrentModeFailureEvent
  */

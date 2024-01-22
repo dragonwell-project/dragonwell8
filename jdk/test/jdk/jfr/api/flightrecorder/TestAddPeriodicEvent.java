@@ -40,7 +40,7 @@ import jdk.jfr.Recording;
  * @summary
  * @key jfr
  *
- * @library /lib /
+ * @library /test/lib /
  * @run main/othervm jdk.jfr.api.flightrecorder.TestAddPeriodicEvent
  */
 public class TestAddPeriodicEvent {

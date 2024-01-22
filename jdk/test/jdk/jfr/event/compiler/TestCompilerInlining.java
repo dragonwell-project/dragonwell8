@@ -51,7 +51,7 @@ import java.util.stream.IntStream;
  *
  *
  *
- * @library /lib /
+ * @library /test/lib /
  *
 
  *

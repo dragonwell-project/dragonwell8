@@ -3,7 +3,7 @@
 set -ex
 
 OS=`uname -s`
-if [  "${OS}" != "Linux" -a "${OS}" != "Darwin" ]; then
+if [ "${OS}" != "Linux" ] && [ "${OS}" != "Darwin" ]; then
     echo "This is a Linux/MacOSX only test"
     exit 0;
 fi
@@ -27,13 +27,12 @@ if [ "x$TESTJAVA" = "x" ]; then
 fi
 
 JDK_TOPDIR="${TESTROOT}/.."
-JAVAC="${TESTJAVA}/bin/javac"
 JAVA="${TESTJAVA}/bin/java"
 TEST_ENV_SH="${JDK_TOPDIR}/../hotspot/test/test_env.sh"
 
 ls -l "${TEST_ENV_SH}"
 set +e
-  source "${TEST_ENV_SH}"
+  . "${TEST_ENV_SH}"
 set -e
 
 "${TESTGCC}" \
@@ -45,17 +44,6 @@ set -e
     -I${JDK_TOPDIR}/src/macosx/javavm/export \
     -I${JDK_TOPDIR}/src/solaris/bin \
     ${TESTSRC}/libTestNative.c
-
-"${JAVAC}" -d ${TESTCLASSES} \
-           ${TESTROOT}/lib/jdk/test/lib/Utils.java \
-           ${TESTROOT}/lib/jdk/test/lib/JDKToolLauncher.java \
-           ${TESTROOT}/lib/jdk/test/lib/Platform.java \
-           ${TESTROOT}/lib/jdk/test/lib/Asserts.java \
-           ${TESTROOT}/lib/jdk/test/lib/jfr/EventNames.java \
-           ${TESTROOT}/lib/jdk/test/lib/JDKToolFinder.java \
-           ${TESTROOT}/lib/jdk/test/lib/process/*.java
-
-"${JAVAC}" -cp ${TESTCLASSPATH}:${TESTCLASSES} -d ${TESTCLASSES} ${TESTSRC}/TestNative.java
 
 "${JAVA}"  -Dtest.jdk=${TESTJAVA} \
            -Dtest.nativepath=${TESTCLASSES} \

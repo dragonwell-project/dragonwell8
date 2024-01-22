@@ -35,7 +35,7 @@ import jdk.test.lib.Asserts;
  * @key jfr
  * @summary Test recording times with concurrent recordings
  *
- * @library /lib /
+ * @library /test/lib /
  * @run main/othervm jdk.jfr.api.recording.time.TestTimeMultiple
  */
 

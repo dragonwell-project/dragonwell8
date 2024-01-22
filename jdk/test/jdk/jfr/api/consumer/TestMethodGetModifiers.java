@@ -43,7 +43,7 @@ import jdk.test.lib.jfr.SimpleEvent;
  * @test
  * @key jfr
  *
- * @library /lib /
+ * @library /test/lib /
  * @run main/othervm -Xint jdk.jfr.api.consumer.TestMethodGetModifiers
  */
 public final class TestMethodGetModifiers {

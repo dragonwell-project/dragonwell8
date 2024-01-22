@@ -31,7 +31,7 @@ package jdk.jfr.event.gc.detailed;
  *
  *
  *
- * @library /lib /
+ * @library /test/lib /
  * @run main jdk.jfr.event.gc.detailed.TestPromotionFailedEventWithDefNew
  */
 public class TestPromotionFailedEventWithDefNew {

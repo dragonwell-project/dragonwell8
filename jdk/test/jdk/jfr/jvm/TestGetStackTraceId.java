@@ -33,7 +33,7 @@ import jdk.test.lib.Asserts;
  * @test TestGetStackTraceId
  * @key jfr
  *
- * @library /lib /
+ * @library /test/lib /
  *
  * @run main/othervm jdk.jfr.jvm.TestGetStackTraceId
  */

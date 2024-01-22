@@ -42,7 +42,7 @@ import jdk.test.lib.jfr.FileHelper;
  * @summary Test copyTo and parse file
  * @key jfr
  *
- * @library /lib /
+ * @library /test/lib /
  * @run main/othervm jdk.jfr.api.recording.dump.TestDumpLongPath
  */
 public class TestDumpLongPath {

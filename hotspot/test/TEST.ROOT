@@ -37,3 +37,7 @@ requires.extraPropDefns = ../../test/jtreg-ext/requires/VMProps.java
 requires.properties=sun.arch.data.model \
     vm.flavor \
     vm.bits
+
+# Path to libraries in the topmost test directory. This is needed so @library
+# does not need ../../ notation to reach them
+external.lib.roots = ../../
