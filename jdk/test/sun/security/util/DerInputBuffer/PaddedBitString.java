@@ -25,7 +25,7 @@
  * @test
  * @bug 4511556
  * @summary Verify BitString value containing padding bits is accepted.
- * @library /lib
+ * @library /test/lib
  */
 import java.io.*;
 import java.math.BigInteger;

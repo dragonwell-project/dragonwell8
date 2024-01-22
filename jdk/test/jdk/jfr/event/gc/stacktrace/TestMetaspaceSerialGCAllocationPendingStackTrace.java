@@ -31,7 +31,7 @@ package jdk.jfr.event.gc.stacktrace;
  *
  *
  *
- * @library /lib /
+ * @library /test/lib /
  * @run main/othervm -XX:+UseSerialGC -XX:+PrintGCDetails -XX:+PrintGC -XX:MaxMetaspaceSize=64M -XX:+FlightRecorder jdk.jfr.event.gc.stacktrace.TestMetaspaceSerialGCAllocationPendingStackTrace
  */
 public class TestMetaspaceSerialGCAllocationPendingStackTrace {

@@ -34,7 +34,7 @@ import jdk.test.lib.Platform;
  * @bug 8153324
  * @summary Verify instrumented Throwable bytecode by compiling it with C1.
  *
- * @library /lib /
+ * @library /test/lib /
  *
  *
  * @build  sun.hotspot.WhiteBox

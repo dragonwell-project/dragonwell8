@@ -24,7 +24,7 @@
 /*
  * @test
  * @summary UseContainerSupport flag should reflect Metrics being available
- * @library /lib
+ * @library /test/lib
  * @build CheckUseContainerSupport
  * @run main/timeout=360 TestUseContainerSupport
  */

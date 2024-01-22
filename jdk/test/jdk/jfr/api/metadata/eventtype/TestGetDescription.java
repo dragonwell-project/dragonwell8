@@ -41,7 +41,7 @@ import jdk.test.lib.Asserts;
  * @summary Test descriptive annotations for EventType
  * @key jfr
  *
- * @library /lib /
+ * @library /test/lib /
  * @run main/othervm jdk.jfr.api.metadata.eventtype.TestGetDescription
  */
 public class TestGetDescription {

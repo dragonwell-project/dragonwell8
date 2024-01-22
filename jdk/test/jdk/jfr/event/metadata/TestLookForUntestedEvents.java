@@ -45,7 +45,7 @@ import jdk.test.lib.jfr.EventNames;
 /**
  * @test Check for JFR events not covered by tests
  * @key jfr
- * @library /lib /
+ * @library /test/lib /
  * @run main jdk.jfr.event.metadata.TestLookForUntestedEvents
  */
 public class TestLookForUntestedEvents {

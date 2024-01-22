@@ -38,7 +38,7 @@ import jdk.test.lib.jfr.EventNames;
  * @test
  * @key jfr
  *
- * @library /lib /
+ * @library /test/lib /
  * @run main/othervm jdk.jfr.jmx.TestSetConfiguration
  */
 public class TestSetConfiguration {

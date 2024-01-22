@@ -42,7 +42,7 @@ import jdk.test.lib.jfr.Events;
  * @summary Tests that abstract events are not part of metadata
  * @key jfr
  *
- * @library /lib /
+ * @library /test/lib /
  * @run main/othervm jdk.jfr.api.event.TestAbstractEvent
  * @run main/othervm -XX:+AllowParallelDefineClass jdk.jfr.api.event.TestAbstractEvent
  */

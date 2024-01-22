@@ -39,7 +39,7 @@ import jdk.test.lib.jfr.EventNames;
  * @key jfr
  * @summary Verify Exception when setting invalid config.
  *
- * @library /lib /
+ * @library /test/lib /
  * @run main/othervm jdk.jfr.jmx.TestSetConfigurationInvalid
  */
 public class TestSetConfigurationInvalid {

@@ -40,7 +40,7 @@ import jdk.test.lib.Asserts;
  * @summary Test getAnnotations()
  * @key jfr
  *
- * @library /lib /
+ * @library /test/lib /
  * @run main/othervm jdk.jfr.api.metadata.eventtype.TestGetAnnotation
  */
 public class TestGetAnnotation {

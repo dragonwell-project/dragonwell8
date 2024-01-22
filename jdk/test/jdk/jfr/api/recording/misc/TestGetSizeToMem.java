@@ -41,7 +41,7 @@ import jdk.test.lib.jfr.EventNames;
  * @summary Test recording file size with Recording.getSize()
  * @key jfr
  *
- * @library /lib /
+ * @library /test/lib /
  * @run main/othervm jdk.jfr.api.recording.misc.TestGetSizeToMem
  */
 public class TestGetSizeToMem {

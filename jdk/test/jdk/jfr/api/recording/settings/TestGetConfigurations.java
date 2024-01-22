@@ -35,7 +35,7 @@ import jdk.test.lib.Asserts;
  *          the expected parameters
  * @key jfr
  *
- * @library /lib /
+ * @library /test/lib /
  * @run main/othervm jdk.jfr.api.recording.settings.TestGetConfigurations
  */
 public class TestGetConfigurations {

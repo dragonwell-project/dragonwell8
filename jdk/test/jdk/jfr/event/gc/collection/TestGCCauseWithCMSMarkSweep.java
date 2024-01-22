@@ -33,7 +33,7 @@ import jdk.test.lib.jfr.GCHelper;
  *
  *
  *
- * @library /lib /
+ * @library /test/lib /
  * @run driver jdk.jfr.event.gc.collection.TestGCCauseWithCMSMarkSweep
  */
 public class TestGCCauseWithCMSMarkSweep {

@@ -42,7 +42,7 @@ import jdk.test.lib.jfr.Events;
  * @bug 8216559
  * @key jfr
  *
- * @library /lib /
+ * @library /test/lib /
  * @run main/othervm jdk.jfr.event.runtime.TestNativeLibrariesEvent
  */
 public class TestNativeLibrariesEvent {

@@ -39,7 +39,7 @@ import jdk.test.lib.jfr.Events;
  * @summary Sanity checks that RecordedEvent#toString returns something valid
  * @key jfr
  *
- * @library /lib /
+ * @library /test/lib /
  * @run main/othervm jdk.jfr.api.consumer.TestToString
  */
 public class TestToString {

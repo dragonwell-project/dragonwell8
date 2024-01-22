@@ -30,7 +30,7 @@ package jdk.jfr.event.gc.collection;
  * @key jfr
  *
  *
- * @library /lib /
+ * @library /test/lib /
  * @run main/othervm -Xmx50m -Xmn2m -XX:+UseG1GC -XX:+UnlockExperimentalVMOptions -XX:-UseFastUnorderedTimeStamps -XX:+PrintGCDetails -XX:+PrintGC jdk.jfr.event.gc.collection.TestYoungGarbageCollectionEventWithG1New
  */
 public class TestYoungGarbageCollectionEventWithG1New {

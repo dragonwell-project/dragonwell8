@@ -31,7 +31,7 @@ import jdk.test.lib.jfr.GCHelper;
  * @key jfr
  *
  *
- * @library /lib /
+ * @library /test/lib /
  * @run main/othervm -XX:+UseSerialGC jdk.jfr.event.gc.heapsummary.TestHeapSummaryEventDefNewSerial
  */
 public class TestHeapSummaryEventDefNewSerial {

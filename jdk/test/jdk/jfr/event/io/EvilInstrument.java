@@ -49,7 +49,7 @@ import jdk.test.lib.Utils;
  * instrumentation in JFR does not interfere with javaagents.
  *
  *
- * @library /lib /
+ * @library /test/lib /
  *
  *
  * @build jdk.jfr.event.io.EvilInstrument

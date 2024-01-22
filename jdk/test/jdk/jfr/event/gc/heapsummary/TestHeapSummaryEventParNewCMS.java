@@ -31,7 +31,7 @@ import jdk.test.lib.jfr.GCHelper;
  * @key jfr
  *
  *
- * @library /lib /
+ * @library /test/lib /
  * @run main/othervm -XX:+UnlockExperimentalVMOptions -XX:-UseFastUnorderedTimeStamps -XX:+UseConcMarkSweepGC jdk.jfr.event.gc.heapsummary.TestHeapSummaryEventParNewCMS
  */
 public class TestHeapSummaryEventParNewCMS {

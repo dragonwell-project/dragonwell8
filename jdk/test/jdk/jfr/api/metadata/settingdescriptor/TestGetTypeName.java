@@ -34,7 +34,7 @@ import jdk.test.lib.jfr.Events;
  * @summary Test SettingDescriptor.getTypeName();
  * @key jfr
  *
- * @library /lib /
+ * @library /test/lib /
  * @run main/othervm jdk.jfr.api.metadata.settingdescriptor.TestGetTypeName
  */
 public class TestGetTypeName {

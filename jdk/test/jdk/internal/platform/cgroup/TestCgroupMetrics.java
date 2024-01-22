@@ -23,7 +23,7 @@
 
 /*
  * @test
- * @library /lib /
+ * @library /test/lib /
  * @run main TestCgroupMetrics
  */
 

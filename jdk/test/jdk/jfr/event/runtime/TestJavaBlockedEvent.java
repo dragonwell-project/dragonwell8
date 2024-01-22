@@ -44,7 +44,7 @@ import jdk.test.lib.thread.XRun;
  * @test
  * @key jfr
  *
- * @library /lib /
+ * @library /test/lib /
  *
  * @run main/othervm jdk.jfr.event.runtime.TestJavaBlockedEvent
  */

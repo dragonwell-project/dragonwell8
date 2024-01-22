@@ -33,7 +33,7 @@ import jdk.test.lib.Asserts;
  * @test
  * @key jfr
  *
- * @library /lib /
+ * @library /test/lib /
  * @run main/othervm jdk.jfr.api.flightrecorder.TestIsInitialized
  */
 public class TestIsInitialized {

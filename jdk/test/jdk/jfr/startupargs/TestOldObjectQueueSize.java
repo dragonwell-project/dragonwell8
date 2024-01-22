@@ -39,7 +39,7 @@ import jdk.test.lib.jfr.Events;
  * @summary Test -XX:FlightRecorderOptions=old-object-queue-size
  *
  *
- * @library /lib /
+ * @library /test/lib /
  * @key jfr
  *
  * @run main/othervm -XX:TLABSize=2k -XX:-FastTLABRefill -XX:FlightRecorderOptions=old-object-queue-size=0 jdk.jfr.startupargs.TestOldObjectQueueSize off

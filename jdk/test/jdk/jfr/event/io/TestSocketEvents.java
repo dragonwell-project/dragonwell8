@@ -46,7 +46,7 @@ import jdk.test.lib.thread.XRun;
  * @test
  * @key jfr
  *
- * @library /lib /
+ * @library /test/lib /
  * @run main/othervm jdk.jfr.event.io.TestSocketEvents
  */
 public class TestSocketEvents {

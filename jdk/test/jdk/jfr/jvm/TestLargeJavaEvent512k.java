@@ -47,7 +47,7 @@ import jdk.test.lib.jfr.Stressor;
  * @test TestLargeJavaEvent512k
  * @key jfr
  *
- * @library /lib /
+ * @library /test/lib /
  *
  * @run main/othervm jdk.jfr.jvm.TestLargeJavaEvent512k
  */

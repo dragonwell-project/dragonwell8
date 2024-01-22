@@ -36,7 +36,7 @@ import jdk.test.lib.jfr.Events;
  * @summary Test SettingDescriptor.getLabel()
  * @key jfr
  *
- * @library /lib /
+ * @library /test/lib /
  * @run main/othervm jdk.jfr.api.metadata.settingdescriptor.TestGetLabel
  */
 public class TestGetLabel {

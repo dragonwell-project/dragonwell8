@@ -28,7 +28,7 @@
  * @key jfr
  * @summary Tests that JFR event classes can be transformed via JVMTI
  *
- * @library /lib/testlibrary /lib /
+ * @library /lib/testlibrary /test/lib /
  * @modules java.instrument
  *
  * @build jdk.jfr.javaagent.Test8252904

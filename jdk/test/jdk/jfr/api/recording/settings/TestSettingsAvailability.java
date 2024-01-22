@@ -44,7 +44,7 @@ import jdk.test.lib.jfr.EventNames;
  * @summary Verifies that event types has the correct type of settings
  * @key jfr
  *
- * @library /lib /
+ * @library /test/lib /
  * @run main/othervm jdk.jfr.api.recording.settings.TestSettingsAvailability
  */
 public class TestSettingsAvailability {

@@ -30,7 +30,7 @@ package jdk.jfr.event.gc.stacktrace;
  *
  *
  *
- * @library /lib /
+ * @library /test/lib /
  * @run main/othervm -XX:+UseConcMarkSweepGC -XX:+PrintGCDetails -XX:+PrintGC -XX:+FlightRecorder jdk.jfr.event.gc.stacktrace.TestParNewAllocationPendingStackTrace
  */
 public class TestParNewAllocationPendingStackTrace {

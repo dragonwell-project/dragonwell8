@@ -40,7 +40,7 @@ import jdk.test.lib.jfr.Events;
  *
  *
  * @summary Test leak profiler with Serial GC
- * @library /lib /
+ * @library /test/lib /
  *
  * @run main/othervm  -XX:TLABSize=2k -XX:+UseSerialGC jdk.jfr.event.oldobject.TestSerial
  */

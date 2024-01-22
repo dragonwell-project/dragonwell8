@@ -49,7 +49,7 @@ import jdk.test.lib.process.ProcessTools;
  * @key jfr
  *
  *
- * @library /lib /
+ * @library /test/lib /
  *
 
  *
