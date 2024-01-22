@@ -1,7 +1,7 @@
 /*
  * @test
  * @summary Test Environment Variable Dump
- * @library /lib /lib/testlibrary
+ * @library /test/lib
  * @requires os.arch=="amd64" | os.arch=="aarch64"
  * @run main/othervm/timeout=600 TestEnvVariableDump
  */
@@ -9,7 +9,7 @@ import jdk.test.lib.process.OutputAnalyzer;
 import jdk.test.lib.process.ProcessTools;
 import java.io.*;
 import java.util.Map;
-import static jdk.testlibrary.Asserts.*;
+import static jdk.test.lib.Asserts.*;
 
 public class TestEnvVariableDump {
     private static String cachepath = System.getProperty("user.dir");

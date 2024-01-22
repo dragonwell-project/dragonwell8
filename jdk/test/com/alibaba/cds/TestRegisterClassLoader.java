@@ -1,7 +1,7 @@
 /*
  * @test
  * @summary Test class loader register in EagerCDS
- * @library /lib/testlibrary /lib
+ * @library /test/lib
  * @modules jdk.compiler
  * @modules java.base/jdk.internal.misc
  * @modules java.base/com.alibaba.util:+open

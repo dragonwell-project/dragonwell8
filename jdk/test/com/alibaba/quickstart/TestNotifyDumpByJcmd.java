@@ -2,7 +2,7 @@
  * @test
  * @modules java.base/sun.security.action
  * @summary Test dumping using jcmd
- * @library /lib
+ * @library /test/lib
  * @build TestDump
  * @requires os.arch=="amd64" | os.arch=="aarch64"
  * @run driver ClassFileInstaller -jar test-notifyDumpByJcmd.jar TestDump TestDump$Policy TestDump$ClassLoadingPolicy TestDump$WatcherThread

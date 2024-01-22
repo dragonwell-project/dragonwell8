@@ -1,7 +1,7 @@
 /*
  * @test
  * @summary Test -Xquickstart:printStat option
- * @library /lib
+ * @library /test/lib
  * @requires os.arch=="amd64" | os.arch=="aarch64"
  * @run main/othervm/timeout=600 TestPrintStat
  */
