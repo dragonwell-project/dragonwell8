@@ -1,7 +1,7 @@
 /*
  * @test
  * @summary Test the file lock to determine tracer or replayer
- * @library /lib
+ * @library /test/lib
  * @library /lib/testlibrary
  * @requires os.arch=="amd64" | os.arch=="aarch64"
  * @run main/othervm/timeout=600 TestParallelProcessRun

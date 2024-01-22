@@ -26,7 +26,7 @@
 #
 # @test
 # @summary test JVMTI API for preparation of class loader
-# @library /lib/testlibrary /lib
+# @library /test/lib
 # @modules jdk.compiler
 # @modules java.base/jdk.internal.misc
 # @requires os.arch=="amd64" | os.arch=="aarch64"

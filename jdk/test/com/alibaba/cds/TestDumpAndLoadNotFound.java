@@ -1,7 +1,7 @@
 /*
  * @test
  * @summary Test dumping with not found class
- * @library /lib/testlibrary /lib
+ * @library /test/lib
  * @modules java.base/jdk.internal.misc
  *          java.management
  *          jdk.jartool/sun.tools.jar
