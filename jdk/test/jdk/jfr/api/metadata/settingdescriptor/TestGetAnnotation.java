@@ -38,7 +38,7 @@ import jdk.test.lib.jfr.Events;
  * @summary Test SettingDescriptor.getAnnotation();
  * @key jfr
  *
- * @library /lib /
+ * @library /test/lib /
  * @run main/othervm jdk.jfr.api.metadata.settingdescriptor.TestGetAnnotation
  */
 public class TestGetAnnotation {

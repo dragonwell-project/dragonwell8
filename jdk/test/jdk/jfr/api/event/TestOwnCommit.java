@@ -39,7 +39,7 @@ import jdk.test.lib.jfr.Events;
  * @summary Use custom event that reuse method names begin, end and commit.
  * @key jfr
  *
- * @library /lib /
+ * @library /test/lib /
  * @run main/othervm jdk.jfr.api.event.TestOwnCommit
  */
 

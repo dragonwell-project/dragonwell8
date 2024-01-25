@@ -39,7 +39,7 @@ import jdk.test.lib.jfr.Events;
  * @key jfr
  *
  *
- * @library /lib /
+ * @library /test/lib /
  *
  *
  * @run main jdk.jfr.event.gc.detailed.TestEvacuationFailedEvent

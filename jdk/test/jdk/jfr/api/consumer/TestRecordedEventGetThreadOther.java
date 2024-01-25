@@ -41,7 +41,7 @@ import jdk.test.lib.Utils;
  * @summary Tests that the RecordedEvent.getThread() returns th expected info
  * @key jfr
  *
- * @library /lib /
+ * @library /test/lib /
  * @run main/othervm jdk.jfr.api.consumer.TestRecordedEventGetThreadOther
  */
 public class TestRecordedEventGetThreadOther {

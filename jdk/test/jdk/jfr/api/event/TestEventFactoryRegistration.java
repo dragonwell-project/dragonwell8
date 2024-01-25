@@ -42,7 +42,7 @@ import jdk.test.lib.Asserts;
  * @summary EventFactory register/unregister API test
  * @key jfr
  *
- * @library /lib /
+ * @library /test/lib /
  * @run main/othervm jdk.jfr.api.event.TestEventFactoryRegistration
  * @run main/othervm -XX:+AllowParallelDefineClass jdk.jfr.api.event.TestEventFactoryRegistration
  */

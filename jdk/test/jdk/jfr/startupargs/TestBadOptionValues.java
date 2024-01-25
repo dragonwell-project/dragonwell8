@@ -35,7 +35,7 @@ import sun.hotspot.WhiteBox;
  * @key jfr
  *
  *
- * @library /lib /
+ * @library /test/lib /
  *
 
  *

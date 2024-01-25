@@ -47,7 +47,7 @@ import jdk.test.lib.jfr.SimpleEvent;
  * @summary Verifies that a recorded JFR event has the correct stack trace info
  * @key jfr
  *
- * @library /lib /
+ * @library /test/lib /
  * @run main/othervm jdk.jfr.api.consumer.TestGetStackTrace
  */
 public class TestGetStackTrace {

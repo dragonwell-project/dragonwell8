@@ -37,7 +37,7 @@ import jdk.test.lib.jfr.CommonHelper;
  * @summary Verify that a recopding with a delay is started.
  * @key jfr
  *
- * @library /lib /
+ * @library /test/lib /
  * @run main/othervm -XX:StartFlightRecording=name=TestStartDelay,delay=1s jdk.jfr.startupargs.TestStartDelayRunning
  */
 public class TestStartDelayRunning {

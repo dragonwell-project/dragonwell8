@@ -35,7 +35,7 @@ import jdk.jfr.internal.JVM;
  * @summary Checks that the JVM can rollback on native initialization failures.
  * @key jfr
  *
- * @library /lib /
+ * @library /test/lib /
  *
  * @run main/othervm jdk.jfr.jvm.TestCreateNative
  */

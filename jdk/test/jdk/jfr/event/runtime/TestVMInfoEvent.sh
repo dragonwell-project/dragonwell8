@@ -23,7 +23,7 @@
 # @test
 # @key jfr
 #
-# @library /lib /
+# @library /test/lib /
 # @build jdk.jfr.event.runtime.TestVMInfoEvent
 # @run shell TestVMInfoEvent.sh
 

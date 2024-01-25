@@ -43,7 +43,7 @@ import sun.hotspot.WhiteBox;
  * @test TestSafepointEvents
  * @key jfr
  *
- * @library /lib /
+ * @library /test/lib /
  * @build sun.hotspot.WhiteBox
  * @run main ClassFileInstaller sun.hotspot.WhiteBox
  *     sun.hotspot.WhiteBox$WhiteBoxPermission

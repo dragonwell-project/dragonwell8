@@ -31,7 +31,7 @@ import jdk.test.lib.process.OutputAnalyzer;
 /*
  * @test
  * @summary Test JDK Metrics class when running inside docker container
- * @library /lib /
+ * @library /test/lib /
  * @build MetricsMemoryTester
  * @run main/timeout=360 TestDockerMemoryMetrics
  */

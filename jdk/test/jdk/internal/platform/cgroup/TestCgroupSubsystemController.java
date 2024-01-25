@@ -45,7 +45,7 @@ import jdk.testlibrary.FileUtils;
  * @test
  * @requires os.family == "linux"
  * @modules java.base/jdk.internal.platform
- * @library /lib
+ * @library /test/lib
  * @library /lib/testlibrary
  * @run junit/othervm TestCgroupSubsystemController
  */

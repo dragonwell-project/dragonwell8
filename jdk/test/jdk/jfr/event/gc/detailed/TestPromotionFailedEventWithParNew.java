@@ -29,7 +29,7 @@ package jdk.jfr.event.gc.detailed;
  * @key jfr
  *
  *
- * @library /lib /
+ * @library /test/lib /
  * @run main/othervm  jdk.jfr.event.gc.detailed.TestPromotionFailedEventWithParNew
  */
 public class TestPromotionFailedEventWithParNew {

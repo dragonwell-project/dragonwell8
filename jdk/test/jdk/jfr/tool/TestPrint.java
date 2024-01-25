@@ -36,7 +36,7 @@ import jdk.test.lib.process.OutputAnalyzer;
  * @test
  * @summary Test jfr print
  * @key jfr
- * @library /lib /
+ * @library /test/lib /
  * @run main/othervm jdk.jfr.tool.TestPrint
  */
 public class TestPrint {

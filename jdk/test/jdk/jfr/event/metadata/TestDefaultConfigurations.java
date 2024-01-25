@@ -58,7 +58,7 @@ import org.xml.sax.SAXException;
  * @key jfr
  *
  *
- * @library /lib /
+ * @library /test/lib /
  *
 
  *

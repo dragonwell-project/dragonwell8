@@ -40,7 +40,7 @@ import jdk.test.lib.jfr.Events;
  *
  *
  * @key jfr
- * @library /lib /
+ * @library /test/lib /
  * @run main/othervm -XX:NewSize=2m -XX:MaxNewSize=2m -Xmx32m -XX:+UseG1GC -XX:+NeverTenure jdk.jfr.event.gc.detailed.TestTenuringDistributionEvent
  */
 

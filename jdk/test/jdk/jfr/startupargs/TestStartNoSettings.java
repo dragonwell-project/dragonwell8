@@ -35,7 +35,7 @@ import jdk.jfr.Recording;
  * @test
  * @summary Start a FlightRecording without any settings (not even default).
  * @key jfr
- * @library /lib /
+ * @library /test/lib /
  * @run main/othervm jdk.jfr.startupargs.TestStartNoSettings
  *      -XX:StartFlightRecording=settings=none
  */

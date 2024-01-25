@@ -41,7 +41,7 @@ import jdk.test.lib.process.OutputAnalyzer;
  * @summary The test verifies JFR.dump command
  * @key jfr
  *
- * @library /lib /
+ * @library /test/lib /
  * @run main/othervm jdk.jfr.jcmd.TestJcmdDumpGeneratedFilename
  */
 public class TestJcmdDumpGeneratedFilename {

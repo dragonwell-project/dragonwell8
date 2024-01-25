@@ -38,7 +38,7 @@ import jdk.test.lib.jfr.TestClassLoader;
  * @test
  * @key jfr
  *
- * @library /lib /
+ * @library /test/lib /
  * @build jdk.jfr.event.runtime.TestClasses
  * @run main/othervm jdk.jfr.event.runtime.TestClassLoadingStatisticsEvent
  */

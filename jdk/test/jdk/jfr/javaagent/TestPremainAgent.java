@@ -26,7 +26,7 @@
  * @key jfr
  * @summary Tests emitting event before main using a Java agent
  *
- * @library /lib/testlibrary /lib /
+ * @library /lib/testlibrary /test/lib /
  * @modules java.instrument
  *
  * @build jdk.jfr.javaagent.EventEmitterAgent

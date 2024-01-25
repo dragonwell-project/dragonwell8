@@ -24,7 +24,7 @@
 /*
  * @test
  * @bug 8242480
- * @library /lib
+ * @library /test/lib
  * @build GetFreeSwapSpaceSize
  * @run driver TestGetFreeSwapSpaceSize
  */

@@ -30,7 +30,7 @@ package jdk.jfr.event.gc.stacktrace;
  *
  *
  *
- * @library /lib /
+ * @library /test/lib /
  * @run main/othervm -XX:MaxNewSize=10M -Xmx64M -XX:+UseSerialGC -XX:+PrintGCDetails -XX:+PrintGC jdk.jfr.event.gc.stacktrace.TestMarkSweepCompactAllocationPendingStackTrace
  */
 public class TestMarkSweepCompactAllocationPendingStackTrace {

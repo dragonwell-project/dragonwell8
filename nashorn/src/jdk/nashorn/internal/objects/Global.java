@@ -1430,9 +1430,11 @@ public final class Global extends Scope {
         if ("context".equals(nameStr)) {
             return sctxt;
         } else if ("engine".equals(nameStr)) {
-            // expose "engine" variable only when there is no security manager
-            // or when no class filter is set.
-            if (System.getSecurityManager() == null || global.getClassFilter() == null) {
+            // expose "engine" variable only when there is no security manager,
+            // or when no class filter is set and --no-java is not set
+            if (System.getSecurityManager() == null ||
+                    (global.getClassFilter() == null &&
+                    !global.getContext().getEnv()._no_java)) {
                 return global.engine;
             }
         }

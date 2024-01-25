@@ -43,7 +43,7 @@ import jdk.test.lib.Utils;
  * @summary Reads the recorded file two times and verifies that both reads are the same
  * @key jfr
  *
- * @library /lib /
+ * @library /test/lib /
  * @run main/othervm jdk.jfr.api.consumer.TestReadTwice
  */
 public class TestReadTwice {

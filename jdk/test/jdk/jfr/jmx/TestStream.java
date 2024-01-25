@@ -39,7 +39,7 @@ import jdk.test.lib.jfr.SimpleEventHelper;
  * @test
  * @key jfr
  *
- * @library /lib /
+ * @library /test/lib /
  * @run main/othervm jdk.jfr.jmx.TestStream
  */
 public class TestStream {

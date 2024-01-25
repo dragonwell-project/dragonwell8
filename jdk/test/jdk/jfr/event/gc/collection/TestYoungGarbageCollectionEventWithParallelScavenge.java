@@ -30,7 +30,7 @@ package jdk.jfr.event.gc.collection;
  * @key jfr
  *
  *
- * @library /lib /
+ * @library /test/lib /
  * @run main/othervm -Xmx50m -Xmn2m -XX:+UseParallelGC -XX:+UnlockExperimentalVMOptions -XX:-UseFastUnorderedTimeStamps -XX:-UseAdaptiveSizePolicy -XX:+PrintGCDetails -XX:+PrintGC jdk.jfr.event.gc.collection.TestYoungGarbageCollectionEventWithParallelScavenge
  */
 public class TestYoungGarbageCollectionEventWithParallelScavenge {

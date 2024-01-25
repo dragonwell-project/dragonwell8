@@ -1,7 +1,7 @@
 /*
  * @test
  * @summary Test dumping with verification failure
- * @library /lib/testlibrary /lib
+ * @library /test/lib
  * @modules java.base/jdk.internal.misc
  *          java.management
  *          jdk.jartool/sun.tools.jar

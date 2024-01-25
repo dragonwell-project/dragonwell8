@@ -40,7 +40,7 @@ import jdk.test.lib.jfr.EventNames;
  * @summary Test setName().
  * @key jfr
  *
- * @library /lib /
+ * @library /test/lib /
  * @run main/othervm jdk.jfr.api.recording.settings.TestCreateConfigFromPath
  */
 public class TestCreateConfigFromPath {

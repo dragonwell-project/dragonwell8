@@ -39,7 +39,7 @@ import jdk.test.lib.process.OutputAnalyzer;
  * @summary Start a recording without name.
  * @key jfr
  *
- * @library /lib /
+ * @library /test/lib /
  * @run main/othervm jdk.jfr.jcmd.TestJcmdStartStopDefault
  */
 public class TestJcmdStartStopDefault {

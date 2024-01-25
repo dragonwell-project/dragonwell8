@@ -1,7 +1,7 @@
 /*
  * @test
  * @summary Test load the class failed with EagerAppCDS flow
- * @library /lib/testlibrary /lib
+ * @library /test/lib
  * @build Classes4CDS
  * @build trivial.TestSimple
  * @build TestSimpleWispUsage

@@ -43,7 +43,7 @@ import jdk.test.lib.jfr.CommonHelper;
  * @key jfr
  * @summary Test for RecordingInfo
  *
- * @library /lib /
+ * @library /test/lib /
  * @run main/othervm jdk.jfr.jmx.info.TestRecordingInfo
  */
 public class TestRecordingInfo {

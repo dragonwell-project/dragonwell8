@@ -44,7 +44,7 @@ import jdk.test.lib.Utils;
  * @summary Test that verifies event metadata is removed when an event class is unloaded.
  *
  *
- * @library /lib /
+ * @library /test/lib /
  *
  *
  * @run main/othervm -XX:+PrintGCDetails -XX:+PrintGC  -verbose:class jdk.jfr.api.metadata.eventtype.TestUnloadingEventClass

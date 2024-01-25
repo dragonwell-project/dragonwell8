@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -51,291 +51,325 @@ public class AmazonCA {
     public static void main(String[] args) throws Exception {
 
         ValidatePathWithParams pathValidator = new ValidatePathWithParams(null);
-        boolean ocspEnabled = false;
 
         if (args.length >= 1 && "CRL".equalsIgnoreCase(args[0])) {
             pathValidator.enableCRLCheck();
         } else {
             // OCSP check by default
             pathValidator.enableOCSPCheck();
-            ocspEnabled = true;
         }
 
-        new AmazonCA_1().runTest(pathValidator, ocspEnabled);
-        new AmazonCA_2().runTest(pathValidator, ocspEnabled);
-        new AmazonCA_3().runTest(pathValidator, ocspEnabled);
-        new AmazonCA_4().runTest(pathValidator, ocspEnabled);
+        new AmazonCA_1().runTest(pathValidator);
+        new AmazonCA_2().runTest(pathValidator);
+        new AmazonCA_3().runTest(pathValidator);
+        new AmazonCA_4().runTest(pathValidator);
     }
 }
 
 class AmazonCA_1 {
 
-    // Owner: CN=Amazon, OU=Server CA 1A, O=Amazon, C=US
+    // Owner: CN=Amazon RSA 2048 M02, O=Amazon, C=US
     // Issuer: CN=Amazon Root CA 1, O=Amazon, C=US
-    // Serial number: 67f9457508c648c09ca652e71791830e72592
-    // Valid from: Wed Oct 21 17:00:00 PDT 2015 until: Sat Oct 18 17:00:00 PDT 2025
-    private static final String INT = "-----BEGIN CERTIFICATE-----\n" +
-            "MIIERzCCAy+gAwIBAgITBn+UV1CMZIwJymUucXkYMOclkjANBgkqhkiG9w0BAQsF\n" +
+    // Serial number: 773124a4bcbd44ec7b53beaf194842d3a0fa1
+    // Valid from: Tue Aug 23 15:25:30 PDT 2022 until: Fri Aug 23 15:25:30 PDT 2030
+    private static final String INT_VALID = "-----BEGIN CERTIFICATE-----\n" +
+            "MIIEXjCCA0agAwIBAgITB3MSSkvL1E7HtTvq8ZSELToPoTANBgkqhkiG9w0BAQsF\n" +
             "ADA5MQswCQYDVQQGEwJVUzEPMA0GA1UEChMGQW1hem9uMRkwFwYDVQQDExBBbWF6\n" +
-            "b24gUm9vdCBDQSAxMB4XDTE1MTAyMjAwMDAwMFoXDTI1MTAxOTAwMDAwMFowRjEL\n" +
-            "MAkGA1UEBhMCVVMxDzANBgNVBAoTBkFtYXpvbjEVMBMGA1UECxMMU2VydmVyIENB\n" +
-            "IDFBMQ8wDQYDVQQDEwZBbWF6b24wggEiMA0GCSqGSIb3DQEBAQUAA4IBDwAwggEK\n" +
-            "AoIBAQCeQM3XCsIZunv8bSJxOqkc/ed87uL76FDB7teBNThDRB+1J7aITuadbNfH\n" +
-            "5ZfZykrdZ1qQLKxP6DwHOmJr9u2b4IxjUX9qUMuq4B02ghD2g6yU3YivEosZ7fpo\n" +
-            "srD2TBN29JpgPGrOrpOE+ArZuIpBjdKFinemu6fTDD0NCeQlfyHXd1NOYyfYRLTa\n" +
-            "xlpDqr/2M41BgSkWQfSPHHyRWNQgWBiGsIQaS8TK0g8OWi1ov78+2K9DWT+AHgXW\n" +
-            "AanjZK91GfygPXJYSlAGxSiBAwH/KhAMifhaoFYAbH0Yuohmd85B45G2xVsop4TM\n" +
-            "Dsl007U7qnS7sdJ4jYGzEvva/a95AgMBAAGjggE5MIIBNTASBgNVHRMBAf8ECDAG\n" +
-            "AQH/AgEAMA4GA1UdDwEB/wQEAwIBhjAdBgNVHQ4EFgQUYtRCXoZwdWqQvMa40k1g\n" +
-            "wjS6UTowHwYDVR0jBBgwFoAUhBjMhTTsvAyUlC4IWZzHshBOCggwewYIKwYBBQUH\n" +
-            "AQEEbzBtMC8GCCsGAQUFBzABhiNodHRwOi8vb2NzcC5yb290Y2ExLmFtYXpvbnRy\n" +
-            "dXN0LmNvbTA6BggrBgEFBQcwAoYuaHR0cDovL2NydC5yb290Y2ExLmFtYXpvbnRy\n" +
-            "dXN0LmNvbS9yb290Y2ExLmNlcjA/BgNVHR8EODA2MDSgMqAwhi5odHRwOi8vY3Js\n" +
-            "LnJvb3RjYTEuYW1hem9udHJ1c3QuY29tL3Jvb3RjYTEuY3JsMBEGA1UdIAQKMAgw\n" +
-            "BgYEVR0gADANBgkqhkiG9w0BAQsFAAOCAQEAMHbSWHRFMzGNIE0qhN6gnRahTrTU\n" +
-            "CDPwe7l9/q0IA+QBlrpUHnlAreetYeH1jB8uF3qXXzy22gpBU7NqulTkqSPByT1J\n" +
-            "xOhpT2FpO5R3VAdMPdWfSEgtrED0jkmyUQrR1T+/A+nBLdJZeQcl+OqLgeY790JM\n" +
-            "JJTsJnnI6FBWeTGhcDI4Y+n3KS3QCVePeWI7jx1dhrHcXH+QDX8Ywe31hV7YENdr\n" +
-            "HDpUXrjK6eHN8gazy8G6pndXHFwHp4auiZbJbYAk/q1peOTRagD2JojcLkm+i3cD\n" +
-            "843t4By6YT/PVlePU2PCWejkrJQnKQAPOov7IA8kuO2RDWuzE/zF6Hotdg==\n" +
+            "b24gUm9vdCBDQSAxMB4XDTIyMDgyMzIyMjUzMFoXDTMwMDgyMzIyMjUzMFowPDEL\n" +
+            "MAkGA1UEBhMCVVMxDzANBgNVBAoTBkFtYXpvbjEcMBoGA1UEAxMTQW1hem9uIFJT\n" +
+            "QSAyMDQ4IE0wMjCCASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoCggEBALtDGMZa\n" +
+            "qHneKei1by6+pUPPLljTB143Si6VpEWPc6mSkFhZb/6qrkZyoHlQLbDYnI2D7hD0\n" +
+            "sdzEqfnuAjIsuXQLG3A8TvX6V3oFNBFVe8NlLJHvBseKY88saLwufxkZVwk74g4n\n" +
+            "WlNMXzla9Y5F3wwRHwMVH443xGz6UtGSZSqQ94eFx5X7Tlqt8whi8qCaKdZ5rNak\n" +
+            "+r9nUThOeClqFd4oXych//Rc7Y0eX1KNWHYSI1Nk31mYgiK3JvH063g+K9tHA63Z\n" +
+            "eTgKgndlh+WI+zv7i44HepRZjA1FYwYZ9Vv/9UkC5Yz8/yU65fgjaE+wVHM4e/Yy\n" +
+            "C2osrPWE7gJ+dXMCAwEAAaOCAVowggFWMBIGA1UdEwEB/wQIMAYBAf8CAQAwDgYD\n" +
+            "VR0PAQH/BAQDAgGGMB0GA1UdJQQWMBQGCCsGAQUFBwMBBggrBgEFBQcDAjAdBgNV\n" +
+            "HQ4EFgQUwDFSzVpQw4J8dHHOy+mc+XrrguIwHwYDVR0jBBgwFoAUhBjMhTTsvAyU\n" +
+            "lC4IWZzHshBOCggwewYIKwYBBQUHAQEEbzBtMC8GCCsGAQUFBzABhiNodHRwOi8v\n" +
+            "b2NzcC5yb290Y2ExLmFtYXpvbnRydXN0LmNvbTA6BggrBgEFBQcwAoYuaHR0cDov\n" +
+            "L2NydC5yb290Y2ExLmFtYXpvbnRydXN0LmNvbS9yb290Y2ExLmNlcjA/BgNVHR8E\n" +
+            "ODA2MDSgMqAwhi5odHRwOi8vY3JsLnJvb3RjYTEuYW1hem9udHJ1c3QuY29tL3Jv\n" +
+            "b3RjYTEuY3JsMBMGA1UdIAQMMAowCAYGZ4EMAQIBMA0GCSqGSIb3DQEBCwUAA4IB\n" +
+            "AQAtTi6Fs0Azfi+iwm7jrz+CSxHH+uHl7Law3MQSXVtR8RV53PtR6r/6gNpqlzdo\n" +
+            "Zq4FKbADi1v9Bun8RY8D51uedRfjsbeodizeBB8nXmeyD33Ep7VATj4ozcd31YFV\n" +
+            "fgRhvTSxNrrTlNpWkUk0m3BMPv8sg381HhA6uEYokE5q9uws/3YkKqRiEz3TsaWm\n" +
+            "JqIRZhMbgAfp7O7FUwFIb7UIspogZSKxPIWJpxiPo3TcBambbVtQOcNRWz5qCQdD\n" +
+            "slI2yayq0n2TXoHyNCLEH8rpsJRVILFsg0jc7BaFrMnF462+ajSehgj12IidNeRN\n" +
+            "4zl+EoNaWdpnWndvSpAEkq2P\n" +
             "-----END CERTIFICATE-----";
 
-    // Owner: CN=good.sca1a.amazontrust.com, O=Amazon Trust Services, L=Seattle, ST=Washington, C=US, \
-    // SERIALNUMBER=5846743, OID.2.5.4.15=Private Organization, OID.1.3.6.1.4.1.311.60.2.1.2=Delaware, \
-    // OID.1.3.6.1.4.1.311.60.2.1.3=US
-    // Issuer: CN=Amazon, OU=Server CA 1A, O=Amazon, C=US
-    // Serial number: 703e4e4bbd78e2b6db5634f36c4ee944cb1a4
-    // Valid from: Mon Jul 29 16:53:36 PDT 2019 until: Sat Aug 29 16:53:36 PDT 2020
+    // Owner: CN=Amazon RSA 2048 M01, O=Amazon, C=US
+    // Issuer: CN=Amazon Root CA 1, O=Amazon, C=US
+    // Serial number: 77312380b9d6688a33b1ed9bf9ccda68e0e0f
+    // Valid from: Tue Aug 23 15:21:28 PDT 2022 until: Fri Aug 23 15:21:28 PDT 2030
+    private static final String INT_REVOKED = "-----BEGIN CERTIFICATE-----\n" +
+            "MIIEXjCCA0agAwIBAgITB3MSOAudZoijOx7Zv5zNpo4ODzANBgkqhkiG9w0BAQsF\n" +
+            "ADA5MQswCQYDVQQGEwJVUzEPMA0GA1UEChMGQW1hem9uMRkwFwYDVQQDExBBbWF6\n" +
+            "b24gUm9vdCBDQSAxMB4XDTIyMDgyMzIyMjEyOFoXDTMwMDgyMzIyMjEyOFowPDEL\n" +
+            "MAkGA1UEBhMCVVMxDzANBgNVBAoTBkFtYXpvbjEcMBoGA1UEAxMTQW1hem9uIFJT\n" +
+            "QSAyMDQ4IE0wMTCCASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoCggEBAOtxLKnL\n" +
+            "H4gokjIwr4pXD3i3NyWVVYesZ1yX0yLI2qIUZ2t88Gfa4gMqs1YSXca1R/lnCKeT\n" +
+            "epWSGA+0+fkQNpp/L4C2T7oTTsddUx7g3ZYzByDTlrwS5HRQQqEFE3O1T5tEJP4t\n" +
+            "f+28IoXsNiEzl3UGzicYgtzj2cWCB41eJgEmJmcf2T8TzzK6a614ZPyq/w4CPAff\n" +
+            "nAV4coz96nW3AyiE2uhuB4zQUIXvgVSycW7sbWLvj5TDXunEpNCRwC4kkZjK7rol\n" +
+            "jtT2cbb7W2s4Bkg3R42G3PLqBvt2N32e/0JOTViCk8/iccJ4sXqrS1uUN4iB5Nmv\n" +
+            "JK74csVl+0u0UecCAwEAAaOCAVowggFWMBIGA1UdEwEB/wQIMAYBAf8CAQAwDgYD\n" +
+            "VR0PAQH/BAQDAgGGMB0GA1UdJQQWMBQGCCsGAQUFBwMBBggrBgEFBQcDAjAdBgNV\n" +
+            "HQ4EFgQUgbgOY4qJEhjl+js7UJWf5uWQE4UwHwYDVR0jBBgwFoAUhBjMhTTsvAyU\n" +
+            "lC4IWZzHshBOCggwewYIKwYBBQUHAQEEbzBtMC8GCCsGAQUFBzABhiNodHRwOi8v\n" +
+            "b2NzcC5yb290Y2ExLmFtYXpvbnRydXN0LmNvbTA6BggrBgEFBQcwAoYuaHR0cDov\n" +
+            "L2NydC5yb290Y2ExLmFtYXpvbnRydXN0LmNvbS9yb290Y2ExLmNlcjA/BgNVHR8E\n" +
+            "ODA2MDSgMqAwhi5odHRwOi8vY3JsLnJvb3RjYTEuYW1hem9udHJ1c3QuY29tL3Jv\n" +
+            "b3RjYTEuY3JsMBMGA1UdIAQMMAowCAYGZ4EMAQIBMA0GCSqGSIb3DQEBCwUAA4IB\n" +
+            "AQCtAN4CBSMuBjJitGuxlBbkEUDeK/pZwTXv4KqPK0G50fOHOQAd8j21p0cMBgbG\n" +
+            "kfMHVwLU7b0XwZCav0h1ogdPMN1KakK1DT0VwA/+hFvGPJnMV1Kx2G4S1ZaSk0uU\n" +
+            "5QfoiYIIano01J5k4T2HapKQmmOhS/iPtuo00wW+IMLeBuKMn3OLn005hcrOGTad\n" +
+            "hcmeyfhQP7Z+iKHvyoQGi1C0ClymHETx/chhQGDyYSWqB/THwnN15AwLQo0E5V9E\n" +
+            "SJlbe4mBlqeInUsNYugExNf+tOiybcrswBy8OFsd34XOW3rjSUtsuafd9AWySa3h\n" +
+            "xRRrwszrzX/WWGm6wyB+f7C4\n" +
+            "-----END CERTIFICATE-----";
+
+    // Owner: CN=valid.rootca1.demo.amazontrust.com
+    // Issuer: CN=Amazon RSA 2048 M02, O=Amazon, C=US
+    // Serial number: 60c6e837b2e7586d8464eb34f4a85fe
+    // Valid from: Tue May 09 17:00:00 PDT 2023 until: Fri Jun 07 16:59:59 PDT 2024
     private static final String VALID = "-----BEGIN CERTIFICATE-----\n" +
-            "MIIFEzCCA/ugAwIBAgITBwPk5LvXjitttWNPNsTulEyxpDANBgkqhkiG9w0BAQsF\n" +
-            "ADBGMQswCQYDVQQGEwJVUzEPMA0GA1UEChMGQW1hem9uMRUwEwYDVQQLEwxTZXJ2\n" +
-            "ZXIgQ0EgMUExDzANBgNVBAMTBkFtYXpvbjAeFw0xOTA3MjkyMzUzMzZaFw0yMDA4\n" +
-            "MjkyMzUzMzZaMIHaMRMwEQYLKwYBBAGCNzwCAQMTAlVTMRkwFwYLKwYBBAGCNzwC\n" +
-            "AQITCERlbGF3YXJlMR0wGwYDVQQPExRQcml2YXRlIE9yZ2FuaXphdGlvbjEQMA4G\n" +
-            "A1UEBRMHNTg0Njc0MzELMAkGA1UEBhMCVVMxEzARBgNVBAgTCldhc2hpbmd0b24x\n" +
-            "EDAOBgNVBAcTB1NlYXR0bGUxHjAcBgNVBAoTFUFtYXpvbiBUcnVzdCBTZXJ2aWNl\n" +
-            "czEjMCEGA1UEAxMaZ29vZC5zY2ExYS5hbWF6b250cnVzdC5jb20wggEiMA0GCSqG\n" +
-            "SIb3DQEBAQUAA4IBDwAwggEKAoIBAQDQyuJ83c2Zf9k29f6iLqd8nJSuHSk1v+SS\n" +
-            "0sYyG8tjscfCC1HcOdNj37vtiNN65sXh/e/kBKH9wvzhCLOJbBqVKRHOZuHdJEpH\n" +
-            "35R6C/PbcV/tp49g6mNmBe+lcmm/cwwCtYvkL0rgL/OKB0liFhhRIqy2TPg08op/\n" +
-            "RlY2DdbgBA2B3g7wdMo0hK3SO56/QUccUtLRm43km9Yd4E3U+CEUyDd0Bmc/YbPa\n" +
-            "htuXVsXJwiwlwooomujIIENhFw3htdcsu2apRj8EYUrKL8Mvvn+h16gDyobj0f01\n" +
-            "jWXlUgmH2lzUzca5eGuphfvmWN/ME/yqC2mMvWGnWySycqtT8VdJAgMBAAGjggFj\n" +
-            "MIIBXzAOBgNVHQ8BAf8EBAMCBaAwHQYDVR0OBBYEFFENOZBwFkjVdQX0iK32c77z\n" +
-            "SUl6MB8GA1UdIwQYMBaAFGLUQl6GcHVqkLzGuNJNYMI0ulE6MB0GA1UdJQQWMBQG\n" +
-            "CCsGAQUFBwMBBggrBgEFBQcDAjB1BggrBgEFBQcBAQRpMGcwLQYIKwYBBQUHMAGG\n" +
-            "IWh0dHA6Ly9vY3NwLnNjYTFhLmFtYXpvbnRydXN0LmNvbTA2BggrBgEFBQcwAoYq\n" +
-            "aHR0cDovL2NydC5zY2ExYS5hbWF6b250cnVzdC5jb20vc2NhMWEuY2VyMCUGA1Ud\n" +
-            "EQQeMByCGmdvb2Quc2NhMWEuYW1hem9udHJ1c3QuY29tMFAGA1UdIARJMEcwDQYL\n" +
-            "YIZIAYb9bgEHGAMwNgYFZ4EMAQEwLTArBggrBgEFBQcCARYfaHR0cHM6Ly93d3cu\n" +
-            "YW1hem9udHJ1c3QuY29tL2NwczANBgkqhkiG9w0BAQsFAAOCAQEAmn7z6Ub1sL77\n" +
-            "wyUEaCq/Odqm+2RtYYMJ1MeW6nTXTfAgZ/iLx/6hStafd9AK9gHiTCggBpj6KgnF\n" +
-            "UsGMDeX879jP675fH6SEk710QPDhIrfAzwE0pF/eUNsd7pLwne32zHX0ouCoAt4d\n" +
-            "KwBCZkKNUkdj4U+bpOJzvtcTP9JlzziLp9IFRjjQh3xKgfblx57CmRJbqH3fT5JJ\n" +
-            "IAIDVTz3ZUcqhPTFAnNsO1oNBEyrO5X9rwCiSy7aRijY/11R75mIIvyA9zyd9ss1\n" +
-            "kvrrER0GWMTDvC84FZD2vhkXgPTFrB1Dn9f3QgO5APT9GCFY5hdpqqPEXOSdRzQo\n" +
-            "h9j4OQAqtA==\n" +
+            "MIIGKDCCBRCgAwIBAgIQBgxug3sudYbYRk6zT0qF/jANBgkqhkiG9w0BAQsFADA8\n" +
+            "MQswCQYDVQQGEwJVUzEPMA0GA1UEChMGQW1hem9uMRwwGgYDVQQDExNBbWF6b24g\n" +
+            "UlNBIDIwNDggTTAyMB4XDTIzMDUxMDAwMDAwMFoXDTI0MDYwNzIzNTk1OVowLTEr\n" +
+            "MCkGA1UEAxMidmFsaWQucm9vdGNhMS5kZW1vLmFtYXpvbnRydXN0LmNvbTCCASIw\n" +
+            "DQYJKoZIhvcNAQEBBQADggEPADCCAQoCggEBAL3hA+omhUcO8nYO8/+dkpbYz8WI\n" +
+            "1ms7Y7JA2pPFfp2N/aWcf6m5ORm1BkyGLOttjTu318Qpa9eahQ1Pi3RNe3BtqjD9\n" +
+            "jcHncpwAFMsXy1beZA7sZ7AA4vKltA3t6yrU5ruTLUGQwUndeIBBSTW5QpdT9I/p\n" +
+            "EM7d+Miwre63kofbJ1lVPAJvN/udMVqGWNF8V5qscklUUHoSKA3FWWsiCyIgnthg\n" +
+            "G3u6R1KH66Qionp0ho/ttvrBCI0C/bdrdH+wybFv8oFFvAW2U9xn2Azt47/2kHHm\n" +
+            "tTRjrgufhDbcz/MLR6hwBXAJuwVvJZmSqe7B4IILFexu6wjxZfyqVm2FMr8CAwEA\n" +
+            "AaOCAzMwggMvMB8GA1UdIwQYMBaAFMAxUs1aUMOCfHRxzsvpnPl664LiMB0GA1Ud\n" +
+            "DgQWBBSkrnsTnjwYhDRAeLy/9FXm/7hApDBlBgNVHREEXjBcgiJ2YWxpZC5yb290\n" +
+            "Y2ExLmRlbW8uYW1hem9udHJ1c3QuY29tghpnb29kLnNjYTBhLmFtYXpvbnRydXN0\n" +
+            "LmNvbYIaZ29vZC5zY2ExYS5hbWF6b250cnVzdC5jb20wDgYDVR0PAQH/BAQDAgWg\n" +
+            "MB0GA1UdJQQWMBQGCCsGAQUFBwMBBggrBgEFBQcDAjA7BgNVHR8ENDAyMDCgLqAs\n" +
+            "hipodHRwOi8vY3JsLnIybTAyLmFtYXpvbnRydXN0LmNvbS9yMm0wMi5jcmwwEwYD\n" +
+            "VR0gBAwwCjAIBgZngQwBAgEwdQYIKwYBBQUHAQEEaTBnMC0GCCsGAQUFBzABhiFo\n" +
+            "dHRwOi8vb2NzcC5yMm0wMi5hbWF6b250cnVzdC5jb20wNgYIKwYBBQUHMAKGKmh0\n" +
+            "dHA6Ly9jcnQucjJtMDIuYW1hem9udHJ1c3QuY29tL3IybTAyLmNlcjAMBgNVHRMB\n" +
+            "Af8EAjAAMIIBfgYKKwYBBAHWeQIEAgSCAW4EggFqAWgAdgDuzdBk1dsazsVct520\n" +
+            "zROiModGfLzs3sNRSFlGcR+1mwAAAYgHvXWVAAAEAwBHMEUCICAs74qT1f9ufSr5\n" +
+            "PgQqtQFiXBbmbb3i4xwVV78USU5NAiEA/iJEfnTG+hZZaHYv2wVbg6tUY8fQgIhI\n" +
+            "2rbl6PrD9FIAdgBIsONr2qZHNA/lagL6nTDrHFIBy1bdLIHZu7+rOdiEcwAAAYgH\n" +
+            "vXWWAAAEAwBHMEUCIQDf2nWyee/5+vSgk/O8P0BFvXYu89cyAugZHyd919BdAgIg\n" +
+            "UnGGpQtZmWnPMmdgpzI7jrCLuC370Tn0i7Aktdzj2X8AdgDatr9rP7W2Ip+bwrtc\n" +
+            "a+hwkXFsu1GEhTS9pD0wSNf7qwAAAYgHvXVpAAAEAwBHMEUCIGN6cT+6uwDospXe\n" +
+            "gMa8b38oXouXUT66X2gOiJ0SoRyQAiEAjDMu2vEll5tRpUvU8cD4gR2xV4hqoDxx\n" +
+            "Q+QGW+PvJxcwDQYJKoZIhvcNAQELBQADggEBACtxC3LlQvULeI3lt7ZYFSWndEhm\n" +
+            "tNUotoeKSXJXdoIpqSr10bzMPX9SHvemgOUtzP3JNqWPHw1uW9YFyeDE6yWj/B13\n" +
+            "Xj1hv1cqYIwyaOZBerU/9PT5PaCn20AC9DHbc7iBv+zs+DYiqlAFJ1GVaprwLul4\n" +
+            "8wp3gnC3Hjb8NykydCo6vw0AJ2UzjpjiTyVZ93jITzLOiboOUa1gQGnojzWlYaet\n" +
+            "sXe+RDylBp/Wuj1ZS7v/etltzYm5GanPi4y/p7Ta3Uky6std/GM6XbPRdBEFboFR\n" +
+            "B2IP0divd9c74Q+tLgpsAz5yXm9LtYPMcEPC2YRN2PgBg67c5+A7eIOluuw=\n" +
             "-----END CERTIFICATE-----";
 
-    // Owner: CN=revoked.sca1a.amazontrust.com, O=Amazon Trust Services, L=Seattle, ST=Washington, C=US, \
-    // SERIALNUMBER=5846743, OID.2.5.4.15=PrivateOrganization, OID.1.3.6.1.4.1.311.60.2.1.2=Delaware, \
-    // OID.1.3.6.1.4.1.311.60.2.1.3=US
-    // Issuer: CN=Amazon, OU=Server CA 1A, O=Amazon, C=US
-    // Serial number: 6f1d774ad5e7b6d251d217661782bbdb6f37d
-    // Valid from: Mon Jan 28 15:34:38 PST 2019 until: Thu Apr 28 16:34:38 PDT 2022
+    // Owner: CN=revoked.rootca1.demo.amazontrust.com
+    // Issuer: CN=Amazon RSA 2048 M01, O=Amazon, C=US
+    // Serial number: e1023665b1268d788cc25bf69a9d05e
+    // Valid from: Tue May 09 17:00:00 PDT 2023 until: Fri Jun 07 16:59:59 PDT 2024
     private static final String REVOKED = "-----BEGIN CERTIFICATE-----\n" +
-            "MIIE2zCCA8OgAwIBAgITBvHXdK1ee20lHSF2YXgrvbbzfTANBgkqhkiG9w0BAQsF\n" +
-            "ADBGMQswCQYDVQQGEwJVUzEPMA0GA1UEChMGQW1hem9uMRUwEwYDVQQLEwxTZXJ2\n" +
-            "ZXIgQ0EgMUExDzANBgNVBAMTBkFtYXpvbjAeFw0xOTAxMjgyMzM0MzhaFw0yMjA0\n" +
-            "MjgyMzM0MzhaMIHcMRMwEQYLKwYBBAGCNzwCAQMTAlVTMRkwFwYLKwYBBAGCNzwC\n" +
-            "AQITCERlbGF3YXJlMRwwGgYDVQQPExNQcml2YXRlT3JnYW5pemF0aW9uMRAwDgYD\n" +
-            "VQQFEwc1ODQ2NzQzMQswCQYDVQQGEwJVUzETMBEGA1UECBMKV2FzaGluZ3RvbjEQ\n" +
-            "MA4GA1UEBxMHU2VhdHRsZTEeMBwGA1UEChMVQW1hem9uIFRydXN0IFNlcnZpY2Vz\n" +
-            "MSYwJAYDVQQDEx1yZXZva2VkLnNjYTFhLmFtYXpvbnRydXN0LmNvbTCCASIwDQYJ\n" +
-            "KoZIhvcNAQEBBQADggEPADCCAQoCggEBANUoHop9sW+QlgVsdtacioraTAWHcSTd\n" +
-            "MNkOkOEMgJIFPyfdcDvW/H2NvpdYeIQqzaCgT2kcsONWTZTPJMirCPnzl1ohHOZU\n" +
-            "uTnOVkamGxvNmQCURLBXmlCMRTCI5RY3CuYntFFbSPAnbumsF+K/gKqcE6ME53Bw\n" +
-            "PAwn4qwavB0i5Ib7Jk8XYzxSYXC9l8QLxt6fshPJRlecpXzfmVFvMAm3IbaLcpuv\n" +
-            "AtD+8I2KwjNtBPRPNYeFsWxwsgUGAyHEGa61oTGUqqAXu5YmPfyK+YTOJdoofsh4\n" +
-            "Tf3K7AKxnPWuvY3RNTs1pzEVwJYZqSsNwbgyKJJ4+0Xe4iP7qB8SYf8CAwEAAaOC\n" +
-            "ASkwggElMA4GA1UdDwEB/wQEAwIFoDAdBgNVHQ4EFgQUGHreoz+LP/Wr+RKzuexO\n" +
-            "V8ICtmEwHwYDVR0jBBgwFoAUYtRCXoZwdWqQvMa40k1gwjS6UTowHQYDVR0lBBYw\n" +
-            "FAYIKwYBBQUHAwEGCCsGAQUFBwMCMHUGCCsGAQUFBwEBBGkwZzAtBggrBgEFBQcw\n" +
-            "AYYhaHR0cDovL29jc3Auc2NhMWEuYW1hem9udHJ1c3QuY29tMDYGCCsGAQUFBzAC\n" +
-            "hipodHRwOi8vY3J0LnNjYTFhLmFtYXpvbnRydXN0LmNvbS9zY2ExYS5jZXIwKAYD\n" +
-            "VR0RBCEwH4IdcmV2b2tlZC5zY2ExYS5hbWF6b250cnVzdC5jb20wEwYDVR0gBAww\n" +
-            "CjAIBgZngQwBAgEwDQYJKoZIhvcNAQELBQADggEBABSbe1UCLL7Qay6XK5wD8B5a\n" +
-            "wvR1XG3UrggpVIz/w5cutEm/yE71hzE0gag/3YPbNYEnaLbJH+9jz4YW9wd/cEPj\n" +
-            "xSK5PErAQjCd+aA4LKN1xqkSysgYknl0y47hJBXGnWf+hxvBBHeSoUzM0KIC21pC\n" +
-            "ZyXrmfaPCQAz13ruYIYdQaETqXGVORmKbf/a+Zn18/tfQt0LeeCYVoSopbXWQvcJ\n" +
-            "gUMtdIqYQmb8aVj0pdZXwKl4yZ2DtlS3Z9MpWNgQNlhRPmiYlu28y2yTtZ9SwD6m\n" +
-            "2f+cwc19aJrDT4Y280px+jRU7dIE6oZVJU+yBRVIZYpUFAB7extCMVxnTkCf8Dk=\n" +
+            "MIIGMjCCBRqgAwIBAgIQDhAjZlsSaNeIzCW/aanQXjANBgkqhkiG9w0BAQsFADA8\n" +
+            "MQswCQYDVQQGEwJVUzEPMA0GA1UEChMGQW1hem9uMRwwGgYDVQQDExNBbWF6b24g\n" +
+            "UlNBIDIwNDggTTAxMB4XDTIzMDUxMDAwMDAwMFoXDTI0MDYwNzIzNTk1OVowLzEt\n" +
+            "MCsGA1UEAxMkcmV2b2tlZC5yb290Y2ExLmRlbW8uYW1hem9udHJ1c3QuY29tMIIB\n" +
+            "IjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAxSPd1PWACxZohFCAJT1JWuXK\n" +
+            "GY29wZZ9yY0zoiq6+qYiUIU0crktytUNNI1ZpW/3qXpEw2ZQkM6WF1LshXtwGwrA\n" +
+            "zJwSeX1L9T5rOKhoBvoFeqfX7xu4VBM1/fDGt5X+NRFfD9Op9UfK5OsnL05TYach\n" +
+            "rdnfOA5wKGvMgFiN5CeOD0AtumXSuAnTZC85ojJTHjPF+hqV893WvrrUxLyyxtvh\n" +
+            "lq/WttFOjhfQu2IkfyDAFiH939uzUi0WSTAdsbsHuko5mDTDnOfMRbaaWZu0At01\n" +
+            "EgaIPeK+kGdi7EYwVndIwTKLeQ4mjIM8aj8Heg/y2hZ0kOmfCUZdUmJFlNoCIQID\n" +
+            "AQABo4IDOzCCAzcwHwYDVR0jBBgwFoAUgbgOY4qJEhjl+js7UJWf5uWQE4UwHQYD\n" +
+            "VR0OBBYEFMeBhIOkuWUY4DYqFrfgbD2eUeFtMG0GA1UdEQRmMGSCJHJldm9rZWQu\n" +
+            "cm9vdGNhMS5kZW1vLmFtYXpvbnRydXN0LmNvbYIdcmV2b2tlZC5zY2EwYS5hbWF6\n" +
+            "b250cnVzdC5jb22CHXJldm9rZWQuc2NhMWEuYW1hem9udHJ1c3QuY29tMA4GA1Ud\n" +
+            "DwEB/wQEAwIFoDAdBgNVHSUEFjAUBggrBgEFBQcDAQYIKwYBBQUHAwIwOwYDVR0f\n" +
+            "BDQwMjAwoC6gLIYqaHR0cDovL2NybC5yMm0wMS5hbWF6b250cnVzdC5jb20vcjJt\n" +
+            "MDEuY3JsMBMGA1UdIAQMMAowCAYGZ4EMAQIBMHUGCCsGAQUFBwEBBGkwZzAtBggr\n" +
+            "BgEFBQcwAYYhaHR0cDovL29jc3AucjJtMDEuYW1hem9udHJ1c3QuY29tMDYGCCsG\n" +
+            "AQUFBzAChipodHRwOi8vY3J0LnIybTAxLmFtYXpvbnRydXN0LmNvbS9yMm0wMS5j\n" +
+            "ZXIwDAYDVR0TAQH/BAIwADCCAX4GCisGAQQB1nkCBAIEggFuBIIBagFoAHYA7s3Q\n" +
+            "ZNXbGs7FXLedtM0TojKHRny87N7DUUhZRnEftZsAAAGIB72TggAABAMARzBFAiAZ\n" +
+            "naLbRHRuaRrE304GSuWX/79MU/e+SSlr0cNJ0kNNaAIhAPnz9HayL4txhkTEZiMs\n" +
+            "nttNnNqD17I0J17JLVOF4i/4AHYASLDja9qmRzQP5WoC+p0w6xxSActW3SyB2bu/\n" +
+            "qznYhHMAAAGIB72TmwAABAMARzBFAiEAgEqT7CYGQ/u36/3YcxBH78QfknI9kgcY\n" +
+            "sgJLkurUF6cCIFZZ/b803+ek6o+bmdV/uVx2UlskAyyolZ2okBAb6IscAHYA2ra/\n" +
+            "az+1tiKfm8K7XGvocJFxbLtRhIU0vaQ9MEjX+6sAAAGIB72TbQAABAMARzBFAiEA\n" +
+            "6z2RSoK263hvYF71rj1d0TpC70/6zagSRR4glHOT6IACICYvaMAnrCNSTSiZ20Wz\n" +
+            "Ju5roTippO3BWKhQYrTKZuu4MA0GCSqGSIb3DQEBCwUAA4IBAQB4S1JGulFpMIaP\n" +
+            "NtLUJmjWz8eexQdWLDVF+H8dd6xpZgpiYtig/Ynphzuk1IIF8DkT3CeK/9vrezgI\n" +
+            "igNjneN9B4eIuzi/rJzIKeUwpZ2k5D+36Ab4esseoc+TopmNerw8hidt2g818jER\n" +
+            "D71ppSMakeQFPGe/Hs2/cVa/G1DNVcU2XAut45yRZ/+xsZ0/mcBDVsG9P5uGCN5O\n" +
+            "7SAp4J959WnKDqgVuU9WowPE5IjmS9BAv2gjniFYdDV2yksyf7+8edHd1KfSVX06\n" +
+            "pLx6CuCVZGJFG4Q2Aa1YAh1Wvt9hqWeXXpNRO2/wChL5rhT4GajsrGepsk4bjxYX\n" +
+            "Wf2iZ8mX\n" +
             "-----END CERTIFICATE-----";
 
-    public void runTest(ValidatePathWithParams pathValidator, boolean ocspEnabled) throws Exception {
-        // EE certificates don't have CRLDP extension
-        if (!ocspEnabled){
-            pathValidator.validate(new String[]{INT},
-                    ValidatePathWithParams.Status.GOOD, null, System.out);
-
-            return;
-        }
+    public void runTest(ValidatePathWithParams pathValidator) throws Exception {
 
         // Validate valid
-        pathValidator.validate(new String[]{VALID, INT},
+        pathValidator.validate(new String[]{VALID, INT_VALID},
                 ValidatePathWithParams.Status.GOOD, null, System.out);
 
         // Validate Revoked
-        pathValidator.validate(new String[]{REVOKED, INT},
+        pathValidator.validate(new String[]{REVOKED, INT_REVOKED},
                 ValidatePathWithParams.Status.REVOKED,
-                "Mon Jan 28 15:35:56 PST 2019", System.out);
+                "Mon May 15 13:36:57 PDT 2023", System.out);
     }
 }
 
 class AmazonCA_2 {
 
-    // Owner: CN=Amazon, OU=Server CA 2A, O=Amazon, C=US
+    // Owner: CN=Amazon RSA 4096 M02, O=Amazon, C=US
     // Issuer: CN=Amazon Root CA 2, O=Amazon, C=US
-    // Serial number: 67f945755f187a91f8163f3e624620177ff38
-    // Valid from: Wed Oct 21 17:00:00 PDT 2015 until: Sat Oct 18 17:00:00 PDT 2025
+    // Serial number: 773125b0c34c3c940299a9f04a39e5a52ccd9
+    // Valid from: Tue Aug 23 15:29:13 PDT 2022 until: Fri Aug 23 15:29:13 PDT 2030
     private static final String INT = "-----BEGIN CERTIFICATE-----\n" +
-            "MIIGRzCCBC+gAwIBAgITBn+UV1Xxh6kfgWPz5iRiAXf/ODANBgkqhkiG9w0BAQwF\n" +
+            "MIIGXjCCBEagAwIBAgITB3MSWww0w8lAKZqfBKOeWlLM2TANBgkqhkiG9w0BAQwF\n" +
             "ADA5MQswCQYDVQQGEwJVUzEPMA0GA1UEChMGQW1hem9uMRkwFwYDVQQDExBBbWF6\n" +
-            "b24gUm9vdCBDQSAyMB4XDTE1MTAyMjAwMDAwMFoXDTI1MTAxOTAwMDAwMFowRjEL\n" +
-            "MAkGA1UEBhMCVVMxDzANBgNVBAoTBkFtYXpvbjEVMBMGA1UECxMMU2VydmVyIENB\n" +
-            "IDJBMQ8wDQYDVQQDEwZBbWF6b24wggIiMA0GCSqGSIb3DQEBAQUAA4ICDwAwggIK\n" +
-            "AoICAQC0P8hSLewmrZ41CCPBQytZs5NBFMq5ztbnMf+kZUp9S25LPfjNW3zgC/6E\n" +
-            "qCTWNVMMHhq7ez9IQJk48qbfBTLlZkuKnUWbA9vowrDfcxUN0mRE4B/TJbveXyTf\n" +
-            "vE91iDlqDrERecE9D8sdjzURrtHTp27lZdRkXFvfEVCq4hl3sHkzjodisaQthLp1\n" +
-            "gLsiA7vKt+8zcL4Aeq52UyYb8r4/jdZ3KaQp8O/T4VwDCRKm8ey3kttpJWaflci7\n" +
-            "eRzNjY7gE3NMANVXCeQwOBfH2GjINFCObmPsqiBuoAnsv2k5aQLNoU1OZk08ClXm\n" +
-            "mEZ2rI5qZUTX1HuefBJnpMkPugFCw8afaHnB13SkLE7wxX8SZRdDIe5WiwyDL1tR\n" +
-            "2+8lpz4JsMoFopHmD3GaHyjbN+hkOqHgLltwewOsiyM0u3CZphypN2KeD+1FLjnY\n" +
-            "TgdIAd1FRgK2ZXDDrEdjnsSEfShKf0l4mFPSBs9E3U6sLmubDRXKLLLpa/dF4eKu\n" +
-            "LEKS1bXYT28iM6D5gSCnzho5G4d18jQD/slmc5XmRo5Pig0RyBwDaLuxeIZuiJ0A\n" +
-            "J6YFhffbrLYF5dEQl0cU+t3VBK5u/o1WkWXsZawU038lWn/AXerodT/pAcrtWA4E\n" +
-            "NQEN09WEKMhZVPhqdwhF/Gusr04mQtKt7T2v6UMQvtVglv5E7wIDAQABo4IBOTCC\n" +
-            "ATUwEgYDVR0TAQH/BAgwBgEB/wIBADAOBgNVHQ8BAf8EBAMCAYYwHQYDVR0OBBYE\n" +
-            "FNpDStD8AcBLv1gnjHbNCoHzlC70MB8GA1UdIwQYMBaAFLAM8Eww9AVYAkj9M+VS\n" +
-            "r0uE42ZSMHsGCCsGAQUFBwEBBG8wbTAvBggrBgEFBQcwAYYjaHR0cDovL29jc3Au\n" +
-            "cm9vdGNhMi5hbWF6b250cnVzdC5jb20wOgYIKwYBBQUHMAKGLmh0dHA6Ly9jcnQu\n" +
-            "cm9vdGNhMi5hbWF6b250cnVzdC5jb20vcm9vdGNhMi5jZXIwPwYDVR0fBDgwNjA0\n" +
-            "oDKgMIYuaHR0cDovL2NybC5yb290Y2EyLmFtYXpvbnRydXN0LmNvbS9yb290Y2Ey\n" +
-            "LmNybDARBgNVHSAECjAIMAYGBFUdIAAwDQYJKoZIhvcNAQEMBQADggIBAEO5W+iF\n" +
-            "yChjDyyrmiwFupVWQ0Xy2ReFNQiZq7XKVHvsLQe01moSLnxcBxioOPBKt1KkZO7w\n" +
-            "Gcbmke0+7AxLaG/F5NPnzRtK1/pRhXQ0XdU8pVh/1/h4GoqRlZ/eN0JDarUhZPkV\n" +
-            "kSr96LUYDTxcsAidF7zkzWfmtcJg/Aw8mi14xKVEa6aVyKu54c8kKkdlt0WaigOv\n" +
-            "Z/xYhxp24AfoFKaIraDNdsD8q2N7eDYeN4WGLzNSlil+iFjzflI9mq1hTuI/ZNjV\n" +
-            "rbvob6FUQ8Cc524gMjbpZCNuZ1gfXzwwhGp0AnQF6CJsWF9uwPpZEVFnnnfiWH3M\n" +
-            "oup41EvBhqaAqOlny0sm5pI82nRUCAE3DLkJ1+eAtdQaYblZQkQrRyTuPmJEm+5y\n" +
-            "QwdDVw6uHc5OsSj/tyhh8zJ2Xq3zgh3dMONGjJEysxGaCoIb+61PWwMy2dIarVwI\n" +
-            "r+c+AY+3PrhgBspNdWZ87JzNHii7ksdjUSVGTTy1vGXgPYrv0lp0IMnKaZP58xiw\n" +
-            "rDx7uTlQuPVWNOZvCaT3ZcoxTsNKNscIUe+WJjWx5hdzpv/oksDPY5ltZ0j3hlDS\n" +
-            "D+Itk95/cNJVRM/0HpxI1SX9MTZtOSJoEDdUtOpVaOuBAvEK4gvTzdt0r5L+fuI6\n" +
-            "o5LAuRo/LO1xVRH49KFRoaznzU3Ch9+kbPb3\n" +
+            "b24gUm9vdCBDQSAyMB4XDTIyMDgyMzIyMjkxM1oXDTMwMDgyMzIyMjkxM1owPDEL\n" +
+            "MAkGA1UEBhMCVVMxDzANBgNVBAoTBkFtYXpvbjEcMBoGA1UEAxMTQW1hem9uIFJT\n" +
+            "QSA0MDk2IE0wMjCCAiIwDQYJKoZIhvcNAQEBBQADggIPADCCAgoCggIBAMGMl/pZ\n" +
+            "1OsxHY9gw/YfdON4mmrANkPwi7z2djHA5ELt/vRI3Su0le6OoipLf03iyoCnYy4Y\n" +
+            "rpfTbhyDriE8NJpps2ODJ5W1h0rz6FM1Q5Jt35wfk+4CEfATBTegHVlUJ0rJgzK5\n" +
+            "Yl/jrk12ZsC4ZeRn54shszcK6bHj4LZIHXhrYIIfetBMMD8V7hlhd54AclEWutUV\n" +
+            "eBEjkSCzDSk+pQKIjCL0crqvRSPvUNry/BV65zfGmceSYxpcLmV7k7Spwpo+1z8w\n" +
+            "+Odfnx2vsm7olPldfaThqk6fXBtInORl4Ef32xF3VDT13UeXtQPolFhnp8UOci64\n" +
+            "bW+R8tbtGpUXIA8Dhr8SgYPH6NW4jhUD4+AG8yer8ctA1Hl9tq+6tYr26q3yuCLu\n" +
+            "5rwJdfMG634fWIRXSj+GJi8SfAdGtPyXwu5799NWesV4vUkrkSXdIBK4TQCuK+jx\n" +
+            "aJ5Y+Zo2l3GFsWyMPNORLjoQXbjF6KAyjTyICLq9VzoQKhyx4Ll2CNrQv8CxqtDC\n" +
+            "GvXi9kREJYAF6lscOB0xglAAF5lndcaNkVHEVOMdg9ZZtdJywHWm8Qed1Wty2qr+\n" +
+            "hmA7booWQNRE12nW1niC5D4cP2ykPK9HSgb7xWdUF32VidUc9tNKM6xKjSd/R/tP\n" +
+            "p+XAybNSwEooPt3/OvyhpVRjLuWoqqbClTKdAgMBAAGjggFaMIIBVjASBgNVHRMB\n" +
+            "Af8ECDAGAQH/AgEAMA4GA1UdDwEB/wQEAwIBhjAdBgNVHSUEFjAUBggrBgEFBQcD\n" +
+            "AQYIKwYBBQUHAwIwHQYDVR0OBBYEFJ5xHxodk6nZLY7MSFM/A1TznuZmMB8GA1Ud\n" +
+            "IwQYMBaAFLAM8Eww9AVYAkj9M+VSr0uE42ZSMHsGCCsGAQUFBwEBBG8wbTAvBggr\n" +
+            "BgEFBQcwAYYjaHR0cDovL29jc3Aucm9vdGNhMi5hbWF6b250cnVzdC5jb20wOgYI\n" +
+            "KwYBBQUHMAKGLmh0dHA6Ly9jcnQucm9vdGNhMi5hbWF6b250cnVzdC5jb20vcm9v\n" +
+            "dGNhMi5jZXIwPwYDVR0fBDgwNjA0oDKgMIYuaHR0cDovL2NybC5yb290Y2EyLmFt\n" +
+            "YXpvbnRydXN0LmNvbS9yb290Y2EyLmNybDATBgNVHSAEDDAKMAgGBmeBDAECATAN\n" +
+            "BgkqhkiG9w0BAQwFAAOCAgEAl1GgKXOn0j1MWT1KJVSewQ28SGbie3UwZj1dMsjJ\n" +
+            "amCrQPn2ngSNbLm9+ulFiBDU8xKR9Zx3tZps55IUKWLUPkfMC+vkV7asDBqqzzE0\n" +
+            "F/MkekgPfOjx1V9S6Wfg3sSg+9KcluurXFElruqKfOm4cqmkV776X1G+AaaQ7mlU\n" +
+            "giCYi6NqRQSyhn8zrKkNnbO6QL5a9ICC47kiZYRAR/hRvZOt11QUK5tCMXJXo0iO\n" +
+            "4XKkMu+jdnehP1kh4xuZhYznIgKK6MJIITFI/Jj89U4SOPncyuS94sUuE2EqvvO/\n" +
+            "t81qeoey6wThz5iRbU/0CvDFnTMgebWGUZ2UZJ+az/rb3KYXGfVWasLIonkvYT7z\n" +
+            "vHOGNAA9oQ8TTgPOmPfSVyfpplKtO/aybWp5QSH2csIwuvw5dkmpkc42iD57XHob\n" +
+            "5LbMJg99z3vQBmod/ipmOpND95/BeA2mllBZgZ53S0nvDXDzbzR9Fd81PAz9Qruo\n" +
+            "dOJKcD6plKQjZjkLzNh1v/RoCFO8kiJGE4UBMTM8FUk0DXH4bALII4wwmDelrSUu\n" +
+            "lKvDTDxZvPF4dbEXICNPd51EMGPgETxwboOV+bzWFVI0IWQ8PhZ2VuMPDk2taOMp\n" +
+            "NsuLtlYc2twPb9r/Hvgv7G6+ItpBHZwOVt1oI3pHbjMp7P3pOZSPr6G1WkNy9mX8\n" +
+            "rVc=\n" +
             "-----END CERTIFICATE-----";
 
-    // Owner: CN=good.sca2a.amazontrust.com, O=Amazon Trust Services, L=Seattle, ST=Washington, C=US, \
-    // SERIALNUMBER=5846743, OID.2.5.4.15=Private Organization, OID.1.3.6.1.4.1.311.60.2.1.2=Delaware, \
-    // OID.1.3.6.1.4.1.311.60.2.1.3=US
-    // Issuer: CN=Amazon, OU=Server CA 2A, O=Amazon, C=US
-    // Serial number: 703e4e70616c90d611fd04a5ecc635665184e
-    // Valid from: Mon Jul 29 16:54:06 PDT 2019 until: Sat Aug 29 16:54:06 PDT 2020
+    // Owner: CN=valid.rootca2.demo.amazontrust.com
+    // Issuer: CN=Amazon RSA 4096 M02, O=Amazon, C=US
+    // Serial number: 662f7646d76193cbb76946d111e49fa
+    // Valid from: Tue May 09 17:00:00 PDT 2023 until: Fri Jun 07 16:59:59 PDT 2024
     private static final String VALID = "-----BEGIN CERTIFICATE-----\n" +
-            "MIIHEzCCBPugAwIBAgITBwPk5wYWyQ1hH9BKXsxjVmUYTjANBgkqhkiG9w0BAQwF\n" +
-            "ADBGMQswCQYDVQQGEwJVUzEPMA0GA1UEChMGQW1hem9uMRUwEwYDVQQLEwxTZXJ2\n" +
-            "ZXIgQ0EgMkExDzANBgNVBAMTBkFtYXpvbjAeFw0xOTA3MjkyMzU0MDZaFw0yMDA4\n" +
-            "MjkyMzU0MDZaMIHaMRMwEQYLKwYBBAGCNzwCAQMTAlVTMRkwFwYLKwYBBAGCNzwC\n" +
-            "AQITCERlbGF3YXJlMR0wGwYDVQQPExRQcml2YXRlIE9yZ2FuaXphdGlvbjEQMA4G\n" +
-            "A1UEBRMHNTg0Njc0MzELMAkGA1UEBhMCVVMxEzARBgNVBAgTCldhc2hpbmd0b24x\n" +
-            "EDAOBgNVBAcTB1NlYXR0bGUxHjAcBgNVBAoTFUFtYXpvbiBUcnVzdCBTZXJ2aWNl\n" +
-            "czEjMCEGA1UEAxMaZ29vZC5zY2EyYS5hbWF6b250cnVzdC5jb20wggIiMA0GCSqG\n" +
-            "SIb3DQEBAQUAA4ICDwAwggIKAoICAQC+XjOB3ZCFX+b9y9reP+e6EAQz4ytiMSqU\n" +
-            "O4s5MyYLkY6n4BIZHmgWeQ2IgW1VrH8ho+Iu3UsTiuhd3/L/q/w+T0OJfcrWngTs\n" +
-            "uVcIuvUr32ObPeeWbg/m/lkN7hqH1jY62iybYVrFXiLo1+0G92PUazcyNvyA20+G\n" +
-            "HsvGG5jlArWNgRLdc8KUXxvnDUxx5vu4jeHEZnqSwuulV1h9ve0UutkmoK0Sk7Rz\n" +
-            "HMxYK0LmUT5OvcNQSkUi5nLi+M1FxnYYgsELwSiKSSEDfEdgxooMAiVTgw51Q/DB\n" +
-            "lTOjAIDL3K3J0yGfIG3bwLvE1qz2Z5yWn8f3JibIah7LrC4PiZDDLHFM6V9l+YqU\n" +
-            "RqimJ5BltSyAx7bxQNZ1AW3Lxvvm894i4k6/Vdf1CDovRuTMPCDAQmKA/A/AQ7TN\n" +
-            "q3bBimX6UyuJu0I8RyvAYKzFhOOqe4vXrbndTbje/jnzTNQPeIIcuRa9cgXTOrbw\n" +
-            "86FTUKj6AZXihRWjKWsQpDwdgE0tQETZ3ynCXfbBKfFmn0MSjeX0CEEAZdYHR8EV\n" +
-            "F271Yt7UJjS/FP702aHTOWk7zFbIRfFQODvBhn0I8p/Stk2sDq4/YsbXVZOe3+ad\n" +
-            "YavoiODGSAH6ZcZzULumgK9eii0koAOPB/xqXnkcTS63gEHOKjLQl3hqdVZRCugv\n" +
-            "1CwUXLvoSwIDAQABo4IBYzCCAV8wDgYDVR0PAQH/BAQDAgWgMB0GA1UdDgQWBBTa\n" +
-            "j6dHgPdOxTGLcwaNDeaMnlSxNjAfBgNVHSMEGDAWgBTaQ0rQ/AHAS79YJ4x2zQqB\n" +
-            "85Qu9DAdBgNVHSUEFjAUBggrBgEFBQcDAQYIKwYBBQUHAwIwdQYIKwYBBQUHAQEE\n" +
-            "aTBnMC0GCCsGAQUFBzABhiFodHRwOi8vb2NzcC5zY2EyYS5hbWF6b250cnVzdC5j\n" +
-            "b20wNgYIKwYBBQUHMAKGKmh0dHA6Ly9jcnQuc2NhMmEuYW1hem9udHJ1c3QuY29t\n" +
-            "L3NjYTJhLmNlcjAlBgNVHREEHjAcghpnb29kLnNjYTJhLmFtYXpvbnRydXN0LmNv\n" +
-            "bTBQBgNVHSAESTBHMA0GC2CGSAGG/W4BBxgDMDYGBWeBDAEBMC0wKwYIKwYBBQUH\n" +
-            "AgEWH2h0dHBzOi8vd3d3LmFtYXpvbnRydXN0LmNvbS9jcHMwDQYJKoZIhvcNAQEM\n" +
-            "BQADggIBAE6RwZAZvN0i9ygwzqoX9DhSPtvZ3xIO0G0Bhgjkb986+p8XJstU3gEM\n" +
-            "8P2i1J/YthXCnRGedm+Odxx+31G6xIYfP5S5g7HyRGkj/aXNXy4s3KjH8HJgOY9N\n" +
-            "ra3XfC05OKq5FpyZQDZ+hxCdLrH3Gs+UxREbu+LuIKUpI7nMVEjn9XynKyOdKN21\n" +
-            "Kq5VsuI0fDWCYvUN1M+lI/LgE5HbNJVQJs+dB7g1/kaOeaLia7Wk1ys+uRzB58rp\n" +
-            "FKAoLk++HWTfNDkbN8vKRfHhJ/xhI9ju3TWcci6EyFVAym1C62UkJNI0KHgQ+zc7\n" +
-            "nl1tv/ytj8N/eJoysyp23lJ5qrVetlQORfgXryGkWBMYBvYF8zbBb/f+UXHDKVWt\n" +
-            "9l1lL6HQGY/tTo253pj6/FgDD35bZdjLQeUVmbnz679S5oUmoH5ZtSdnpUTghU3p\n" +
-            "bae9adBFY9S1pm50Q3ckRVBAwNqNmI0KKUh14Ms8KSAUHg19NvGsBonqwOT2rdbv\n" +
-            "xZ47N6c2eCl/cjMvzre0v0NoUO+3og2GHeAoOwVos6480YDbMqp739tOFPxBcsII\n" +
-            "6SjpDVh+14dkSW6kEKeaCFLR+eChqutri1VQbQ49nmADQWw9Al8vBytSnPv0YN6W\n" +
-            "XfIE1Qj7YmHu/UuoeKVsqDqoP/no29+96dtfd4afJqlIoyZUqXpt\n" +
+            "MIIICzCCBfOgAwIBAgIQBmL3ZG12GTy7dpRtER5J+jANBgkqhkiG9w0BAQwFADA8\n" +
+            "MQswCQYDVQQGEwJVUzEPMA0GA1UEChMGQW1hem9uMRwwGgYDVQQDExNBbWF6b24g\n" +
+            "UlNBIDQwOTYgTTAyMB4XDTIzMDUxMDAwMDAwMFoXDTI0MDYwNzIzNTk1OVowLTEr\n" +
+            "MCkGA1UEAxMidmFsaWQucm9vdGNhMi5kZW1vLmFtYXpvbnRydXN0LmNvbTCCAiIw\n" +
+            "DQYJKoZIhvcNAQEBBQADggIPADCCAgoCggIBAON5EbEKoBiujI7Ja8mLZLJbaY7f\n" +
+            "RtoWIjU/F0l9ueWFogXmEaA1jWsl97F3WTHTyGKz6ChCjPMSyoXXpY+yoE90QUyX\n" +
+            "w35uWEhNrc40drMJkyN+QXitSrH346GCOKvpYVvu18UD4W8hDhg8vvbOQYhtmSf7\n" +
+            "Rfrs7/qUdXpzpvR9VjWktbQAzJT8fB/jFNjNQJTknynjGiYO5GF51+peOCLK6qw8\n" +
+            "9kKYEigR4K8/aWL283rC4xRxZqVioy433VG02l/Fwdv8o/vL9YYIqkyspCB9fpFw\n" +
+            "Q50yYrwEomxuOz7rXhmdfeNaFYuyTtOUSKff6p2oqO0S7pcLujUVMlO4dYBDELQF\n" +
+            "cabByNjwblviCtGKJMIzD6Thkgamp3iXQgcU498+P5r7N5CYbMmkJEdcuILg+bgJ\n" +
+            "/LUUTT+IMt2txYlO/ld3N0EHlgVt7rztW5mtm6Ba8jN7cLSh7ZWu6Fr1+oK7bl5T\n" +
+            "wPxSfqT5W3BwQKS3YptIoKEWUb+VNnS/dYx/7IspF9+z6kw4g+V2EY9M4ZYNakzM\n" +
+            "AI7KIj4thMFoWeYrJq0dUMZ297QCBPRdAwh9hhkq2LYi2x8tMUtcBnhb/q75sO+E\n" +
+            "icPqFVv7iMDZ/8Xep+0UoClF3JGmZW3UNtwcbi7Pn/OqtaMi7E8xnHUgc4ZchtXO\n" +
+            "v8VtVvDeZAlY5TjVAgMBAAGjggMWMIIDEjAfBgNVHSMEGDAWgBSecR8aHZOp2S2O\n" +
+            "zEhTPwNU857mZjAdBgNVHQ4EFgQUnGekBRKIZBYgCEajbpCMC24bp2owSQYDVR0R\n" +
+            "BEIwQIIidmFsaWQucm9vdGNhMi5kZW1vLmFtYXpvbnRydXN0LmNvbYIaZ29vZC5z\n" +
+            "Y2EyYS5hbWF6b250cnVzdC5jb20wDgYDVR0PAQH/BAQDAgWgMB0GA1UdJQQWMBQG\n" +
+            "CCsGAQUFBwMBBggrBgEFBQcDAjA7BgNVHR8ENDAyMDCgLqAshipodHRwOi8vY3Js\n" +
+            "LnI0bTAyLmFtYXpvbnRydXN0LmNvbS9yNG0wMi5jcmwwEwYDVR0gBAwwCjAIBgZn\n" +
+            "gQwBAgEwdQYIKwYBBQUHAQEEaTBnMC0GCCsGAQUFBzABhiFodHRwOi8vb2NzcC5y\n" +
+            "NG0wMi5hbWF6b250cnVzdC5jb20wNgYIKwYBBQUHMAKGKmh0dHA6Ly9jcnQucjRt\n" +
+            "MDIuYW1hem9udHJ1c3QuY29tL3I0bTAyLmNlcjAMBgNVHRMBAf8EAjAAMIIBfQYK\n" +
+            "KwYBBAHWeQIEAgSCAW0EggFpAWcAdgDuzdBk1dsazsVct520zROiModGfLzs3sNR\n" +
+            "SFlGcR+1mwAAAYgHvX9QAAAEAwBHMEUCIQD8qPPCLL2Grd+/YNALWqAq7LC7YBaa\n" +
+            "dNg5+6Q4kRDEqgIgEkf/UMsMNfTRaOZvoOgAK9/F0xX/CfdcUTjULhmoA+cAdQBI\n" +
+            "sONr2qZHNA/lagL6nTDrHFIBy1bdLIHZu7+rOdiEcwAAAYgHvX8UAAAEAwBGMEQC\n" +
+            "IBVFDtapMMWJOqyu8Cv6XEhFmbU8N33c2owed//pa80xAiAT9T6Wba3B9DFUmrL5\n" +
+            "cCGKLqciIEUPhPbvjCuUepelrAB2ANq2v2s/tbYin5vCu1xr6HCRcWy7UYSFNL2k\n" +
+            "PTBI1/urAAABiAe9ft8AAAQDAEcwRQIhAP2XDC/RlmVtH4WrfSwVosR/f/WXRhG5\n" +
+            "mk9Nwq+ZOIriAiAopPXSH7VwXa3bEAIiTwcV1l10QIDZaIPCU5olknU5CjANBgkq\n" +
+            "hkiG9w0BAQwFAAOCAgEAFuwMIJdP5rgz6cqOIj2EgF2OU8CUGi/wJ45BomXWv4Rv\n" +
+            "U5mOKB+jHOGZZC9dncjAMa44RwoF2I7/8Y3qLVaoNm46ObvvS+6UvzTcyQqXM7JU\n" +
+            "cSmdlf9DkspjKPDvMBokVrM4ak5AoxUjuru5qaia3nvbxq7XKO9/FGUaUaU8Xlsd\n" +
+            "V6Fo8VmNwFc88VCqOp8eI/IicHxMDLl8TKXMvr3CYh8A9nCeFGcV+4CL+7JF2t5K\n" +
+            "YvV5r074Wyk0QMlRVYMNDl0t+VAEoDJ7RRE+kEvplWcsX9S2wvr4HhkA4iChpwFm\n" +
+            "2UDTppHskSWyLsuNQvipn0zTzZ8RIxXd/ei0qCdhKmkV7x9cgbTiyXgaI7iJEtdo\n" +
+            "RvYNcXc2RmitWjY5Av8yJGOk0eYpCwRrBv6ughbtJe3NMrqUeTyrKidIEo9KnRSA\n" +
+            "rMokRbHunkroS97VkoK/9j9pNJki+qAH9XTLYWcm/5+cTSGRsN+escRgZwV6KWg/\n" +
+            "JQQe5LbwU2HHzNqWuk63GC/ngVlWXjaVFfbNVmYEKZFFazcZchesN1YyDu+WndOx\n" +
+            "+rTcuke2feOvQ4EnVviM0k85JZNiqPDH2iafAWyqZFUYTnb7XK3HhJflAniv/SLq\n" +
+            "DQfbJmtQtNHdJYgVmC1u2RT9gbJDIAj0ZI4vU2WVB5Hmd9F31un6jundEuG4+S4=\n" +
             "-----END CERTIFICATE-----";
 
-    // Owner: CN=revoked.sca2a.amazontrust.com, O=Amazon Trust Services, L=Seattle, ST=Washington, C=US, \
-    // SERIALNUMBER=5846743, OID.2.5.4.15=PrivateOrganization, OID.1.3.6.1.4.1.311.60.2.1.2=Delaware, \
-    // OID.1.3.6.1.4.1.311.60.2.1.3=US
-    //Issuer: CN=Amazon, OU=Server CA 2A, O=Amazon, C=US
-    //Serial number: 6f1d782c0aa2f4866b7b522c279b939b92369
-    //Valid from: Mon Jan 28 15:37:45 PST 2019 until: Thu Apr 28 16:37:45 PDT 2022
+    // Owner: CN=revoked.rootca2.demo.amazontrust.com
+    // Issuer: CN=Amazon RSA 4096 M02, O=Amazon, C=US
+    // Serial number: 788baa8f47bc5b1c624424216240fd3
+    // Valid from: Tue May 09 17:00:00 PDT 2023 until: Fri Jun 07 16:59:59 PDT 2024
     private static final String REVOKED = "-----BEGIN CERTIFICATE-----\n" +
-            "MIIG2zCCBMOgAwIBAgITBvHXgsCqL0hmt7Uiwnm5ObkjaTANBgkqhkiG9w0BAQwF\n" +
-            "ADBGMQswCQYDVQQGEwJVUzEPMA0GA1UEChMGQW1hem9uMRUwEwYDVQQLEwxTZXJ2\n" +
-            "ZXIgQ0EgMkExDzANBgNVBAMTBkFtYXpvbjAeFw0xOTAxMjgyMzM3NDVaFw0yMjA0\n" +
-            "MjgyMzM3NDVaMIHcMRMwEQYLKwYBBAGCNzwCAQMTAlVTMRkwFwYLKwYBBAGCNzwC\n" +
-            "AQITCERlbGF3YXJlMRwwGgYDVQQPExNQcml2YXRlT3JnYW5pemF0aW9uMRAwDgYD\n" +
-            "VQQFEwc1ODQ2NzQzMQswCQYDVQQGEwJVUzETMBEGA1UECBMKV2FzaGluZ3RvbjEQ\n" +
-            "MA4GA1UEBxMHU2VhdHRsZTEeMBwGA1UEChMVQW1hem9uIFRydXN0IFNlcnZpY2Vz\n" +
-            "MSYwJAYDVQQDEx1yZXZva2VkLnNjYTJhLmFtYXpvbnRydXN0LmNvbTCCAiIwDQYJ\n" +
-            "KoZIhvcNAQEBBQADggIPADCCAgoCggIBAKFm418X8hN1YTgD2XpMb4sp78mw8k3j\n" +
-            "Dq/vnpX48evVUzNpHpy4qRz/ZHBR4HUJO4lhfnX+CO0uRqqqx4F0JZRQB3KevaU8\n" +
-            "QGWHdJGhEddnurDhrgOUa+ZroqUnMCsTJfbyGtC6aiEXeu/eMhEUFkuBxJH1JtwD\n" +
-            "dQXMXuMjG07SVjOkhTkbMDzA/YbUqkDeOIybifDuvA5LEsl+kReY0b6RYFo2Tt/M\n" +
-            "dPhJD8q3Wsu+XCiCnbpcwlEVGxiD2RVRXJJ9o3ALGOxqU69V+lYS0kkwNHT7oV9J\n" +
-            "rhgt7iOCq0aoTAxu2j4FCp0JHNhGoW9pXoMXnmS6kK80hzLNYDxvKEaVaKkiYHw5\n" +
-            "CV0Vwii05ICa14nrStH/jcRNLyU+gp+6OeerPV3jpKWshGKWewF+2UiWU2WHTSrd\n" +
-            "Wis0/qEfFK/kSraAxpd+KavEEavKeudoMAHIxMACOk9E/fF5zhd2y4G1q1BdoRlR\n" +
-            "KP4GIV2v6qH6Ru2mNSuge9il6kDXxFNucrYKLDbAqkqalohkvDavcPoG9gZT3etv\n" +
-            "4IcgJriIWRxbJwKPpwJM+6wa6RpwoeJMuEp3ZBP7KDaQ8YX4rlf4zXLAsOKCNA9K\n" +
-            "OS/qYQ/I4g0E1WhfgEKClaLPS2u7jeVR6s1t4txGo4vq5Dkt17KTCew/WsX3rckf\n" +
-            "a2p5zvFcfpCNAgMBAAGjggEpMIIBJTAOBgNVHQ8BAf8EBAMCBaAwHQYDVR0OBBYE\n" +
-            "FAF8N1wV8EoYFkMXH6tEnmR/7vI+MB8GA1UdIwQYMBaAFNpDStD8AcBLv1gnjHbN\n" +
-            "CoHzlC70MB0GA1UdJQQWMBQGCCsGAQUFBwMBBggrBgEFBQcDAjB1BggrBgEFBQcB\n" +
-            "AQRpMGcwLQYIKwYBBQUHMAGGIWh0dHA6Ly9vY3NwLnNjYTJhLmFtYXpvbnRydXN0\n" +
-            "LmNvbTA2BggrBgEFBQcwAoYqaHR0cDovL2NydC5zY2EyYS5hbWF6b250cnVzdC5j\n" +
-            "b20vc2NhMmEuY2VyMCgGA1UdEQQhMB+CHXJldm9rZWQuc2NhMmEuYW1hem9udHJ1\n" +
-            "c3QuY29tMBMGA1UdIAQMMAowCAYGZ4EMAQIBMA0GCSqGSIb3DQEBDAUAA4ICAQBC\n" +
-            "VwR1NFk1IYIF4cjU7ML1aj8OIn+8mtakGQnuSJLK6ypSysINJBS48ZDdP6XZXvyD\n" +
-            "iTS0xEAPjAZHTqrABdNYmvJeL2RnN99DIwVzBpZp4NLTXbiSW7jb0Y5cEPDGJMOo\n" +
-            "SUAAM6fsiPRfz5vX4XVPznbcF2AwE/NVV+L3n9LVRt7qv2VqIEvLioR56Dq+5ofR\n" +
-            "4bw0BVlEYWF4Gsy7WDDTL1iLNBUwZTqBHwTv0fgDRiPqb/odmLQuRANwcJy8B8Zr\n" +
-            "s/yX4SeESaRdA82lAlQilksQitXS2qvQN06GEDOgUxYE6EabFdgklV5JypKqdOly\n" +
-            "vzpaDpF3z5W8Bj3D4fns1Kjrh1pPh5JRvg+616diKnQRt4X5q+EtmnXhDvIGMISI\n" +
-            "FuGwj57CNQ2x2MY2HHKWPrOccpQfEEvoSNR+ntYWrtSSttZq948O+zZBk1TXWuXV\n" +
-            "TVXllqTg8lp6d5cfKgvtHKgt98WkpPOcLVrNuVnMAIfDw6ar54dVKqrvkeEcF6mJ\n" +
-            "7oMKjJX/Vu9lYoGViBIfdeqcCPWSI8BpnCKaG7dTQO3Q1ObGmLdGBRlsRh+d+S5l\n" +
-            "Fq326ckbjx537e5/ai31lOR7OwVh9TDweKLqIACjs987C0EJSEfoOue25WRww2va\n" +
-            "iX9SrTPm4GxQ2OJgYwx0+HbezJXFN+dhaOFUavTSFw==\n" +
+            "MIIIEjCCBfqgAwIBAgIQB4i6qPR7xbHGJEJCFiQP0zANBgkqhkiG9w0BAQwFADA8\n" +
+            "MQswCQYDVQQGEwJVUzEPMA0GA1UEChMGQW1hem9uMRwwGgYDVQQDExNBbWF6b24g\n" +
+            "UlNBIDQwOTYgTTAyMB4XDTIzMDUxMDAwMDAwMFoXDTI0MDYwNzIzNTk1OVowLzEt\n" +
+            "MCsGA1UEAxMkcmV2b2tlZC5yb290Y2EyLmRlbW8uYW1hem9udHJ1c3QuY29tMIIC\n" +
+            "IjANBgkqhkiG9w0BAQEFAAOCAg8AMIICCgKCAgEAzJfddWdrWhA9dSJdmy23veN9\n" +
+            "oLvSqpM4YaXGZmPtKUmbFMLs2I3vCKrzflRKeOpl3MCc2hh6TH/3z+Q/fGugXLsY\n" +
+            "H8QcjSbiIOd15n+3dUFTLKaoWMyseMcWiOIVaN5rCDVXiAHdt1pc147wyFQIzqNK\n" +
+            "J/xiV1u9eT2MFue+4bd7kUNAcmI8M+SXruhto4jtAV8ugpTEChTDlyO/l8xmaM1Q\n" +
+            "HkijsHX7Aq72Q/3PH/U+wbJ9pmpTp4x2AEJoo45IGfB/NKDTrv5otLBuiP8Y0M7b\n" +
+            "K7irRPDFBqMNZw7S7p39SnC+V/WibJQk5Bo/8vcwDJX+WnDkw1QD/uXu3ugDzSDD\n" +
+            "iBDViMOdN+3K47s4x2kdssoh4WWScMlAVb4vyN7IA3J4TnwA/1uCWhw4LE1WvY7N\n" +
+            "etekhVP1eWF8IzNY0oo2u2ie79777xvBtmtp7RnvYLGv7I+xVhjH5qGNzn9fRCUm\n" +
+            "QDego5HAfJ0PLlMEagdW8asCak1WaC117adnibL6WPtFA2FD2i6gNalTvhXhK2Ex\n" +
+            "alGxrVd/BCseT3bMp783jqScJO1g6xRHu0Qx+RyrOGVvcKZa6Y0DcAc8psRpkHaO\n" +
+            "HZY+lE8O2CIxpAJlwSnD6BoDNo8sg1IqFNkECw3wqfeMPBcg38k6zjAxwRDcIx6U\n" +
+            "SwDl4d3sjrmy3gOFFXMCAwEAAaOCAxswggMXMB8GA1UdIwQYMBaAFJ5xHxodk6nZ\n" +
+            "LY7MSFM/A1TznuZmMB0GA1UdDgQWBBQXpWT7gMHO+HKoHM1gU1VQVnylRzBOBgNV\n" +
+            "HREERzBFgiRyZXZva2VkLnJvb3RjYTIuZGVtby5hbWF6b250cnVzdC5jb22CHXJl\n" +
+            "dm9rZWQuc2NhMmEuYW1hem9udHJ1c3QuY29tMA4GA1UdDwEB/wQEAwIFoDAdBgNV\n" +
+            "HSUEFjAUBggrBgEFBQcDAQYIKwYBBQUHAwIwOwYDVR0fBDQwMjAwoC6gLIYqaHR0\n" +
+            "cDovL2NybC5yNG0wMi5hbWF6b250cnVzdC5jb20vcjRtMDIuY3JsMBMGA1UdIAQM\n" +
+            "MAowCAYGZ4EMAQIBMHUGCCsGAQUFBwEBBGkwZzAtBggrBgEFBQcwAYYhaHR0cDov\n" +
+            "L29jc3AucjRtMDIuYW1hem9udHJ1c3QuY29tMDYGCCsGAQUFBzAChipodHRwOi8v\n" +
+            "Y3J0LnI0bTAyLmFtYXpvbnRydXN0LmNvbS9yNG0wMi5jZXIwDAYDVR0TAQH/BAIw\n" +
+            "ADCCAX0GCisGAQQB1nkCBAIEggFtBIIBaQFnAHYA7s3QZNXbGs7FXLedtM0TojKH\n" +
+            "Rny87N7DUUhZRnEftZsAAAGIB72CzgAABAMARzBFAiEA2vPYIPfGJeynPaZHq/c0\n" +
+            "GGvyT6MpvFGMW0s0woLRT28CIEFbZbFSCnKugaqw9QDNi7vYmIF3Gyi3s6G2cCxY\n" +
+            "4RJXAHYASLDja9qmRzQP5WoC+p0w6xxSActW3SyB2bu/qznYhHMAAAGIB72DDgAA\n" +
+            "BAMARzBFAiAvfNcgtFEwk5C9dvMUYANbIAv0IOdF1new8Umn3cM+JwIhALbs/3L9\n" +
+            "0ndF7sRKDZmfronNruptFlrI528P5Qi2P528AHUA2ra/az+1tiKfm8K7XGvocJFx\n" +
+            "bLtRhIU0vaQ9MEjX+6sAAAGIB72CxQAABAMARjBEAiBKUns2FPbs0cThb6e7SnyL\n" +
+            "y4/qP3V1Q/ASt/ZDRTeEQQIgWSQO4Gsz32srtqYuTM9AsFd92WA44kJHincdcGVX\n" +
+            "XbIwDQYJKoZIhvcNAQEMBQADggIBAAnaNbn2wXylTCS7dtgB3rWdUf6hja1UDuvB\n" +
+            "uZEL2dUOvyXfVFLNxKdeWBPzqpwEBNNwPQXhoI97TXlyu2x60jLzQamoGoRQ3s0P\n" +
+            "NLhasLGEIQH/oYdMV/yp8EI8fUuRVE3xyw39FRqOrmsUFAnxNQmBO/09JM7sLcvS\n" +
+            "wwh14p9dFTTolJHgnL4ZEtmZxSddFG+GBSTJ/A7dVSmwIudwzd+goA6173BI6yeT\n" +
+            "hhQumLctQiOM7y1MzFeV8rL+oIpd2xuzyhKKT1EgvU6/wyt0Ib8QqsFsrXPnUOKk\n" +
+            "HAq3SeZyq35QUaTKoaH9L1iZMbSCG9Jm6FMb12SdAz53653tYvAiUS76oD8Jot13\n" +
+            "RZu5NUlWAVLLq0OaEtuGp0bh+cVtzVnCC9m1qa46YpY0SojpvSbakgQMMGIgDlT3\n" +
+            "wFE7tST4WlsDC1f/m+H9V5qz/j0U8D3eNNdowxPqx/JZq/sk9ZK5KyMFARrvM+fh\n" +
+            "YrVYjKt91mu7JaS4pPOyZmJ8OQ14EvrN7BXc7IkNrI1reeaRFe49k5DAETB8VmP5\n" +
+            "2F0SWou2KkgtJvU4Z7YjlZ2HNHnpjTK5KdPNpRSt7EUy2zn9NCNoyQhnws70FyXv\n" +
+            "oPFyG92lnUQOKaAUhVRwTr9fvnkdMOzSKg/spxi2Ogdzym5Jw68eguwi0dVqX2+9\n" +
+            "3zViP2aH\n" +
             "-----END CERTIFICATE-----";
 
-    public void runTest(ValidatePathWithParams pathValidator, boolean ocspEnabled) throws Exception {
-        // EE certificates don't have CRLDP extension
-        if (!ocspEnabled){
-            pathValidator.validate(new String[]{INT},
-                    ValidatePathWithParams.Status.GOOD, null, System.out);
-
-            return;
-        }
+    public void runTest(ValidatePathWithParams pathValidator) throws Exception {
 
         // Validate valid
         pathValidator.validate(new String[]{VALID, INT},
@@ -344,201 +378,228 @@ class AmazonCA_2 {
         // Validate Revoked
         pathValidator.validate(new String[]{REVOKED, INT},
                 ValidatePathWithParams.Status.REVOKED,
-                "Mon Jan 28 15:38:57 PST 2019", System.out);
+                "Mon May 15 13:38:54 PDT 2023", System.out);
     }
 }
 
 class AmazonCA_3 {
 
-    // Owner: CN=Amazon, OU=Server CA 3A, O=Amazon, C=US
+    // Owner: CN=Amazon ECDSA 256 M02, O=Amazon, C=US
     // Issuer: CN=Amazon Root CA 3, O=Amazon, C=US
-    // Serial number: 67f945758fe55b9ee3f75831d47f07d226c8a
-    // Valid from: Wed Oct 21 17:00:00 PDT 2015 until: Sat Oct 18 17:00:00 PDT 2025
-    private static final String INT = "-----BEGIN CERTIFICATE-----\n" +
-            "MIICuzCCAmGgAwIBAgITBn+UV1j+VbnuP3WDHUfwfSJsijAKBggqhkjOPQQDAjA5\n" +
+    // Serial number: 773126de2c2fafd2c47ad88b1566e0182046d
+    // Valid from: Tue Aug 23 15:33:24 PDT 2022 until: Fri Aug 23 15:33:24 PDT 2030
+    private static final String INT_VALID = "-----BEGIN CERTIFICATE-----\n" +
+            "MIIC1DCCAnmgAwIBAgITB3MSbeLC+v0sR62IsVZuAYIEbTAKBggqhkjOPQQDAjA5\n" +
             "MQswCQYDVQQGEwJVUzEPMA0GA1UEChMGQW1hem9uMRkwFwYDVQQDExBBbWF6b24g\n" +
-            "Um9vdCBDQSAzMB4XDTE1MTAyMjAwMDAwMFoXDTI1MTAxOTAwMDAwMFowRjELMAkG\n" +
-            "A1UEBhMCVVMxDzANBgNVBAoTBkFtYXpvbjEVMBMGA1UECxMMU2VydmVyIENBIDNB\n" +
-            "MQ8wDQYDVQQDEwZBbWF6b24wWTATBgcqhkjOPQIBBggqhkjOPQMBBwNCAATYcYsK\n" +
-            "mYdR0Gj8Xz45E/lfcTTnXhg2EtAIYBIHyXv/ZQyyyCas1aptX/I5T1coT6XK181g\n" +
-            "nB8hADuKfWlNoIYRo4IBOTCCATUwEgYDVR0TAQH/BAgwBgEB/wIBADAOBgNVHQ8B\n" +
-            "Af8EBAMCAYYwHQYDVR0OBBYEFATc4JXl6LlrlKHvjFsxHhN+VZfaMB8GA1UdIwQY\n" +
-            "MBaAFKu229cGnjesMIYHkXDHnMQZsXjAMHsGCCsGAQUFBwEBBG8wbTAvBggrBgEF\n" +
-            "BQcwAYYjaHR0cDovL29jc3Aucm9vdGNhMy5hbWF6b250cnVzdC5jb20wOgYIKwYB\n" +
-            "BQUHMAKGLmh0dHA6Ly9jcnQucm9vdGNhMy5hbWF6b250cnVzdC5jb20vcm9vdGNh\n" +
-            "My5jZXIwPwYDVR0fBDgwNjA0oDKgMIYuaHR0cDovL2NybC5yb290Y2EzLmFtYXpv\n" +
-            "bnRydXN0LmNvbS9yb290Y2EzLmNybDARBgNVHSAECjAIMAYGBFUdIAAwCgYIKoZI\n" +
-            "zj0EAwIDSAAwRQIgOl/vux0qfxNm05W3eofa9lKwz6oKvdu6g6Sc0UlwgRcCIQCS\n" +
-            "WSQ6F6JHLoeOWLyFFF658eNKEKbkEGMHz34gLX/N3g==\n" +
+            "Um9vdCBDQSAzMB4XDTIyMDgyMzIyMzMyNFoXDTMwMDgyMzIyMzMyNFowPTELMAkG\n" +
+            "A1UEBhMCVVMxDzANBgNVBAoTBkFtYXpvbjEdMBsGA1UEAxMUQW1hem9uIEVDRFNB\n" +
+            "IDI1NiBNMDIwWTATBgcqhkjOPQIBBggqhkjOPQMBBwNCAAS9vQLD4W/Kg4AnFRl8\n" +
+            "x/FUbLqtd5ICYjUijGsytF9hmgb/Dyk+Ebt4cw6rAlGbaiOLapSJKZiZr+UQdh3I\n" +
+            "QOr+o4IBWjCCAVYwEgYDVR0TAQH/BAgwBgEB/wIBADAOBgNVHQ8BAf8EBAMCAYYw\n" +
+            "HQYDVR0lBBYwFAYIKwYBBQUHAwEGCCsGAQUFBwMCMB0GA1UdDgQWBBS7eJrXaDMy\n" +
+            "nRq7bP2xNEwB3svQdTAfBgNVHSMEGDAWgBSrttvXBp43rDCGB5Fwx5zEGbF4wDB7\n" +
+            "BggrBgEFBQcBAQRvMG0wLwYIKwYBBQUHMAGGI2h0dHA6Ly9vY3NwLnJvb3RjYTMu\n" +
+            "YW1hem9udHJ1c3QuY29tMDoGCCsGAQUFBzAChi5odHRwOi8vY3J0LnJvb3RjYTMu\n" +
+            "YW1hem9udHJ1c3QuY29tL3Jvb3RjYTMuY2VyMD8GA1UdHwQ4MDYwNKAyoDCGLmh0\n" +
+            "dHA6Ly9jcmwucm9vdGNhMy5hbWF6b250cnVzdC5jb20vcm9vdGNhMy5jcmwwEwYD\n" +
+            "VR0gBAwwCjAIBgZngQwBAgEwCgYIKoZIzj0EAwIDSQAwRgIhAKSYEcDcp3kcPMzh\n" +
+            "OIYDWZOLu4InPod4fQhRTmc2zBAgAiEAmwdGE4AuNWhw9N8REhf82rJLNm7h9Myg\n" +
+            "TsR9Wu0bQYU=\n" +
             "-----END CERTIFICATE-----";
 
-    // Owner: CN=good.sca3a.amazontrust.com, O=Amazon Trust Services, L=Seattle, ST=Washington, C=US, \
-    // SERIALNUMBER=5846743, OID.2.5.4.15=Private Organization, OID.1.3.6.1.4.1.311.60.2.1.2=Delaware, \
-    // OID.1.3.6.1.4.1.311.60.2.1.3=US
-    // Issuer: CN=Amazon, OU=Server CA 3A, O=Amazon, C=US
-    // Serial number: 703e4e9bbc2605f37967a0e95f31f4789a677
-    // Valid from: Mon Jul 29 16:54:43 PDT 2019 until: Sat Aug 29 16:54:43 PDT 2020
+    // Owner: CN=Amazon ECDSA 256 M01, O=Amazon, C=US
+    // Issuer: CN=Amazon Root CA 3, O=Amazon, C=US
+    // Serial number: 773126684d577c0fcf8d3a342bea86f94fc8f
+    // Valid from: Tue Aug 23 15:31:46 PDT 2022 until: Fri Aug 23 15:31:46 PDT 2030
+    private static final String INT_REVOKED = "-----BEGIN CERTIFICATE-----\n" +
+            "MIIC0zCCAnmgAwIBAgITB3MSZoTVd8D8+NOjQr6ob5T8jzAKBggqhkjOPQQDAjA5\n" +
+            "MQswCQYDVQQGEwJVUzEPMA0GA1UEChMGQW1hem9uMRkwFwYDVQQDExBBbWF6b24g\n" +
+            "Um9vdCBDQSAzMB4XDTIyMDgyMzIyMzE0NloXDTMwMDgyMzIyMzE0NlowPTELMAkG\n" +
+            "A1UEBhMCVVMxDzANBgNVBAoTBkFtYXpvbjEdMBsGA1UEAxMUQW1hem9uIEVDRFNB\n" +
+            "IDI1NiBNMDEwWTATBgcqhkjOPQIBBggqhkjOPQMBBwNCAAT80w+2RwNHzyXmVUM/\n" +
+            "OUKBZpJkTzHyCKDl4sBrUfjzVjot/lNba9kYzMKSHYv95CUDoMaF2h2KAqx65uLQ\n" +
+            "Y8ago4IBWjCCAVYwEgYDVR0TAQH/BAgwBgEB/wIBADAOBgNVHQ8BAf8EBAMCAYYw\n" +
+            "HQYDVR0lBBYwFAYIKwYBBQUHAwEGCCsGAQUFBwMCMB0GA1UdDgQWBBRPWfy8BhYo\n" +
+            "v6LI2wj7zxMkumlCXDAfBgNVHSMEGDAWgBSrttvXBp43rDCGB5Fwx5zEGbF4wDB7\n" +
+            "BggrBgEFBQcBAQRvMG0wLwYIKwYBBQUHMAGGI2h0dHA6Ly9vY3NwLnJvb3RjYTMu\n" +
+            "YW1hem9udHJ1c3QuY29tMDoGCCsGAQUFBzAChi5odHRwOi8vY3J0LnJvb3RjYTMu\n" +
+            "YW1hem9udHJ1c3QuY29tL3Jvb3RjYTMuY2VyMD8GA1UdHwQ4MDYwNKAyoDCGLmh0\n" +
+            "dHA6Ly9jcmwucm9vdGNhMy5hbWF6b250cnVzdC5jb20vcm9vdGNhMy5jcmwwEwYD\n" +
+            "VR0gBAwwCjAIBgZngQwBAgEwCgYIKoZIzj0EAwIDSAAwRQIhALRfxq3SQIhj5xA4\n" +
+            "S5UAY/KlKqayZDpnbBdCDH8Kqmf/AiAUVZddALefnqRe+ifxN2FUp461LL6/cgVM\n" +
+            "EH3Ty27f1Q==\n" +
+            "-----END CERTIFICATE-----";
+
+    // Owner: CN=valid.rootca3.demo.amazontrust.com
+    // Issuer: CN=Amazon ECDSA 256 M02, O=Amazon, C=US
+    // Serial number: 8e2f14864fb28e4a1da0f15a5118cc8
+    // Valid from: Tue May 09 17:00:00 PDT 2023 until: Fri Jun 07 16:59:59 PDT 2024
     private static final String VALID = "-----BEGIN CERTIFICATE-----\n" +
-            "MIIDhzCCAy2gAwIBAgITBwPk6bvCYF83lnoOlfMfR4mmdzAKBggqhkjOPQQDAjBG\n" +
-            "MQswCQYDVQQGEwJVUzEPMA0GA1UEChMGQW1hem9uMRUwEwYDVQQLEwxTZXJ2ZXIg\n" +
-            "Q0EgM0ExDzANBgNVBAMTBkFtYXpvbjAeFw0xOTA3MjkyMzU0NDNaFw0yMDA4Mjky\n" +
-            "MzU0NDNaMIHaMRMwEQYLKwYBBAGCNzwCAQMTAlVTMRkwFwYLKwYBBAGCNzwCAQIT\n" +
-            "CERlbGF3YXJlMR0wGwYDVQQPExRQcml2YXRlIE9yZ2FuaXphdGlvbjEQMA4GA1UE\n" +
-            "BRMHNTg0Njc0MzELMAkGA1UEBhMCVVMxEzARBgNVBAgTCldhc2hpbmd0b24xEDAO\n" +
-            "BgNVBAcTB1NlYXR0bGUxHjAcBgNVBAoTFUFtYXpvbiBUcnVzdCBTZXJ2aWNlczEj\n" +
-            "MCEGA1UEAxMaZ29vZC5zY2EzYS5hbWF6b250cnVzdC5jb20wWTATBgcqhkjOPQIB\n" +
-            "BggqhkjOPQMBBwNCAARl4yxf8XcvWR0LZ+YuBC0CpkwtU2NiMdlIM7eX0lxhQp53\n" +
-            "NpLlCrPRNzOWrjCJDdn21D0u7PrtN94UHLHOg9X0o4IBYzCCAV8wDgYDVR0PAQH/\n" +
-            "BAQDAgeAMB0GA1UdDgQWBBT2cHmOJFLWfg1Op7xAdAnqYcwaPzAfBgNVHSMEGDAW\n" +
-            "gBQE3OCV5ei5a5Sh74xbMR4TflWX2jAdBgNVHSUEFjAUBggrBgEFBQcDAQYIKwYB\n" +
-            "BQUHAwIwdQYIKwYBBQUHAQEEaTBnMC0GCCsGAQUFBzABhiFodHRwOi8vb2NzcC5z\n" +
-            "Y2EzYS5hbWF6b250cnVzdC5jb20wNgYIKwYBBQUHMAKGKmh0dHA6Ly9jcnQuc2Nh\n" +
-            "M2EuYW1hem9udHJ1c3QuY29tL3NjYTNhLmNlcjAlBgNVHREEHjAcghpnb29kLnNj\n" +
-            "YTNhLmFtYXpvbnRydXN0LmNvbTBQBgNVHSAESTBHMA0GC2CGSAGG/W4BBxgDMDYG\n" +
-            "BWeBDAEBMC0wKwYIKwYBBQUHAgEWH2h0dHBzOi8vd3d3LmFtYXpvbnRydXN0LmNv\n" +
-            "bS9jcHMwCgYIKoZIzj0EAwIDSAAwRQIgURdcqJVr4PWNIkmWcSKmzgZ1i94hQpGe\n" +
-            "mWbE9osk4m0CIQDhxIguihwvDa5RsBwdM0aRDgGKLNHigGqJoKqgH0d2qg==\n" +
+            "MIIEfjCCBCWgAwIBAgIQCOLxSGT7KOSh2g8VpRGMyDAKBggqhkjOPQQDAjA9MQsw\n" +
+            "CQYDVQQGEwJVUzEPMA0GA1UEChMGQW1hem9uMR0wGwYDVQQDExRBbWF6b24gRUNE\n" +
+            "U0EgMjU2IE0wMjAeFw0yMzA1MTAwMDAwMDBaFw0yNDA2MDcyMzU5NTlaMC0xKzAp\n" +
+            "BgNVBAMTInZhbGlkLnJvb3RjYTMuZGVtby5hbWF6b250cnVzdC5jb20wWTATBgcq\n" +
+            "hkjOPQIBBggqhkjOPQMBBwNCAAQfWc7gBGBBBmseCb2XWWRQVhCUQDVml3mVgvj5\n" +
+            "RmnP1y5wpifUTFqu8ELdI7YGZ4JMSnetiKNmLtg5yhTEjzCQo4IDFTCCAxEwHwYD\n" +
+            "VR0jBBgwFoAUu3ia12gzMp0au2z9sTRMAd7L0HUwHQYDVR0OBBYEFHCE8orvZDUK\n" +
+            "5TI9MYadzxWR9CZGMEkGA1UdEQRCMECCInZhbGlkLnJvb3RjYTMuZGVtby5hbWF6\n" +
+            "b250cnVzdC5jb22CGmdvb2Quc2NhM2EuYW1hem9udHJ1c3QuY29tMA4GA1UdDwEB\n" +
+            "/wQEAwIHgDAdBgNVHSUEFjAUBggrBgEFBQcDAQYIKwYBBQUHAwIwOwYDVR0fBDQw\n" +
+            "MjAwoC6gLIYqaHR0cDovL2NybC5lMm0wMi5hbWF6b250cnVzdC5jb20vZTJtMDIu\n" +
+            "Y3JsMBMGA1UdIAQMMAowCAYGZ4EMAQIBMHUGCCsGAQUFBwEBBGkwZzAtBggrBgEF\n" +
+            "BQcwAYYhaHR0cDovL29jc3AuZTJtMDIuYW1hem9udHJ1c3QuY29tMDYGCCsGAQUF\n" +
+            "BzAChipodHRwOi8vY3J0LmUybTAyLmFtYXpvbnRydXN0LmNvbS9lMm0wMi5jZXIw\n" +
+            "DAYDVR0TAQH/BAIwADCCAXwGCisGAQQB1nkCBAIEggFsBIIBaAFmAHUA7s3QZNXb\n" +
+            "Gs7FXLedtM0TojKHRny87N7DUUhZRnEftZsAAAGIB71y/gAABAMARjBEAiAEAXIb\n" +
+            "aOVR26HgFaI+qoIasCb8w2sOqVxGAxf5iPgX6QIgdAlMjqeoihi1arnJpzN8Bqxy\n" +
+            "5ULMUO7GK3JEgcogJHMAdgBIsONr2qZHNA/lagL6nTDrHFIBy1bdLIHZu7+rOdiE\n" +
+            "cwAAAYgHvXLkAAAEAwBHMEUCIF7wDDmWxTHwBZM7Me8eOCM1aQ/g1c1rJg/I+NJa\n" +
+            "HkZYAiEA8p+IviuY5piHBELjUtVlZLiS9XSSMxpQNhUerqC/YFoAdQDatr9rP7W2\n" +
+            "Ip+bwrtca+hwkXFsu1GEhTS9pD0wSNf7qwAAAYgHvXKvAAAEAwBGMEQCIFLskZDs\n" +
+            "UG4+/88D/5/QbD9zT6ZmZlwXiPZ6H2YR/KiJAiBvi4vvNsb9KNAhJMgI2T2iCg9U\n" +
+            "CIru+US6y3ua7dKKDTAKBggqhkjOPQQDAgNHADBEAiAzvgzKV/kvBbKWCT1NNUBD\n" +
+            "AF9okIEcJx/ukFgzmYMwUQIgXeJeVf3izkxsgiEUSknwHsErLFs/cEme2PSRj2AW\n" +
+            "dYA=\n" +
             "-----END CERTIFICATE-----";
 
-    // Owner: CN=revoked.sca3a.amazontrust.com, O=Amazon Trust Services, L=Seattle, ST=Washington, C=US, \
-    // SERIALNUMBER=5846743, OID.2.5.4.15=PrivateOrganization, OID.1.3.6.1.4.1.311.60.2.1.2=Delaware, \
-    // OID.1.3.6.1.4.1.311.60.2.1.3=US
-    // Issuer: CN=Amazon, OU=Server CA 3A, O=Amazon, C=US
-    // Serial number: 6f1d78cf0ca64ce7f551a6f2a0715cc0e8b50
-    // Valid from: Mon Jan 28 15:40:01 PST 2019 until: Thu Apr 28 16:40:01 PDT 2022
+    // Owner: CN=revoked.rootca3.demo.amazontrust.com
+    // Issuer: CN=Amazon ECDSA 256 M01, O=Amazon, C=US
+    // Serial number: c458bfaeedae16a5e61fe64773fc898
+    // Valid from: Tue May 09 17:00:00 PDT 2023 until: Fri Jun 07 16:59:59 PDT 2024
     private static final String REVOKED = "-----BEGIN CERTIFICATE-----\n" +
-            "MIIDTzCCAvWgAwIBAgITBvHXjPDKZM5/VRpvKgcVzA6LUDAKBggqhkjOPQQDAjBG\n" +
-            "MQswCQYDVQQGEwJVUzEPMA0GA1UEChMGQW1hem9uMRUwEwYDVQQLEwxTZXJ2ZXIg\n" +
-            "Q0EgM0ExDzANBgNVBAMTBkFtYXpvbjAeFw0xOTAxMjgyMzQwMDFaFw0yMjA0Mjgy\n" +
-            "MzQwMDFaMIHcMRMwEQYLKwYBBAGCNzwCAQMTAlVTMRkwFwYLKwYBBAGCNzwCAQIT\n" +
-            "CERlbGF3YXJlMRwwGgYDVQQPExNQcml2YXRlT3JnYW5pemF0aW9uMRAwDgYDVQQF\n" +
-            "Ewc1ODQ2NzQzMQswCQYDVQQGEwJVUzETMBEGA1UECBMKV2FzaGluZ3RvbjEQMA4G\n" +
-            "A1UEBxMHU2VhdHRsZTEeMBwGA1UEChMVQW1hem9uIFRydXN0IFNlcnZpY2VzMSYw\n" +
-            "JAYDVQQDEx1yZXZva2VkLnNjYTNhLmFtYXpvbnRydXN0LmNvbTBZMBMGByqGSM49\n" +
-            "AgEGCCqGSM49AwEHA0IABJNl90Jq0wddpFj+JbLtmvGR/1geL5t1tvV406jGpYn2\n" +
-            "C5lAFjwASFy7pAnazZbfSkIDUU2i2XU0+7Cs+j1S/EOjggEpMIIBJTAOBgNVHQ8B\n" +
-            "Af8EBAMCB4AwHQYDVR0OBBYEFPhX3dYays5Sps0xTgouLkZzYLg4MB8GA1UdIwQY\n" +
-            "MBaAFATc4JXl6LlrlKHvjFsxHhN+VZfaMB0GA1UdJQQWMBQGCCsGAQUFBwMBBggr\n" +
-            "BgEFBQcDAjB1BggrBgEFBQcBAQRpMGcwLQYIKwYBBQUHMAGGIWh0dHA6Ly9vY3Nw\n" +
-            "LnNjYTNhLmFtYXpvbnRydXN0LmNvbTA2BggrBgEFBQcwAoYqaHR0cDovL2NydC5z\n" +
-            "Y2EzYS5hbWF6b250cnVzdC5jb20vc2NhM2EuY2VyMCgGA1UdEQQhMB+CHXJldm9r\n" +
-            "ZWQuc2NhM2EuYW1hem9udHJ1c3QuY29tMBMGA1UdIAQMMAowCAYGZ4EMAQIBMAoG\n" +
-            "CCqGSM49BAMCA0gAMEUCICLb16/50S4fOAFafi5lagdx7q6EDPPm596g19eQDMXk\n" +
-            "AiEAksCMLypRB4t30FABlsEjhVCBIxay0iIer2OcCIrhfEI=\n" +
+            "MIIEhzCCBC2gAwIBAgIQDEWL+u7a4WpeYf5kdz/ImDAKBggqhkjOPQQDAjA9MQsw\n" +
+            "CQYDVQQGEwJVUzEPMA0GA1UEChMGQW1hem9uMR0wGwYDVQQDExRBbWF6b24gRUNE\n" +
+            "U0EgMjU2IE0wMTAeFw0yMzA1MTAwMDAwMDBaFw0yNDA2MDcyMzU5NTlaMC8xLTAr\n" +
+            "BgNVBAMTJHJldm9rZWQucm9vdGNhMy5kZW1vLmFtYXpvbnRydXN0LmNvbTBZMBMG\n" +
+            "ByqGSM49AgEGCCqGSM49AwEHA0IABAsSs5kW5TZlS0SDrMb9iUQAqEaKa12Fc6SN\n" +
+            "9UR6qtOFdW/1UuziDq3Hl5dqsAYZJkbJSPCIsD2HTP/EGTMKITCjggMbMIIDFzAf\n" +
+            "BgNVHSMEGDAWgBRPWfy8BhYov6LI2wj7zxMkumlCXDAdBgNVHQ4EFgQUeE55ET2e\n" +
+            "i8KbY7KHTxOuvCkRpTowTgYDVR0RBEcwRYIkcmV2b2tlZC5yb290Y2EzLmRlbW8u\n" +
+            "YW1hem9udHJ1c3QuY29tgh1yZXZva2VkLnNjYTNhLmFtYXpvbnRydXN0LmNvbTAO\n" +
+            "BgNVHQ8BAf8EBAMCB4AwHQYDVR0lBBYwFAYIKwYBBQUHAwEGCCsGAQUFBwMCMDsG\n" +
+            "A1UdHwQ0MDIwMKAuoCyGKmh0dHA6Ly9jcmwuZTJtMDEuYW1hem9udHJ1c3QuY29t\n" +
+            "L2UybTAxLmNybDATBgNVHSAEDDAKMAgGBmeBDAECATB1BggrBgEFBQcBAQRpMGcw\n" +
+            "LQYIKwYBBQUHMAGGIWh0dHA6Ly9vY3NwLmUybTAxLmFtYXpvbnRydXN0LmNvbTA2\n" +
+            "BggrBgEFBQcwAoYqaHR0cDovL2NydC5lMm0wMS5hbWF6b250cnVzdC5jb20vZTJt\n" +
+            "MDEuY2VyMAwGA1UdEwEB/wQCMAAwggF9BgorBgEEAdZ5AgQCBIIBbQSCAWkBZwB2\n" +
+            "AHb/iD8KtvuVUcJhzPWHujS0pM27KdxoQgqf5mdMWjp0AAABiAe9lQ8AAAQDAEcw\n" +
+            "RQIgZVFAX5WPZRBpEOqk620v4Rbzxh/3wrJ5QBMBJ0Mb8B0CIQC0oxFVLfs+PAv7\n" +
+            "25wawOu2VgDXG9lJAJtCwk3gN8BshQB2AEiw42vapkc0D+VqAvqdMOscUgHLVt0s\n" +
+            "gdm7v6s52IRzAAABiAe9lQ4AAAQDAEcwRQIhAIPVMj6IfjAUKeGYbpG9s0DRdWbc\n" +
+            "b8OzsOf+kRqk03NMAiB777hfoFCUMPrN0g8o5v6zp3T3qOhRnYY0TZN4q4NnMgB1\n" +
+            "ANq2v2s/tbYin5vCu1xr6HCRcWy7UYSFNL2kPTBI1/urAAABiAe9lN4AAAQDAEYw\n" +
+            "RAIgL0qoVbKLFD+Y3f/V6Rw+euZrPO6d1HEVPQGo7wLzkl8CIGHp3PQmmrEofl76\n" +
+            "4da7bY0L+csFW0sB8clN0KziMfe6MAoGCCqGSM49BAMCA0gAMEUCIQC+6VdX9X5g\n" +
+            "x3NSUmJ7py01Zxf26TNBv1ildxqesvZ/7wIgIrefriRzPiIFDHCUbdjk0VlmMwZR\n" +
+            "VzXXHINsGCiCKOs=\n" +
             "-----END CERTIFICATE-----";
 
-    public void runTest(ValidatePathWithParams pathValidator, boolean ocspEnabled) throws Exception {
-        // EE certificates don't have CRLDP extension
-        if (!ocspEnabled){
-            pathValidator.validate(new String[]{INT},
-                    ValidatePathWithParams.Status.GOOD, null, System.out);
-
-            return;
-        }
+    public void runTest(ValidatePathWithParams pathValidator) throws Exception {
 
         // Validate valid
-        pathValidator.validate(new String[]{VALID, INT},
+        pathValidator.validate(new String[]{VALID, INT_VALID},
                 ValidatePathWithParams.Status.GOOD, null, System.out);
 
         // Validate Revoked
-        pathValidator.validate(new String[]{REVOKED, INT},
+        pathValidator.validate(new String[]{REVOKED, INT_REVOKED},
                 ValidatePathWithParams.Status.REVOKED,
-                "Mon Jan 28 15:40:35 PST 2019", System.out);
+                "Mon May 15 13:41:22 PDT 2023", System.out);
     }
 }
 
 class AmazonCA_4 {
 
-    // Owner: CN=Amazon, OU=Server CA 4A, O=Amazon, C=US
+    // Owner: CN=Amazon ECDSA 384 M02, O=Amazon, C=US
     // Issuer: CN=Amazon Root CA 4, O=Amazon, C=US
-    // Serial number: 67f94575a8862a9072e3239c37ceba1274e18
-    // Valid from: Wed Oct 21 17:00:00 PDT 2015 until: Sat Oct 18 17:00:00 PDT 2025
+    // Serial number: 773127dfaa6b9e2b95538aa76dde4307f17c4
+    // Valid from: Tue Aug 23 15:36:58 PDT 2022 until: Fri Aug 23 15:36:58 PDT 2030
     private static final String INT = "-----BEGIN CERTIFICATE-----\n" +
-            "MIIC+TCCAn6gAwIBAgITBn+UV1qIYqkHLjI5w3zroSdOGDAKBggqhkjOPQQDAzA5\n" +
+            "MIIDETCCApagAwIBAgITB3MSffqmueK5VTiqdt3kMH8XxDAKBggqhkjOPQQDAzA5\n" +
             "MQswCQYDVQQGEwJVUzEPMA0GA1UEChMGQW1hem9uMRkwFwYDVQQDExBBbWF6b24g\n" +
-            "Um9vdCBDQSA0MB4XDTE1MTAyMjAwMDAwMFoXDTI1MTAxOTAwMDAwMFowRjELMAkG\n" +
-            "A1UEBhMCVVMxDzANBgNVBAoTBkFtYXpvbjEVMBMGA1UECxMMU2VydmVyIENBIDRB\n" +
-            "MQ8wDQYDVQQDEwZBbWF6b24wdjAQBgcqhkjOPQIBBgUrgQQAIgNiAASRP0kIW0Ha\n" +
-            "7+ORvEVhIS5gIgkH66X5W9vBRTX14oG/1elIyI6LbFZ+E5KAufL0XoWJGI1WbPRm\n" +
-            "HW246FKSzF0wOEZZyxEROz6tuaVsnXRHRE76roS/Wr064uJpKH+Lv+SjggE5MIIB\n" +
-            "NTASBgNVHRMBAf8ECDAGAQH/AgEAMA4GA1UdDwEB/wQEAwIBhjAdBgNVHQ4EFgQU\n" +
-            "pSHN2+tTIZmqytlnQpQlsnv0wuMwHwYDVR0jBBgwFoAU0+zHOmVuzOHadppW+5zz\n" +
-            "hm1X5YEwewYIKwYBBQUHAQEEbzBtMC8GCCsGAQUFBzABhiNodHRwOi8vb2NzcC5y\n" +
-            "b290Y2E0LmFtYXpvbnRydXN0LmNvbTA6BggrBgEFBQcwAoYuaHR0cDovL2NydC5y\n" +
-            "b290Y2E0LmFtYXpvbnRydXN0LmNvbS9yb290Y2E0LmNlcjA/BgNVHR8EODA2MDSg\n" +
-            "MqAwhi5odHRwOi8vY3JsLnJvb3RjYTQuYW1hem9udHJ1c3QuY29tL3Jvb3RjYTQu\n" +
-            "Y3JsMBEGA1UdIAQKMAgwBgYEVR0gADAKBggqhkjOPQQDAwNpADBmAjEA59RAOBaj\n" +
-            "uh0rT/OOTWPEv6TBnb9XEadburBaXb8SSrR8il+NdkfS9WXRAzbwrG7LAjEA3ukD\n" +
-            "1HrQq+WXHBM5sIuViJI/Zh7MOjsc159Q+dn36PBqLRq03AXqE/lRjnv8C5nj\n" +
+            "Um9vdCBDQSA0MB4XDTIyMDgyMzIyMzY1OFoXDTMwMDgyMzIyMzY1OFowPTELMAkG\n" +
+            "A1UEBhMCVVMxDzANBgNVBAoTBkFtYXpvbjEdMBsGA1UEAxMUQW1hem9uIEVDRFNB\n" +
+            "IDM4NCBNMDIwdjAQBgcqhkjOPQIBBgUrgQQAIgNiAATNYzWQDXV0NoNmR0hJPwJq\n" +
+            "hjYOOS9z0B2Z7MQudxg5x3Vsib6N+tJkq8dljRq5o6K0bbh/kRVfoi9wfKhB03Yz\n" +
+            "gkerrwRCH7Z9gU5nbBY+Y5+EtImq4yOB0n7JQgQxWemjggFaMIIBVjASBgNVHRMB\n" +
+            "Af8ECDAGAQH/AgEAMA4GA1UdDwEB/wQEAwIBhjAdBgNVHSUEFjAUBggrBgEFBQcD\n" +
+            "AQYIKwYBBQUHAwIwHQYDVR0OBBYEFKbZqzuHmTP/6Gj4i2GDbNCyuq+9MB8GA1Ud\n" +
+            "IwQYMBaAFNPsxzplbszh2naaVvuc84ZtV+WBMHsGCCsGAQUFBwEBBG8wbTAvBggr\n" +
+            "BgEFBQcwAYYjaHR0cDovL29jc3Aucm9vdGNhNC5hbWF6b250cnVzdC5jb20wOgYI\n" +
+            "KwYBBQUHMAKGLmh0dHA6Ly9jcnQucm9vdGNhNC5hbWF6b250cnVzdC5jb20vcm9v\n" +
+            "dGNhNC5jZXIwPwYDVR0fBDgwNjA0oDKgMIYuaHR0cDovL2NybC5yb290Y2E0LmFt\n" +
+            "YXpvbnRydXN0LmNvbS9yb290Y2E0LmNybDATBgNVHSAEDDAKMAgGBmeBDAECATAK\n" +
+            "BggqhkjOPQQDAwNpADBmAjEA2zCG6x0xMlgSXWEGLN8+1XN+OCYF5vj0Z1jtVy+A\n" +
+            "pdLlzuxNt9HBWn3hvqvO2W8KAjEApNdsZOCmk5uZBYiuCSBnDH3jyKhN6dWyuuHW\n" +
+            "9Wj7SxKnOU5+wYWZA0BQAv1KT62i\n" +
             "-----END CERTIFICATE-----";
 
-    // Owner: CN=good.sca4a.amazontrust.com, O=Amazon Trust Services, L=Seattle, ST=Washington, C=US, \
-    // SERIALNUMBER=5846743, OID.2.5.4.15=Private Organization, OID.1.3.6.1.4.1.311.60.2.1.2=Delaware, \
-    // OID.1.3.6.1.4.1.311.60.2.1.3=US
-    // Issuer: CN=Amazon, OU=Server CA 4A, O=Amazon, C=US
-    // Serial number: 703e4ec57c72d5669efbc98875c3f6bc3f934
-    // Valid from: Mon Jul 29 16:55:17 PDT 2019 until: Sat Aug 29 16:55:17 PDT 2020
+    // Owner: CN=valid.rootca4.demo.amazontrust.com
+    // Issuer: CN=Amazon ECDSA 384 M02, O=Amazon, C=US
+    // Serial number: f579bed3369f1a147ea5d0e8e6532d3
+    // Valid from: Tue May 09 17:00:00 PDT 2023 until: Fri Jun 07 16:59:59 PDT 2024
     private static final String VALID = "-----BEGIN CERTIFICATE-----\n" +
-            "MIIDxTCCA0qgAwIBAgITBwPk7FfHLVZp77yYh1w/a8P5NDAKBggqhkjOPQQDAzBG\n" +
-            "MQswCQYDVQQGEwJVUzEPMA0GA1UEChMGQW1hem9uMRUwEwYDVQQLEwxTZXJ2ZXIg\n" +
-            "Q0EgNEExDzANBgNVBAMTBkFtYXpvbjAeFw0xOTA3MjkyMzU1MTdaFw0yMDA4Mjky\n" +
-            "MzU1MTdaMIHaMRMwEQYLKwYBBAGCNzwCAQMTAlVTMRkwFwYLKwYBBAGCNzwCAQIT\n" +
-            "CERlbGF3YXJlMR0wGwYDVQQPExRQcml2YXRlIE9yZ2FuaXphdGlvbjEQMA4GA1UE\n" +
-            "BRMHNTg0Njc0MzELMAkGA1UEBhMCVVMxEzARBgNVBAgTCldhc2hpbmd0b24xEDAO\n" +
-            "BgNVBAcTB1NlYXR0bGUxHjAcBgNVBAoTFUFtYXpvbiBUcnVzdCBTZXJ2aWNlczEj\n" +
-            "MCEGA1UEAxMaZ29vZC5zY2E0YS5hbWF6b250cnVzdC5jb20wdjAQBgcqhkjOPQIB\n" +
-            "BgUrgQQAIgNiAAS9fqMYfOBsdXMSsPjqOlTgIGOlOQWA7Wg6XwVvHTr0+UN+XTeC\n" +
-            "yZN+XjLbEDQ0CF5eryRZ535sDpwh3qNe0lYFO1n1+2iDtDI1jhhLNYNxBpVnR2BU\n" +
-            "2l9EuRmgRbQpDCajggFjMIIBXzAOBgNVHQ8BAf8EBAMCB4AwHQYDVR0OBBYEFMd0\n" +
-            "itH5IcE6DpM1uTSBV/6DLmK7MB8GA1UdIwQYMBaAFKUhzdvrUyGZqsrZZ0KUJbJ7\n" +
-            "9MLjMB0GA1UdJQQWMBQGCCsGAQUFBwMBBggrBgEFBQcDAjB1BggrBgEFBQcBAQRp\n" +
-            "MGcwLQYIKwYBBQUHMAGGIWh0dHA6Ly9vY3NwLnNjYTRhLmFtYXpvbnRydXN0LmNv\n" +
-            "bTA2BggrBgEFBQcwAoYqaHR0cDovL2NydC5zY2E0YS5hbWF6b250cnVzdC5jb20v\n" +
-            "c2NhNGEuY2VyMCUGA1UdEQQeMByCGmdvb2Quc2NhNGEuYW1hem9udHJ1c3QuY29t\n" +
-            "MFAGA1UdIARJMEcwDQYLYIZIAYb9bgEHGAMwNgYFZ4EMAQEwLTArBggrBgEFBQcC\n" +
-            "ARYfaHR0cHM6Ly93d3cuYW1hem9udHJ1c3QuY29tL2NwczAKBggqhkjOPQQDAwNp\n" +
-            "ADBmAjEA2RBD1F+rnm394VkqA3ncysM3deoyfWqaoAO5923MNisswPnHfVqnfeXf\n" +
-            "ZwTAvVTBAjEAiiaPx9GRjEk8IBKvCSbTp9rPogVTN7zDDQGrwA83O0pRP7A0dxtT\n" +
-            "pn/0K5Sj8otp\n" +
+            "MIIEvjCCBESgAwIBAgIQD1eb7TNp8aFH6l0OjmUy0zAKBggqhkjOPQQDAzA9MQsw\n" +
+            "CQYDVQQGEwJVUzEPMA0GA1UEChMGQW1hem9uMR0wGwYDVQQDExRBbWF6b24gRUNE\n" +
+            "U0EgMzg0IE0wMjAeFw0yMzA1MTAwMDAwMDBaFw0yNDA2MDcyMzU5NTlaMC0xKzAp\n" +
+            "BgNVBAMTInZhbGlkLnJvb3RjYTQuZGVtby5hbWF6b250cnVzdC5jb20wdjAQBgcq\n" +
+            "hkjOPQIBBgUrgQQAIgNiAAT6/95JFuvx5t9MVeRZmBtXq63Q2fXZnSwEy2U2F4Qc\n" +
+            "ejhDwcYfD2HmT6S6GrKqLNJMa5n2YOvet4LZpKJLFF+BQo6FJt5cXkzHHxZ1I4z3\n" +
+            "8pGU79CpCgFOFy6QUlF68NajggMXMIIDEzAfBgNVHSMEGDAWgBSm2as7h5kz/+ho\n" +
+            "+Ithg2zQsrqvvTAdBgNVHQ4EFgQUR/GnpQkrUsCj8jF6/JIE1Rs07zswSQYDVR0R\n" +
+            "BEIwQIIidmFsaWQucm9vdGNhNC5kZW1vLmFtYXpvbnRydXN0LmNvbYIaZ29vZC5z\n" +
+            "Y2E0YS5hbWF6b250cnVzdC5jb20wDgYDVR0PAQH/BAQDAgeAMB0GA1UdJQQWMBQG\n" +
+            "CCsGAQUFBwMBBggrBgEFBQcDAjA7BgNVHR8ENDAyMDCgLqAshipodHRwOi8vY3Js\n" +
+            "LmUzbTAyLmFtYXpvbnRydXN0LmNvbS9lM20wMi5jcmwwEwYDVR0gBAwwCjAIBgZn\n" +
+            "gQwBAgEwdQYIKwYBBQUHAQEEaTBnMC0GCCsGAQUFBzABhiFodHRwOi8vb2NzcC5l\n" +
+            "M20wMi5hbWF6b250cnVzdC5jb20wNgYIKwYBBQUHMAKGKmh0dHA6Ly9jcnQuZTNt\n" +
+            "MDIuYW1hem9udHJ1c3QuY29tL2UzbTAyLmNlcjAMBgNVHRMBAf8EAjAAMIIBfgYK\n" +
+            "KwYBBAHWeQIEAgSCAW4EggFqAWgAdgDuzdBk1dsazsVct520zROiModGfLzs3sNR\n" +
+            "SFlGcR+1mwAAAYgHvZA9AAAEAwBHMEUCIQCmzmQOzunsuAg1GpIcNx0isG6ylbhP\n" +
+            "y9JP4UFclL2hdwIgBtTM89mE7QJDj7h7xr2eRPio1ehgmeYH1PHXxCqHIGYAdgBI\n" +
+            "sONr2qZHNA/lagL6nTDrHFIBy1bdLIHZu7+rOdiEcwAAAYgHvZB1AAAEAwBHMEUC\n" +
+            "IF9hbi82CLU5umfRze4NpX6u4jlT+N8KSaBe6UbhqjBZAiEAi2Y6PTt2+107LxtM\n" +
+            "oBpHprph7hQvGfjPE+p+rfM/X+EAdgDatr9rP7W2Ip+bwrtca+hwkXFsu1GEhTS9\n" +
+            "pD0wSNf7qwAAAYgHvZBeAAAEAwBHMEUCIAI+m4mVE3HtZOEMC5VI7m0nEPdPPJUq\n" +
+            "fxUKPpeIVmk5AiEA0scVJy7g3Fv+2nTVhbcwWCwn/Gvc+0txQrc529juflcwCgYI\n" +
+            "KoZIzj0EAwMDaAAwZQIxAKV837BpqlNHg35EsCCtrJPoQ6RuY9UoHm1O2CdsCXGR\n" +
+            "Z3kAnlgIV8A/waI6wQqfsQIwdCqaC+qN60JCnX09YKRD15eQjq1rN3w+llI+lEbS\n" +
+            "FSMsnoHJcqMZLo9s+4Rf0zS3\n" +
             "-----END CERTIFICATE-----";
 
-    // Owner: CN=revoked.sca4a.amazontrust.com, O=Amazon Trust Services, L=Seattle, ST=Washington, C=US, \
-    // SERIALNUMBER=5846743, OID.2.5.4.15=PrivateOrganization, OID.1.3.6.1.4.1.311.60.2.1.2=Delaware, \
-    // OID.1.3.6.1.4.1.311.60.2.1.3=US
-    // Issuer: CN=Amazon, OU=Server CA 4A, O=Amazon, C=US
-    // Serial number: 6f1d79295c384a699d51c2d756bd46213b5b3
-    // Valid from: Mon Jan 28 15:41:16 PST 2019 until: Thu Apr 28 16:41:16 PDT 2022
+    // Owner: CN=revoked.rootca4.demo.amazontrust.com
+    // Issuer: CN=Amazon ECDSA 384 M02, O=Amazon, C=US
+    // Serial number: 4a5d392936b4decb818b7fb106ebbd8
+    // Valid from: Tue May 09 17:00:00 PDT 2023 until: Fri Jun 07 16:59:59 PDT 2024
     private static final String REVOKED = "-----BEGIN CERTIFICATE-----\n" +
-            "MIIDjTCCAxKgAwIBAgITBvHXkpXDhKaZ1RwtdWvUYhO1szAKBggqhkjOPQQDAzBG\n" +
-            "MQswCQYDVQQGEwJVUzEPMA0GA1UEChMGQW1hem9uMRUwEwYDVQQLEwxTZXJ2ZXIg\n" +
-            "Q0EgNEExDzANBgNVBAMTBkFtYXpvbjAeFw0xOTAxMjgyMzQxMTZaFw0yMjA0Mjgy\n" +
-            "MzQxMTZaMIHcMRMwEQYLKwYBBAGCNzwCAQMTAlVTMRkwFwYLKwYBBAGCNzwCAQIT\n" +
-            "CERlbGF3YXJlMRwwGgYDVQQPExNQcml2YXRlT3JnYW5pemF0aW9uMRAwDgYDVQQF\n" +
-            "Ewc1ODQ2NzQzMQswCQYDVQQGEwJVUzETMBEGA1UECBMKV2FzaGluZ3RvbjEQMA4G\n" +
-            "A1UEBxMHU2VhdHRsZTEeMBwGA1UEChMVQW1hem9uIFRydXN0IFNlcnZpY2VzMSYw\n" +
-            "JAYDVQQDEx1yZXZva2VkLnNjYTRhLmFtYXpvbnRydXN0LmNvbTB2MBAGByqGSM49\n" +
-            "AgEGBSuBBAAiA2IABLuNpZTcNU3FElNP3Y/OeXIZcIMXkFTBi/n92fNwHfqUbEhH\n" +
-            "H+PovJ26eAGvb5a8bGc275MBFcVnWL0rCVgM+j9KAtBDCRJX3f7mo0D2VKcmtZKu\n" +
-            "jPxwGPy2kuqM505dGqOCASkwggElMA4GA1UdDwEB/wQEAwIHgDAdBgNVHQ4EFgQU\n" +
-            "zUFIhn+hphzCKA2qgAdLztSBzJgwHwYDVR0jBBgwFoAUpSHN2+tTIZmqytlnQpQl\n" +
-            "snv0wuMwHQYDVR0lBBYwFAYIKwYBBQUHAwEGCCsGAQUFBwMCMHUGCCsGAQUFBwEB\n" +
-            "BGkwZzAtBggrBgEFBQcwAYYhaHR0cDovL29jc3Auc2NhNGEuYW1hem9udHJ1c3Qu\n" +
-            "Y29tMDYGCCsGAQUFBzAChipodHRwOi8vY3J0LnNjYTRhLmFtYXpvbnRydXN0LmNv\n" +
-            "bS9zY2E0YS5jZXIwKAYDVR0RBCEwH4IdcmV2b2tlZC5zY2E0YS5hbWF6b250cnVz\n" +
-            "dC5jb20wEwYDVR0gBAwwCjAIBgZngQwBAgEwCgYIKoZIzj0EAwMDaQAwZgIxALDA\n" +
-            "klY3iKwyzwpwVtLfLxzQEl45xvE2VjBJvfJJ60KhJt7Ud0gt0zxkogh29+mpEQIx\n" +
-            "ANTG1mk8OJB41DU7ru1Pwc6ju8STw1FdwDp/Eliqhvnm2i0k4/F1bBHLta2mlC2V\n" +
-            "hg==\n" +
+            "MIIExjCCBEygAwIBAgIQBKXTkpNrTey4GLf7EG672DAKBggqhkjOPQQDAzA9MQsw\n" +
+            "CQYDVQQGEwJVUzEPMA0GA1UEChMGQW1hem9uMR0wGwYDVQQDExRBbWF6b24gRUNE\n" +
+            "U0EgMzg0IE0wMjAeFw0yMzA1MTAwMDAwMDBaFw0yNDA2MDcyMzU5NTlaMC8xLTAr\n" +
+            "BgNVBAMTJHJldm9rZWQucm9vdGNhNC5kZW1vLmFtYXpvbnRydXN0LmNvbTB2MBAG\n" +
+            "ByqGSM49AgEGBSuBBAAiA2IABFYfMbv5/vgqDunZj4ffJiuELtdwfEPXx9QlZnCm\n" +
+            "rBP3Z4/GvUVRVmyh5sYdnbCGCEClH/RxU6BC5SKv+TzhsFLEumhezanljnQXRAIL\n" +
+            "a1OGbP8zLLP6FuAD0cjY3P3adKOCAx0wggMZMB8GA1UdIwQYMBaAFKbZqzuHmTP/\n" +
+            "6Gj4i2GDbNCyuq+9MB0GA1UdDgQWBBSqnGV5pN/agPCtVdV37CP1z/DUqjBOBgNV\n" +
+            "HREERzBFgiRyZXZva2VkLnJvb3RjYTQuZGVtby5hbWF6b250cnVzdC5jb22CHXJl\n" +
+            "dm9rZWQuc2NhNGEuYW1hem9udHJ1c3QuY29tMA4GA1UdDwEB/wQEAwIHgDAdBgNV\n" +
+            "HSUEFjAUBggrBgEFBQcDAQYIKwYBBQUHAwIwOwYDVR0fBDQwMjAwoC6gLIYqaHR0\n" +
+            "cDovL2NybC5lM20wMi5hbWF6b250cnVzdC5jb20vZTNtMDIuY3JsMBMGA1UdIAQM\n" +
+            "MAowCAYGZ4EMAQIBMHUGCCsGAQUFBwEBBGkwZzAtBggrBgEFBQcwAYYhaHR0cDov\n" +
+            "L29jc3AuZTNtMDIuYW1hem9udHJ1c3QuY29tMDYGCCsGAQUFBzAChipodHRwOi8v\n" +
+            "Y3J0LmUzbTAyLmFtYXpvbnRydXN0LmNvbS9lM20wMi5jZXIwDAYDVR0TAQH/BAIw\n" +
+            "ADCCAX8GCisGAQQB1nkCBAIEggFvBIIBawFpAHYAdv+IPwq2+5VRwmHM9Ye6NLSk\n" +
+            "zbsp3GhCCp/mZ0xaOnQAAAGIB72QJQAABAMARzBFAiA74zKrlL+y5rYwSLxBL8fs\n" +
+            "QYRYXF0s0sGoaSEeAg1DkgIhAPu8Z0TLIFoppmyiv+A5z6S+SG+v/kOsAYmQmiUO\n" +
+            "5scIAHcASLDja9qmRzQP5WoC+p0w6xxSActW3SyB2bu/qznYhHMAAAGIB72QJgAA\n" +
+            "BAMASDBGAiEAg+x7JBT3oIaZdnfgGN1G6SAiNUL7zR/tBhbWIG9tz94CIQDGwBiV\n" +
+            "Tslt11+W3ZaNsS7UtUIiB45YHUc4qKm5ry2fTAB2ANq2v2s/tbYin5vCu1xr6HCR\n" +
+            "cWy7UYSFNL2kPTBI1/urAAABiAe9kAgAAAQDAEcwRQIgPvKfSpMJKRocGk9+GNr3\n" +
+            "hUj8x8WySB//0X116TNgA0gCIQDhGRqxnEZmEFGEfj5GY9vjEfm0kKwcL0lCuwBu\n" +
+            "NZG4dzAKBggqhkjOPQQDAwNoADBlAjEA1PLdsrko3tDs50aAeEU9Gn+0CG8QKy7R\n" +
+            "fQaXBTjGETDgGJk/7zGNpGelKPr/UYV9AjASwdA32S8jIADxA8HrqiMsVYDFMnbU\n" +
+            "jLLwR6CTLtAcWtwVmoQ2x0usvTvN8YJBPoA=\n" +
             "-----END CERTIFICATE-----";
 
-    public void runTest(ValidatePathWithParams pathValidator, boolean ocspEnabled) throws Exception {
-        // EE certificates don't have CRLDP extension
-        if (!ocspEnabled){
-            pathValidator.validate(new String[]{INT},
-                    ValidatePathWithParams.Status.GOOD, null, System.out);
-
-            return;
-        }
+    public void runTest(ValidatePathWithParams pathValidator) throws Exception {
 
         // Validate valid
         pathValidator.validate(new String[]{VALID, INT},
@@ -547,6 +608,6 @@ class AmazonCA_4 {
         // Validate Revoked
         pathValidator.validate(new String[]{REVOKED, INT},
                 ValidatePathWithParams.Status.REVOKED,
-                "Mon Jan 28 15:41:53 PST 2019", System.out);
+                "Mon May 15 13:42:48 PDT 2023", System.out);
     }
 }

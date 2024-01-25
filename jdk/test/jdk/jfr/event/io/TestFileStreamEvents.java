@@ -43,7 +43,7 @@ import jdk.test.lib.jfr.Events;
  * @test TestFileStreamEvents
  * @key jfr
  *
- * @library /lib /
+ * @library /test/lib /
  * @run main/othervm jdk.jfr.event.io.TestFileStreamEvents
  */
 

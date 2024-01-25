@@ -35,7 +35,7 @@ import jdk.jfr.MetadataDefinition;
  * @test
  * @key jfr
  *
- * @library /lib /
+ * @library /test/lib /
  * @run main/othervm jdk.jfr.api.metadata.annotations.TestDynamicAnnotation
  */
 

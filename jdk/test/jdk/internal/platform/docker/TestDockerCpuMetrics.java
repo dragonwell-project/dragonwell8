@@ -33,7 +33,7 @@ import jdk.test.lib.containers.docker.DockerTestUtils;
 /*
  * @test
  * @summary Test JDK Metrics class when running inside docker container
- * @library /lib /
+ * @library /test/lib /
  * @build MetricsCpuTester
  * @run main/timeout=360 TestDockerCpuMetrics
  */

@@ -34,7 +34,7 @@ import jdk.test.lib.jfr.Events;
  * @summary Test SettingDescriptor.getName()
  * @key jfr
  *
- * @library /lib /
+ * @library /test/lib /
  * @run main/othervm jdk.jfr.api.metadata.settingdescriptor.TestDefaultValue
  */
 public class TestDefaultValue {
