@@ -38,7 +38,7 @@ import static sun.security.x509.AlgorithmId.*;
 /*
  * @test
  * @bug 8076190
- * @library /lib/testlibrary /lib
+ * @library /lib/testlibrary /test/lib
  * @modules java.base/sun.security.pkcs
  *          java.base/sun.security.x509
  *          java.base/sun.security.util

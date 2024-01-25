@@ -24,7 +24,7 @@
 # @key jfr
 #
 #
-# @library /lib /
+# @library /test/lib /
 # @build jdk.jfr.event.gc.configuration.TestGCHeapConfigurationEventWithHeapBasedOops
 # @run shell TestGCHeapConfigurationEventWithHeapBasedOops.sh
 

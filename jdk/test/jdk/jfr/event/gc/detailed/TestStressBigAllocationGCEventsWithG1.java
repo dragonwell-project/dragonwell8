@@ -34,7 +34,7 @@ package jdk.jfr.event.gc.detailed;
  * test will fail with OOME.
  *
  *
- * @library /lib /
+ * @library /test/lib /
  * @run main/othervm -XX:+UseG1GC -XX:MaxNewSize=5m -Xmx256m -XX:G1HeapRegionSize=1048576 jdk.jfr.event.gc.detailed.TestStressBigAllocationGCEventsWithG1 1048544
  */
 public class TestStressBigAllocationGCEventsWithG1 {

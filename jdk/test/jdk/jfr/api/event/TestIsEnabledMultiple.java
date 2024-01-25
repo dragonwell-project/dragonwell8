@@ -35,7 +35,7 @@ import jdk.test.lib.Asserts;
  * @summary Test Event.isEnabled() with multiple recordings
  * @key jfr
  *
- * @library /lib /
+ * @library /test/lib /
  * @run main/othervm jdk.jfr.api.event.TestIsEnabledMultiple
  */
 

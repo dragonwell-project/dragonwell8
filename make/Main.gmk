@@ -167,6 +167,9 @@ docs-zip-only: start-make
 	@($(CD) $(SRC_ROOT)/make && $(BUILD_LOG_WRAPPER) $(MAKE) $(MAKE_ARGS) -f Javadoc.gmk docs-zip)
 	@$(call TargetExit)
 
+update-build-docs:
+	+($(CD) $(SRC_ROOT)/make && $(MAKE) $(MAKE_ARGS) -f UpdateBuildDocs.gmk)
+
 sign-jars: jdk sign-jars-only
 sign-jars-only: start-make
 	@$(call TargetEnter)
@@ -258,7 +261,7 @@ reconfigure:
 	@( cd $(OUTPUT_ROOT) && $(BASH) $(TOPDIR)/configure $(CONFIGURE_COMMAND_LINE) )
 
 .PHONY: langtools corba jaxp jaxws hotspot jdk nashorn images overlay-images install test docs docs-zip
-.PHONY: langtools-only corba-only jaxp-only jaxws-only hotspot-only jdk-only nashorn-only images-only overlay-images-only install-only test-only docs-only docs-zip-only
+.PHONY: langtools-only corba-only jaxp-only jaxws-only hotspot-only jdk-only nashorn-only images-only overlay-images-only install-only test-only docs-only docs-zip-only update-build-docs
 .PHONY: default all clean dist-clean bootcycle-images start-make
 .PHONY: clean-langtools clean-corba clean-jaxp clean-jaxws clean-hotspot clean-jdk clean-nashorn clean-images clean-docs clean-docs-zip clean-test clean-overlay-images clean-bootcycle-build
 .PHONY: profiles profiles-only

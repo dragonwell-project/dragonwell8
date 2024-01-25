@@ -38,7 +38,7 @@ import sun.misc.Unsafe;
  * @test
  * @key jfr
  *
- * @library /lib /
+ * @library /test/lib /
  *
  * @run main/timeout=900 jdk.jfr.startupargs.TestMemoryOptions
  */

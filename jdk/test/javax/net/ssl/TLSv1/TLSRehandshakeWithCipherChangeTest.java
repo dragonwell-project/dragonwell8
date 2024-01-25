@@ -27,7 +27,7 @@
  * @summary Testing TLS engines re-handshaking with cipher change. New cipher
  *          is taken randomly from the supporetd ciphers list.
  * @key randomness
- * @library /sun/security/krb5/auto /lib /javax/net/ssl/TLSCommon
+ * @library /sun/security/krb5/auto /test/lib /javax/net/ssl/TLSCommon
  * @build jdk.test.lib.RandomFactory
  * @run main/othervm -Dtest.security.protocol=TLSv1 TLSRehandshakeWithCipherChangeTest
  */

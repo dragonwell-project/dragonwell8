@@ -41,7 +41,7 @@ import jdk.test.lib.jfr.SimpleEventHelper;
  * @summary Call setDestination() when recording in different states
  * @key jfr
  *
- * @library /lib /
+ * @library /test/lib /
  * @run main/othervm jdk.jfr.api.recording.destination.TestDestState
  */
 public class TestDestState {

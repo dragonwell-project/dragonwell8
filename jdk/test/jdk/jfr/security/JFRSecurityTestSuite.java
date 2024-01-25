@@ -68,7 +68,7 @@ import jdk.test.lib.Platform;
 /*
  * @test
  * @requires (jdk.version.major >= 8)
- * @library /lib /
+ * @library /test/lib /
  * @key jfr
  * @run main/othervm/timeout=30 -XX:+FlightRecorder -XX:StartFlightRecording JFRSecurityTestSuite
  * @author Martin Balao (mbalao@redhat.com)

@@ -55,7 +55,7 @@ import sun.hotspot.code.CodeBlob;
  * @test TestCodeSweeper
  * @key jfr
  *
- * @library /lib /
+ * @library /test/lib /
  * @build sun.hotspot.WhiteBox
  * @run driver ClassFileInstaller sun.hotspot.WhiteBox
  *                                sun.hotspot.WhiteBox$WhiteBoxPermission

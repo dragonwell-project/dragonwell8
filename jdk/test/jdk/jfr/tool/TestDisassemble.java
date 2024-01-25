@@ -42,7 +42,7 @@ import jdk.test.lib.process.OutputAnalyzer;
  * @test
  * @summary Test jfr split
  * @key jfr
- * @library /lib /
+ * @library /test/lib /
  * @run main/othervm jdk.jfr.tool.TestDisassemble
  */
 public class TestDisassemble {

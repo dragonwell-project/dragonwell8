@@ -38,7 +38,7 @@ import jdk.test.lib.process.ProcessTools;
  * @test
  * @key jfr
  *
- * @library /lib /
+ * @library /test/lib /
  * @run main/othervm jdk.jfr.startupargs.TestRetransformUsingLog
  */
 public class TestRetransformUsingLog {

@@ -35,7 +35,7 @@ import jdk.test.lib.Asserts;
  * @summary Test getField()
  * @key jfr
  *
- * @library /lib /
+ * @library /test/lib /
  * @run main/othervm jdk.jfr.api.metadata.eventtype.TestGetField
  */
 public class TestGetField {

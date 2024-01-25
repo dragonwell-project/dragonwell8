@@ -42,7 +42,7 @@ import jdk.test.lib.jfr.SimpleEvent;
  * @summary Simple test for RecordedFrame APIs
  * @key jfr
  *
- * @library /lib /
+ * @library /test/lib /
  * @run main/othervm -Xint  -XX:+UseInterpreter -Dinterpreted=true  jdk.jfr.api.consumer.TestRecordedFrame
  * @run main/othervm -Xcomp -XX:-UseInterpreter -Dinterpreted=false jdk.jfr.api.consumer.TestRecordedFrame
  */

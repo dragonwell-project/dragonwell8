@@ -433,9 +433,6 @@ private:
 
 protected:
 
-  // Idealize new Node 'n' with respect to its inputs and its value
-  virtual Node *transform( Node *a_node );
-
   // Warm up hash table, type table and initial worklist
   void init_worklist( Node *a_root );
 
@@ -448,6 +445,9 @@ public:
   PhaseIterGVN( PhaseIterGVN *igvn ); // Used by CCP constructor
   PhaseIterGVN( PhaseGVN *gvn ); // Used after Parser
   PhaseIterGVN( PhaseIterGVN *igvn, const char *dummy ); // Used after +VerifyOpto
+
+  // Idealize new Node 'n' with respect to its inputs and its value
+  virtual Node *transform( Node *a_node );
 
   virtual PhaseIterGVN *is_IterGVN() { return this; }
 

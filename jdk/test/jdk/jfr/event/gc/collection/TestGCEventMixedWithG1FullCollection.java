@@ -31,7 +31,7 @@ package jdk.jfr.event.gc.collection;
  *
  *
  *
- * @library /lib /
+ * @library /test/lib /
  * @run main/othervm -XX:+UnlockExperimentalVMOptions -XX:-UseFastUnorderedTimeStamps -Xmx32m -Xmn8m -XX:+UseG1GC -XX:-ExplicitGCInvokesConcurrent jdk.jfr.event.gc.collection.TestGCEventMixedWithG1FullCollection
  * good debug flags: -XX:+PrintGCDetails -XX:+PrintGC
  */

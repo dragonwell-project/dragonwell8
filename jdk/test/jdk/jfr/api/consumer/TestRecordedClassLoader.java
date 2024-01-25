@@ -41,7 +41,7 @@ import jdk.test.lib.jfr.TestClassLoader;
  * @summary Verifies the methods of the RecordedClassLoader
  * @key jfr
  *
- * @library /lib /
+ * @library /test/lib /
  * @run main/othervm jdk.jfr.api.consumer.TestRecordedClassLoader
  */
 public class TestRecordedClassLoader {

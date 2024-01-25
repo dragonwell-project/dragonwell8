@@ -38,7 +38,7 @@ import jdk.test.lib.jfr.GCHelper;
  * @key jfr
  *
   *
- * @library /lib /
+ * @library /test/lib /
  * @run main/othervm -XX:+UseParallelGC -XX:+UseParallelOldGC jdk.jfr.event.gc.collection.TestGCWithFasttime
  */
 public class TestGCWithFasttime {

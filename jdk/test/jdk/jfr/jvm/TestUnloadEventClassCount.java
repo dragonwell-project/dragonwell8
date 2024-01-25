@@ -38,7 +38,7 @@ import jdk.jfr.internal.JVM;
  * @summary Unit test for JVM#getUnloadedEventClassCount
  *
  *
- * @library /lib /
+ * @library /test/lib /
  *
  *
  * @run main/othervm -XX:+PrintGCDetails -XX:+PrintGC  -verbose:class -Xmx16m jdk.jfr.jvm.TestUnloadEventClassCount

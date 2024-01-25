@@ -29,6 +29,7 @@
 #include "jlong.h"
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <dlfcn.h>
 #include <errno.h>

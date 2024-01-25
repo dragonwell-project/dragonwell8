@@ -40,7 +40,7 @@ import jdk.test.lib.process.OutputAnalyzer;
  * @summary The test verifies that recording can be started with setting file(s)
  * @key jfr
  *
- * @library /lib /
+ * @library /test/lib /
  * @run main/othervm jdk.jfr.jcmd.TestJcmdStartWithSettings
  */
 public class TestJcmdStartWithSettings {

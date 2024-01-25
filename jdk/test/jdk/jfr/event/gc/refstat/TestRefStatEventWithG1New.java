@@ -31,7 +31,7 @@ import jdk.test.lib.jfr.GCHelper;
  * @key jfr
  *
  *
- * @library /lib /
+ * @library /test/lib /
  * @run main/othervm -XX:+UnlockExperimentalVMOptions -XX:-UseFastUnorderedTimeStamps -XX:+PrintGCDetails -XX:+PrintGC -Xmx50m -Xmn2m -XX:+UseG1GC jdk.jfr.event.gc.refstat.TestRefStatEventWithG1New
  */
 public class TestRefStatEventWithG1New {

@@ -39,7 +39,7 @@ import jdk.test.lib.jfr.VoidFunction;
  * @summary Test Recording state
  * @key jfr
  *
- * @library /lib /
+ * @library /test/lib /
  * @run main/othervm jdk.jfr.api.recording.state.TestStateDuration
  */
 public class TestStateDuration {

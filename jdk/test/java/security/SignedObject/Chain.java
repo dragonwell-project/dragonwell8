@@ -37,7 +37,7 @@ import static jdk.test.lib.SigTestUtil.SignatureType;
  * @test
  * @bug 8050374 8181048 8146293
  * @summary Verify a chain of signed objects
- * @library /lib
+ * @library /test/lib
  * @build jdk.test.lib.SigTestUtil
  * @run main Chain
  */

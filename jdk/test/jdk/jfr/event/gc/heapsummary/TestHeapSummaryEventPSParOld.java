@@ -31,7 +31,7 @@ import jdk.test.lib.jfr.GCHelper;
  * @key jfr
  *
  *
- * @library /lib /
+ * @library /test/lib /
  * @run main/othervm -XX:+UnlockExperimentalVMOptions -XX:-UseFastUnorderedTimeStamps -XX:+UseParallelGC jdk.jfr.event.gc.heapsummary.TestHeapSummaryEventPSParOld
  */
 public class TestHeapSummaryEventPSParOld {

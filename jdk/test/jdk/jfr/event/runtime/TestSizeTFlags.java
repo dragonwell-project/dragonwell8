@@ -41,7 +41,7 @@ import jdk.test.lib.jfr.Events;
  *
  * @key jfr
  * @summary Test checks that flags of type size_t are being sent to the jfr
- * @library /lib /
+ * @library /test/lib /
  * @run main/othervm -XX:+UnlockExperimentalVMOptions -XX:-UseFastUnorderedTimeStamps -XX:+UseG1GC -XX:+UseTLAB -XX:MinTLABSize=3k -XX:OldSize=30m -XX:YoungPLABSize=3k -XX:MaxDirectMemorySize=5M  jdk.jfr.event.runtime.TestSizeTFlags
  */
 public class TestSizeTFlags {

@@ -41,8 +41,8 @@ import jdk.test.lib.process.ProcessTools;
  * @test
  * @key jfr
  *
- * @library /lib /
- *
+ * @library /test/lib /
+ * @build TestNative
  * @run shell TestNative.sh
  */
 public class TestNative {

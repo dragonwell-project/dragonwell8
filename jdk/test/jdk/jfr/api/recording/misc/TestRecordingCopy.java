@@ -38,7 +38,7 @@ import java.util.List;
  * @summary A simple test for Recording.copy()
  * @key jfr
  *
- * @library /lib /
+ * @library /test/lib /
  * @run main/othervm jdk.jfr.api.recording.misc.TestRecordingCopy
  */
 public class TestRecordingCopy {

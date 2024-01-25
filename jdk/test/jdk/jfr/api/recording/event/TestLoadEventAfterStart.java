@@ -41,7 +41,7 @@ import jdk.test.lib.jfr.Events;
  * @summary Load event class after recording started.
  * @key jfr
  *
- * @library /lib /
+ * @library /test/lib /
  * @build jdk.test.lib.jfr.SimpleEvent
  * @run main/othervm jdk.jfr.api.recording.event.TestLoadEventAfterStart
  */

@@ -43,7 +43,7 @@ import jdk.test.lib.jfr.Events;
  * @test
  * @key jfr
  *
- * @library /lib /
+ * @library /test/lib /
  * @build jdk.jfr.event.runtime.TestClasses
  * @run main/othervm jdk.jfr.event.runtime.TestClassLoaderStatsEvent
  */

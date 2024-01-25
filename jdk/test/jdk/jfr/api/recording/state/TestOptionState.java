@@ -36,7 +36,7 @@ import jdk.test.lib.Asserts;
  * @key jfr
  * @summary Test options in different states
  *
- * @library /lib /
+ * @library /test/lib /
  * @run main/othervm jdk.jfr.api.recording.state.TestOptionState
  */
 public class TestOptionState {

@@ -25,7 +25,7 @@
  * @test
  * @bug 4853305 4865198 4888410 4963723 8146293
  * @summary Verify that the RSA KeyPairGenerator works
- * @library /lib
+ * @library /test/lib
  * @build jdk.test.lib.SigTestUtil
  * @run main TestKeyPairGenerator
  * @author Andreas Sterbenz

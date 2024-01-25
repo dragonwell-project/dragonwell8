@@ -281,10 +281,17 @@ $(eval $(call SetupLauncher,jar, \
 $(eval $(call SetupLauncher,jarsigner, \
     -DJAVA_ARGS='{ "-J-ms8m"$(COMMA) "sun.security.tools.jarsigner.Main"$(COMMA) }'))
 
+# On s390 zero, run javac with larger stack
+ifeq ($(OPENJDK_TARGET_CPU), s390x)
+JAVAC_ARGS := '{ "-J-ms8m"$(COMMA) "-J-Xss3m"$(COMMA) "com.sun.tools.javac.Main"$(COMMA) }'
+else
+JAVAC_ARGS := '{ "-J-ms8m"$(COMMA) "com.sun.tools.javac.Main"$(COMMA) }'
+endif
+
 $(eval $(call SetupLauncher,javac, \
     -DEXPAND_CLASSPATH_WILDCARDS \
     -DNEVER_ACT_AS_SERVER_CLASS_MACHINE \
-    -DJAVA_ARGS='{ "-J-ms8m"$(COMMA) "com.sun.tools.javac.Main"$(COMMA) }'))
+    -DJAVA_ARGS=$(JAVAC_ARGS)))
 
 ifeq ($(ENABLE_SJAVAC), yes)
   $(eval $(call SetupLauncher,sjavac, \

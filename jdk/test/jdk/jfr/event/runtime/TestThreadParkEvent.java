@@ -48,7 +48,7 @@ import jdk.test.lib.thread.TestThread;
  * @test
  * @key jfr
  *
- * @library /lib /
+ * @library /test/lib /
  *
  * @run main/othervm jdk.jfr.event.runtime.TestThreadParkEvent
  */

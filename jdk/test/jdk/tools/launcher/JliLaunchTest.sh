@@ -2,7 +2,7 @@
 
 # @test JliLaunchTest.sh
 # @bug 8238225
-# @library /lib
+# @library /test/lib
 # @build JliLaunchTest
 # @run shell JliLaunchTest.sh
 

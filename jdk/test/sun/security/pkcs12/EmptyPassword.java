@@ -26,7 +26,7 @@
  * @bug 8202299
  * @modules java.base/sun.security.tools.keytool
  *          java.base/sun.security.x509
- * @library /lib /
+ * @library /test/lib /
  * @summary Java Keystore fails to load PKCS12/PFX certificates created in WindowsServer2016
  */
 

@@ -37,7 +37,7 @@ import jdk.test.lib.Asserts;
  * @test
  * @key jfr
  *
- * @library /lib /
+ * @library /test/lib /
  * @run main/othervm jdk.jfr.jmx.TestRecordingSettings
  */
 public class TestRecordingSettings {
