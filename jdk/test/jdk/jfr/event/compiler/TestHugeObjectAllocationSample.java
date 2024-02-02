@@ -36,7 +36,7 @@ import jdk.test.lib.jfr.Events;
  * @summary Test that when a huge object is allocated an event will be triggered.
  * @key jfr
  *
- * @library /lib /
+ * @library /lib /test/lib
  * @run main/othervm -XX:+UseTLAB -XX:-FastTLABRefill -XX:TLABSize=90k -XX:-ResizeTLAB -XX:TLABRefillWasteFraction=256 -XX:HugeObjectAllocationThreshold=64m jdk.jfr.event.compiler.TestHugeObjectAllocationSample
  * @run main/othervm -XX:+UseTLAB -XX:-FastTLABRefill -XX:TLABSize=90k -XX:-ResizeTLAB -XX:TLABRefillWasteFraction=256 -Xint -XX:HugeObjectAllocationThreshold=64m jdk.jfr.event.compiler.TestHugeObjectAllocationSample
  */
