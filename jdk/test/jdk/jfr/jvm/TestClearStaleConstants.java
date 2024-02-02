@@ -42,7 +42,7 @@ import jdk.test.lib.jfr.TestClassLoader;
  * @test
  * @bug 8231081
  * @key jfr
- * @library /lib /
+ * @library /lib /test/lib
  * @run main/othervm -Xmx16m jdk.jfr.jvm.TestClearStaleConstants
  */
 
