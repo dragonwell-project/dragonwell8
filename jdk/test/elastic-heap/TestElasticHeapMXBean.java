@@ -32,7 +32,7 @@ import static jdk.test.lib.Asserts.*;
 
 /* @test
  * @summary test elastic-heap MX bean
- * @library /lib /test/lib
+ * @library /lib /
  * @compile TestElasticHeapMXBean.java
  * @run main/othervm/timeout=100 TestElasticHeapMXBean
  */

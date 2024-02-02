@@ -32,7 +32,7 @@ import static jdk.test.lib.Asserts.*;
 
 /* @test
  * @summary test elastic-heap error with multiple threads setting
- * @library /lib /test/lib
+ * @library /lib /
  * @compile TestElasticHeapMTSetError.java
  * @run main/othervm/timeout=100 TestElasticHeapMTSetError
  */
