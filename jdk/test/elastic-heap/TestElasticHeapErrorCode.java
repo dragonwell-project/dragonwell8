@@ -32,7 +32,7 @@ import static jdk.test.lib.Asserts.*;
 
 /* @test
  * @summary test elastic-heap error code
- * @library /lib /
+ * @library /lib /test/lib
  * @compile TestElasticHeapErrorCode.java
  * @run main/othervm/timeout=100 TestElasticHeapErrorCode
  */
