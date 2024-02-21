@@ -39,7 +39,7 @@ public:
   ResolutionErrorTable(int table_size);
 
   ResolutionErrorEntry* new_entry(int hash, ConstantPool* pool, int cp_index,
-                                  Symbol* error, Symbol* message);
+                                  Symbol* error, const char* message);
   void free_entry(ResolutionErrorEntry *entry);
 
   ResolutionErrorEntry* bucket(int i) {
@@ -56,7 +56,7 @@ public:
   }
 
   void add_entry(int index, unsigned int hash,
-                 constantPoolHandle pool, int which, Symbol* error, Symbol* message);
+                 constantPoolHandle pool, int cp_index, Symbol* error, const char* error_msg);
 
 
   // find error given the constant pool and constant pool index
@@ -80,7 +80,7 @@ class ResolutionErrorEntry : public HashtableEntry<ConstantPool*, mtClass> {
  private:
   int               _cp_index;
   Symbol*           _error;
-  Symbol*           _message;
+  const char*       _message;
 
  public:
   ConstantPool*      pool() const               { return literal(); }
@@ -91,8 +91,9 @@ class ResolutionErrorEntry : public HashtableEntry<ConstantPool*, mtClass> {
   Symbol*            error() const              { return _error; }
   void               set_error(Symbol* e);
 
-  Symbol*            message() const            { return _message; }
-  void               set_message(Symbol* c);
+  const char*        message() const            { return _message; }
+  // The incoming message is copied to the C-Heap.
+  void               set_message(const char* c);
 
   ResolutionErrorEntry* next() const {
     return (ResolutionErrorEntry*)HashtableEntry<ConstantPool*, mtClass>::next();
