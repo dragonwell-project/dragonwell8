@@ -37,6 +37,7 @@
 #include "runtime/interfaceSupport.hpp"
 #include "runtime/javaCalls.hpp"
 #include "runtime/jniHandles.hpp"
+#include "runtime/mutexLocker.hpp"
 #include "runtime/os.hpp"
 #include "runtime/serviceThread.hpp"
 #include "runtime/thread.inline.hpp"
@@ -428,8 +429,6 @@ static MemoryPool* get_memory_pool_from_jobject(jobject obj, TRAPS) {
   return MemoryService::get_memory_pool(ph);
 }
 
-#endif // INCLUDE_MANAGEMENT
-
 static void validate_thread_id_array(typeArrayHandle ids_ah, TRAPS) {
   int num_threads = ids_ah->length();
 
@@ -444,8 +443,6 @@ static void validate_thread_id_array(typeArrayHandle ids_ah, TRAPS) {
     }
   }
 }
-
-#if INCLUDE_MANAGEMENT
 
 static void validate_thread_info_array(objArrayHandle infoArray_h, TRAPS) {
   // check if the element of infoArray is of type ThreadInfo class
@@ -2230,7 +2227,39 @@ jlong Management::ticks_to_ms(jlong ticks) {
   return (jlong)(((double)ticks / (double)os::elapsed_frequency())
                  * (double)1000.0);
 }
-#endif // INCLUDE_MANAGEMENT
+
+// Gets the amount of memory allocated on the Java heap since JVM launch.
+JVM_ENTRY(jlong, jmm_GetTotalThreadAllocatedMemory(JNIEnv *env))
+    // We keep a high water mark to ensure monotonicity
+    static jlong high_water_result = 0;
+    static jlong prev_result = 0;
+
+    jlong result;
+    if (Threads_lock->try_lock()) {
+      result = ThreadService::exited_allocated_bytes();
+      for (JavaThread* tp = Threads::first(); tp != NULL; tp = tp->next()) {
+        jlong size = thread->cooked_allocated_bytes();
+        result += size;
+      }
+      Threads_lock->unlock();
+    } else {
+      // Return the previous result if Threads_lock is locked
+      result = prev_result;
+    }
+
+    {
+      MutexLockerEx ml(MonitoringSupport_lock, Mutex::_no_safepoint_check_flag);
+      if (result < high_water_result) {
+        // Result wrapped to a negative value, in which case it's
+        // pegged at the last positive value.
+        result = high_water_result;
+      } else {
+        high_water_result = result;
+      }
+      prev_result = result;
+    }
+    return result;
+JVM_END
 
 // Gets the amount of memory allocated on the Java heap for a single thread.
 // Returns -1 if the thread does not exist or has terminated.
@@ -2368,11 +2397,8 @@ JVM_ENTRY(void, jmm_GetThreadCpuTimesWithKind(JNIEnv *env, jlongArray ids,
   }
 JVM_END
 
-
-
-#if INCLUDE_MANAGEMENT
 const struct jmmInterface_1_ jmm_interface = {
-  NULL,
+  jmm_GetTotalThreadAllocatedMemory,
   jmm_GetOneThreadAllocatedMemory,
   jmm_GetVersion,
   jmm_GetOptionalSupport,
