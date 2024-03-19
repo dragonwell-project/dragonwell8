@@ -114,13 +114,13 @@ public class HttpClient extends NetworkClient {
                                          recomputing the value of keepingAlive */
     int keepAliveConnections = -1;    /* number of keep-alives left */
 
-    /**Idle timeout value, in milliseconds. Zero means infinity,
-     * iff keepingAlive=true.
-     * Unfortunately, we can't always believe this one.  If I'm connected
-     * through a Netscape proxy to a server that sent me a keep-alive
-     * time of 15 sec, the proxy unilaterally terminates my connection
-     * after 5 sec.  So we have to hard code our effective timeout to
-     * 4 sec for the case where we're using a proxy. *SIGH*
+    /*
+     * The timeout if specified by the server. Following values possible
+     *  0: the server specified no keep alive headers
+     * -1: the server provided "Connection: keep-alive" but did not specify a
+     *     a particular time in a "Keep-Alive:" headers
+     * Positive values are the number of seconds specified by the server
+     * in a "Keep-Alive" header
      */
     int keepAliveTimeout = 0;
 
@@ -816,7 +816,7 @@ public class HttpClient extends NetworkClient {
                             responses.findValue("Keep-Alive"));
                         /* default should be larger in case of proxy */
                         keepAliveConnections = p.findInt("max", usingProxy?50:5);
-                        keepAliveTimeout = p.findInt("timeout", usingProxy?60:5);
+                        keepAliveTimeout = p.findInt("timeout", -1);
                     }
                 } else if (b[7] != '0') {
                     /*
@@ -1068,6 +1068,10 @@ public class HttpClient extends NetworkClient {
         } else {
             return ((InetSocketAddress)proxy.address()).getHostString();
         }
+    }
+
+    public boolean getUsingProxy() {
+        return usingProxy;
     }
 
     /**
