@@ -3023,6 +3023,8 @@ static void define_fill_new_machnode(bool used, FILE *fp_cpp) {
     fprintf(fp_cpp, "    if( i != cisc_operand() ) \n");
     fprintf(fp_cpp, "      to[i] = _opnds[i]->clone(C);\n");
     fprintf(fp_cpp, "  }\n");
+    fprintf(fp_cpp, "  // Do not increment node index counter, since node reuses my index\n");
+    fprintf(fp_cpp, "  C->set_unique(C->unique() - 1);\n");
     fprintf(fp_cpp, "}\n");
   }
   fprintf(fp_cpp, "\n");
