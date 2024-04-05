@@ -2248,6 +2248,7 @@ JVM_ENTRY(jlong, jmm_GetTotalThreadAllocatedMemory(JNIEnv *env))
     }
 
     {
+      assert(MonitoringSupport_lock != NULL, "Must be");
       MutexLockerEx ml(MonitoringSupport_lock, Mutex::_no_safepoint_check_flag);
       if (result < high_water_result) {
         // Result wrapped to a negative value, in which case it's

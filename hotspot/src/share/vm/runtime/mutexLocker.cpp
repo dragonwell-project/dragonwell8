@@ -209,9 +209,9 @@ void mutex_init() {
 
     def(StringDedupQueue_lock      , Monitor, leaf,        true );
     def(StringDedupTable_lock      , Mutex  , leaf,        true );
-
-    def(MonitoringSupport_lock     , Mutex  , leaf,        true );      // used for serviceability monitoring support
   }
+  def(MonitoringSupport_lock       , Mutex  , leaf,        true );      // used for serviceability monitoring support
+
   def(ParGCRareEvent_lock          , Mutex  , leaf     ,   true );
   def(DerivedPointerTableGC_lock   , Mutex,   leaf,        true );
   def(CodeCache_lock               , Mutex  , special,     true );
