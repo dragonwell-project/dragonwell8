@@ -25,7 +25,7 @@
  * @test
  * @bug 7152176 8168518
  * @summary More krb5 tests
- * @library ../../../../java/security/testlibrary/
+ * @library ../../../../java/security/testlibrary/ /test/lib
  * @compile -XDignore.symbol.file ReplayCacheTestProc.java
  * @run main/othervm/timeout=300 -Dsun.net.spi.nameservice.provider.1=ns,mock ReplayCacheTestProc
  */
