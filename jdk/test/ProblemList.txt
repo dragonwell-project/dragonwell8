@@ -320,8 +320,6 @@ com/sun/crypto/provider/CICO/PBEFunc/CICOPBEFuncTest.java       solaris-sparcv9
 # 8206912
 sun/security/krb5/auto/ReplayCacheTestProc.java                 solaris-sparcv9
 
-security/infra/java/security/cert/CertPathValidator/certification/ActalisCA.java  8224768 generic-all
-
 sun/security/mscapi/SignedObjectChain.java                      8176183 windows-all
 
 javax/security/auth/callback/PasswordCallback/CheckCleanerBound.java 8285785,8286045,8287596 generic-all
@@ -431,6 +429,56 @@ com/alibaba/wisp2/CarrierAsPollerTest.java https://github.com/dragonwell-project
 com/alibaba/wisp2/Wisp2TimerRemoveTest.java https://github.com/dragonwell-project/dragonwell8/issues/360 generic-all
 com/alibaba/wisp/thread/PreemptTest.java https://github.com/dragonwell-project/dragonwell8/issues/388 generic-all
 com/alibaba/wisp2/yield/YieldFewNanosTest.java https://github.com/dragonwell-project/dragonwell8/issues/378 generic-all
+
+# certificate problem, the upstream is also wrong
+
+############################################################################
+
+security/infra/java/security/cert/CertPathValidator/certification/CAInterop.java#certignarootca generic-all
+security/infra/java/security/cert/CertPathValidator/certification/CAInterop.java#globalsigneccrootcar4 generic-all
+security/infra/java/security/cert/CertPathValidator/certification/CAInterop.java#gtsrootcar1 generic-all
+security/infra/java/security/cert/CertPathValidator/certification/CAInterop.java#gtsrootcar2 generic-all
+security/infra/java/security/cert/CertPathValidator/certification/CAInterop.java#gtsrootecccar3 generic-all
+security/infra/java/security/cert/CertPathValidator/certification/CAInterop.java#gtsrootecccar4 generic-all
+security/infra/java/security/cert/CertPathValidator/certification/CAInterop.java#actalisauthenticationrootca generic-all
+security/infra/java/security/cert/CertPathValidator/certification/CAInterop.java#amazonrootca1 generic-all
+security/infra/java/security/cert/CertPathValidator/certification/CAInterop.java#amazonrootca2 generic-all
+security/infra/java/security/cert/CertPathValidator/certification/CAInterop.java#amazonrootca3 generic-all
+security/infra/java/security/cert/CertPathValidator/certification/CAInterop.java#amazonrootca4 generic-all
+security/infra/java/security/cert/CertPathValidator/certification/CAInterop.java#buypassclass2ca generic-all
+security/infra/java/security/cert/CertPathValidator/certification/CAInterop.java#buypassclass3ca generic-all
+security/infra/java/security/cert/CertPathValidator/certification/CAInterop.java#certainlyroote1 generic-all
+security/infra/java/security/cert/CertPathValidator/certification/CAInterop.java#certainlyrootr1 generic-all
+security/infra/java/security/cert/CertPathValidator/certification/CAInterop.java#comodoeccca generic-all
+security/infra/java/security/cert/CertPathValidator/certification/CAInterop.java#comodorsaca generic-all
+security/infra/java/security/cert/CertPathValidator/certification/CAInterop.java#digicerttlseccrootg5 generic-all
+security/infra/java/security/cert/CertPathValidator/certification/CAInterop.java#digicerttlsrsarootg5 generic-all
+security/infra/java/security/cert/CertPathValidator/certification/CAInterop.java#emsigneccrootcag3 generic-all
+security/infra/java/security/cert/CertPathValidator/certification/CAInterop.java#emsignrootcag1 generic-all
+security/infra/java/security/cert/CertPathValidator/certification/CAInterop.java#entrustrootcaec1 generic-all
+security/infra/java/security/cert/CertPathValidator/certification/CAInterop.java#entrustrootcag4 generic-all
+security/infra/java/security/cert/CertPathValidator/certification/CAInterop.java#godaddyrootg2ca generic-all
+security/infra/java/security/cert/CertPathValidator/certification/CAInterop.java#letsencryptisrgx1 generic-all
+security/infra/java/security/cert/CertPathValidator/certification/CAInterop.java#letsencryptisrgx2 generic-all
+security/infra/java/security/cert/CertPathValidator/certification/CAInterop.java#microsoftecc2017 generic-all
+security/infra/java/security/cert/CertPathValidator/certification/CAInterop.java#microsoftrsa2017 generic-all
+security/infra/java/security/cert/CertPathValidator/certification/CAInterop.java#quovadisrootca1g3 generic-all
+security/infra/java/security/cert/CertPathValidator/certification/CAInterop.java#quovadisrootca2g3 generic-all
+security/infra/java/security/cert/CertPathValidator/certification/CAInterop.java#quovadisrootca3g3 generic-all
+security/infra/java/security/cert/CertPathValidator/certification/CAInterop.java#sslrooteccca generic-all
+security/infra/java/security/cert/CertPathValidator/certification/CAInterop.java#sslrootevrsaca generic-all
+security/infra/java/security/cert/CertPathValidator/certification/CAInterop.java#sslrootrsaca generic-all
+security/infra/java/security/cert/CertPathValidator/certification/CAInterop.java#starfieldrootg2ca generic-all
+security/infra/java/security/cert/CertPathValidator/certification/CAInterop.java#teliarootcav2 generic-all
+security/infra/java/security/cert/CertPathValidator/certification/CAInterop.java#teliasonerarootcav1 generic-all
+security/infra/java/security/cert/CertPathValidator/certification/CAInterop.java#twcaglobalrootca generic-all
+security/infra/java/security/cert/CertPathValidator/certification/CAInterop.java#usertrusteccca generic-all
+security/infra/java/security/cert/CertPathValidator/certification/CAInterop.java#usertrustrsaca generic-all
+security/infra/java/security/cert/CertPathValidator/certification/CAInterop.java#globalsignrootcar6 generic-all
+security/infra/java/security/cert/CertPathValidator/certification/DigicertCSRootG5.java generic-all
+security/infra/java/security/cert/CertPathValidator/certification/EmSignRootG2CA.java generic-all
+security/infra/java/security/cert/CertPathValidator/certification/LuxTrustCA.java generic-all
+sun/security/lib/cacerts/VerifyCACerts.java generic-all
 
 # resource limit
 

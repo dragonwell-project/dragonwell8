@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,7 +26,7 @@
  * @key gc
  * @bug 8179084
  * @summary Test argument processing for -XX:+AggressiveHeap.
- * @library /testlibrary
+ * @library /testlibrary /test/lib
  * @run driver TestAggressiveHeap
  */
 
@@ -36,6 +36,7 @@ import javax.management.ObjectName;
 
 import com.oracle.java.testlibrary.OutputAnalyzer;
 import com.oracle.java.testlibrary.ProcessTools;
+import jtreg.SkippedException;
 
 public class TestAggressiveHeap {
 
@@ -86,9 +87,7 @@ public class TestAggressiveHeap {
 
     private static boolean canUseAggressiveHeapOption() throws Exception {
         if (!haveRequiredMemory()) {
-            System.out.println(
-                "Skipping test of " + option + " : insufficient memory");
-            return false;
+            throw new SkippedException("Skipping test of " + option + " : insufficient memory");
         }
         return true;
     }

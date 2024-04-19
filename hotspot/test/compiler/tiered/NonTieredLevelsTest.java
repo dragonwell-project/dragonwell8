@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,10 +22,11 @@
  */
 
 import java.util.function.IntPredicate;
+import jtreg.SkippedException;
 
 /**
  * @test NonTieredLevelsTest
- * @library /testlibrary /testlibrary/whitebox /compiler/whitebox
+ * @library /testlibrary /testlibrary/whitebox /compiler/whitebox /test/lib
  * @build NonTieredLevelsTest
  * @run main ClassFileInstaller sun.hotspot.WhiteBox
  * @run main/othervm -Xbootclasspath/a:. -XX:-TieredCompilation
@@ -54,7 +55,7 @@ public class NonTieredLevelsTest extends CompLevelsTest {
     }
     public static void main(String[] args) throws Exception {
         if (CompilerWhiteBoxTest.skipOnTieredCompilation(true)) {
-            return;
+            throw new SkippedException("Test isn't applicable for tiered mode");
         }
         CompilerWhiteBoxTest.main(NonTieredLevelsTest::new, args);
     }

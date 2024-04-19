@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,6 +27,8 @@
  * @key regression
  * @summary NPG: UseCompressedClassPointers asserts with ObjectAlignmentInBytes=32
  * @library /testlibrary
+ * @requires vm.bits == 64
+ * @run main CompressedKlassPointerAndOops
  */
 
 import com.oracle.java.testlibrary.*;
@@ -34,13 +36,6 @@ import com.oracle.java.testlibrary.*;
 public class CompressedKlassPointerAndOops {
 
     public static void main(String[] args) throws Exception {
-
-        if (!Platform.is64bit()) {
-            // Can't test this on 32 bit, just pass
-            System.out.println("Skipping test on 32bit");
-            return;
-        }
-
         runWithAlignment(16);
         runWithAlignment(32);
         runWithAlignment(64);

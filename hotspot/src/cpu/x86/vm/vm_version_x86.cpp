@@ -390,15 +390,6 @@ class VM_Version_StubGenerator: public StubCodeGenerator {
   };
 };
 
-
-void VM_Version::get_cpu_info_wrapper() {
-  get_cpu_info_stub(&_cpuid_info);
-}
-
-#ifndef CALL_TEST_FUNC_WITH_WRAPPER_IF_NEEDED
-  #define CALL_TEST_FUNC_WITH_WRAPPER_IF_NEEDED(f) f()
-#endif
-
 void VM_Version::get_processor_features() {
 
   _cpu = 4; // 486 by default
@@ -412,9 +403,7 @@ void VM_Version::get_processor_features() {
   if (!Use486InstrsOnly) {
     // Get raw processor info
 
-    // Some platforms (like Win*) need a wrapper around here
-    // in order to properly handle SEGV for YMM registers test.
-    CALL_TEST_FUNC_WITH_WRAPPER_IF_NEEDED(get_cpu_info_wrapper);
+    get_cpu_info_stub(&_cpuid_info);
 
     assert_is_initialized();
     _cpu = extended_cpu_family();

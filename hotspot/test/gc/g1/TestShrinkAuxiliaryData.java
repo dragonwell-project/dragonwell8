@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,6 +26,8 @@ import com.oracle.java.testlibrary.OutputAnalyzer;
 import com.oracle.java.testlibrary.Platform;
 import com.oracle.java.testlibrary.ProcessTools;
 import com.oracle.java.testlibrary.Utils;
+import jtreg.SkippedException;
+
 import java.io.IOException;
 import java.lang.management.ManagementFactory;
 import java.lang.management.MemoryUsage;
@@ -67,10 +69,9 @@ public class TestShrinkAuxiliaryData {
 
         int maxCacheSize = Math.max(0, Math.min(31, getMaxCacheSize()));
         if (maxCacheSize < hotCardTableSize) {
-            System.out.format("Skiping test for %d cache size due max cache size %d",
-                    hotCardTableSize, maxCacheSize
-            );
-            return;
+            throw new SkippedException(String.format(
+                    "Skiping test for %d cache size due max cache size %d",
+                    hotCardTableSize, maxCacheSize));
         }
 
         printTestInfo(maxCacheSize);

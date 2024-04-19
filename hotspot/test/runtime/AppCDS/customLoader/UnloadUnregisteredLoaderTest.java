@@ -35,6 +35,7 @@
  * @compile test-classes/UnloadUnregisteredLoader.java test-classes/CustomLoadee.java
  * @run main ClassFileInstaller sun.hotspot.WhiteBox
  * @run main ClassFileInstaller ClassUnloadCommon
+ * @run main ClassFileInstaller ClassUnloadCommon$1
  * @run main ClassFileInstaller ClassUnloadCommon$TestFailure
  * @run main UnloadUnregisteredLoaderTest
  */
@@ -46,7 +47,7 @@ public class UnloadUnregisteredLoaderTest {
     public static void main(String[] args) throws Exception {
         String appJar1 = JarBuilder.build("UnloadUnregisteredLoader_app1", "UnloadUnregisteredLoader");
         String appJar2 = JarBuilder.build(true, "UnloadUnregisteredLoader_app2",
-                                          "ClassUnloadCommon", "ClassUnloadCommon$TestFailure");
+                                          "ClassUnloadCommon", "ClassUnloadCommon$1", "ClassUnloadCommon$TestFailure");
         String customJarPath = JarBuilder.build("UnloadUnregisteredLoader_custom", "CustomLoadee");
         String wbJar = JarBuilder.build(true, "WhiteBox", "sun/hotspot/WhiteBox");
         String use_whitebox_jar = "-Xbootclasspath/a:" + wbJar;
