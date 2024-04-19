@@ -33,7 +33,7 @@
 // add new entry to the table
 void ResolutionErrorTable::add_entry(int index, unsigned int hash,
                                      constantPoolHandle pool, int cp_index,
-                                     Symbol* error, Symbol* message)
+                                     Symbol* error, const char* message)
 {
   assert_locked_or_safepoint(SystemDictionary_lock);
   assert(!pool.is_null() && error != NULL, "adding NULL obj");
@@ -64,16 +64,14 @@ void ResolutionErrorEntry::set_error(Symbol* e) {
   _error->increment_refcount();
 }
 
-void ResolutionErrorEntry::set_message(Symbol* c) {
-  assert(c != NULL, "must set a value");
-  _message = c;
-  _message->increment_refcount();
+void ResolutionErrorEntry::set_message(const char* c) {
+  _message = c != NULL ? os::strdup(c) : NULL;
 }
 
 // create new error entry
 ResolutionErrorEntry* ResolutionErrorTable::new_entry(int hash, ConstantPool* pool,
                                                       int cp_index, Symbol* error,
-                                                      Symbol* message)
+                                                      const char* message)
 {
   ResolutionErrorEntry* entry = (ResolutionErrorEntry*)Hashtable<ConstantPool*, mtClass>::new_entry(hash, pool);
   entry->set_cp_index(cp_index);
@@ -87,7 +85,9 @@ void ResolutionErrorTable::free_entry(ResolutionErrorEntry *entry) {
   // decrement error refcount
   assert(entry->error() != NULL, "error should be set");
   entry->error()->decrement_refcount();
-  entry->message()->decrement_refcount();
+  if (entry->message() != NULL) {
+    FREE_C_HEAP_ARRAY(char, entry->message(), mtInternal);
+  }
   Hashtable<ConstantPool*, mtClass>::free_entry(entry);
 }
 

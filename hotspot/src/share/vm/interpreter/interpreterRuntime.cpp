@@ -451,11 +451,11 @@ IRT_ENTRY(address, InterpreterRuntime::exception_handler_for_exception(JavaThrea
     // tracing
     if (TraceExceptions) {
       ResourceMark rm(thread);
-      Symbol* message = java_lang_Throwable::detail_message(h_exception());
+      const char* detail_message = java_lang_Throwable::message_as_utf8(h_exception());
       ttyLocker ttyl;  // Lock after getting the detail message
-      if (message != NULL) {
+      if (detail_message != NULL) {
         tty->print_cr("Exception <%s: %s> (" INTPTR_FORMAT ")",
-                      h_exception->print_value_string(), message->as_C_string(),
+                      h_exception->print_value_string(), detail_message,
                       (address)h_exception());
       } else {
         tty->print_cr("Exception <%s> (" INTPTR_FORMAT ")",

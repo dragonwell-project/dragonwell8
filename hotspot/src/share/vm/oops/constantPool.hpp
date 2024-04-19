@@ -830,7 +830,7 @@ class ConstantPool : public Metadata {
 
   // Exception handling
   static void throw_resolution_error(constantPoolHandle this_oop, int which, TRAPS);
-  static Symbol* exception_message(constantPoolHandle this_oop, int which, constantTag tag, oop pending_exception);
+  static const char* exception_message(constantPoolHandle this_oop, int which, constantTag tag, oop pending_exception);
   static void save_and_throw_exception(constantPoolHandle this_oop, int which, constantTag tag, TRAPS);
 
  public:

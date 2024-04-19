@@ -21,6 +21,8 @@
  * questions.
  */
 
+import jtreg.SkippedException;
+
 import java.lang.reflect.Executable;
 import java.lang.reflect.Method;
 import java.util.Objects;
@@ -28,7 +30,7 @@ import java.util.concurrent.Callable;
 
 /**
  * @test LevelTransitionTest
- * @library /testlibrary /testlibrary/whitebox /compiler/whitebox
+ * @library /testlibrary /testlibrary/whitebox /compiler/whitebox /test/lib
  * @build TransitionsTestExecutor LevelTransitionTest
  * @run main ClassFileInstaller sun.hotspot.WhiteBox sun.hotspot.WhiteBox$WhiteBoxPermission
  * @run main/othervm/timeout=240 -Xmixed -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions
@@ -44,7 +46,9 @@ public class LevelTransitionTest extends TieredLevelsTest {
     private int transitionCount;
 
     public static void main(String[] args) throws Throwable {
-        assert (!CompilerWhiteBoxTest.skipOnTieredCompilation(false));
+        if (CompilerWhiteBoxTest.skipOnTieredCompilation(false)) {
+            throw new SkippedException("Test isn't applicable for non-tiered mode");
+        }
 
         CompilerWhiteBoxTest.main(LevelTransitionTest::new, args);
         // run extended test cases

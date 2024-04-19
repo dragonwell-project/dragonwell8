@@ -25,6 +25,7 @@
  * @test CompressedClassSpaceSizeInJmapHeap
  * @bug 8004924
  * @summary Checks that jmap -heap contains the flag CompressedClassSpaceSize
+ * @requires vm.bits == 64
  * @library /testlibrary
  * @run main/othervm -XX:CompressedClassSpaceSize=50m CompressedClassSpaceSizeInJmapHeap
  */

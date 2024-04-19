@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,11 +23,12 @@
 
 /*
  * @test TestOnError
+ * @bug 8078470
  * @summary Test using -XX:OnError=<cmd>
  * @library /testlibrary
+ * @requires vm.debug
  * @build TestOnError com.oracle.java.testlibrary.*
  * @run main TestOnError
- * @bug 8078470
  */
 
 import com.oracle.java.testlibrary.*;
@@ -35,11 +36,6 @@ import com.oracle.java.testlibrary.*;
 public class TestOnError {
 
     public static void main(String[] args) throws Exception {
-        if (!Platform.isDebugBuild()) {
-            System.out.println("Test requires a non-product build - skipping");
-            return;
-        }
-
         String msg = "Test Succeeded";
 
         // Execute the VM so that a

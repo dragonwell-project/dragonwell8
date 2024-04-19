@@ -97,6 +97,9 @@
 
 static jint CurrentVersion = JNI_VERSION_1_8;
 
+#ifdef _WIN32
+extern LONG WINAPI topLevelExceptionFilter(_EXCEPTION_POINTERS* );
+#endif
 
 // The DT_RETURN_MARK macros create a scoped object to fire the dtrace
 // '-return' probe regardless of the return path is taken out of the function.
@@ -5186,12 +5189,11 @@ DT_RETURN_MARK_DECL(CreateJavaVM, jint
                     , HOTSPOT_JNI_CREATEJAVAVM_RETURN(_ret_ref));
 #endif /* USDT2 */
 
-_JNI_IMPORT_OR_EXPORT_ jint JNICALL JNI_CreateJavaVM(JavaVM **vm, void **penv, void *args) {
+static jint JNI_CreateJavaVM_inner(JavaVM **vm, void **penv, void *args) {
 #ifndef USDT2
   HS_DTRACE_PROBE3(hotspot_jni, CreateJavaVM__entry, vm, penv, args);
 #else /* USDT2 */
-  HOTSPOT_JNI_CREATEJAVAVM_ENTRY(
-                                 (void **) vm, penv, args);
+  HOTSPOT_JNI_CREATEJAVAVM_ENTRY((void **) vm, penv, args);
 #endif /* USDT2 */
 
   jint result = JNI_ERR;
@@ -5263,18 +5265,14 @@ _JNI_IMPORT_OR_EXPORT_ jint JNICALL JNI_CreateJavaVM(JavaVM **vm, void **penv, v
     post_thread_start_event(thread);
 
 #ifndef PRODUCT
-  #ifndef CALL_TEST_FUNC_WITH_WRAPPER_IF_NEEDED
-    #define CALL_TEST_FUNC_WITH_WRAPPER_IF_NEEDED(f) f()
-  #endif
-
     // Check if we should compile all classes on bootclasspath
     if (CompileTheWorld) ClassLoader::compile_the_world();
     if (ReplayCompiles) ciReplay::replay(thread);
 
     // Some platforms (like Win*) need a wrapper around these test
     // functions in order to properly handle error conditions.
-    CALL_TEST_FUNC_WITH_WRAPPER_IF_NEEDED(test_error_handler);
-    CALL_TEST_FUNC_WITH_WRAPPER_IF_NEEDED(execute_internal_vm_tests);
+    test_error_handler();
+    execute_internal_vm_tests();
 #endif
 
     // Since this is not a JVM_ENTRY we have to set the thread state manually before leaving.
@@ -5293,6 +5291,22 @@ _JNI_IMPORT_OR_EXPORT_ jint JNICALL JNI_CreateJavaVM(JavaVM **vm, void **penv, v
     OrderAccess::release_store(&vm_created, 0);
   }
 
+  return result;
+
+}
+
+_JNI_IMPORT_OR_EXPORT_ jint JNICALL JNI_CreateJavaVM(JavaVM **vm, void **penv, void *args) {
+  jint result = JNI_ERR;
+  // On Windows, let CreateJavaVM run with SEH protection
+#ifdef _WIN32
+  __try {
+#endif
+    result = JNI_CreateJavaVM_inner(vm, penv, args);
+#ifdef _WIN32
+  } __except(topLevelExceptionFilter((_EXCEPTION_POINTERS*)_exception_info())) {
+    // Nothing to do.
+  }
+#endif
   return result;
 }
 
@@ -5336,12 +5350,11 @@ DT_RETURN_MARK_DECL(DestroyJavaVM, jint
                     , HOTSPOT_JNI_DESTROYJAVAVM_RETURN(_ret_ref));
 #endif /* USDT2 */
 
-jint JNICALL jni_DestroyJavaVM(JavaVM *vm) {
+static jint JNICALL jni_DestroyJavaVM_inner(JavaVM *vm) {
 #ifndef USDT2
   DTRACE_PROBE1(hotspot_jni, DestroyJavaVM__entry, vm);
 #else /* USDT2 */
-  HOTSPOT_JNI_DESTROYJAVAVM_ENTRY(
-                                  vm);
+  HOTSPOT_JNI_DESTROYJAVAVM_ENTRY(vm);
 #endif /* USDT2 */
   jint res = JNI_ERR;
   DT_RETURN_MARK(DestroyJavaVM, jint, (const jint&)res);
@@ -5377,6 +5390,20 @@ jint JNICALL jni_DestroyJavaVM(JavaVM *vm) {
   }
 }
 
+jint JNICALL jni_DestroyJavaVM(JavaVM *vm) {
+  jint result = JNI_ERR;
+  // On Windows, we need SEH protection
+#ifdef _WIN32
+  __try {
+#endif
+    result = jni_DestroyJavaVM_inner(vm);
+#ifdef _WIN32
+  } __except(topLevelExceptionFilter((_EXCEPTION_POINTERS*)_exception_info())) {
+    // Nothing to do.
+  }
+#endif
+  return result;
+}
 
 static jint attach_current_thread(JavaVM *vm, void **penv, void *_args, bool daemon) {
   JavaVMAttachArgs *args = (JavaVMAttachArgs *) _args;

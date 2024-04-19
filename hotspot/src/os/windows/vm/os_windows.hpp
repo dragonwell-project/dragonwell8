@@ -97,8 +97,6 @@ class win32 {
   static address fast_jni_accessor_wrapper(BasicType);
 #endif
 
-  static void call_test_func_with_wrapper(void (*funcPtr)(void));
-
   // filter function to ignore faults on serializations page
   static LONG WINAPI serialize_fault_filter(struct _EXCEPTION_POINTERS* e);
 };

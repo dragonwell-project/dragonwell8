@@ -1235,14 +1235,13 @@ oop java_lang_Throwable::message(Handle throwable) {
 }
 
 
-// Return Symbol for detailed_message or NULL
-Symbol* java_lang_Throwable::detail_message(oop throwable) {
-  PRESERVE_EXCEPTION_MARK;  // Keep original exception
-  oop detailed_message = java_lang_Throwable::message(throwable);
-  if (detailed_message != NULL) {
-    return java_lang_String::as_symbol(detailed_message, THREAD);
+const char* java_lang_Throwable::message_as_utf8(oop throwable) {
+  oop msg = java_lang_Throwable::message(throwable);
+  const char* msg_utf8 = NULL;
+  if (msg != NULL) {
+    msg_utf8 = java_lang_String::as_utf8_string(msg);
   }
-  return NULL;
+  return msg_utf8;
 }
 
 void java_lang_Throwable::set_message(oop throwable, oop value) {
