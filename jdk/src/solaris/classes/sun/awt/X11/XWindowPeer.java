@@ -85,7 +85,7 @@ class XWindowPeer extends XPanelPeer implements WindowPeer,
     // used for modal blocking to keep existing z-order
     protected XWindowPeer prevTransientFor, nextTransientFor;
     // value of WM_TRANSIENT_FOR hint set on this window
-    private XWindowPeer curRealTransientFor;
+    private XBaseWindow curRealTransientFor;
 
     private boolean grab = false; // Whether to do a grab during showing
 
@@ -1052,13 +1052,23 @@ class XWindowPeer extends XPanelPeer implements WindowPeer,
             log.fine("Promoting always-on-top state {0}", Boolean.valueOf(alwaysOnTop));
         }
         XWM.getWM().setLayer(this,
-                             alwaysOnTop ?
-                             XLayerProtocol.LAYER_ALWAYS_ON_TOP :
-                             XLayerProtocol.LAYER_NORMAL);
+                alwaysOnTop ?
+                        XLayerProtocol.LAYER_ALWAYS_ON_TOP :
+                        XLayerProtocol.LAYER_NORMAL);
     }
 
     public void updateAlwaysOnTopState() {
         this.alwaysOnTop = ((Window) this.target).isAlwaysOnTop();
+        if (ownerPeer != null) {
+            XToolkit.awtLock();
+            try {
+                restoreTransientFor(this);
+                applyWindowType();
+            }
+            finally {
+                XToolkit.awtUnlock();
+            }
+        }
         updateAlwaysOnTop();
     }
 
@@ -1102,7 +1112,27 @@ class XWindowPeer extends XPanelPeer implements WindowPeer,
         if (!vis && warningWindow != null) {
             warningWindow.setSecurityWarningVisible(false, false);
         }
+        boolean refreshChildsTransientFor = isVisible() != vis;
         super.setVisible(vis);
+        if (refreshChildsTransientFor) {
+            for (Window child : ((Window) target).getOwnedWindows()) {
+                XToolkit.awtLock();
+                try {
+                    if(!child.isLightweight() && child.isVisible()) {
+                        ComponentPeer childPeer = AWTAccessor.
+                                getComponentAccessor().getPeer(child);
+                        if(childPeer instanceof XWindowPeer) {
+                            XWindowPeer windowPeer = (XWindowPeer) childPeer;
+                            restoreTransientFor(windowPeer);
+                            windowPeer.applyWindowType();
+                        }
+                    }
+                }
+                finally {
+                    XToolkit.awtUnlock();
+                }
+            }
+        }
         if (!vis && !isWithdrawn()) {
             // ICCCM, 4.1.4. Changing Window State:
             // "Iconic -> Withdrawn - The client should unmap the window and follow it
@@ -1631,9 +1661,6 @@ class XWindowPeer extends XPanelPeer implements WindowPeer,
             window.prevTransientFor = transientForWindow;
             transientForWindow.nextTransientFor = window;
         }
-        if (window.curRealTransientFor == transientForWindow) {
-            return;
-        }
         if (!allStates && (window.getWMState() != transientForWindow.getWMState())) {
             return;
         }
@@ -1645,11 +1672,13 @@ class XWindowPeer extends XPanelPeer implements WindowPeer,
             bpw = XlibUtil.getParentWindow(bpw);
         }
         long tpw = transientForWindow.getWindow();
-        while (!XlibUtil.isToplevelWindow(tpw) && !XlibUtil.isXAWTToplevelWindow(tpw)) {
+        XBaseWindow parent = transientForWindow;
+        while (tpw != 0 && ((!XlibUtil.isToplevelWindow(tpw) &&
+                !XlibUtil.isXAWTToplevelWindow(tpw)) || !parent.isVisible())) {
             tpw = XlibUtil.getParentWindow(tpw);
+            parent = XToolkit.windowToXWindow(tpw);
         }
 
-        XBaseWindow parent = transientForWindow;
         if (parent instanceof XLightweightFramePeer) {
             XLightweightFramePeer peer = (XLightweightFramePeer) parent;
             long ownerWindowPtr = peer.getOverriddenWindowHandle();
@@ -1659,7 +1688,7 @@ class XWindowPeer extends XPanelPeer implements WindowPeer,
         }
 
         XlibWrapper.XSetTransientFor(XToolkit.getDisplay(), bpw, tpw);
-        window.curRealTransientFor = transientForWindow;
+        window.curRealTransientFor = parent;
     }
 
     /*
@@ -1953,7 +1982,7 @@ class XWindowPeer extends XPanelPeer implements WindowPeer,
         switch (getWindowType())
         {
             case NORMAL:
-                typeAtom = (ownerPeer == null) ?
+                typeAtom = curRealTransientFor == null ?
                                protocol.XA_NET_WM_WINDOW_TYPE_NORMAL :
                                protocol.XA_NET_WM_WINDOW_TYPE_DIALOG;
                 break;

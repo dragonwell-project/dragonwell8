@@ -751,6 +751,11 @@ void os::set_native_thread_name(const char *name) {
   // is already attached to a debugger; debugger must observe
   // the exception below to show the correct name.
 
+  // If there is no debugger attached skip raising the exception
+  if (!IsDebuggerPresent()) {
+    return;
+  }
+
   const DWORD MS_VC_EXCEPTION = 0x406D1388;
   struct {
     DWORD dwType;     // must be 0x1000
@@ -2864,17 +2869,6 @@ address os::win32::fast_jni_accessor_wrapper(BasicType type) {
   return (address)-1;
 }
 #endif
-
-void os::win32::call_test_func_with_wrapper(void (*funcPtr)(void)) {
-  // Install a win32 structured exception handler around the test
-  // function call so the VM can generate an error dump if needed.
-  __try {
-    (*funcPtr)();
-  } __except(topLevelExceptionFilter(
-             (_EXCEPTION_POINTERS*)_exception_info())) {
-    // Nothing to do.
-  }
-}
 
 // Virtual Memory
 

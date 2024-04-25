@@ -549,10 +549,10 @@ public:
   // Record the error when the first attempt to resolve a reference from a constant
   // pool entry to a class fails.
   static void add_resolution_error(constantPoolHandle pool, int which, Symbol* error,
-                                   Symbol* message);
+                                   const char* message);
   static void delete_resolution_error(ConstantPool* pool);
   static Symbol* find_resolution_error(constantPoolHandle pool, int which,
-                                       Symbol** message);
+                                       const char** message);
 
  protected:
 
