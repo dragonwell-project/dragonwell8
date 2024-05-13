@@ -389,6 +389,7 @@ sample/chatserver/ChatTest.java					8178912 generic-all
 # cacerts tests
 
 ############################################################################
+security/infra/java/security/cert/CertPathValidator/certification/CAInterop.java#certignarootca         8331883 generic-all
 security/infra/java/security/cert/CertPathValidator/certification/CAInterop.java#globalsigneccrootcar4  8328825 generic-all
 security/infra/java/security/cert/CertPathValidator/certification/CAInterop.java#gtsrootcar1            8328825 generic-all
 security/infra/java/security/cert/CertPathValidator/certification/CAInterop.java#gtsrootcar2            8328825 generic-all
