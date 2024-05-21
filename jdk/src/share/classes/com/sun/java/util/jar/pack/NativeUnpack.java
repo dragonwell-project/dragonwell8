@@ -32,6 +32,8 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.ByteBuffer;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.jar.JarOutputStream;
 import java.util.jar.Pack200;
 import java.util.zip.CRC32;
@@ -77,8 +79,13 @@ class NativeUnpack {
     private  int  _estFileLimit;   // ditto
     private  int  _prevPercent = -1; // for monotonicity
 
-    private final CRC32   _crc32 = new CRC32();
-    private       byte[]  _buf   = new byte[1<<14];
+    private final CRC32 _crc32 = new CRC32();
+    private static final int MAX_BUFFER_SIZE = 1 << 20; // 1 MB byte[]
+    private byte[] _buf = new byte[1 << 14]; // 16 KB byte[] initially
+    private List<byte[]> _extra_buf = new LinkedList<>(); // extra buffers
+                                                          // for large files
+    private byte[] _current_buf; // buffer being filled
+    private int _current_buf_pos; // position to fill in more data
 
     private  UnpackerImpl _p200;
     private  PropMap _props;
@@ -195,41 +202,44 @@ class NativeUnpack {
         updateProgress();  // reset progress bar
         for (;;) {
             // Read the packed bits.
-            long counts = start(presetInput, 0);
-            _byteCount = _estByteLimit = 0;  // reset partial scan counts
-            ++_segCount;  // just finished scanning a whole segment...
-            int nextSeg  = (int)( counts >>> 32 );
-            int nextFile = (int)( counts >>>  0 );
+            long counts = start(presetInput, 0), consumed;
+            try {
+                _byteCount = _estByteLimit = 0;  // reset partial scan counts
+                ++_segCount;  // just finished scanning a whole segment...
+                int nextSeg = (int) (counts >>> 32);
+                int nextFile = (int) (counts >>> 0);
 
-            // Estimate eventual total number of segments and files.
-            _estSegLimit = _segCount + nextSeg;
-            double filesAfterThisSeg = _fileCount + nextFile;
-            _estFileLimit = (int)( (filesAfterThisSeg *
-                                    _estSegLimit) / _segCount );
+                // Estimate eventual total number of segments and files.
+                _estSegLimit = _segCount + nextSeg;
+                double filesAfterThisSeg = _fileCount + nextFile;
+                _estFileLimit = (int) ((filesAfterThisSeg *
+                        _estSegLimit) / _segCount);
 
-            // Write the files.
-            int[] intParts = { 0,0, 0, 0 };
-            //    intParts = {size.hi/lo, mod, defl}
-            Object[] parts = { intParts, null, null, null };
-            //       parts = { {intParts}, name, data0/1 }
-            while (getNextFile(parts)) {
-                //BandStructure.printArrayTo(System.out, intParts, 0, parts.length);
-                String name = (String) parts[1];
-                long   size = ( (long)intParts[0] << 32)
-                            + (((long)intParts[1] << 32) >>> 32);
+                // Write the files.
+                int[] intParts = {0, 0, 0, 0};
+                //    intParts = {size.hi/lo, mod, defl}
+                Object[] parts = {intParts, null, null, null};
+                //       parts = { {intParts}, name, data0/1 }
+                while (getNextFile(parts)) {
+                    //BandStructure.printArrayTo(System.out, intParts, 0, parts.length);
+                    String name = (String) parts[1];
+                    long size = ((long) intParts[0] << 32)
+                            + (((long) intParts[1] << 32) >>> 32);
 
-                long   mtime = (modtime != Constants.NO_MODTIME ) ?
-                                modtime : intParts[2] ;
-                boolean deflateHint = (intParts[3] != 0);
-                ByteBuffer data0 = (ByteBuffer) parts[2];
-                ByteBuffer data1 = (ByteBuffer) parts[3];
-                writeEntry(jstream, name, mtime, size, deflateHint,
-                           data0, data1);
-                ++_fileCount;
-                updateProgress();
+                    long mtime = (modtime != Constants.NO_MODTIME) ?
+                            modtime : intParts[2];
+                    boolean deflateHint = (intParts[3] != 0);
+                    ByteBuffer data0 = (ByteBuffer) parts[2];
+                    ByteBuffer data1 = (ByteBuffer) parts[3];
+                    writeEntry(jstream, name, mtime, size, deflateHint,
+                            data0, data1);
+                    ++_fileCount;
+                    updateProgress();
+                }
+                presetInput = getUnusedInput();
+            } finally {
+                consumed = finish();
             }
-            presetInput = getUnusedInput();
-            long consumed = finish();
             if (_verbose > 0)
                 Utils.log.info("bytes consumed = "+consumed);
             if (presetInput == null &&
@@ -256,76 +266,145 @@ class NativeUnpack {
         // Note:  caller is responsible to finish with jstream.
     }
 
-    private void writeEntry(JarOutputStream j, String name,
-                            long mtime, long lsize, boolean deflateHint,
-                            ByteBuffer data0, ByteBuffer data1) throws IOException {
-        int size = (int)lsize;
-        if (size != lsize)
-            throw new IOException("file too large: "+lsize);
-
-        CRC32 crc32 = _crc32;
-
-        if (_verbose > 1)
-            Utils.log.fine("Writing entry: "+name+" size="+size
-                             +(deflateHint?" deflated":""));
-
-        if (_buf.length < size) {
-            int newSize = size;
-            while (newSize < _buf.length) {
-                newSize <<= 1;
-                if (newSize <= 0) {
-                    newSize = size;
-                    break;
-                }
-            }
-            _buf = new byte[newSize];
+    private void writeEntry(JarOutputStream j, String name, long mtime,
+            long lsize, boolean deflateHint, ByteBuffer data0,
+            ByteBuffer data1) throws IOException {
+        if (lsize < 0 || lsize > Integer.MAX_VALUE) {
+            throw new IOException("file too large: " + lsize);
         }
-        assert(_buf.length >= size);
+        int size = (int) lsize;
 
-        int fillp = 0;
-        if (data0 != null) {
-            int size0 = data0.capacity();
-            data0.get(_buf, fillp, size0);
-            fillp += size0;
-        }
-        if (data1 != null) {
-            int size1 = data1.capacity();
-            data1.get(_buf, fillp, size1);
-            fillp += size1;
-        }
-        while (fillp < size) {
-            // Fill in rest of data from the stream itself.
-            int nr = in.read(_buf, fillp, size - fillp);
-            if (nr <= 0)  throw new IOException("EOF at end of archive");
-            fillp += nr;
+        if (_verbose > 1) {
+            Utils.log.fine("Writing entry: " + name + " size=" + size +
+                    (deflateHint ? " deflated" : ""));
         }
 
         ZipEntry z = new ZipEntry(name);
         z.setTime(mtime * 1000);
-
+        z.setSize(size);
         if (size == 0) {
             z.setMethod(ZipOutputStream.STORED);
-            z.setSize(0);
+            z.setCompressedSize(size);
             z.setCrc(0);
-            z.setCompressedSize(0);
+            j.putNextEntry(z);
         } else if (!deflateHint) {
             z.setMethod(ZipOutputStream.STORED);
-            z.setSize(size);
             z.setCompressedSize(size);
-            crc32.reset();
-            crc32.update(_buf, 0, size);
-            z.setCrc(crc32.getValue());
+            writeEntryData(j, z, data0, data1, size, true);
         } else {
             z.setMethod(Deflater.DEFLATED);
-            z.setSize(size);
+            writeEntryData(j, z, data0, data1, size, false);
         }
-
-        j.putNextEntry(z);
-
-        if (size > 0)
-            j.write(_buf, 0, size);
-
         j.closeEntry();
+
         if (_verbose > 0) Utils.log.info("Writing " + Utils.zeString(z));
+    }
+
+    private void writeEntryData(JarOutputStream j, ZipEntry z, ByteBuffer data0,
+            ByteBuffer data1, int size, boolean computeCrc32)
+            throws IOException {
+        prepareReadBuffers(size);
+        try {
+            int inBytes = size;
+            inBytes -= readDataByteBuffer(data0);
+            inBytes -= readDataByteBuffer(data1);
+            inBytes -= readDataInputStream(inBytes);
+            if (inBytes != 0L) {
+                throw new IOException("invalid size: " + size);
+            }
+            if (computeCrc32) {
+                _crc32.reset();
+                processReadData((byte[] buff, int offset, int len) -> {
+                    _crc32.update(buff, offset, len);
+                });
+                z.setCrc(_crc32.getValue());
+            }
+            j.putNextEntry(z);
+            processReadData((byte[] buff, int offset, int len) -> {
+                j.write(buff, offset, len);
+            });
+        } finally {
+            resetReadBuffers();
+        }
+    }
+
+    private void prepareReadBuffers(int size) {
+        if (_buf.length < size && _buf.length < MAX_BUFFER_SIZE) {
+            // Grow the regular buffer to accomodate lsize up to a limit.
+            long newIdealSize = _buf.length;
+            while (newIdealSize < size && newIdealSize < MAX_BUFFER_SIZE) {
+                // Never overflows: size is [0, 0x7FFFFFFF].
+                newIdealSize <<= 1;
+            }
+            int newSize = (int) Long.min(newIdealSize, MAX_BUFFER_SIZE);
+            _buf = new byte[newSize];
+        }
+        resetReadBuffers();
+    }
+
+    private void resetReadBuffers() {
+        _extra_buf.clear();
+        _current_buf = _buf;
+        _current_buf_pos = 0;
+    }
+
+    private int readDataByteBuffer(ByteBuffer data) throws IOException {
+        if (data == null) {
+            return 0;
+        }
+        return readData(data.remaining(),
+                (byte[] buff, int offset, int len) -> {
+                    data.get(buff, offset, len);
+                    return len;
+                });
+    }
+
+    private int readDataInputStream(int inBytes) throws IOException {
+        return readData(inBytes, (byte[] buff, int offset, int len) -> {
+            return in.read(buff, offset, len);
+        });
+    }
+
+    private static interface ReadDataCB {
+        public int read(byte[] buff, int offset, int len) throws IOException;
+    }
+
+    private int readData(int bytesToRead, ReadDataCB readDataCb)
+            throws IOException {
+        int bytesRemaining = bytesToRead;
+        while (bytesRemaining > 0) {
+            if (_current_buf_pos == _current_buf.length) {
+                byte[] newBuff = new byte[Integer.min(bytesRemaining,
+                        MAX_BUFFER_SIZE)];
+                _extra_buf.add(newBuff);
+                _current_buf = newBuff;
+                _current_buf_pos = 0;
+            }
+            int current_buffer_space = _current_buf.length - _current_buf_pos;
+            int nextRead = Integer.min(current_buffer_space, bytesRemaining);
+            int bytesRead = readDataCb.read(_current_buf, _current_buf_pos,
+                    nextRead);
+            if (bytesRead <= 0) {
+                throw new IOException("EOF at end of archive");
+            }
+            _current_buf_pos += bytesRead;
+            bytesRemaining -= bytesRead;
+        }
+        return bytesToRead - bytesRemaining;
+    }
+
+    private static interface ProcessDataCB {
+        public void apply(byte[] buff, int offset, int len) throws IOException;
+    }
+
+    private void processReadData(ProcessDataCB processDataCB)
+            throws IOException {
+        processDataCB.apply(_buf, 0, _buf == _current_buf ? _current_buf_pos :
+                _buf.length);
+        for (byte[] buff : _extra_buf) {
+            // Extra buffers are allocated of a size such that they are always
+            // full, including the last one.
+            processDataCB.apply(buff, 0, buff.length);
+        };
     }
 }

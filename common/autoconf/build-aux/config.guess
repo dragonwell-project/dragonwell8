@@ -86,4 +86,13 @@ if [ "x$OUT" = x ]; then
   fi
 fi
 
+# Test and fix LoongArch64.
+if [ "x$OUT" = x ]; then
+  if [ `uname -s` = Linux ]; then
+    if [ `uname -m` = loongarch64 ]; then
+      OUT=loongarch64-unknown-linux-gnu
+    fi
+  fi
+fi
+
 echo $OUT

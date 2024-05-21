@@ -28,26 +28,20 @@
  *          This is a negative test; using  object alignment for loading that
  *          is different from object alignment for creating a CDS file
  *          should fail when loading.
+ * @requires vm.bits == 64
  * @library /testlibrary
  * @bug 8025642
+ * @run main CdsDifferentObjectAlignment
  */
 
 import com.oracle.java.testlibrary.*;
 
 public class CdsDifferentObjectAlignment {
-    public static void main(String[] args) throws Exception {
-        String nativeWordSize = System.getProperty("sun.arch.data.model");
-        if (!Platform.is64bit()) {
-            System.out.println("ObjectAlignmentInBytes for CDS is only " +
-                "supported on 64bit platforms; this plaform is " +
-                nativeWordSize);
-            System.out.println("Skipping the test");
-        } else {
-            createAndLoadSharedArchive(16, 64);
-            createAndLoadSharedArchive(64, 32);
-        }
-    }
 
+    public static void main(String[] args) throws Exception {
+        createAndLoadSharedArchive(16, 64);
+        createAndLoadSharedArchive(64, 32);
+    }
 
     // Parameters are object alignment expressed in bytes
     private static void

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,14 +21,19 @@
  * questions.
  */
 
+// ClassFileInstaller is needed to place test.Empty into well-known place
 /**
  * @test
- * @library /runtime/testlibrary
- * @library classes
- * @build test.Empty ClassUnloadCommon
+ * @library /test/lib classes
+ * @build test.Empty
+ * @run driver ClassFileInstaller test.Empty
  * @run main/othervm/timeout=200 FragmentMetaspaceSimple
  */
 
+import java.io.DataInputStream;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.IOException;
 import java.util.ArrayList;
 
 /**
@@ -47,8 +52,14 @@ public class FragmentMetaspaceSimple {
     private static void runSimple(long time) {
         long startTime = System.currentTimeMillis();
         ArrayList<ClassLoader> cls = new ArrayList<>();
-        for (int i = 0; System.currentTimeMillis() < startTime + time; ++i) {
-            ClassLoader ldr = ClassUnloadCommon.newClassLoader();
+        char sep = File.separatorChar;
+        String fileName = "test" + sep + "Empty.class";
+        File file = new File(fileName);
+        byte buff[] = read(file);
+
+        int i = 0;
+        for (i = 0; System.currentTimeMillis() < startTime + time; ++i) {
+            ClassLoader ldr = new MyClassLoader(buff);
             if (i % 1000 == 0) {
                 cls.clear();
             }
@@ -59,11 +70,43 @@ public class FragmentMetaspaceSimple {
             Class<?> c = null;
             try {
                 c = ldr.loadClass("test.Empty");
+                c.getClass().getClassLoader(); // make sure we have a valid class.
             } catch (ClassNotFoundException ex) {
+                System.out.println("i=" + i + ", len" + buff.length);
                 throw new RuntimeException(ex);
             }
             c = null;
         }
         cls = null;
+        System.out.println("Finished " + i + " iterations in " +
+                           (System.currentTimeMillis() - startTime) + " ms");
+    }
+
+    private static byte[] read(File file) {
+        byte buff[] = new byte[(int)(file.length())];
+        try {
+            DataInputStream din = new DataInputStream(new FileInputStream(file));
+            din.readFully(buff);
+            din.close();
+        } catch (IOException ex) {
+            throw new RuntimeException(ex);
+        }
+        return buff;
+    }
+
+    static class MyClassLoader extends ClassLoader {
+        byte buff[];
+        MyClassLoader(byte buff[]) {
+            this.buff = buff;
+        }
+
+        public Class<?> loadClass() throws ClassNotFoundException {
+            String name = "test.Empty";
+            try {
+                return defineClass(name, buff, 0, buff.length);
+            } catch (Throwable e) {
+                throw new ClassNotFoundException(name, e);
+            }
+        }
     }
 }

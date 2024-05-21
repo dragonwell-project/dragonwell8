@@ -52,6 +52,7 @@ public class VMProps implements Callable<Map<String, String>> {
         map.put("vm.flavor", vmFlavor());
         map.put("vm.compMode", vmCompMode());
         map.put("vm.bits", vmBits());
+        map.put("vm.debug", vmDebug());
         dump(map);
         return map;
     }
@@ -101,6 +102,13 @@ public class VMProps implements Callable<Map<String, String>> {
      */
     protected String vmBits() {
         return System.getProperty("sun.arch.data.model");
+    }
+
+    /**
+     * @return debug level value extracted from the "java.vm.version" property.
+     */
+    protected String vmDebug() {
+        return "" + System.getProperty("java.vm.version").toLowerCase().contains("debug");
     }
 
     /**
