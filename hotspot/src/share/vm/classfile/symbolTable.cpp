@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -236,7 +236,18 @@ unsigned int SymbolTable::hash_symbol(const char* s, int len) {
 // entries in the symbol table during normal execution (only during
 // safepoints).
 
+// Symbols should represent entities from the constant pool that are
+// limited to 64K in length, but usage errors creep in allowing Symbols
+// to be used for arbitrary strings. For debug builds we will assert if
+// a string is too long, whereas product builds will truncate it.
 Symbol* SymbolTable::lookup(const char* name, int len, TRAPS) {
+  assert(len <= Symbol::max_length(),
+         "String length exceeds the maximum Symbol length");
+  if (len > Symbol::max_length()) {
+    warning("A string \"%.80s ... %.80s\" exceeds the maximum Symbol "
+            "length of %d and has been truncated", name, (name + len - 80), Symbol::max_length());
+    len = Symbol::max_length();
+  }
   unsigned int hashValue = hash_symbol(name, len);
   int index = the_table()->hash_to_index(hashValue);
 
@@ -367,6 +378,7 @@ void SymbolTable::add(ClassLoaderData* loader_data, constantPoolHandle cp,
     for (int i=0; i<names_count; i++) {
       int index = table->hash_to_index(hashValues[i]);
       bool c_heap = !loader_data->is_the_null_class_loader_data();
+      assert(lengths[i] <= Symbol::max_length(), "must be - these come from the constant pool");
       Symbol* sym = table->basic_add(index, (u1*)names[i], lengths[i], hashValues[i], c_heap, CHECK);
       cp->symbol_at_put(cp_indices[i], sym);
     }
@@ -391,6 +403,7 @@ Symbol* SymbolTable::basic_add(int index_arg, u1 *name, int len,
                                unsigned int hashValue_arg, bool c_heap, TRAPS) {
   assert(!Universe::heap()->is_in_reserved(name),
          "proposed name of symbol must be stable");
+  assert(len <= Symbol::max_length(), "caller should have ensured this");
 
   // Don't allow symbols to be created which cannot fit in a Symbol*.
   if (len > Symbol::max_length()) {
