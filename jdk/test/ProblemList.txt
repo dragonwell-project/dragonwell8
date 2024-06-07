@@ -390,4 +390,5 @@ sample/chatserver/ChatTest.java					8178912 generic-all
 
 ############################################################################
 security/infra/java/security/cert/CertPathValidator/certification/CAInterop.java#certignarootca         8331883 generic-all
+security/infra/java/security/cert/CertPathValidator/certification/CAInterop.java#teliasonerarootcav1    8333640 generic-all
 security/infra/java/security/cert/CertPathValidator/certification/LuxTrustCA.java                       8314509 generic-all
