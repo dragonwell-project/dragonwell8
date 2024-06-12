@@ -317,14 +317,16 @@ int UNICODE::utf8_size(jchar c) {
 }
 
 int UNICODE::utf8_length(jchar* base, int length) {
-  int result = 0;
+  size_t result = 0;
   for (int index = 0; index < length; index++) {
     jchar c = base[index];
-    if ((0x0001 <= c) && (c <= 0x007F)) result += 1;
-    else if (c <= 0x07FF) result += 2;
-    else result += 3;
+    int sz = utf8_size(c);
+    if (result + sz > INT_MAX-1) {
+      break;
+    }
+    result += sz;
   }
-  return result;
+  return static_cast<int>(result);
 }
 
 char* UNICODE::as_utf8(jchar* base, int length) {

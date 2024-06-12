@@ -2854,7 +2854,9 @@ run:
       if (TraceExceptions) {
         ttyLocker ttyl;
         ResourceMark rm;
-        tty->print_cr("Exception <%s> (" INTPTR_FORMAT ")", except_oop->print_value_string(), p2i(except_oop()));
+        tty->print_cr("Exception <%.*s> (" INTPTR_FORMAT ")",
+                      MAX_LEN, except_oop->print_value_string(),
+                      p2i(except_oop()));
         tty->print_cr(" thrown in interpreter method <%s>", METHOD->print_value_string());
         tty->print_cr(" at bci %d, continuing at %d for thread " INTPTR_FORMAT,
                       (int)(istate->bcp() - METHOD->code_base()),
@@ -2870,7 +2872,9 @@ run:
     if (TraceExceptions) {
       ttyLocker ttyl;
       ResourceMark rm;
-      tty->print_cr("Exception <%s> (" INTPTR_FORMAT ")", except_oop->print_value_string(), p2i(except_oop()));
+      tty->print_cr("Exception <%.*s> (" INTPTR_FORMAT ")",
+                    MAX_LEN, except_oop->print_value_string(),
+                    p2i(except_oop()));
       tty->print_cr(" thrown in interpreter method <%s>", METHOD->print_value_string());
       tty->print_cr(" at bci %d, unwinding for thread " INTPTR_FORMAT,
                     (int)(istate->bcp() - METHOD->code_base()),
