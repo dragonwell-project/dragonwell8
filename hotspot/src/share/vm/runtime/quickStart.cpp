@@ -1097,6 +1097,7 @@ void QuickStart::convert_path_by_env(const char* origin_path, char* new_path) {
   }
 
   int p1 = 0, p2 = p1;
+  new_path[0] = '\0';
   bool process_end = false;
   while (!process_end) {
     if (origin_path[p2] == '\0') {
