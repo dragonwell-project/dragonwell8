@@ -1,0 +1,135 @@
+#
+# Copyright (c) 2024 Alibaba Group Holding Limited. All Rights Reserved.
+# DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
+#
+# This code is free software; you can redistribute it and/or modify it
+# under the terms of the GNU General Public License version 2 only, as
+# published by the Free Software Foundation. Alibaba designates this
+# particular file as subject to the "Classpath" exception as provided
+# by Oracle in the LICENSE file that accompanied this code.
+#
+# This code is distributed in the hope that it will be useful, but WITHOUT
+# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+# FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License
+# version 2 for more details (a copy is included in the LICENSE file that
+# accompanied this code).
+#
+# You should have received a copy of the GNU General Public License version
+# 2 along with this work; if not, write to the Free Software Foundation,
+# Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.
+#
+
+name: 'Dragonwell GHA Sanity Checks'
+
+on:
+  pull_request:
+    branches:
+      - master
+  workflow_dispatch:
+    inputs:
+      platforms:
+        description: 'Platform(s) to execute on (comma separated, e.g. "linux-x64, macos, aarch64")'
+        required: true
+        default: 'linux x64, linux aarch64'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  mytest:
+    runs-on: ubuntu-20.04
+    steps:
+      - name: xx
+        run: |
+          ldd --version
+          strings /lib/x86_64-linux-gnu/libc.so.6  | grep GLIBC
+        shell: bash
+#  prerequisites:
+#    name: Prerequisites
+#    uses: ./.github/workflows/check_pr.yml
+#    with:
+#      platforms: 'linux x64, linux aarch64'
+#
+#  build-linux-x64:
+#    needs: prerequisites
+#    name: linux-x64
+#    uses: ./.github/workflows/build-linux.yml
+#    with:
+#      platform: x86_64
+#      configure-arguments: --with-cacerts-file=${GITHUB_WORKSPACE}/common/security/cacerts --with-milestone=fcs --enable-unlimited-crypto
+#      make-target: images
+#      make-conf: linux-x86_64-normal-server
+#      runs-on: '"ubuntu-18.04"'
+#      apt-extra-packages: libxtst-dev libxt-dev libxrender-dev libxrandr-dev libxi-dev libcups2-dev libfontconfig1-dev libasound2-dev unzip zip openjdk-8-jdk
+#      bundle_id: ${{ needs.prerequisites.outputs.bundle_id }}
+#    if: needs.prerequisites.outputs.should_run != 'false' && needs.prerequisites.outputs.platform_linux_x64 != 'false'
+#
+#  build-linux-aarch64:
+#    needs: prerequisites
+#    name: linux-aarch64
+#    uses: ./.github/workflows/build-linux.yml
+#    with:
+#      platform: aarch64
+#      configure-arguments: --with-cacerts-file=${GITHUB_WORKSPACE}/common/security/cacerts --with-milestone=fcs --enable-unlimited-crypto
+#      make-target: images
+#      make-conf: linux-aarch64-normal-server
+#      runs-on: '["self-hosted", "ARM64"]'
+#      apt-extra-packages: libxtst-dev libxt-dev libxrender-dev libxrandr-dev libxi-dev libcups2-dev libfontconfig1-dev libasound2-dev unzip zip openjdk-8-jdk
+#      bundle_id: ${{ needs.prerequisites.outputs.bundle_id }}
+#    if: needs.prerequisites.outputs.should_run != 'false' && needs.prerequisites.outputs.platform_linux_aarch64 != 'false'
+#
+#  test-linux-x64:
+#    name: linux-x64
+#    needs:
+#      - prerequisites
+#      - build-linux-x64
+#    uses: ./.github/workflows/test.yml
+#    with:
+#      platform: linux-x86_64
+#      runs-on: '"ubuntu-18.04"'
+#      bundle_id: ${{ needs.prerequisites.outputs.bundle_id }}
+#
+#  test-linux-aarch64:
+#    name: linux-aarch64
+#    needs:
+#      - prerequisites
+#      - build-linux-aarch64
+#    uses: ./.github/workflows/test.yml
+#    with:
+#      platform: linux-aarch64
+#      runs-on: '["self-hosted", "ARM64"]'
+#      bundle_id: ${{ needs.prerequisites.outputs.bundle_id }}
+#
+#  remove-bundles:
+#    name: 'Remove bundle artifacts'
+#    runs-on: ubuntu-18.04
+#    #if: always() # TODO remove
+#    needs:
+#      - build-linux-x64
+#      - build-linux-aarch64
+#      - test-linux-x64
+#      - test-linux-aarch64
+#
+#    steps:
+#      - name: 'Get API configuration'
+#        id: api
+#        uses: actions/github-script@v6
+#        with:
+#          script: 'return { url: process.env["ACTIONS_RUNTIME_URL"], token: process.env["ACTIONS_RUNTIME_TOKEN"] }'
+#
+#      - name: 'Remove bundle artifacts'
+#        run: |
+#          ALL_ARTIFACT_URLS="$(curl -s \
+#              -H 'Accept: application/json;api-version=6.0-preview' \
+#              -H 'Authorization: Bearer ${{ fromJson(steps.api.outputs.result).token }}' \
+#              '${{ fromJson(steps.api.outputs.result).url }}_apis/pipelines/workflows/${{ github.run_id }}/artifacts?api-version=6.0-preview')"
+#          BUNDLE_ARTIFACT_URLS="$(echo "$ALL_ARTIFACT_URLS" | jq -r -c '.value | map(select(.name|startswith("bundles-"))) | .[].url')"
+#          for url in $BUNDLE_ARTIFACT_URLS; do
+#            echo "Removing $url"
+#            curl -s \
+#                -H 'Accept: application/json;api-version=6.0-preview' \
+#                -H 'Authorization: Bearer ${{ fromJson(steps.api.outputs.result).token }}' \
+#                -X DELETE "$url" \
+#            || echo "Failed to remove bundle"
+#          done

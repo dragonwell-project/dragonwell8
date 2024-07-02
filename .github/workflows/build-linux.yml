@@ -1,0 +1,127 @@
+#
+# Copyright (c) 2024 Alibaba Group Holding Limited. All Rights Reserved.
+# DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
+#
+# This code is free software; you can redistribute it and/or modify it
+# under the terms of the GNU General Public License version 2 only, as
+# published by the Free Software Foundation. Alibaba designates this
+# particular file as subject to the "Classpath" exception as provided
+# by Oracle in the LICENSE file that accompanied this code.
+#
+# This code is distributed in the hope that it will be useful, but WITHOUT
+# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+# FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License
+# version 2 for more details (a copy is included in the LICENSE file that
+# accompanied this code).
+#
+# You should have received a copy of the GNU General Public License version
+# 2 along with this work; if not, write to the Free Software Foundation,
+# Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.
+#
+
+name: 'Build (linux)'
+
+on:
+  workflow_call:
+    inputs:
+      platform:
+        required: true
+        type: string
+      make-target:
+        required: false
+        type: string
+        default: '"images"'
+      make-conf:
+        required: false
+        type: string
+      debug-levels:
+        required: false
+        type: string
+        default: '[ "release" ]'
+        #default: '[ "debug", "release" ]'
+      apt-extra-packages:
+        required: false
+        type: string
+      configure-arguments:
+        required: false
+        type: string
+      runs-on:
+        required: true
+        type: string
+      bundle_id:
+        required: true
+        type: string
+
+jobs:
+  build-linux:
+    name: build
+    runs-on: ${{ fromJSON(inputs.runs-on) }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        debug-level: ${{ fromJSON(inputs.debug-levels) }}
+        include:
+          - debug-level: release
+            flags: --with-debug-level=release
+            conf-suffix: release
+          #- debug-level: debug
+          #  flags: --with-debug-level=fastdebug
+          #  suffix: -debug
+          #  conf-suffix: fastdebug
+
+    steps:
+      - name: 'Install dependencies'
+        run: |
+          sudo apt update -y
+          sudo apt install -y ${{ inputs.apt-extra-packages }}
+        if: ${{ inputs.apt-extra-packages }} != ''
+
+      - name: 'Checkout the JDK source'
+        uses: actions/checkout@v3
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      - name: 'Get boot jdk'
+        id: get_boot_jdk
+        uses: ./.github/actions/get-bootjdk
+        with:
+          platform: ${{ inputs.platform }}
+
+      - name: 'Configure'
+        run: >
+          bash configure
+          --with-boot-jdk=${{ steps.get_boot_jdk.outputs.boot_jdk }}
+          ${{ matrix.flags }}
+          ${{ inputs.configure-arguments }} || (
+          echo "Dumping config.log:" &&
+          cat config.log &&
+          exit 1)
+
+      - name: 'Build'
+        id: build
+        run: |
+          make clean
+          make ${{ inputs.make-target }} CONF=${{ inputs.make-conf }}-${{ matrix.conf-suffix }}
+
+      - name: 'Build serverless-adapter'
+        id: build-serverless-adapter
+        uses: ./.github/actions/build-serverless-adapter
+        with:
+          java-home: ${GITHUB_WORKSPACE}/build/${{ inputs.make-conf }}-${{matrix.conf-suffix}}/images/j2sdk-image
+        if: ${{ matrix.debug-level }} == 'release'
+
+      - name: 'Create bundle file'
+        id: get_bundle_file
+        run: |
+          filename=linux-${{ inputs.platform }}-${{ matrix.debug-level }}-image-${{ inputs.bundle_id }}.tar.gz
+          tar zcvf ${filename} -C ${GITHUB_WORKSPACE}/build/${{ inputs.make-conf }}-${{ matrix.conf-suffix }}/images/ j2sdk-image
+          echo "bundle_file=${filename}" >> $GITHUB_OUTPUT
+          echo "bundle_path=${GITHUB_WORKSPACE}/${filename}" >> $GITHUB_OUTPUT
+        shell: bash
+
+      - name: 'Upload jdk image'
+        uses: actions/upload-artifact@v2
+        with:
+          name: ${{ steps.get_bundle_file.outputs.bundle_file }}
+          path: ${{ steps.get_bundle_file.outputs.bundle_path }}
