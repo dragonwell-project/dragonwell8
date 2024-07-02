@@ -1,0 +1,54 @@
+#
+# Copyright (c) 2022, 2023, Oracle and/or its affiliates. All rights reserved.
+# DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
+#
+# This code is free software; you can redistribute it and/or modify it
+# under the terms of the GNU General Public License version 2 only, as
+# published by the Free Software Foundation.  Oracle designates this
+# particular file as subject to the "Classpath" exception as provided
+# by Oracle in the LICENSE file that accompanied this code.
+#
+# This code is distributed in the hope that it will be useful, but WITHOUT
+# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+# FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+# version 2 for more details (a copy is included in the LICENSE file that
+# accompanied this code).
+#
+# You should have received a copy of the GNU General Public License version
+# 2 along with this work; if not, write to the Free Software Foundation,
+# Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.
+#
+# Please contact Oracle, 500 Oracle Parkway, Redwood Shores, CA 94065 USA
+# or visit www.oracle.com if you need additional information or have any
+# questions.
+#
+
+inputs:
+  platform:
+    description: 'Platform name'
+    required: true
+outputs:
+  boot_jdk:
+    value: ${{ steps.get_jdk.outputs.boot_jdk }}
+
+runs:
+  using: composite
+  steps:
+    - name: 'Determine jdk url'
+      id: get_jdk_url
+      run: |
+        if [ "${{ inputs.platform }}" = "x86_64" ] ; then
+          echo "jdk_url= https://dragonwell.oss-cn-shanghai.aliyuncs.com/8.15.16/Alibaba_Dragonwell_Extended_8.15.16_x64_linux.tar.gz" >> $GITHUB_OUTPUT
+        elif [ "${{ inputs.platform }}" = "aarch64" ] ; then
+          echo "jdk_url= https://dragonwell.oss-cn-shanghai.aliyuncs.com/8.15.16/Alibaba_Dragonwell_Extended_8.15.16_aarch64_linux.tar.gz" >> $GITHUB_OUTPUT
+        fi
+      shell: bash
+
+    - name: 'Get jdk'
+      id: get_jdk
+      run: |
+        wget ${{ steps.get_jdk_url.outputs.jdk_url }} -O jdk.tar.gz
+        mkdir -p bootJdk
+        tar zxvf jdk.tar.gz -C bootJdk --strip-components=1
+        echo "boot_jdk=${PWD}/bootJdk" >> $GITHUB_OUTPUT
+      shell: bash

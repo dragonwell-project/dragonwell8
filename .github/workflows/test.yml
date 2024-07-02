@@ -1,0 +1,166 @@
+#
+# Copyright (c) 2024, Oracle and/or its affiliates. All rights reserved.
+# DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
+#
+# This code is free software; you can redistribute it and/or modify it
+# under the terms of the GNU General Public License version 2 only, as
+# published by the Free Software Foundation.  Oracle designates this
+# particular file as subject to the "Classpath" exception as provided
+# by Oracle in the LICENSE file that accompanied this code.
+#
+# This code is distributed in the hope that it will be useful, but WITHOUT
+# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+# FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+# version 2 for more details (a copy is included in the LICENSE file that
+# accompanied this code).
+#
+# You should have received a copy of the GNU General Public License version
+# 2 along with this work; if not, write to the Free Software Foundation,
+# Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.
+#
+# Please contact Oracle, 500 Oracle Parkway, Redwood Shores, CA 94065 USA
+# or visit www.oracle.com if you need additional information or have any
+# questions.
+#
+
+name: 'Run tests'
+
+on:
+  workflow_call:
+    inputs:
+      platform:
+        required: true
+        type: string
+      runs-on:
+        required: true
+        type: string
+      bundle_id:
+        required: true
+        type: string
+
+jobs:
+  test:
+    name: test
+    runs-on: ${{fromJson(inputs.runs-on)}}
+    outputs:
+      should_run: ${{ steps.check_if_run.outputs.should_run }}
+    defaults:
+      run:
+        shell: bash
+
+    strategy:
+      fail-fast: false
+      matrix:
+        test-name:
+          - 'jdk_tier1'
+          - 'dragonwell_jdk_features'
+          - 'hotspot_tier1'
+          - 'hotspot_jwarmup'
+          - 'hotspot_elastic_heap'
+          - 'hotspot_multi_tenant'
+        debug-suffix:
+          - 'release'
+
+        include:
+          - test-name: 'jdk_tier1'
+            test-suite: 'jdk/test/:jdk_tier1'
+
+          - test-name: 'dragonwell_jdk_features'
+            test-suite: 'jdk/test/:dragonwell_jdk_features'
+
+          - test-name: 'hotspot_tier1'
+            test-suite: 'hotspot/test/:hotspot_tier1'
+
+          - test-name: 'hotspot_jwarmup'
+            test-suite: 'hotspot/test/:hotspot_jwarmup'
+
+          - test-name: 'hotspot_elastic_heap'
+            test-suite: 'hotspot/test/:hotspot_elastic_heap'
+
+          - test-name: 'hotspot_multi_tenant'
+            test-suite: 'hotspot/test/:hotspot_multi_tenant'
+
+    steps:
+      - name: 'Check if the test suite should run'
+        id: check_if_run
+        run: |
+          if [[ "${{ inputs.platform }}" == "windows-x64" ]]; then
+            case "${{ matrix.test-name }}" in
+              "jdk_tier1"|"dragonwell_jdk_features"|"hotspot_tier1"|"hotspot_jwarmup"|"hotspot_elastic_heap"|"hotspot_multi_tenant")
+                echo "should_run=true" >> $GITHUB_OUTPUT
+                ;;
+              *)
+                echo "should_run=false" >> $GITHUB_OUTPUT
+                ;;
+            esac
+          elif [[ "${{ inputs.platform }}" == "linux-x86_64" ]]; then
+            echo "should_run=true" >> $GITHUB_OUTPUT
+          elif [[ "${{ inputs.platform }}" == "linux-aarch64" ]]; then
+            if [[ "${{ matrix.test-name }}" == "hotspot_multi_tenant" ]]; then
+              echo "should_run=false" >> $GITHUB_OUTPUT
+            else
+              echo "should_run=true" >> $GITHUB_OUTPUT
+            fi
+          else
+            echo "should_run=false" >> $GITHUB_OUTPUT
+          fi
+        shell: bash
+
+      - name: 'Checkout the JDK source'
+        uses: actions/checkout@v4
+        if: steps.check_if_run.outputs.should_run != 'false'
+
+      - name: 'Get JTReg'
+        id: jtreg
+        run: |
+          mkdir -p jtreg
+          if [[ "${{ inputs.platform }}" =~ ^linux ]];then
+            wget https://compiler-tools.oss-cn-hangzhou.aliyuncs.com/jtreg/jtreg-5.1-b01.tar.gz -O jtreg-5.1-b01.tar.gz
+            tar zxvf jtreg-5.1-b01.tar.gz --strip-components=1 -C jtreg
+          fi
+          echo "path=${GITHUB_WORKSPACE}/jtreg" >> $GITHUB_OUTPUT
+        if: steps.check_if_run.outputs.should_run != 'false'
+
+      - name: 'Install dependencies'
+        run: |
+          sudo apt update -y
+          sudo apt install -y libxtst-dev libxt-dev libxrender-dev libxrandr-dev libxi-dev libcups2-dev libfontconfig1-dev libasound2-dev unzip zip openjdk-8-jdk
+        if: steps.check_if_run.outputs.should_run != 'false' && (inputs.platform == 'linux-x86_64' || inputs.platform == 'linux-aarch64')
+
+      - name: 'Download bundles artifact'
+        id: download-bundles
+        uses: actions/download-artifact@v3
+        with:
+          name: ${{ inputs.platform }}-${{ matrix.debug-suffix }}-image-${{ inputs.bundle_id }}.tar.gz
+          path: bundles
+        if: steps.check_if_run.outputs.should_run != 'false'
+
+      - name: 'Get bundles'
+        id: bundles
+        run: |
+          tar zxvf bundles/${{ inputs.platform }}-${{ matrix.debug-suffix }}-image-${{ inputs.bundle_id }}.tar.gz -C bundles --strip-components=1
+          echo "jdk=bundles" >> $GITHUB_OUTPUT
+        if: steps.check_if_run.outputs.should_run != 'false'
+
+      - name: 'Get concurrency number'
+        id: concurrency
+        run: |
+          cpu_num=`nproc`
+          con=`expr ${cpu_num} / 2`
+          echo "value=${con}" >> $GITHUB_OUTPUT
+        if: steps.check_if_run.outputs.should_run != 'false'
+
+      - name: 'Run tests'
+        id: run-tests
+        run: |
+          ${{ steps.jtreg.outputs.path }}/bin/jtreg -agentvm -a -ea -esa -v:fail,error,time -jdk:${{ steps.bundles.outputs.jdk }} -exclude:"${GITHUB_WORKSPACE}/hotspot/test/ProblemList.txt" -exclude:"${GITHUB_WORKSPACE}/jdk/test/ProblemList.txt" -concurrency:${{ steps.concurrency.outputs.value }} -timeoutFactor:10 ${{ matrix.test-suite }}
+          echo "::set-output name=exit_code::$?"
+        if: steps.check_if_run.outputs.should_run != 'false'
+
+      - name: Check that all tests executed successfully
+        run: >
+          if [ ${{ steps.run-tests.outputs.exit_code }} != "0" ]; then
+            cat ${GITHUB_WORKSPACE}/JTreport/newfailures.txt ${GITHUB_WORKSPACE}/JTreport/other_errors.txt;
+            exit 1 ;
+          fi
+        if: steps.check_if_run.outputs.should_run != 'false'
