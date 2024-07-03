@@ -292,7 +292,7 @@ public:
   virtual const Type* add_id() const { return TypeLong::make(min_jlong); }
   virtual const Type* bottom_type() const { return TypeLong::LONG; }
   virtual uint ideal_reg() const { return Op_RegL; }
-  virtual Node* Identity(PhaseGVN* phase);
+  virtual Node* Identity(PhaseTransform* phase);
   virtual Node* Ideal(PhaseGVN *phase, bool can_reshape);
 };
 
@@ -309,7 +309,7 @@ public:
   virtual const Type* add_id() const { return TypeLong::make(max_jlong); }
   virtual const Type* bottom_type() const { return TypeLong::LONG; }
   virtual uint ideal_reg() const { return Op_RegL; }
-  virtual Node* Identity(PhaseGVN* phase);
+  virtual Node* Identity(PhaseTransform* phase);
   virtual Node* Ideal(PhaseGVN* phase, bool can_reshape);
 };
 

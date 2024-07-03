@@ -942,7 +942,7 @@ const Type *ConvI2LNode::Value( PhaseTransform *phase ) const {
   return tl;
 }
 
-Node* ConvI2LNode::Identity(PhaseGVN* phase) {
+Node* ConvI2LNode::Identity(PhaseTransform* phase) {
   // If type is in "int" sub-range, we can
   // convert I2L(L2I(x)) => x
   // since the conversions have no effect.

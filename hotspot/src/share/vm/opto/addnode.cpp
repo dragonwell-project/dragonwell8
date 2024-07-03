@@ -1101,7 +1101,7 @@ const Type* MaxLNode::add_ring(const Type* t0, const Type* t1) const {
   return TypeLong::make(MAX2(r0->_lo, r1->_lo), MAX2(r0->_hi, r1->_hi), MAX2(r0->_widen, r1->_widen));
 }
 
-Node* MaxLNode::Identity(PhaseGVN* phase) {
+Node* MaxLNode::Identity(PhaseTransform* phase) {
   const TypeLong* t1 = phase->type(in(1))->is_long();
   const TypeLong* t2 = phase->type(in(2))->is_long();
 
@@ -1133,7 +1133,7 @@ const Type* MinLNode::add_ring(const Type* t0, const Type* t1) const {
   return TypeLong::make(MIN2(r0->_lo, r1->_lo), MIN2(r0->_hi, r1->_hi), MIN2(r0->_widen, r1->_widen));
 }
 
-Node* MinLNode::Identity(PhaseGVN* phase) {
+Node* MinLNode::Identity(PhaseTransform* phase) {
   const TypeLong* t1 = phase->type(in(1))->is_long();
   const TypeLong* t2 = phase->type(in(2))->is_long();
 
