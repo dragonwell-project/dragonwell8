@@ -1,0 +1,126 @@
+#
+# Copyright (c) 2024 Alibaba Group Holding Limited. All Rights Reserved.
+# DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
+#
+# This code is free software; you can redistribute it and/or modify it
+# under the terms of the GNU General Public License version 2 only, as
+# published by the Free Software Foundation. Alibaba designates this
+# particular file as subject to the "Classpath" exception as provided
+# by Oracle in the LICENSE file that accompanied this code.
+#
+# This code is distributed in the hope that it will be useful, but WITHOUT
+# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+# FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License
+# version 2 for more details (a copy is included in the LICENSE file that
+# accompanied this code).
+#
+# You should have received a copy of the GNU General Public License version
+# 2 along with this work; if not, write to the Free Software Foundation,
+# Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.
+#
+
+name: 'Run tests'
+
+on:
+  workflow_call:
+    inputs:
+      platform:
+        required: true
+        type: string
+      debug-suffix:
+        required: false
+        type: string
+      runs-on:
+        required: true
+        type: string
+
+jobs:
+  test:
+    name: test
+    runs-on: ${{fromJson(inputs.runs-on)}}
+    outputs:
+      should_run: ${{ steps.check_if_run.outputs.should_run }}
+    defaults:
+      run:
+        shell: bash
+
+    strategy:
+      fail-fast: false
+      matrix:
+        test-name:
+          - 'jdk_tier1'
+          - 'dragonwell_jdk_features'
+          - 'hotspot_tier1'
+          - 'hotspot_jwarmup'
+          - 'hotspot_elastic_heap'
+          - 'hotspot_multi_tenant'
+
+        include:
+          - test-name: 'jdk_tier1'
+            test-suite: 'jdk/test/:jdk_tier1'
+          - test-name: 'dragonwell_jdk_features'
+            test-suite: 'jdk/test/:dragonwell_jdk_features'
+          - test-name: 'hotspot_tier1'
+            test-suite: 'hotspot/test/:hotspot_tier1'
+          - test-name: 'hotspot_jwarmup'
+            test-suite: 'hotspot/test/:hotspot_jwarmup'
+          - test-name: 'hotspot_elastic_heap'
+            test-suite: 'hotspot/test/:hotspot_elastic_heap'
+          - test-name: 'hotspot_multi_tenant'
+            test-suite: 'hotspot/test/:hotspot_multi_tenant'
+
+    steps:
+      - name: 'Check if the test suite should run'
+        id: check_if_run
+        run: |
+          if [[ "${{ inputs.platform }}" == "linux-x64" ]]; then
+            echo "should_run=true" >> $GITHUB_OUTPUT
+          elif [[ "${{ inputs.platform }}" == "linux-aarch64" ]]; then
+            if [[ "${{ matrix.test-name }}" == "hotspot_multi_tenant" ]]; then
+                echo "should_run=false" >> $GITHUB_OUTPUT
+            else
+                echo "should_run=true" >> $GITHUB_OUTPUT
+            fi
+          else
+            echo "should_run=false" >> $GITHUB_OUTPUT
+          fi
+        shell: bash
+
+      - name: 'Checkout the JDK source'
+        uses: actions/checkout@v4
+        if: steps.check_if_run.outputs.should_run != 'false'
+
+      - name: 'Get bundles'
+        uses: actions/download-artifact@v3
+        with:
+          name: bundles-${{ inputs.platform }}${{ inputs.debug-suffix }}
+          path: bundles
+        if: steps.check_if_run.outputs.should_run != 'false'
+
+      - name: 'Unpack bundles'
+        id: unpack_bundles
+        run: |
+          mkdir -p java_home
+          tar zxvf bundles/bundles.tar.gz -C java_home --strip-components=1
+          echo "::set-output name=path::${PWD}/java_home"
+        shell: bash
+        if: steps.check_if_run.outputs.should_run != 'false'
+
+      - name: 'Get jtreg'
+        id: get_jtreg
+        run: |
+          wget https://compiler-tools.oss-cn-hangzhou.aliyuncs.com/jtreg/jtreg-5.1-b01.tar.gz -O jtreg.tar.gz
+          mkdir -p jtreg
+          tar zxvf jtreg.tar.gz -C jtreg --strip-components=1
+          rm -rf jtreg.tar.gz
+          echo "::set-output name=path::${PWD}/jtreg"
+        shell: bash
+        if: steps.check_if_run.outputs.should_run != 'false'
+
+      - name: 'Run test'
+        run: |
+          cpu=`nproc`
+          jobs=`expr ${cpu} / 2`
+          ${{ steps.get_jtreg.outputs.path }}/bin/jtreg -agentvm -a -ea -esa -v:fail,error,time -jdk:${{ steps.unpack_bundles.outputs.path }} -exclude:"${PWD}/hotspot/test/ProblemList.txt" -exclude:"${PWD}/jdk/test/ProblemList.txt" -concurrency:${jobs} -timeoutFactor:10  -vmoptions:"-Djdk.test.docker.image.name=ubuntu -Djdk.test.docker.image.version=latest" ${{ matrix.test-suite }}
+        shell: bash
+        if: steps.check_if_run.outputs.should_run != 'false'
