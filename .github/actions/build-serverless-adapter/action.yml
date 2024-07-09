@@ -1,0 +1,72 @@
+#
+# Copyright (c) 2024 Alibaba Group Holding Limited. All Rights Reserved.
+# DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
+#
+# This code is free software; you can redistribute it and/or modify it
+# under the terms of the GNU General Public License version 2 only, as
+# published by the Free Software Foundation. Alibaba designates this
+# particular file as subject to the "Classpath" exception as provided
+# by Oracle in the LICENSE file that accompanied this code.
+#
+# This code is distributed in the hope that it will be useful, but WITHOUT
+# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+# FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License
+# version 2 for more details (a copy is included in the LICENSE file that
+# accompanied this code).
+#
+# You should have received a copy of the GNU General Public License version
+# 2 along with this work; if not, write to the Free Software Foundation,
+# Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.
+#
+
+name: 'Build serverless-adapter'
+description: 'Build it using built JDK'
+inputs:
+  jdk:
+    description: 'Boot JDK'
+    required: true
+  platform:
+    description: 'Boot JDK'
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: 'Checkout serverless-adapter source code'
+      id: serverless_adapter_checkout
+      uses: actions/checkout@v3
+      with:
+        repository: dragonwell-project/serverless-adapter-jdk8
+        ref: main
+        path: serverless-adapter
+
+    - name: 'Get Maven'
+      id: maven
+      run: |
+        mkdir -p /opt/maven
+        wget https://dlcdn.apache.org/maven/maven-3/3.8.8/binaries/apache-maven-3.8.8-bin.tar.gz
+        tar -xvf apache-maven-3.8.8-bin.tar.gz -C /opt/maven --strip-components=1
+        echo "::set-output name=path::/opt/maven"
+      shell: bash
+
+    - name: 'Build serverless-adapter'
+      id: serverless_adapter_build
+      run: |
+        export PATH=${{ inputs.jdk }}/bin:${{ steps.maven.outputs.path }}/bin:${PATH}
+        JAVA_HOME=${{ inputs.jdk }} mvn package
+        echo "::set-output name=path::${PWD}"
+      shell: bash
+      working-directory: serverless-adapter
+
+    - name: 'Copy serverless-adapter into boot jdk'
+      run: |
+        if [ "${{ inputs.platform }}" = "linux-x64" ]; then
+            subdir='amd64'
+        else
+            subdir="aarch64"
+        fi
+        target_path=${{ inputs.jdk }}/jre/lib/${subdir}/serverless
+        mkdir -p ${target_path}
+        cp -f ${{ steps.serverless_adapter_build.outputs.path }}/target/serverless-adapter-0.1.jar ${target_path}/serverless-adapter.jar
+        cp -f ${{ steps.serverless_adapter_build.outputs.path }}/output/libloadclassagent.so ${target_path}/libloadclassagent.so
+      shell: bash

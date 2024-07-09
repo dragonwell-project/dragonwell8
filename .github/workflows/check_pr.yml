@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2019 Alibaba Group Holding Limited. All Rights Reserved.
+# Copyright (c) 2024 Alibaba Group Holding Limited. All Rights Reserved.
 # DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 #
 # This code is free software; you can redistribute it and/or modify it
@@ -19,9 +19,23 @@
 # Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.
 #
 
-name: Dragonwell_8_commit_style_check
+name: Prerequisites
 
-on: [pull_request]
+on:
+  workflow_call:
+    inputs:
+      platforms:
+        required: true
+        type: string
+    outputs:
+      should_run:
+        value: ${{ jobs.prerequisites.outputs.should_run }}
+      bundle_id:
+        value: ${{ jobs.prerequisites.outputs.bundle_id }}
+      platform_linux_x64:
+        value: ${{ jobs.prerequisites.outputs.platform_linux_x64 }}
+      platform_linux_aarch64:
+        value: ${{ jobs.prerequisites.outputs.platform_linux_aarch64 }}
 
 jobs:
   check_commit:
@@ -29,3 +43,32 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - uses: dragonwell-releng/check_commit_action@master
+    if: github.event_name == 'pull_request'
+
+  prerequisites:
+    name: 'Prerequisites'
+    runs-on: ubuntu-latest
+    outputs:
+      should_run: ${{ steps.check_submit.outputs.should_run }}
+      bundle_id: ${{ steps.check_bundle_id.outputs.bundle_id }}
+      platform_linux_x64: ${{ steps.check_platforms.outputs.platform_linux_x64 }}
+      platform_linux_aarch64: ${{ steps.check_platforms.outputs.platform_linux_aarch64 }}
+
+    steps:
+      - name: 'Check if submit tests should actually run depending on secrets and manual triggering'
+        id: check_submit
+        run: echo "::set-output name=should_run::${{ inputs.platforms != '' || (!secrets.JDK_SUBMIT_FILTER || startsWith(github.ref, 'refs/heads/submit/')) }}"
+
+      - name: 'Check which platforms should be included'
+        id: check_platforms
+        run: |
+          echo "::set-output name=platform_linux_x64::${{ contains(inputs.platforms, 'linux x64') || (inputs.platforms == '') }}"
+          echo "::set-output name=platform_linux_aarch64::${{ contains(inputs.platforms, 'linux aarch64') || (inputs.platforms == '') }}"
+          echo "::set-output name=platform_windows_x64::${{ contains(inputs.platforms, 'windows x64') || (inputs.platforms == '') }}"
+          echo "::set-output name=platform_riscv64::${{ contains(inputs.platforms, 'riscv64') || (inputs.platforms == '') }}"
+        if: steps.check_submit.outputs.should_run != false
+
+      - name: 'Determine unique bundle identifier'
+        id: check_bundle_id
+        run: echo "::set-output name=bundle_id::${GITHUB_ACTOR}_${GITHUB_SHA:0:8}"
+        if: steps.check_submit.outputs.should_run != 'false'

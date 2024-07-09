@@ -23,242 +23,310 @@ name: Dragonwell_8_build_test
 
 on:
   pull_request:
-    types: [opened, synchronize, reopened]
+    branches:
+      - master
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   prerequisites:
     name: Prerequisites
-    runs-on: "ubuntu-20.04"
-    outputs:
-      bundle_id: ${{ steps.check_bundle_id.outputs.bundle_id }}
-    steps:
-      - name: Determine unique bundle identifier
-        id: check_bundle_id
-        run: echo "::set-output name=bundle_id::${GITHUB_ACTOR}_${GITHUB_SHA:0:8}"
+    uses: ./.github/workflows/check_pr.yml
+    with:
+      platforms: 'linux x64, linux aarch64'
 
-  linux_x64_build:
+  build-linux-x64:
+    name: linux-x64
     needs: prerequisites
-    name: Linux x64
-    runs-on: "ubuntu-20.04"
-    container:
-      image: docker.io/dragonwelljdk/build_jdk:8u
-    steps:
-      - name: Checkout target source
-        uses: actions/checkout@v3
-        with:
-          ref: ${{ github.event.pull_request.head.sha }}
-      - name: Compile debug
-        run: |
-          sh configure --with-debug-level=fastdebug --with-cacerts-file=${PWD}/common/security/cacerts --with-milestone=fcs --enable-unlimited-crypto
-          make images CONF=linux-x86_64-normal-server-fastdebug
-      - name: Compile release
-        run: |
-          make clean || true
-          [ -d build ] && rm -rf build
-          sh configure --with-debug-level=release --with-cacerts-file=${PWD}/common/security/cacerts --with-milestone=fcs --enable-unlimited-crypto
-          make images CONF=linux-x86_64-normal-server-release
-      - name: Install dependencies
-        run: |
-          wget https://dlcdn.apache.org/maven/maven-3/3.8.8/binaries/apache-maven-3.8.8-bin.tar.gz
-          tar -xvf apache-maven-3.8.8-bin.tar.gz
-      - name: Download serverless-adapter-jdk8 source code
-        uses: actions/checkout@v3
-        with:
-          repository: dragonwell-project/serverless-adapter-jdk8
-          ref: main
-          path: serverless-adapter-jdk8
-      - name: Build serverless-adapter-jdk8
-        run: |
-          export JAVA_HOME=../build/linux-x86_64-normal-server-release/images/j2sdk-image
-          ../apache-maven-3.8.8/bin/mvn package
-          mkdir -p ../build/linux-x86_64-normal-server-release/images/j2sdk-image/jre/lib/amd64/serverless
-          cp -f target/serverless-adapter-0.1.jar ../build/linux-x86_64-normal-server-release/images/j2sdk-image/jre/lib/amd64/serverless/serverless-adapter.jar
-          cp -f output/libloadclassagent.so ../build/linux-x86_64-normal-server-release/images/j2sdk-image/jre/lib/amd64/serverless/
-        working-directory: serverless-adapter-jdk8
-      - name: Upload Test image
-        uses: actions/upload-artifact@v2
-        with:
-          name: dragonwell8_x86_release_image_${{ needs.prerequisites.outputs.bundle_id }}
-          path: |
-            build/linux-x86_64-normal-server-release/images/j2sdk-image
+    uses: ./.github/workflows/build-linux.yml
+    with:
+      platform: linux-x64
+      conf-arguments: linux-x86_64-normal-server
+      make-target: 'images'
+      runs-on: '"ubuntu-20.04"'
+    if: needs.prerequisites.outputs.should_run != 'false' && needs.prerequisites.outputs.platform_linux_x64 != 'false'
 
-  linux_x64_test:
-    name: Linux x64 Test
+  build-linux-aarch64:
+    name: linux-aarch64
+    needs: prerequisites
+    uses: ./.github/workflows/build-linux.yml
+    with:
+      platform: linux-aarch64
+      conf-arguments: linux-aarch64-normal-server
+      make-target: 'images'
+      runs-on: '["self-hosted", "ARM64"]'
+    if: needs.prerequisites.outputs.should_run != 'false' && needs.prerequisites.outputs.platform_linux_aarch64 != 'false'
+
+  test-linux-x64:
+    name: linux-x64
     needs:
-      - prerequisites
-      - linux_x64_build
+      - build-linux-x64
+    uses: ./.github/workflows/test.yml
+    with:
+      platform: linux-x64
+      debug-suffix: -release
+      runs-on: '"ubuntu-20.04"'
 
-    runs-on: "ubuntu-20.04"
-    container:
-      image: docker.io/dragonwelljdk/build_jdk:8u
-    strategy:
-      fail-fast: false
-      matrix:
-        test:
-          - jdk/test/:jdk_tier1
-          - jdk/test/:dragonwell_jdk_features
-          - hotspot/test/:hotspot_tier1
-          - hotspot/test/:hotspot_jwarmup
-          - hotspot/test/:hotspot_elastic_heap
-          - hotspot/test/:hotspot_multi_tenant
-    steps:
-      - name: Checkout target source
-        uses: actions/checkout@v3
-        with:
-          ref: ${{ github.event.pull_request.head.sha }}
-      - name: Clear Dragonwell8 Dir
-        run: |
-          rm -rf /opt/dragonwell8
-      - name: Download image
-        id: jtreg_restore
-        uses: actions/download-artifact@v2
-        with:
-          name: dragonwell8_x86_release_image_${{ needs.prerequisites.outputs.bundle_id }}
-          path: /opt/dragonwell8
-        continue-on-error: false
-      - name: Test image version
-        run: |
-          ls /opt/dragonwell8
-          chmod -R 777 /opt/dragonwell8
-          /opt/dragonwell8/bin/java -version
-      - name: Test
-        run: |
-          jtreg -agentvm -a -ea -esa -v:fail,error,time,nopass -jdk:/opt/dragonwell8 -exclude:"/__w/dragonwell8/dragonwell8/hotspot/test/ProblemList.txt" -exclude:"/__w/dragonwell8/dragonwell8/jdk/test/ProblemList.txt" "${{ matrix.test }}"
-      - name: Check that all tests executed successfully
-        run: >
-          if [[ egrep -q "(failed|error)" /__w/dragonwell8/dragonwell8/JTreport/text/stats.txt ]]; then
-            cat /__w/dragonwell8/dragonwell8/JTreport/newfailures.txt /__w/dragonwell8/dragonwell8/JTreport/other_errors.txt;
-            exit 1 ;
-          fi
-
-  linux_aarch64_release_build:
-    needs: prerequisites
-    name: Linux aarch64(release)
-    runs-on: ["ubuntu", "ARM64"]
-    steps:
-      - name: Update apt and download dependency
-        run: |
-          sudo apt update -y
-          sudo apt install -y libxtst-dev libxt-dev libxrender-dev libxrandr-dev libxi-dev libcups2-dev libfontconfig1-dev libasound2-dev unzip zip openjdk-8-jdk
-      - name: Get boot jdk
-        run: |
-          if [ ! -f /home/${USER}/dragonwell8/dragonwell-8.15.16/bin/java ];then
-            mkdir -p /home/${USER}/dragonwell8
-            rm -rf /home/${USER}/dragonwell8/* /home/${USER}/dragonwell8.tar.gz
-            wget https://dragonwell.oss-cn-shanghai.aliyuncs.com/8.15.16/Alibaba_Dragonwell_Extended_8.15.16_aarch64_linux.tar.gz -O /home/${USER}/dragonwell8.tar.gz
-            tar zxf /home/${USER}/dragonwell8.tar.gz -C /home/${USER}/dragonwell8
-          fi
-      - name: Checkout target source
-        uses: actions/checkout@v3
-        with:
-          ref: ${{ github.event.pull_request.head.sha }}
-      - name: Compile release
-        run: |
-          sh configure --with-debug-level=release --with-cacerts-file=${PWD}/common/security/cacerts --with-milestone=fcs --enable-unlimited-crypto --with-boot-jdk=/home/${USER}/dragonwell8/dragonwell-8.15.16
-          make images CONF=linux-aarch64-normal-server-release
-      - name: Install dependencies
-        run: |
-          wget https://dlcdn.apache.org/maven/maven-3/3.8.8/binaries/apache-maven-3.8.8-bin.tar.gz
-          tar -xvf apache-maven-3.8.8-bin.tar.gz
-      - name: Download serverless-adapter-jdk8 source code
-        uses: actions/checkout@v3
-        with:
-          repository: dragonwell-project/serverless-adapter-jdk8
-          ref: main
-          path: serverless-adapter-jdk8
-      - name: Build serverless-adapter-jdk8
-        run: |
-          export JAVA_HOME=../build/linux-aarch64-normal-server-release/images/j2sdk-image
-          ../apache-maven-3.8.8/bin/mvn package
-          mkdir -p ../build/linux-aarch64-normal-server-release/images/j2sdk-image/jre/lib/aarch64/serverless
-          cp -f target/serverless-adapter-0.1.jar ../build/linux-aarch64-normal-server-release/images/j2sdk-image/jre/lib/aarch64/serverless/serverless-adapter.jar
-          cp -f output/libloadclassagent.so ../build/linux-aarch64-normal-server-release/images/j2sdk-image/jre/lib/aarch64/serverless/
-          ../build/linux-aarch64-normal-server-release/images/j2sdk-image/bin/java -version
-        working-directory: serverless-adapter-jdk8
-      - name: Upload Test image
-        uses: actions/upload-artifact@v2
-        with:
-          name: dragonwell8_aarch64_release_image_${{ needs.prerequisites.outputs.bundle_id }}
-          path: |
-            build/linux-aarch64-normal-server-release/images/j2sdk-image
-
-  linux_aarch64_debug_build:
-    needs: prerequisites
-    name: Linux aarch64(fastdebug)
-    runs-on: ["ubuntu", "ARM64"]
-    steps:
-      - name: Update apt and download dependency
-        run: |
-          sudo apt update -y
-          sudo apt install -y libxtst-dev libxt-dev libxrender-dev libxrandr-dev libxi-dev libcups2-dev libfontconfig1-dev libasound2-dev unzip zip openjdk-8-jdk
-      - name: Get boot jdk
-        run: |
-          if [ ! -f /home/${USER}/dragonwell8/dragonwell-8.15.16/bin/java ];then
-            mkdir -p /home/${USER}/dragonwell8
-            rm -rf /home/${USER}/dragonwell8/* /home/${USER}/dragonwell8.tar.gz
-            wget https://dragonwell.oss-cn-shanghai.aliyuncs.com/8.15.16/Alibaba_Dragonwell_Extended_8.15.16_aarch64_linux.tar.gz -O /home/${USER}/dragonwell8.tar.gz
-            tar zxf /home/${USER}/dragonwell8.tar.gz -C /home/${USER}/dragonwell8
-          fi
-      - name: Checkout target source
-        uses: actions/checkout@v3
-        with:
-          ref: ${{ github.event.pull_request.head.sha }}
-      - name: Compile debug
-        run: |
-          sh configure --with-debug-level=fastdebug --with-cacerts-file=${PWD}/common/security/cacerts --with-milestone=fcs --enable-unlimited-crypto --with-boot-jdk=/home/${USER}/dragonwell8/dragonwell-8.15.16
-          make images CONF=linux-aarch64-normal-server-fastdebug
-
-  linux_aarch64_test:
-    name: Linux aarch64 Test
+  test-linux-aarch64:
+    name: linux-aarch64
     needs:
-      - prerequisites
-      - linux_aarch64_release_build
+      - build-linux-aarch64
+    uses: ./.github/workflows/test.yml
+    with:
+      platform: linux-aarch64
+      debug-suffix: -release
+      runs-on: '["self-hosted", "ARM64"]'
 
-    runs-on: ["ubuntu", "ARM64"]
-    strategy:
-      fail-fast: false
-      matrix:
-        test:
-          - jdk/test/:jdk_tier1
-          - jdk/test/:dragonwell_jdk_features
-          - hotspot/test/:hotspot_tier1
-          - hotspot/test/:hotspot_jwarmup
-          - hotspot/test/:hotspot_elastic_heap
+  remove-bundles:
+    name: 'Remove bundle artifacts'
+    runs-on: ubuntu-22.04
+
+    needs:
+      - build-linux-x64
+      - build-linux-aarch64
+      - test-linux-x64
+      - test-linux-aarch64
+
     steps:
-      - name: Checkout target source
-        uses: actions/checkout@v3
+      - name: 'Get API configuration'
+        id: api
+        uses: actions/github-script@v6
         with:
-          ref: ${{ github.event.pull_request.head.sha }}
-      - name: Clear Dragonwell8 Dir
+          script: 'return { url: process.env["ACTIONS_RUNTIME_URL"], token: process.env["ACTIONS_RUNTIME_TOKEN"] }'
+
+      - name: 'Remove bundle artifacts'
         run: |
-          rm -rf /opt/dragonwell8
-      - name: Download image
-        id: jtreg_restore
-        uses: actions/download-artifact@v2
-        with:
-          name: dragonwell8_aarch64_release_image_${{ needs.prerequisites.outputs.bundle_id }}
-          path: /opt/dragonwell8
-        continue-on-error: false
-      - name: Test image version
-        run: |
-          ls /opt/dragonwell8
-          chmod -R 777 /opt/dragonwell8
-          /opt/dragonwell8/bin/java -version
-      - name: Get jtreg image
-        run: |
-          if [ ! -f /home/${USER}/jtreg/bin/jtreg ];then
-            wget https://compiler-ci-bucket.oss-cn-hangzhou.aliyuncs.com/tools/jtreg_5_1_b01.zip -O /home/${USER}/jtreg_5_1_b01.zip
-            cd /home/${USER}
-            sudo apt update -y
-            sudo apt install -y unzip
-            unzip jtreg_5_1_b01.zip
-          fi
-      - name: Test
-        run: |
-          /home/${USER}/jtreg/bin/jtreg -agentvm -a -ea -esa -v:fail,error,time,nopass -jdk:/opt/dragonwell8 -exclude:"/home/${USER}/actions-runner/_work/dragonwell8/dragonwell8/hotspot/test/ProblemList.txt" -exclude:"/home/${USER}/actions-runner/_work/dragonwell8/dragonwell8/jdk/test/ProblemList.txt" "${{ matrix.test }}"
-      - name: Check that all tests executed successfully
-        run: >
-          if [ -n "$(cat /home/${USER}/actions-runner/_work/dragonwell8/dragonwell8/JTreport/text/stats.txt | grep -E 'failed|error')" ]; then
-            cat /home/${USER}/actions-runner/_work/dragonwell8/dragonwell8/JTreport/newfailures.txt /home/${USER}/actions-runner/_work/dragonwell8/dragonwell8/JTreport/other_errors.txt;
-            exit 1 ;
-          fi
+          ALL_ARTIFACT_URLS="$(curl -s \
+              -H 'Accept: application/json;api-version=6.0-preview' \
+              -H 'Authorization: Bearer ${{ fromJson(steps.api.outputs.result).token }}' \
+              '${{ fromJson(steps.api.outputs.result).url }}_apis/pipelines/workflows/${{ github.run_id }}/artifacts?api-version=6.0-preview')"
+          BUNDLE_ARTIFACT_URLS="$(echo "$ALL_ARTIFACT_URLS" | jq -r -c '.value | map(select(.name|startswith("bundles-"))) | .[].url')"
+          for url in $BUNDLE_ARTIFACT_URLS; do
+            echo "Removing $url"
+            curl -s \
+                -H 'Accept: application/json;api-version=6.0-preview' \
+                -H 'Authorization: Bearer ${{ fromJson(steps.api.outputs.result).token }}' \
+                -X DELETE "$url" \
+            || echo "Failed to remove bundle"
+          done
+
+  #linux_x64_build:
+  #  needs: prerequisites
+  #  name: Linux x64
+  #  runs-on: "ubuntu-20.04"
+  #  steps:
+  #    - name: Checkout target source
+  #      uses: actions/checkout@v3
+  #      with:
+  #        ref: ${{ github.event.pull_request.head.sha }}
+  #    - name: Update apt and download dependency
+  #      run: |
+  #        sudo apt update -y
+  #        sudo apt install -y libxtst-dev libxt-dev libxrender-dev libxrandr-dev libxi-dev libcups2-dev libfontconfig1-dev libasound2-dev unzip zip openjdk-8-jdk
+  #    - name: Compile debug
+  #      run: |
+  #        sh configure --with-debug-level=fastdebug --with-cacerts-file=${PWD}/common/security/cacerts --with-milestone=fcs --enable-unlimited-crypto
+  #        make images CONF=linux-x86_64-normal-server-fastdebug
+  #    - name: Compile release
+  #      run: |
+  #        make clean || true
+  #        [ -d build ] && rm -rf build
+  #        sh configure --with-debug-level=release --with-cacerts-file=${PWD}/common/security/cacerts --with-milestone=fcs --enable-unlimited-crypto
+  #        make images CONF=linux-x86_64-normal-server-release
+  #    - name: Install dependencies
+  #      run: |
+  #        wget https://dlcdn.apache.org/maven/maven-3/3.8.8/binaries/apache-maven-3.8.8-bin.tar.gz
+  #        tar -xvf apache-maven-3.8.8-bin.tar.gz
+  #    - name: Download serverless-adapter-jdk8 source code
+  #      uses: actions/checkout@v3
+  #      with:
+  #        repository: dragonwell-project/serverless-adapter-jdk8
+  #        ref: main
+  #        path: serverless-adapter-jdk8
+  #    - name: Build serverless-adapter-jdk8
+  #      run: |
+  #        export JAVA_HOME=../build/linux-x86_64-normal-server-release/images/j2sdk-image
+  #        ../apache-maven-3.8.8/bin/mvn package
+  #        mkdir -p ../build/linux-x86_64-normal-server-release/images/j2sdk-image/jre/lib/amd64/serverless
+  #        cp -f target/serverless-adapter-0.1.jar ../build/linux-x86_64-normal-server-release/images/j2sdk-image/jre/lib/amd64/serverless/serverless-adapter.jar
+  #        cp -f output/libloadclassagent.so ../build/linux-x86_64-normal-server-release/images/j2sdk-image/jre/lib/amd64/serverless/
+  #      working-directory: serverless-adapter-jdk8
+  #    - name: Upload Test image
+  #      uses: actions/upload-artifact@v2
+  #      with:
+  #        name: dragonwell8_x86_release_image_${{ needs.prerequisites.outputs.bundle_id }}
+  #        path: |
+  #          build/linux-x86_64-normal-server-release/images/j2sdk-image
+
+  #linux_x64_test:
+  #  name: Linux x64 Test
+  #  needs:
+  #    - prerequisites
+  #    - linux_x64_build
+
+  #  runs-on: "ubuntu-20.04"
+  #  container:
+  #    image: docker.io/dragonwelljdk/build_jdk:8u
+  #  strategy:
+  #    fail-fast: false
+  #    matrix:
+  #      test:
+  #        - jdk/test/:jdk_tier1
+  #        - jdk/test/:dragonwell_jdk_features
+  #        - hotspot/test/:hotspot_tier1
+  #        - hotspot/test/:hotspot_jwarmup
+  #        - hotspot/test/:hotspot_elastic_heap
+  #        - hotspot/test/:hotspot_multi_tenant
+  #  steps:
+  #    - name: Checkout target source
+  #      uses: actions/checkout@v3
+  #      with:
+  #        ref: ${{ github.event.pull_request.head.sha }}
+  #    - name: Clear Dragonwell8 Dir
+  #      run: |
+  #        rm -rf /opt/dragonwell8
+  #    - name: Download image
+  #      id: jtreg_restore
+  #      uses: actions/download-artifact@v2
+  #      with:
+  #        name: dragonwell8_x86_release_image_${{ needs.prerequisites.outputs.bundle_id }}
+  #        path: /opt/dragonwell8
+  #      continue-on-error: false
+  #    - name: Test image version
+  #      run: |
+  #        ls /opt/dragonwell8
+  #        chmod -R 777 /opt/dragonwell8
+  #        /opt/dragonwell8/bin/java -version
+  #    - name: Test
+  #      run: |
+  #        jtreg -agentvm -a -ea -esa -v:fail,error,time,nopass -jdk:/opt/dragonwell8 -exclude:"/__w/dragonwell8/dragonwell8/hotspot/test/ProblemList.txt" -exclude:"/__w/dragonwell8/dragonwell8/jdk/test/ProblemList.txt" "${{ matrix.test }}"
+  #    - name: Check that all tests executed successfully
+  #      run: >
+  #        if [[ egrep -q "(failed|error)" /__w/dragonwell8/dragonwell8/JTreport/text/stats.txt ]]; then
+  #          cat /__w/dragonwell8/dragonwell8/JTreport/newfailures.txt /__w/dragonwell8/dragonwell8/JTreport/other_errors.txt;
+  #          exit 1 ;
+  #        fi
+
+  #linux_aarch64_release_build:
+  #  needs: prerequisites
+  #  name: Linux aarch64(release)
+  #  runs-on: ["ubuntu", "ARM64"]
+  #  steps:
+  #    - name: Get boot jdk
+  #      run: |
+  #        if [ ! -f /home/${USER}/dragonwell8/dragonwell-8.15.16/bin/java ];then
+  #          mkdir -p /home/${USER}/dragonwell8
+  #          rm -rf /home/${USER}/dragonwell8/* /home/${USER}/dragonwell8.tar.gz
+  #          wget https://dragonwell.oss-cn-shanghai.aliyuncs.com/8.15.16/Alibaba_Dragonwell_Extended_8.15.16_aarch64_linux.tar.gz -O /home/${USER}/dragonwell8.tar.gz
+  #          tar zxf /home/${USER}/dragonwell8.tar.gz -C /home/${USER}/dragonwell8
+  #        fi
+  #    - name: Checkout target source
+  #      uses: actions/checkout@v3
+  #      with:
+  #        ref: ${{ github.event.pull_request.head.sha }}
+  #    - name: Compile release
+  #      run: |
+  #        sh configure --with-debug-level=release --with-cacerts-file=${PWD}/common/security/cacerts --with-milestone=fcs --enable-unlimited-crypto --with-boot-jdk=/home/${USER}/dragonwell8/dragonwell-8.15.16
+  #        make images CONF=linux-aarch64-normal-server-release
+  #    - name: Install dependencies
+  #      run: |
+  #        wget https://dlcdn.apache.org/maven/maven-3/3.8.8/binaries/apache-maven-3.8.8-bin.tar.gz
+  #        tar -xvf apache-maven-3.8.8-bin.tar.gz
+  #    - name: Download serverless-adapter-jdk8 source code
+  #      uses: actions/checkout@v3
+  #      with:
+  #        repository: dragonwell-project/serverless-adapter-jdk8
+  #        ref: main
+  #        path: serverless-adapter-jdk8
+  #    - name: Build serverless-adapter-jdk8
+  #      run: |
+  #        export JAVA_HOME=../build/linux-aarch64-normal-server-release/images/j2sdk-image
+  #        ../apache-maven-3.8.8/bin/mvn package
+  #        mkdir -p ../build/linux-aarch64-normal-server-release/images/j2sdk-image/jre/lib/aarch64/serverless
+  #        cp -f target/serverless-adapter-0.1.jar ../build/linux-aarch64-normal-server-release/images/j2sdk-image/jre/lib/aarch64/serverless/serverless-adapter.jar
+  #        cp -f output/libloadclassagent.so ../build/linux-aarch64-normal-server-release/images/j2sdk-image/jre/lib/aarch64/serverless/
+  #        ../build/linux-aarch64-normal-server-release/images/j2sdk-image/bin/java -version
+  #      working-directory: serverless-adapter-jdk8
+  #    - name: Upload Test image
+  #      uses: actions/upload-artifact@v2
+  #      with:
+  #        name: dragonwell8_aarch64_release_image_${{ needs.prerequisites.outputs.bundle_id }}
+  #        path: |
+  #          build/linux-aarch64-normal-server-release/images/j2sdk-image
+
+  #linux_aarch64_debug_build:
+  #  needs: prerequisites
+  #  name: Linux aarch64(fastdebug)
+  #  runs-on: ["ubuntu", "ARM64"]
+  #  steps:
+  #    - name: Get boot jdk
+  #      run: |
+  #        if [ ! -f /home/${USER}/dragonwell8/dragonwell-8.15.16/bin/java ];then
+  #          mkdir -p /home/${USER}/dragonwell8
+  #          rm -rf /home/${USER}/dragonwell8/* /home/${USER}/dragonwell8.tar.gz
+  #          wget https://dragonwell.oss-cn-shanghai.aliyuncs.com/8.15.16/Alibaba_Dragonwell_Extended_8.15.16_aarch64_linux.tar.gz -O /home/${USER}/dragonwell8.tar.gz
+  #          tar zxf /home/${USER}/dragonwell8.tar.gz -C /home/${USER}/dragonwell8
+  #        fi
+  #    - name: Checkout target source
+  #      uses: actions/checkout@v3
+  #      with:
+  #        ref: ${{ github.event.pull_request.head.sha }}
+  #    - name: Compile debug
+  #      run: |
+  #        sh configure --with-debug-level=fastdebug --with-cacerts-file=${PWD}/common/security/cacerts --with-milestone=fcs --enable-unlimited-crypto --with-boot-jdk=/home/${USER}/dragonwell8/dragonwell-8.15.16
+  #        make images CONF=linux-aarch64-normal-server-fastdebug
+
+  #linux_aarch64_test:
+  #  name: Linux aarch64 Test
+  #  needs:
+  #    - prerequisites
+  #    - linux_aarch64_release_build
+
+  #  runs-on: ["ubuntu", "ARM64"]
+  #  strategy:
+  #    fail-fast: false
+  #    matrix:
+  #      test:
+  #        - jdk/test/:jdk_tier1
+  #        - jdk/test/:dragonwell_jdk_features
+  #        - hotspot/test/:hotspot_tier1
+  #        - hotspot/test/:hotspot_jwarmup
+  #        - hotspot/test/:hotspot_elastic_heap
+  #  steps:
+  #    - name: Checkout target source
+  #      uses: actions/checkout@v3
+  #      with:
+  #        ref: ${{ github.event.pull_request.head.sha }}
+  #    - name: Clear Dragonwell8 Dir
+  #      run: |
+  #        rm -rf /opt/dragonwell8
+  #    - name: Download image
+  #      id: jtreg_restore
+  #      uses: actions/download-artifact@v2
+  #      with:
+  #        name: dragonwell8_aarch64_release_image_${{ needs.prerequisites.outputs.bundle_id }}
+  #        path: /opt/dragonwell8
+  #      continue-on-error: false
+  #    - name: Test image version
+  #      run: |
+  #        ls /opt/dragonwell8
+  #        chmod -R 777 /opt/dragonwell8
+  #        /opt/dragonwell8/bin/java -version
+  #    - name: Get jtreg image
+  #      run: |
+  #        if [ ! -f /home/${USER}/jtreg/bin/jtreg ];then
+  #          wget https://compiler-ci-bucket.oss-cn-hangzhou.aliyuncs.com/tools/jtreg_5_1_b01.zip -O /home/${USER}/jtreg_5_1_b01.zip
+  #          cd /home/${USER}
+  #          unzip jtreg_5_1_b01.zip
+  #        fi
+  #    - name: Test
+  #      run: |
+  #        /home/${USER}/jtreg/bin/jtreg -agentvm -a -ea -esa -v:fail,error,time,nopass -jdk:/opt/dragonwell8 -exclude:"/home/${USER}/actions-runner/_work/dragonwell8/dragonwell8/hotspot/test/ProblemList.txt" -exclude:"/home/${USER}/actions-runner/_work/dragonwell8/dragonwell8/jdk/test/ProblemList.txt" "${{ matrix.test }}"
+  #    - name: Check that all tests executed successfully
+  #      run: >
+  #        if [ -n "$(cat /home/${USER}/actions-runner/_work/dragonwell8/dragonwell8/JTreport/text/stats.txt | grep -E 'failed|error')" ]; then
+  #          cat /home/${USER}/actions-runner/_work/dragonwell8/dragonwell8/JTreport/newfailures.txt /home/${USER}/actions-runner/_work/dragonwell8/dragonwell8/JTreport/other_errors.txt;
+  #          exit 1 ;
+  #        fi

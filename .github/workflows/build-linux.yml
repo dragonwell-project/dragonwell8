@@ -1,0 +1,155 @@
+#
+# Copyright (c) 2024 Alibaba Group Holding Limited. All Rights Reserved.
+# DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
+#
+# This code is free software; you can redistribute it and/or modify it
+# under the terms of the GNU General Public License version 2 only, as
+# published by the Free Software Foundation. Alibaba designates this
+# particular file as subject to the "Classpath" exception as provided
+# by Oracle in the LICENSE file that accompanied this code.
+#
+# This code is distributed in the hope that it will be useful, but WITHOUT
+# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+# FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License
+# version 2 for more details (a copy is included in the LICENSE file that
+# accompanied this code).
+#
+# You should have received a copy of the GNU General Public License version
+# 2 along with this work; if not, write to the Free Software Foundation,
+# Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.
+#
+
+name: 'Build (linux)'
+
+on:
+  workflow_call:
+    inputs:
+      platform:
+        required: true
+        type: string
+      extra-conf-options:
+        required: false
+        type: string
+      make-target:
+        required: false
+        type: string
+        default: 'product-bundles test-bundles'
+      debug-levels:
+        required: false
+        type: string
+        default: '[ "fastdebug", "release" ]'
+      gcc-major-version:
+        required: false
+        type: string
+      gcc-package-suffix:
+        required: false
+        type: string
+        default: ''
+      apt-architecture:
+        required: false
+        type: string
+      apt-extra-packages:
+        required: false
+        type: string
+      configure-arguments:
+        required: false
+        type: string
+      conf-arguments:
+        required: false
+        type: string
+      runs-on:
+        required: true
+        type: string
+
+jobs:
+  build-linux:
+    name: build
+    runs-on: ${{fromJson(inputs.runs-on)}}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        debug-level: ${{ fromJSON(inputs.debug-levels) }}
+        include:
+          - debug-level: release
+            flags: --with-debug-level=release
+            suffix: -release
+          - debug-level: fastdebug
+            flags: --with-debug-level=fastdebug
+            suffix: -fastdebug
+    steps:
+      - name: 'Checkout the JDK source'
+        uses: actions/checkout@v4
+
+      - name: 'Update apt and download dependency'
+        run: |
+          sudo apt update -y
+          sudo apt install -y gcc-9 g++-9 libxtst-dev libxt-dev libxrender-dev libxrandr-dev libxi-dev libcups2-dev libfontconfig1-dev libasound2-dev unzip zip wget
+          sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-9 100 --slave /usr/bin/g++ g++ /usr/bin/g++-9
+        if: inputs.platform != 'linux-aarch64'
+
+      - name: 'Get boot JDK'
+        id: bootjdk
+        run: |
+          if [ "${{ inputs.platform }}" = "linux-x64" ]; then
+              url=https://dragonwell.oss-cn-shanghai.aliyuncs.com/8.19.20/Alibaba_Dragonwell_Extended_8.19.20_x64_linux.tar.gz
+          else
+              url=https://dragonwell.oss-cn-shanghai.aliyuncs.com/8.19.20/Alibaba_Dragonwell_Extended_8.19.20_aarch64_linux.tar.gz
+          fi
+          wget ${url} -O jdk.tar.gz
+          mkdir -p ${PWD}/jdk-8
+          tar zxvf jdk.tar.gz -C ${PWD}/jdk-8/ --strip-components=1
+          rm -rf jdk.tar.gz
+          echo "::set-output name=path::${PWD}/jdk-8"
+        shell: bash
+
+      - name: 'Clean'
+        run: |
+          if [ -d build ] ;then
+              rm -rf build
+          fi
+        shell: bash
+
+      - name: 'Configure'
+        run: >
+          bash configure
+          --with-conf-name=${{ inputs.conf-arguments }}${{ matrix.suffix }}
+          ${{ matrix.flags }}
+          --with-boot-jdk=${{ steps.bootjdk.outputs.path }}
+          --with-cacerts-file=${PWD}/common/security/cacerts
+          --with-milestone=fcs
+          --enable-unlimited-crypto
+          --with-zlib=bundled || (
+          echo "Dumping config.log:" &&
+          cat config.log &&
+          exit 1)
+        shell: bash
+
+      - name: 'Build'
+        id: build
+        run: |
+          make clean
+          make ${{ inputs.make-target }} CONF=${{ inputs.conf-arguments }}${{ matrix.suffix }}
+          echo "::set-output name=path::${PWD}/build/${{ inputs.conf-arguments }}${{ matrix.suffix }}/images"
+          echo "::set-output name=folder::j2sdk-image"
+        shell: bash
+
+      - name: 'Build Serverless Adapter'
+        uses: ./.github/actions/build-serverless-adapter
+        with:
+          jdk: "${{ steps.build.outputs.path }}/${{ steps.build.outputs.folder }}"
+          platform: "${{ inputs.platform }}"
+
+      - name: 'Pack bundles'
+        id: pack_bundles
+        run: |
+          tar zcvf ${PWD}/bundles.tar.gz -C ${{ steps.build.outputs.path }} ${{ steps.build.outputs.folder }}
+          echo "::set-output name=path::${PWD}/bundles.tar.gz"
+        shell: bash
+
+      - name: 'Upload bundles'
+        uses: actions/upload-artifact@v3
+        with:
+          name: bundles-${{ inputs.platform }}${{ matrix.suffix }}
+          path: ${{ steps.pack_bundles.outputs.path }}
+          retention-days: 3
