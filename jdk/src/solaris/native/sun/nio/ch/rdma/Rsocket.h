@@ -62,26 +62,26 @@ typedef ssize_t rs_rrecvfrom_func(int sockfd, void *buf, size_t len, int flags,
 typedef ssize_t rs_rsendto_func(int sockfd, const void *buf, size_t len,
         int flags, const struct sockaddr *dest_addr, socklen_t addrlen);
 
-rs_rsocket_func* rs_socket;
-rs_rfcntl_func* rs_fcntl;
-rs_rlisten_func* rs_listen;
-rs_rbind_func* rs_bind;
-rs_rconnect_func* rs_connect;
-rs_rgetsockname_func* rs_getsockname;
-rs_rgetsockopt_func* rs_getsockopt;
-rs_rsetsockopt_func* rs_setsockopt;
-rs_rshutdown_func* rs_shutdown;
-rs_rpoll_func* rs_poll;
-rs_rsend_func* rs_send;
-rs_raccept_func* rs_accept;
-rs_rclose_func* rs_close;
-rs_rread_func* rs_read;
-rs_rreadv_func* rs_readv;
-rs_rwrite_func* rs_write;
-rs_rwritev_func* rs_writev;
-rs_rrecv_func* rs_recv;
-rs_rrecvfrom_func* rs_recvfrom;
-rs_rsendto_func* rs_sendto;
+extern rs_rsocket_func* rs_socket;
+extern rs_rfcntl_func* rs_fcntl;
+extern rs_rlisten_func* rs_listen;
+extern rs_rbind_func* rs_bind;
+extern rs_rconnect_func* rs_connect;
+extern rs_rgetsockname_func* rs_getsockname;
+extern rs_rgetsockopt_func* rs_getsockopt;
+extern rs_rsetsockopt_func* rs_setsockopt;
+extern rs_rshutdown_func* rs_shutdown;
+extern rs_rpoll_func* rs_poll;
+extern rs_rsend_func* rs_send;
+extern rs_raccept_func* rs_accept;
+extern rs_rclose_func* rs_close;
+extern rs_rread_func* rs_read;
+extern rs_rreadv_func* rs_readv;
+extern rs_rwrite_func* rs_write;
+extern rs_rwritev_func* rs_writev;
+extern rs_rrecv_func* rs_recv;
+extern rs_rrecvfrom_func* rs_recvfrom;
+extern rs_rsendto_func* rs_sendto;
 
 jboolean loadRdmaFuncs(JNIEnv* env);
 

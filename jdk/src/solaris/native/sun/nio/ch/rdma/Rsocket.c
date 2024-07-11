@@ -30,6 +30,26 @@
 
 static const char* nativeRdmaLib = "librdmacm.so.1";
 static jboolean funcs_loaded = JNI_FALSE;
+rs_rsocket_func* rs_socket;
+rs_rfcntl_func* rs_fcntl;
+rs_rlisten_func* rs_listen;
+rs_rbind_func* rs_bind;
+rs_rconnect_func* rs_connect;
+rs_rgetsockname_func* rs_getsockname;
+rs_rgetsockopt_func* rs_getsockopt;
+rs_rsetsockopt_func* rs_setsockopt;
+rs_rshutdown_func* rs_shutdown;
+rs_rpoll_func* rs_poll;
+rs_rsend_func* rs_send;
+rs_raccept_func* rs_accept;
+rs_rclose_func* rs_close;
+rs_rread_func* rs_read;
+rs_rreadv_func* rs_readv;
+rs_rwrite_func* rs_write;
+rs_rwritev_func* rs_writev;
+rs_rrecv_func* rs_recv;
+rs_rrecvfrom_func* rs_recvfrom;
+rs_rsendto_func* rs_sendto;
 
 jboolean loadRdmaFuncs(JNIEnv* env) {
     if (funcs_loaded)
