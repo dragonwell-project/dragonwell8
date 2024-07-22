@@ -1331,7 +1331,7 @@ jobs:
 
   macos_x64_build:
     name: macOS x64
-    runs-on: "macos-11"
+    runs-on: "macos-13"
     needs: prerequisites
     if: needs.prerequisites.outputs.should_run != 'false' && needs.prerequisites.outputs.platform_macos_x64 != 'false'
 
@@ -1395,10 +1395,10 @@ jobs:
         run: chmod -R a+rx ${HOME}/jtreg/
 
       - name: Install dependencies
-        run: brew install make
+        run: brew install make gawk
 
       - name: Select Xcode version
-        run: sudo xcode-select --switch /Applications/Xcode_11.7.app/Contents/Developer
+        run: sudo xcode-select --switch /Applications/Xcode_14.3.1.app/Contents/Developer
 
       - name: Configure
         run: >
@@ -1429,7 +1429,7 @@ jobs:
 
   macos_x64_test:
     name: macOS x64
-    runs-on: "macos-11"
+    runs-on: "macos-13"
     needs:
       - prerequisites
       - macos_x64_build
@@ -1512,10 +1512,10 @@ jobs:
           tar -xzf "${HOME}/jdk-macos-x64${{ matrix.artifact }}/jdk-${{ env.JDK_VERSION }}-internal+0_osx-x64_bin${{ matrix.artifact }}.tar.gz" -C "${HOME}/jdk-macos-x64${{ matrix.artifact }}/jdk-${{ env.JDK_VERSION }}-internal+0_osx-x64_bin${{ matrix.artifact }}"
 
       - name: Install dependencies
-        run: brew install make
+        run: brew install make gawk
 
       - name: Select Xcode version
-        run: sudo xcode-select --switch /Applications/Xcode_11.7.app/Contents/Developer
+        run: sudo xcode-select --switch /Applications/Xcode_14.3.1.app/Contents/Developer
 
       - name: Run tests
         run: >
