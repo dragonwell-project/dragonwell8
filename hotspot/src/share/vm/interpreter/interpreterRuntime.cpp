@@ -56,6 +56,7 @@
 #include "runtime/synchronizer.hpp"
 #include "runtime/threadCritical.hpp"
 #include "utilities/events.hpp"
+#include "utilities/exceptions.hpp"
 #ifdef TARGET_ARCH_x86
 # include "vm_version_x86.hpp"
 #endif
@@ -454,12 +455,13 @@ IRT_ENTRY(address, InterpreterRuntime::exception_handler_for_exception(JavaThrea
       const char* detail_message = java_lang_Throwable::message_as_utf8(h_exception());
       ttyLocker ttyl;  // Lock after getting the detail message
       if (detail_message != NULL) {
-        tty->print_cr("Exception <%s: %s> (" INTPTR_FORMAT ")",
-                      h_exception->print_value_string(), detail_message,
+        tty->print_cr("Exception <%.*s: %.*s> (" INTPTR_FORMAT ")",
+                      MAX_LEN, h_exception->print_value_string(),
+                      MAX_LEN, detail_message,
                       (address)h_exception());
       } else {
-        tty->print_cr("Exception <%s> (" INTPTR_FORMAT ")",
-                      h_exception->print_value_string(),
+        tty->print_cr("Exception <%.*s> (" INTPTR_FORMAT ")",
+                      MAX_LEN, h_exception->print_value_string(),
                       (address)h_exception());
       }
       tty->print_cr(" thrown in interpreter method <%s>", h_method->print_value_string());

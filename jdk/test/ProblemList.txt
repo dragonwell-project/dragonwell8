@@ -499,3 +499,10 @@ java/lang/StringBuilder/HugeCapacity.java generic-all
 ############################################################################
 
 security/infra/java/security/cert/CertPathValidator/certification/CertignaCA.java generic-all
+############################################################################
+
+# cacerts tests
+
+############################################################################
+security/infra/java/security/cert/CertPathValidator/certification/CAInterop.java#certignarootca         8331883 generic-all
+security/infra/java/security/cert/CertPathValidator/certification/LuxTrustCA.java                       8314509 generic-all
