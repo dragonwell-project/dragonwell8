@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -44,12 +44,13 @@ import test.java.awt.regtesthelpers.Util;
  * <p>See base class for test info.
  */
 /*
-@test
-@summary Overlapping test for javax.swing.JScrollPane
-@author sergey.grinev@oracle.com: area=awt.mixing
-@library ../../regtesthelpers
-@build Util
-@run main JMenuBarOverlapping
+ * @test
+ * @key headful
+ * @summary Overlapping test for javax.swing.JScrollPane
+ * @author sergey.grinev@oracle.com: area=awt.mixing
+ * @library ../../regtesthelpers
+ * @build Util
+ * @run main JMenuBarOverlapping
  */
 public class JMenuBarOverlapping extends OverlappingTestBase {
 

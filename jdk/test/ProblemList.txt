@@ -386,8 +386,12 @@ sample/chatserver/ChatTest.java					8178912 generic-all
 
 ############################################################################
 
-# china mainland network
+# cacerts tests
 
 ############################################################################
+security/infra/java/security/cert/CertPathValidator/certification/CAInterop.java#certignarootca         8331883 generic-all
+security/infra/java/security/cert/CertPathValidator/certification/LuxTrustCA.java                       8314509 generic-all
 
+
+# china mainland network
 security/infra/java/security/cert/CertPathValidator/certification/CertignaCA.java generic-all

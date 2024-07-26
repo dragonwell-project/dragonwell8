@@ -1957,6 +1957,15 @@ void Node::set_req_X( uint i, Node *n, PhaseIterGVN *igvn ) {
 
 }
 
+void Node::set_req_X(uint i, Node *n, PhaseGVN *gvn) {
+  PhaseIterGVN* igvn = gvn->is_IterGVN();
+  if (igvn == NULL) {
+    set_req(i, n);
+    return;
+  }
+  set_req_X(i, n, igvn);
+}
+
 //-------------------------------replace_by-----------------------------------
 // Using def-use info, replace one node for another.  Follow the def-use info
 // to all users of the OLD node.  Then make all uses point to the NEW node.

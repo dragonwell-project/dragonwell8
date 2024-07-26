@@ -513,6 +513,7 @@ public:
   virtual int Opcode() const;
   virtual const Type *Value( PhaseTransform *phase ) const;
   virtual Node *Ideal(PhaseGVN *phase, bool can_reshape);
+  virtual Node* Identity(PhaseTransform* phase);
   virtual uint  ideal_reg() const { return Op_RegL; }
 };
 

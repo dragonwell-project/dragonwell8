@@ -2487,7 +2487,9 @@ void PhaseMacroExpand::eliminate_macro_nodes() {
         assert(n->Opcode() == Op_LoopLimit ||
                n->Opcode() == Op_Opaque1   ||
                n->Opcode() == Op_Opaque2   ||
-               n->Opcode() == Op_Opaque3, "unknown node type in macro list");
+               n->Opcode() == Op_Opaque3   ||
+               n->Opcode() == Op_MaxL      ||
+               n->Opcode() == Op_MinL, "unknown node type in macro list");
       }
       assert(success == (C->macro_count() < old_macro_count), "elimination reduces macro count");
       progress = progress || success;
@@ -2552,6 +2554,18 @@ bool PhaseMacroExpand::expand_macro_nodes() {
         _igvn.replace_node(n, repl);
         success = true;
 #endif
+      } else if (n->Opcode() == Op_MaxL) {
+        // Since MaxL and MinL are not implemented in the backend, we expand them to
+        // a CMoveL construct now. At least until here, the type could be computed
+        // precisely. CMoveL is not so smart, but we can give it at least the best
+        // type we know abouot n now.
+        Node* repl = MaxNode::signed_max(n->in(1), n->in(2), _igvn.type(n), _igvn);
+        _igvn.replace_node(n, repl);
+        success = true;
+      } else if (n->Opcode() == Op_MinL) {
+        Node* repl = MaxNode::signed_min(n->in(1), n->in(2), _igvn.type(n), _igvn);
+        _igvn.replace_node(n, repl);
+        success = true;
       }
       assert(success == (C->macro_count() < old_macro_count), "elimination reduces macro count");
       progress = progress || success;
