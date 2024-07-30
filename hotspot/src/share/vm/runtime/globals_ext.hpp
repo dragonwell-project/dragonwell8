@@ -194,6 +194,13 @@
                                                                             \
   product(bool, AppCDSVerifyClassPathOrder, true,                           \
           "The classpath order when dump is the same as when run")          \
+                                                                            \
+  product(bool, UseIOPrioritySizePolicy, false,                             \
+          "eagerly decrease heap when io wait is high")                     \
+                                                                            \
+  product(float, IOPrioritySizePolicyEdenScale, 8.0,                        \
+          "how much eden to decrease when io wait is high")                 \
+
   //add new AJVM specific flags here
 
 

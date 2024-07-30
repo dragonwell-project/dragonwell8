@@ -1664,6 +1664,16 @@ void Arguments::set_parallel_gc_flags() {
       FLAG_SET_DEFAULT(MaxHeapFreeRatio, 100);
       _max_heap_free_ratio = MaxHeapFreeRatio;
     }
+    if (FLAG_IS_DEFAULT(UseIOPrioritySizePolicy)) {
+      FLAG_SET_DEFAULT(UseIOPrioritySizePolicy, true);
+    }
+  }
+
+  if (UseIOPrioritySizePolicy && !UseAdaptiveSizePolicy) {
+    // User explicitly enable UseIOPrioritySizePolicy but disable UseAdaptiveSizePolicy,
+    // this is a wrong usage.
+    UseIOPrioritySizePolicy = false;
+    warning("UseIOPrioritySizePolicy requires UseAdaptiveSizePolicy to be enabled");
   }
 
   // If InitialSurvivorRatio or MinSurvivorRatio were not specified, but the
