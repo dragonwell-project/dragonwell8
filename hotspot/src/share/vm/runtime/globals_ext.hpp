@@ -198,9 +198,12 @@
   product(bool, UseIOPrioritySizePolicy, false,                             \
           "eagerly decrease heap when io wait is high")                     \
                                                                             \
-  product(uintx, IOPrioritySizePolicyEdenScale, 8,                           \
+  product(uintx, IOPrioritySizePolicyEdenScale, 8,                          \
           "how much eden to decrease when io wait is high")                 \
-
+                                                                            \
+  product(bool, UseBigDecimalOpt, true,                                     \
+          "use binary search in zero stripping of BigDecimal")              \
+                                                                            \
   //add new AJVM specific flags here
 
 
