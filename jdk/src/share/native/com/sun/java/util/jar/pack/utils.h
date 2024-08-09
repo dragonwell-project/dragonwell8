@@ -25,7 +25,7 @@
 
 //Definitions of our util functions
 
-void* must_malloc(size_t size);
+void* must_calloc(size_t count, size_t size);
 #ifndef USE_MTRACE
 #define mtrace(c, ptr, size)
 #else

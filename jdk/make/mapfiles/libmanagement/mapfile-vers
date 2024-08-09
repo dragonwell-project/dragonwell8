@@ -89,6 +89,7 @@ SUNWprivate_1.1 {
 	    Java_sun_management_ThreadImpl_getThreadUserCpuTime1;
 	    Java_sun_management_ThreadImpl_getThreadAllocatedMemory0;
 	    Java_sun_management_ThreadImpl_getThreadAllocatedMemory1;
+	    Java_sun_management_ThreadImpl_getTotalThreadAllocatedMemory;
 	    Java_sun_management_ThreadImpl_resetContentionTimes0;
 	    Java_sun_management_ThreadImpl_resetPeakThreadCount0;
 	    Java_sun_management_ThreadImpl_setThreadContentionMonitoringEnabled0;

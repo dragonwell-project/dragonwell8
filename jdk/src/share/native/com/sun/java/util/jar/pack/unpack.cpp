@@ -507,19 +507,20 @@ static int hash_probes[] = {0, 0};
 
 enum { CHUNK = (1 << 14), SMALL = (1 << 9) };
 
-// Call malloc.  Try to combine small blocks and free much later.
-void* unpacker::alloc_heap(size_t size, bool smallOK, bool temp) {
-  if (!smallOK || size > SMALL) {
-    void* res = must_malloc((int)size);
+// Call calloc.  Try to combine small blocks and free much later.
+void* unpacker::calloc_heap(size_t count, size_t size, bool smallOK, bool temp) {
+  size_t ssize = scale_size(count, size);
+  if (!smallOK || ssize > SMALL) {
+    void* res = must_calloc(count, size);
     (temp ? &tmallocs : &mallocs)->add(res);
     return res;
   }
   fillbytes& xsmallbuf = *(temp ? &tsmallbuf : &smallbuf);
-  if (!xsmallbuf.canAppend(size+1)) {
+  if (!xsmallbuf.canAppend(ssize+1)) {
     xsmallbuf.init(CHUNK);
     (temp ? &tmallocs : &mallocs)->add(xsmallbuf.base());
   }
-  int growBy = (int)size;
+  int growBy = (int)ssize;
   growBy += -growBy & 7;  // round up mod 8
   return xsmallbuf.grow(growBy);
 }
@@ -984,10 +985,6 @@ void cpool::init(unpacker* u_, int counts[CONSTANT_Limit]) {
     tag_index[tag].init(tag_count[tag], cpMap, tag);
   }
 
-  // Initialize *all* our entries once
-  for (int i = 0 ; i < maxentries ; i++)
-    entries[i].outputIndex = REQUESTED_NONE;
-
   initGroupIndexes();
   // Initialize hashTab to a generous power-of-two size.
   uint pow2 = 1;
@@ -1057,7 +1054,7 @@ static int compare_Utf8_chars(bytes& b1, bytes& b2) {
 
 // Cf. PackageReader.readUtf8Bands
 local_inline
-void unpacker::read_Utf8_values(entry* cpMap, int len) {
+void unpacker::read_Utf8_values(entry* cpMap, int len, byte tag) {
   // Implicit first Utf8 string is the empty string.
   enum {
     // certain bands begin with implicit zeroes
@@ -1083,10 +1080,11 @@ void unpacker::read_Utf8_values(entry* cpMap, int len) {
   int nbigsuf = 0;
   fillbytes charbuf;    // buffer to allocate small strings
   charbuf.init();
-
   // Third band:  Read the char values in the unshared suffixes:
   cp_Utf8_chars.readData(cp_Utf8_suffix.getIntTotal());
   for (i = 0; i < len; i++) {
+    cp.initValues(cpMap[i], tag, i);
+
     int suffix = (i < SUFFIX_SKIP_1)? 0: cp_Utf8_suffix.getInt();
     if (suffix < 0) {
       abort("bad utf8 suffix");
@@ -1235,28 +1233,32 @@ void unpacker::read_Utf8_values(entry* cpMap, int len) {
 }
 
 local_inline
-void unpacker::read_single_words(band& cp_band, entry* cpMap, int len) {
+void unpacker::read_single_words(band& cp_band, entry* cpMap, int len, byte tag, int loadable_base) {
   cp_band.readData(len);
   for (int i = 0; i < len; i++) {
-    cpMap[i].value.i = cp_band.getInt();  // coding handles signs OK
+    entry& e = cpMap[i];
+    cp.initValues(e, tag, i, loadable_base);
+    e.value.i = cp_band.getInt();  // coding handles signs OK
   }
 }
 
 maybe_inline
-void unpacker::read_double_words(band& cp_bands, entry* cpMap, int len) {
+void unpacker::read_double_words(band& cp_bands, entry* cpMap, int len, byte tag, int loadable_base) {
   band& cp_band_hi = cp_bands;
   band& cp_band_lo = cp_bands.nextBand();
   cp_band_hi.readData(len);
   cp_band_lo.readData(len);
   for (int i = 0; i < len; i++) {
-    cpMap[i].value.l = cp_band_hi.getLong(cp_band_lo, true);
+    entry& e = cpMap[i];
+    cp.initValues(e, tag, i, loadable_base);
+    e.value.l = cp_band_hi.getLong(cp_band_lo, true);
   }
   //cp_band_hi.done();
   //cp_band_lo.done();
 }
 
 maybe_inline
-void unpacker::read_single_refs(band& cp_band, byte refTag, entry* cpMap, int len) {
+void unpacker::read_single_refs(band& cp_band, byte refTag, entry* cpMap, int len, byte tag, int loadable_base) {
   assert(refTag == CONSTANT_Utf8);
   cp_band.setIndexByTag(refTag);
   cp_band.readData(len);
@@ -1264,6 +1266,7 @@ void unpacker::read_single_refs(band& cp_band, byte refTag, entry* cpMap, int le
   int indexTag = (cp_band.bn == e_cp_Class) ? CONSTANT_Class : 0;
   for (int i = 0; i < len; i++) {
     entry& e = cpMap[i];
+    cp.initValues(e, tag, i, loadable_base);
     e.refs = U_NEW(entry*, e.nrefs = 1);
     entry* utf = cp_band.getRef();
     CHECK;
@@ -1284,7 +1287,7 @@ void unpacker::read_single_refs(band& cp_band, byte refTag, entry* cpMap, int le
 
 maybe_inline
 void unpacker::read_double_refs(band& cp_band, byte ref1Tag, byte ref2Tag,
-                                entry* cpMap, int len) {
+                                entry* cpMap, int len, byte tag) {
   band& cp_band1 = cp_band;
   band& cp_band2 = cp_band.nextBand();
   cp_band1.setIndexByTag(ref1Tag);
@@ -1294,6 +1297,7 @@ void unpacker::read_double_refs(band& cp_band, byte ref1Tag, byte ref2Tag,
   CHECK;
   for (int i = 0; i < len; i++) {
     entry& e = cpMap[i];
+    cp.initValues(e, tag, i);
     e.refs = U_NEW(entry*, e.nrefs = 2);
     e.refs[0] = cp_band1.getRef();
     CHECK;
@@ -1306,7 +1310,7 @@ void unpacker::read_double_refs(band& cp_band, byte ref1Tag, byte ref2Tag,
 
 // Cf. PackageReader.readSignatureBands
 maybe_inline
-void unpacker::read_signature_values(entry* cpMap, int len) {
+void unpacker::read_signature_values(entry* cpMap, int len, byte tag) {
   cp_Signature_form.setIndexByTag(CONSTANT_Utf8);
   cp_Signature_form.readData(len);
   CHECK;
@@ -1314,6 +1318,7 @@ void unpacker::read_signature_values(entry* cpMap, int len) {
   int i;
   for (i = 0; i < len; i++) {
     entry& e = cpMap[i];
+    cp.initValues(e, tag, i);
     entry& form = *cp_Signature_form.getRef();
     CHECK;
     int nc = 0;
@@ -1350,7 +1355,7 @@ void unpacker::checkLegacy(const char* name) {
 }
 
 maybe_inline
-void unpacker::read_method_handle(entry* cpMap, int len) {
+void unpacker::read_method_handle(entry* cpMap, int len, byte tag, int loadable_base) {
   if (len > 0) {
     checkLegacy(cp_MethodHandle_refkind.name);
   }
@@ -1359,6 +1364,7 @@ void unpacker::read_method_handle(entry* cpMap, int len) {
   cp_MethodHandle_member.readData(len);
   for (int i = 0 ; i < len ; i++) {
     entry& e = cpMap[i];
+    cp.initValues(e, tag, i, loadable_base);
     e.value.i = cp_MethodHandle_refkind.getInt();
     e.refs = U_NEW(entry*, e.nrefs = 1);
     e.refs[0] = cp_MethodHandle_member.getRef();
@@ -1367,7 +1373,7 @@ void unpacker::read_method_handle(entry* cpMap, int len) {
 }
 
 maybe_inline
-void unpacker::read_method_type(entry* cpMap, int len) {
+void unpacker::read_method_type(entry* cpMap, int len, byte tag, int loadable_base) {
   if (len > 0) {
     checkLegacy(cp_MethodType.name);
   }
@@ -1375,6 +1381,7 @@ void unpacker::read_method_type(entry* cpMap, int len) {
   cp_MethodType.readData(len);
   for (int i = 0 ; i < len ; i++) {
       entry& e = cpMap[i];
+      cp.initValues(e, tag, i, loadable_base);
       e.refs = U_NEW(entry*, e.nrefs = 1);
       e.refs[0] = cp_MethodType.getRef();
       CHECK;
@@ -1382,7 +1389,7 @@ void unpacker::read_method_type(entry* cpMap, int len) {
 }
 
 maybe_inline
-void unpacker::read_bootstrap_methods(entry* cpMap, int len) {
+void unpacker::read_bootstrap_methods(entry* cpMap, int len, byte tag) {
   if (len > 0) {
     checkLegacy(cp_BootstrapMethod_ref.name);
   }
@@ -1396,6 +1403,7 @@ void unpacker::read_bootstrap_methods(entry* cpMap, int len) {
   for (int i = 0; i < len; i++) {
     entry& e = cpMap[i];
     int argc = cp_BootstrapMethod_arg_count.getInt();
+    cp.initValues(e, tag, i);
     e.value.i = argc;
     e.refs = U_NEW(entry*, e.nrefs = argc + 1);
     e.refs[0] = cp_BootstrapMethod_ref.getRef();
@@ -1405,23 +1413,22 @@ void unpacker::read_bootstrap_methods(entry* cpMap, int len) {
     }
   }
 }
+
+static bool isLoadableValue(int tag);
 // Cf. PackageReader.readConstantPool
 void unpacker::read_cp() {
   byte* rp0 = rp;
-
-  int i;
+  uint cpentries = 0;
+  int loadable_count = 0;
 
   for (int k = 0; k < (int)N_TAGS_IN_ORDER; k++) {
     byte tag = TAGS_IN_ORDER[k];
     int  len = cp.tag_count[tag];
     int base = cp.tag_base[tag];
+    int loadable_base = -1;
 
     PRINTCR((1,"Reading %d %s entries...", len, NOT_PRODUCT(TAG_NAME[tag])+0));
     entry* cpMap = &cp.entries[base];
-    for (i = 0; i < len; i++) {
-      cpMap[i].tag = tag;
-      cpMap[i].inord = i;
-    }
     // Initialize the tag's CP index right away, since it might be needed
     // in the next pass to initialize the CP for another tag.
 #ifndef PRODUCT
@@ -1431,73 +1438,84 @@ void unpacker::read_cp() {
     assert(ix->base1 == cpMap);
 #endif
 
+    if (isLoadableValue(tag)) {
+      loadable_base = loadable_count;
+      loadable_count += len;
+    }
+
+    cpentries += len;
     switch (tag) {
     case CONSTANT_Utf8:
-      read_Utf8_values(cpMap, len);
+      read_Utf8_values(cpMap, len, tag);
       break;
     case CONSTANT_Integer:
-      read_single_words(cp_Int, cpMap, len);
+      read_single_words(cp_Int, cpMap, len, tag, loadable_base);
       break;
     case CONSTANT_Float:
-      read_single_words(cp_Float, cpMap, len);
+      read_single_words(cp_Float, cpMap, len, tag, loadable_base);
       break;
     case CONSTANT_Long:
-      read_double_words(cp_Long_hi /*& cp_Long_lo*/, cpMap, len);
+      read_double_words(cp_Long_hi /*& cp_Long_lo*/, cpMap, len, tag, loadable_base);
       break;
     case CONSTANT_Double:
-      read_double_words(cp_Double_hi /*& cp_Double_lo*/, cpMap, len);
+      read_double_words(cp_Double_hi /*& cp_Double_lo*/, cpMap, len, tag, loadable_base);
       break;
     case CONSTANT_String:
-      read_single_refs(cp_String, CONSTANT_Utf8, cpMap, len);
+      read_single_refs(cp_String, CONSTANT_Utf8, cpMap, len, tag, loadable_base);
       break;
     case CONSTANT_Class:
-      read_single_refs(cp_Class, CONSTANT_Utf8, cpMap, len);
+      read_single_refs(cp_Class, CONSTANT_Utf8, cpMap, len, tag, loadable_base);
       break;
     case CONSTANT_Signature:
-      read_signature_values(cpMap, len);
+      read_signature_values(cpMap, len, tag);
       break;
     case CONSTANT_NameandType:
       read_double_refs(cp_Descr_name /*& cp_Descr_type*/,
                        CONSTANT_Utf8, CONSTANT_Signature,
-                       cpMap, len);
+                       cpMap, len, tag);
       break;
     case CONSTANT_Fieldref:
       read_double_refs(cp_Field_class /*& cp_Field_desc*/,
                        CONSTANT_Class, CONSTANT_NameandType,
-                       cpMap, len);
+                       cpMap, len, tag);
       break;
     case CONSTANT_Methodref:
       read_double_refs(cp_Method_class /*& cp_Method_desc*/,
                        CONSTANT_Class, CONSTANT_NameandType,
-                       cpMap, len);
+                       cpMap, len, tag);
       break;
     case CONSTANT_InterfaceMethodref:
       read_double_refs(cp_Imethod_class /*& cp_Imethod_desc*/,
                        CONSTANT_Class, CONSTANT_NameandType,
-                       cpMap, len);
+                       cpMap, len, tag);
       break;
     case CONSTANT_MethodHandle:
       // consumes cp_MethodHandle_refkind and cp_MethodHandle_member
-      read_method_handle(cpMap, len);
+      read_method_handle(cpMap, len, tag, loadable_base);
       break;
     case CONSTANT_MethodType:
       // consumes cp_MethodType
-      read_method_type(cpMap, len);
+      read_method_type(cpMap, len, tag, loadable_base);
       break;
     case CONSTANT_InvokeDynamic:
       read_double_refs(cp_InvokeDynamic_spec, CONSTANT_BootstrapMethod,
                        CONSTANT_NameandType,
-                       cpMap, len);
+                       cpMap, len, tag);
       break;
     case CONSTANT_BootstrapMethod:
       // consumes cp_BootstrapMethod_ref, cp_BootstrapMethod_arg_count and cp_BootstrapMethod_arg
-      read_bootstrap_methods(cpMap, len);
+      read_bootstrap_methods(cpMap, len, tag);
       break;
     default:
       assert(false);
       break;
     }
     CHECK;
+  }
+
+  // Initialize extra entries
+  for (; cpentries < cp.maxentries; cpentries++) {
+    cp.entries[cpentries].outputIndex = REQUESTED_NONE;
   }
 
   cp.expandSignatures();
@@ -3372,25 +3390,15 @@ bool isLoadableValue(int tag) {
       return false;
   }
 }
-/*
- * this method can be used to size an array using null as the parameter,
- * thereafter can be reused to initialize the array using a valid pointer
- * as a parameter.
- */
-int cpool::initLoadableValues(entry** loadable_entries) {
-  int loadable_count = 0;
-  for (int i = 0; i < (int)N_TAGS_IN_ORDER; i++) {
-    int tag = TAGS_IN_ORDER[i];
-    if (!isLoadableValue(tag))
-      continue;
-    if (loadable_entries != NULL) {
-      for (int n = 0 ; n < tag_count[tag] ; n++) {
-        loadable_entries[loadable_count + n] = &entries[tag_base[tag] + n];
-      }
-    }
-    loadable_count += tag_count[tag];
+
+void cpool::initValues(entry& e, byte tag, int n, int loadable_base) {
+  e.tag = tag;
+  e.inord = n;
+  e.outputIndex = REQUESTED_NONE;
+  if (loadable_base >= 0) {
+    entry** loadable_entries = tag_group_index[CONSTANT_LoadableValue - CONSTANT_All].base2;
+    loadable_entries[loadable_base + n] = &e;
   }
-  return loadable_count;
 }
 
 // Initialize various views into the constant pool.
@@ -3405,9 +3413,14 @@ void cpool::initGroupIndexes() {
   tag_group_index[CONSTANT_All - CONSTANT_All].init(all_count, all_entries, CONSTANT_All);
 
   // Initialize LoadableValues
-  int loadable_count = initLoadableValues(NULL);
+  int loadable_count = 0;
+  for (int i = 0; i < (int)N_TAGS_IN_ORDER; i++) {
+    int tag = TAGS_IN_ORDER[i];
+    if (isLoadableValue(tag)) {
+      loadable_count += tag_count[tag];
+    }
+  }
   entry** loadable_entries = U_NEW(entry*, loadable_count);
-  initLoadableValues(loadable_entries);
   tag_group_count[CONSTANT_LoadableValue - CONSTANT_All] = loadable_count;
   tag_group_index[CONSTANT_LoadableValue - CONSTANT_All].init(loadable_count,
                   loadable_entries, CONSTANT_LoadableValue);

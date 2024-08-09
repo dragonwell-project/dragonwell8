@@ -58,6 +58,8 @@ PerfVariable* ThreadService::_daemon_threads_count = NULL;
 volatile int ThreadService::_exiting_threads_count = 0;
 volatile int ThreadService::_exiting_daemon_threads_count = 0;
 
+volatile jlong ThreadService::_exited_allocated_bytes = 0;
+
 ThreadDumpResult* ThreadService::_threaddump_list = NULL;
 
 static const int INITIAL_ARRAY_SIZE = 10;
@@ -119,6 +121,9 @@ void ThreadService::add_thread(JavaThread* thread, bool daemon) {
 }
 
 void ThreadService::remove_thread(JavaThread* thread, bool daemon) {
+  // Include hidden thread allcations in exited_allocated_bytes
+  ThreadService::incr_exited_allocated_bytes(thread->cooked_allocated_bytes());
+
   Atomic::dec((jint*) &_exiting_threads_count);
 
   if (thread->is_hidden_from_external_view() ||
