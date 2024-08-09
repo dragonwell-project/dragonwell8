@@ -86,9 +86,9 @@ extern int assert_failed(const char*);
 
 #define lengthof(array) (sizeof(array)/sizeof(array[0]))
 
-#define NEW(T, n)    (T*) must_malloc((int)(scale_size(n, sizeof(T))))
-#define U_NEW(T, n)  (T*) u->alloc(scale_size(n, sizeof(T)))
-#define T_NEW(T, n)  (T*) u->temp_alloc(scale_size(n, sizeof(T)))
+#define NEW(T, n)    (T*) must_calloc(n, sizeof(T))
+#define U_NEW(T, n)  (T*) u->calloc(n, sizeof(T))
+#define T_NEW(T, n)  (T*) u->temp_calloc(n, sizeof(T))
 
 
 // bytes and byte arrays

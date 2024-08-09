@@ -287,13 +287,6 @@ AC_DEFUN_ONCE([TOOLCHAIN_PRE_DETECTION],
       AC_MSG_ERROR([The xcodebuild tool was not found, the Xcode command line tools are required to build on Mac OS X])
     fi
 
-    # Fail-fast: verify we're building on a supported Xcode version
-    XCODE_VERSION=`$XCODEBUILD -version | grep '^Xcode ' | sed 's/Xcode //'`
-    XC_VERSION_PARTS=( ${XCODE_VERSION//./ } )
-    if test "${XC_VERSION_PARTS[[0]]}" != "6" -a "${XC_VERSION_PARTS[[0]]}" != "9" -a "${XC_VERSION_PARTS[[0]]}" != "10" -a "${XC_VERSION_PARTS[[0]]}" != "11" -a "${XC_VERSION_PARTS[[0]]}" != "12" ; then
-      AC_MSG_ERROR([Xcode 6, 9-12 is required to build JDK 8, the version found was $XCODE_VERSION. Use --with-xcode-path to specify the location of Xcode or make Xcode active by using xcode-select.])
-    fi
-
     # Some versions of Xcode command line tools install gcc and g++ as symlinks to
     # clang and clang++, which will break the build. So handle that here if we need to.
     if test -L "/usr/bin/gcc" -o -L "/usr/bin/g++"; then

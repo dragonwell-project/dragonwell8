@@ -29,6 +29,9 @@
 #include "oops/oopsHierarchy.hpp"
 #include "utilities/sizes.hpp"
 
+// Limit exception message components to 64K (the same max as Symbols)
+#define MAX_LEN 65535
+
 // This file provides the basic support for exception handling in the VM.
 // Note: We do not use C++ exceptions to avoid compiler dependencies and
 // unpredictable performance.

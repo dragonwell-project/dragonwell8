@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -33,6 +33,7 @@
 #include "memory/resourceArea.hpp"
 
 Symbol::Symbol(const u1* name, int length, int refcount) {
+  assert(length <= max_length(), "SymbolTable should have caught this!");
   _refcount = refcount;
   _length = length;
   _identity_hash = os::random();

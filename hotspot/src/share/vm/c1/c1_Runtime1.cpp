@@ -58,6 +58,7 @@
 #include "runtime/vframeArray.hpp"
 #include "utilities/copy.hpp"
 #include "utilities/events.hpp"
+#include "utilities/exceptions.hpp"
 
 
 // Implementation of StubAssembler
@@ -536,8 +537,9 @@ JRT_ENTRY_NO_ASYNC(static address, exception_handler_for_pc_helper(JavaThread* t
     if (TraceExceptions) {
       ttyLocker ttyl;
       ResourceMark rm;
-      tty->print_cr("Exception <%s> (" INTPTR_FORMAT ") thrown in compiled method <%s> at PC " INTPTR_FORMAT " for thread " INTPTR_FORMAT "",
-                    exception->print_value_string(), p2i((address)exception()), nm->method()->print_value_string(), p2i(pc), p2i(thread));
+      tty->print_cr("Exception <%.*s> (" INTPTR_FORMAT ") thrown in compiled method <%s> at PC " INTPTR_FORMAT " for thread " INTPTR_FORMAT "",
+                    MAX_LEN, exception->print_value_string(),
+                    p2i((address)exception()), nm->method()->print_value_string(), p2i(pc), p2i(thread));
     }
     // for AbortVMOnException flag
     NOT_PRODUCT(Exceptions::debug_check_abort(exception));

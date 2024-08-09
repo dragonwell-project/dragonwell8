@@ -46,19 +46,19 @@
 
 #include "unpack.h"
 
-void* must_malloc(size_t size) {
-  size_t msize = size;
+void* must_calloc(size_t count, size_t size) {
+  size_t msize = scale_size(count, size);
   #ifdef USE_MTRACE
-  if (msize >= 0 && msize < sizeof(int))
-    msize = sizeof(int);  // see 0xbaadf00d below
+  if (msize >= 0 && msize < sizeof(int)) {
+    size = msize = sizeof(int);  // see 0xbaadf00d below
+    count = 1;
+  }
   #endif
-  void* ptr = (msize > PSIZE_MAX || msize <= 0) ? null : malloc(msize);
-  if (ptr != null) {
-    memset(ptr, 0, size);
-  } else {
+  void* ptr = (msize > PSIZE_MAX || msize <= 0) ? null : calloc(count, size);
+  if (ptr == null) {
     unpack_abort(ERROR_ENOMEM);
   }
-  mtrace('m', ptr, size);
+  mtrace('m', ptr, msize);
   return ptr;
 }
 

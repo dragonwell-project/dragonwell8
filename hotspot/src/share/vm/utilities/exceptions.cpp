@@ -141,10 +141,11 @@ void Exceptions::_throw(Thread* thread, const char* file, int line, Handle h_exc
   // tracing (do this up front - so it works during boot strapping)
   if (TraceExceptions) {
     ttyLocker ttyl;
-    tty->print_cr("Exception <%s%s%s> (" INTPTR_FORMAT ") \n"
+    tty->print_cr("Exception <%.*s%s%.*s> (" INTPTR_FORMAT ") \n"
                   "thrown [%s, line %d]\nfor thread " INTPTR_FORMAT,
-                  h_exception->print_value_string(),
-                  message ? ": " : "", message ? message : "",
+                  MAX_LEN, h_exception->print_value_string(),
+                  message ? ": " : "",
+                  MAX_LEN, message ? message : "",
                   (address)h_exception(), file, line, thread);
   }
   // for AbortVMOnException flag

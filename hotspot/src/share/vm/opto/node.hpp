@@ -506,6 +506,7 @@ public:
     disconnect_inputs(NULL, c);
   }
   void set_req_X( uint i, Node *n, PhaseIterGVN *igvn );
+  void set_req_X(uint i, Node *n, PhaseGVN *gvn);
   // Find the one non-null required input.  RegionNode only
   Node *nonnull_req() const;
   // Add or remove precedence edges

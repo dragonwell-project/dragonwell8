@@ -401,7 +401,7 @@ jobs:
           --verbose
           --include=fakeroot,symlinks,build-essential,libx11-dev,libxext-dev,libxrender-dev,libxrandr-dev,libxtst-dev,libxt-dev,libcups2-dev,libfontconfig1-dev,libasound2-dev,libfreetype6-dev,libpng-dev,libffi-dev
           --resolve-deps
-          buster
+          bullseye
           ~/sysroot-${{ matrix.debian-arch }}
           http://httpredir.debian.org/debian/
         if: matrix.debian-arch != '' && steps.cache-sysroot.outputs.cache-hit != 'true'
@@ -867,6 +867,8 @@ jobs:
       VS2010_DIR: "${{ fromJson(needs.prerequisites.outputs.dependencies).VS2010_DIR }}"
       VS2010_FILENAME: "${{ fromJson(needs.prerequisites.outputs.dependencies).VS2010_FILENAME }}"
       VS2010_URL: "${{ fromJson(needs.prerequisites.outputs.dependencies).VS2010_URL }}"
+      VS2010_TORRENT_URL: "${{ fromJson(needs.prerequisites.outputs.dependencies).VS2010_TORRENT_URL }}"
+      VS2010_TORRENT_DIR: "${{ fromJson(needs.prerequisites.outputs.dependencies).VS2010_TORRENT_DIR }}"
       VS2010_SHA256: "${{ fromJson(needs.prerequisites.outputs.dependencies).VS2010_SHA256 }}"
 
     steps:
@@ -933,10 +935,11 @@ jobs:
       - name: Download and unpack Visual Studio 2010
         run: |
           mkdir "$HOME\$env:VS2010_DIR"
-          & curl -L "$env:VS2010_URL" -o "$HOME/$env:VS2010_FILENAME"
-          $FileHash = Get-FileHash -Algorithm SHA256 "$HOME/$env:VS2010_FILENAME"
+          $ImagePath = "$HOME/$env:VS2010_TORRENT_DIR/$env:VS2010_FILENAME"
+          & aria2c -d "$HOME" --seed-time=0 --bt-stop-timeout=300 "$env:VS2010_TORRENT_URL" || & curl -L "$env:VS2010_URL" -o "$ImagePath" --create-dirs
+          $FileHash = Get-FileHash -Algorithm SHA256 "$ImagePath"
           $FileHash.Hash -eq $env:VS2010_SHA256
-          & 7z x -o"$HOME/$env:VS2010_DIR" "$HOME/$env:VS2010_FILENAME"
+          & 7z x -o"$HOME/$env:VS2010_DIR" "$ImagePath"
           & dir "$HOME/$env:VS2010_DIR"
         if: steps.vs2010.outputs.cache-hit != 'true'
 
@@ -1328,7 +1331,7 @@ jobs:
 
   macos_x64_build:
     name: macOS x64
-    runs-on: "macos-11"
+    runs-on: "macos-13"
     needs: prerequisites
     if: needs.prerequisites.outputs.should_run != 'false' && needs.prerequisites.outputs.platform_macos_x64 != 'false'
 
@@ -1392,10 +1395,10 @@ jobs:
         run: chmod -R a+rx ${HOME}/jtreg/
 
       - name: Install dependencies
-        run: brew install make
+        run: brew install make gawk
 
       - name: Select Xcode version
-        run: sudo xcode-select --switch /Applications/Xcode_11.7.app/Contents/Developer
+        run: sudo xcode-select --switch /Applications/Xcode_14.3.1.app/Contents/Developer
 
       - name: Configure
         run: >
@@ -1426,7 +1429,7 @@ jobs:
 
   macos_x64_test:
     name: macOS x64
-    runs-on: "macos-11"
+    runs-on: "macos-13"
     needs:
       - prerequisites
       - macos_x64_build
@@ -1509,10 +1512,10 @@ jobs:
           tar -xzf "${HOME}/jdk-macos-x64${{ matrix.artifact }}/jdk-${{ env.JDK_VERSION }}-internal+0_osx-x64_bin${{ matrix.artifact }}.tar.gz" -C "${HOME}/jdk-macos-x64${{ matrix.artifact }}/jdk-${{ env.JDK_VERSION }}-internal+0_osx-x64_bin${{ matrix.artifact }}"
 
       - name: Install dependencies
-        run: brew install make
+        run: brew install make gawk
 
       - name: Select Xcode version
-        run: sudo xcode-select --switch /Applications/Xcode_11.7.app/Contents/Developer
+        run: sudo xcode-select --switch /Applications/Xcode_14.3.1.app/Contents/Developer
 
       - name: Run tests
         run: >

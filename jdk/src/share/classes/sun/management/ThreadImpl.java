@@ -331,6 +331,13 @@ class ThreadImpl implements com.sun.management.ThreadMXBean {
         }
     }
 
+    public long getTotalThreadAllocatedBytes() {
+        if (isThreadAllocatedMemoryEnabled()) {
+            return getTotalThreadAllocatedMemory();
+        }
+        return -1;
+    }
+
     public long getCurrentThreadAllocatedBytes() {
         if (isThreadAllocatedMemoryEnabled()) {
             return getThreadAllocatedMemory0(0);
@@ -507,6 +514,7 @@ class ThreadImpl implements com.sun.management.ThreadMXBean {
     private static native void getThreadUserCpuTime1(long[] ids, long[] result);
     private static native long getThreadAllocatedMemory0(long id);
     private static native void getThreadAllocatedMemory1(long[] ids, long[] result);
+    private static native long getTotalThreadAllocatedMemory();
     private static native void setThreadCpuTimeEnabled0(boolean enable);
     private static native void setThreadAllocatedMemoryEnabled0(boolean enable);
     private static native void setThreadContentionMonitoringEnabled0(boolean enable);
