@@ -453,7 +453,10 @@ jobs:
         working-directory: jdk
 
       - name: Build
-        run: make CONF_NAME=linux-${{ matrix.gnu-arch }}-hotspot hotspot
+        run: |
+          cat build/linux-${{ matrix.gnu-arch }}-hotspot/spec.gmk
+          cat build/linux-${{ matrix.gnu-arch }}-hotspot/hotspot-spec.gmk
+          make CONF_NAME=linux-${{ matrix.gnu-arch }}-hotspot LOG_LEVEL=debug hotspot
         working-directory: jdk
 
   linux_x86_build:
