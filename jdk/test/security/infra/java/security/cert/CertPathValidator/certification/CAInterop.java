@@ -27,9 +27,9 @@
  * @summary Interoperability tests with Actalis CA
  * @library /test/lib
  * @build jtreg.SkippedException ValidatePathWithURL CAInterop
- * @run main/othervm -Djava.security.debug=certpath,ocsp
+ * @run main/othervm/manual -Djava.security.debug=certpath,ocsp
  *  CAInterop actalisauthenticationrootca OCSP
- * @run main/othervm/timeout=180 -Djava.security.debug=certpath,ocsp
+ * @run main/othervm/manual/timeout=180 -Djava.security.debug=certpath,ocsp
  *  CAInterop actalisauthenticationrootca CRL
  */
 
@@ -39,8 +39,8 @@
  * @summary Interoperability tests with Amazon's CA1
  * @library /test/lib
  * @build jtreg.SkippedException ValidatePathWithURL CAInterop
- * @run main/othervm -Djava.security.debug=certpath,ocsp CAInterop amazonrootca1 OCSP
- * @run main/othervm -Djava.security.debug=certpath CAInterop amazonrootca1 CRL
+ * @run main/othervm/manual -Djava.security.debug=certpath,ocsp CAInterop amazonrootca1 OCSP
+ * @run main/othervm/manual -Djava.security.debug=certpath CAInterop amazonrootca1 CRL
  */
 
 /*
@@ -49,8 +49,8 @@
  * @summary Interoperability tests with Amazon's CA2
  * @library /test/lib
  * @build jtreg.SkippedException ValidatePathWithURL CAInterop
- * @run main/othervm -Djava.security.debug=certpath,ocsp CAInterop amazonrootca2 OCSP
- * @run main/othervm -Djava.security.debug=certpath CAInterop amazonrootca2 CRL
+ * @run main/othervm/manual -Djava.security.debug=certpath,ocsp CAInterop amazonrootca2 OCSP
+ * @run main/othervm/manual -Djava.security.debug=certpath CAInterop amazonrootca2 CRL
  */
 
 /*
@@ -59,8 +59,8 @@
  * @summary Interoperability tests with Amazon's CA3
  * @library /test/lib
  * @build jtreg.SkippedException ValidatePathWithURL CAInterop
- * @run main/othervm -Djava.security.debug=certpath,ocsp CAInterop amazonrootca3 OCSP
- * @run main/othervm -Djava.security.debug=certpath CAInterop amazonrootca3 CRL
+ * @run main/othervm/manual -Djava.security.debug=certpath,ocsp CAInterop amazonrootca3 OCSP
+ * @run main/othervm/manual -Djava.security.debug=certpath CAInterop amazonrootca3 CRL
  */
 
 /*
@@ -69,8 +69,8 @@
  * @summary Interoperability tests with Amazon's CA4
  * @library /test/lib
  * @build jtreg.SkippedException ValidatePathWithURL CAInterop
- * @run main/othervm -Djava.security.debug=certpath,ocsp CAInterop amazonrootca4 OCSP
- * @run main/othervm -Djava.security.debug=certpath CAInterop amazonrootca4 CRL
+ * @run main/othervm/manual -Djava.security.debug=certpath,ocsp CAInterop amazonrootca4 OCSP
+ * @run main/othervm/manual -Djava.security.debug=certpath CAInterop amazonrootca4 CRL
  */
 
 /*
@@ -79,8 +79,8 @@
  * @summary Interoperability tests with Buypass Class 2 CA
  * @library /test/lib
  * @build jtreg.SkippedException ValidatePathWithURL CAInterop
- * @run main/othervm -Djava.security.debug=certpath,ocsp CAInterop buypassclass2ca OCSP
- * @run main/othervm -Djava.security.debug=certpath,ocsp CAInterop buypassclass2ca CRL
+ * @run main/othervm/manual -Djava.security.debug=certpath,ocsp CAInterop buypassclass2ca OCSP
+ * @run main/othervm/manual -Djava.security.debug=certpath,ocsp CAInterop buypassclass2ca CRL
  */
 
 /*
@@ -89,8 +89,8 @@
  * @summary Interoperability tests with Buypass Class 3 CA
  * @library /test/lib
  * @build jtreg.SkippedException ValidatePathWithURL CAInterop
- * @run main/othervm -Djava.security.debug=certpath,ocsp CAInterop buypassclass3ca OCSP
- * @run main/othervm -Djava.security.debug=certpath,ocsp CAInterop buypassclass3ca CRL
+ * @run main/othervm/manual -Djava.security.debug=certpath,ocsp CAInterop buypassclass3ca OCSP
+ * @run main/othervm/manual -Djava.security.debug=certpath,ocsp CAInterop buypassclass3ca CRL
  */
 
 /*
@@ -99,8 +99,8 @@
  * @summary Interoperability tests with Comodo RSA CA
  * @library /test/lib
  * @build jtreg.SkippedException ValidatePathWithURL CAInterop
- * @run main/othervm -Djava.security.debug=certpath,ocsp CAInterop comodorsaca OCSP
- * @run main/othervm -Djava.security.debug=certpath CAInterop comodorsaca CRL
+ * @run main/othervm/manual -Djava.security.debug=certpath,ocsp CAInterop comodorsaca OCSP
+ * @run main/othervm/manual -Djava.security.debug=certpath CAInterop comodorsaca CRL
  */
 
 /*
@@ -109,8 +109,8 @@
  * @summary Interoperability tests with Comodo ECC CA
  * @library /test/lib
  * @build jtreg.SkippedException ValidatePathWithURL CAInterop
- * @run main/othervm -Djava.security.debug=certpath,ocsp CAInterop comodoeccca OCSP
- * @run main/othervm -Djava.security.debug=certpath CAInterop comodoeccca CRL
+ * @run main/othervm/manual -Djava.security.debug=certpath,ocsp CAInterop comodoeccca OCSP
+ * @run main/othervm/manual -Djava.security.debug=certpath CAInterop comodoeccca CRL
  */
 
 /*
@@ -119,8 +119,8 @@
  * @summary Interoperability tests with Comodo userTrust RSA CA
  * @library /test/lib
  * @build jtreg.SkippedException ValidatePathWithURL CAInterop
- * @run main/othervm -Djava.security.debug=certpath,ocsp CAInterop usertrustrsaca OCSP
- * @run main/othervm -Djava.security.debug=certpath CAInterop usertrustrsaca CRL
+ * @run main/othervm/manual -Djava.security.debug=certpath,ocsp CAInterop usertrustrsaca OCSP
+ * @run main/othervm/manual -Djava.security.debug=certpath CAInterop usertrustrsaca CRL
  */
 
 /*
@@ -129,8 +129,8 @@
  * @summary Interoperability tests with Comodo userTrust ECC CA
  * @library /test/lib
  * @build jtreg.SkippedException ValidatePathWithURL CAInterop
- * @run main/othervm -Djava.security.debug=certpath,ocsp CAInterop usertrusteccca OCSP
- * @run main/othervm -Djava.security.debug=certpath CAInterop usertrusteccca CRL
+ * @run main/othervm/manual -Djava.security.debug=certpath,ocsp CAInterop usertrusteccca OCSP
+ * @run main/othervm/manual -Djava.security.debug=certpath CAInterop usertrusteccca CRL
  */
 
 /*
@@ -139,7 +139,7 @@
  * @summary Interoperability tests with Let's Encrypt ISRG Root X1 CA
  * @library /test/lib
  * @build jtreg.SkippedException ValidatePathWithURL CAInterop
- * @run main/othervm -Djava.security.debug=certpath,ocsp CAInterop letsencryptisrgx1 DEFAULT
+ * @run main/othervm/manual -Djava.security.debug=certpath,ocsp CAInterop letsencryptisrgx1 DEFAULT
  */
 
 /*
@@ -148,7 +148,7 @@
  * @summary Interoperability tests with Let's Encrypt ISRG Root X2 CA
  * @library /test/lib
  * @build jtreg.SkippedException ValidatePathWithURL CAInterop
- * @run main/othervm -Djava.security.debug=certpath,ocsp CAInterop letsencryptisrgx2 DEFAULT
+ * @run main/othervm/manual -Djava.security.debug=certpath,ocsp CAInterop letsencryptisrgx2 DEFAULT
  */
 
 /*
@@ -157,8 +157,8 @@
  * @summary Interoperability tests with GlobalSign R6 CA
  * @library /test/lib
  * @build jtreg.SkippedException ValidatePathWithURL CAInterop
- * @run main/othervm -Djava.security.debug=certpath,ocsp CAInterop globalsignrootcar6 OCSP
- * @run main/othervm -Djava.security.debug=certpath CAInterop globalsignrootcar6 CRL
+ * @run main/othervm/manual -Djava.security.debug=certpath,ocsp CAInterop globalsignrootcar6 OCSP
+ * @run main/othervm/manual -Djava.security.debug=certpath CAInterop globalsignrootcar6 CRL
  */
 
 /*
@@ -167,8 +167,8 @@
  * @summary Interoperability tests with Entrust CAs
  * @library /test/lib
  * @build jtreg.SkippedException ValidatePathWithURL CAInterop
- * @run main/othervm -Djava.security.debug=certpath,ocsp CAInterop entrustrootcaec1 OCSP
- * @run main/othervm -Djava.security.debug=certpath CAInterop entrustrootcaec1 CRL
+ * @run main/othervm/manual -Djava.security.debug=certpath,ocsp CAInterop entrustrootcaec1 OCSP
+ * @run main/othervm/manual -Djava.security.debug=certpath CAInterop entrustrootcaec1 CRL
  */
 
 /*
@@ -177,8 +177,8 @@
  * @summary Interoperability tests with Entrust CAs
  * @library /test/lib
  * @build jtreg.SkippedException ValidatePathWithURL CAInterop
- * @run main/othervm -Djava.security.debug=certpath,ocsp CAInterop entrustrootcag4 OCSP
- * @run main/othervm -Djava.security.debug=certpath CAInterop entrustrootcag4 CRL
+ * @run main/othervm/manual -Djava.security.debug=certpath,ocsp CAInterop entrustrootcag4 OCSP
+ * @run main/othervm/manual -Djava.security.debug=certpath CAInterop entrustrootcag4 CRL
  */
 
 /*
@@ -187,8 +187,8 @@
  * @summary Interoperability tests with GoDaddy CA
  * @library /test/lib
  * @build jtreg.SkippedException ValidatePathWithURL CAInterop
- * @run main/othervm -Djava.security.debug=certpath,ocsp CAInterop godaddyrootg2ca OCSP
- * @run main/othervm -Djava.security.debug=certpath CAInterop godaddyrootg2ca CRL
+ * @run main/othervm/manual -Djava.security.debug=certpath,ocsp CAInterop godaddyrootg2ca OCSP
+ * @run main/othervm/manual -Djava.security.debug=certpath CAInterop godaddyrootg2ca CRL
  */
 
 /*
@@ -197,8 +197,8 @@
  * @summary Interoperability tests with Starfield CA
  * @library /test/lib
  * @build jtreg.SkippedException ValidatePathWithURL CAInterop
- * @run main/othervm -Djava.security.debug=certpath,ocsp CAInterop starfieldrootg2ca OCSP
- * @run main/othervm -Djava.security.debug=certpath CAInterop starfieldrootg2ca CRL
+ * @run main/othervm/manual -Djava.security.debug=certpath,ocsp CAInterop starfieldrootg2ca OCSP
+ * @run main/othervm/manual -Djava.security.debug=certpath CAInterop starfieldrootg2ca CRL
  */
 
 /*
@@ -207,8 +207,8 @@
  * @summary Interoperability tests with Google's GlobalSign R4 and GTS Root certificates
  * @library /test/lib
  * @build jtreg.SkippedException ValidatePathWithURL CAInterop
- * @run main/othervm -Djava.security.debug=certpath,ocsp CAInterop globalsigneccrootcar4 OCSP
- * @run main/othervm -Djava.security.debug=certpath CAInterop globalsigneccrootcar4 CRL
+ * @run main/othervm/manual -Djava.security.debug=certpath,ocsp CAInterop globalsigneccrootcar4 OCSP
+ * @run main/othervm/manual -Djava.security.debug=certpath CAInterop globalsigneccrootcar4 CRL
  */
 
 /*
@@ -217,8 +217,8 @@
  * @summary Interoperability tests with Google's GlobalSign R4 and GTS Root certificates
  * @library /test/lib
  * @build jtreg.SkippedException ValidatePathWithURL CAInterop
- * @run main/othervm -Djava.security.debug=certpath,ocsp CAInterop gtsrootcar1 OCSP
- * @run main/othervm -Djava.security.debug=certpath CAInterop gtsrootcar1 CRL
+ * @run main/othervm/manual -Djava.security.debug=certpath,ocsp CAInterop gtsrootcar1 OCSP
+ * @run main/othervm/manual -Djava.security.debug=certpath CAInterop gtsrootcar1 CRL
  */
 
 /*
@@ -227,8 +227,8 @@
  * @summary Interoperability tests with Google's GlobalSign R4 and GTS Root certificates
  * @library /test/lib
  * @build jtreg.SkippedException ValidatePathWithURL CAInterop
- * @run main/othervm -Djava.security.debug=certpath,ocsp CAInterop gtsrootcar2 OCSP
- * @run main/othervm -Djava.security.debug=certpath CAInterop gtsrootcar2 CRL
+ * @run main/othervm/manual -Djava.security.debug=certpath,ocsp CAInterop gtsrootcar2 OCSP
+ * @run main/othervm/manual -Djava.security.debug=certpath CAInterop gtsrootcar2 CRL
  */
 
 /*
@@ -237,8 +237,8 @@
  * @summary Interoperability tests with Google's GlobalSign R4 and GTS Root certificates
  * @library /test/lib
  * @build jtreg.SkippedException ValidatePathWithURL CAInterop
- * @run main/othervm -Djava.security.debug=certpath,ocsp CAInterop gtsrootecccar3 OCSP
- * @run main/othervm -Djava.security.debug=certpath CAInterop gtsrootecccar3 CRL
+ * @run main/othervm/manual -Djava.security.debug=certpath,ocsp CAInterop gtsrootecccar3 OCSP
+ * @run main/othervm/manual -Djava.security.debug=certpath CAInterop gtsrootecccar3 CRL
  */
 
 /*
@@ -247,8 +247,8 @@
  * @summary Interoperability tests with Google's GlobalSign R4 and GTS Root certificates
  * @library /test/lib
  * @build jtreg.SkippedException ValidatePathWithURL CAInterop
- * @run main/othervm -Djava.security.debug=certpath,ocsp CAInterop gtsrootecccar4 OCSP
- * @run main/othervm -Djava.security.debug=certpath CAInterop gtsrootecccar4 CRL
+ * @run main/othervm/manual -Djava.security.debug=certpath,ocsp CAInterop gtsrootecccar4 OCSP
+ * @run main/othervm/manual -Djava.security.debug=certpath CAInterop gtsrootecccar4 CRL
  */
 
 /*
@@ -257,8 +257,8 @@
  * @summary Interoperability tests with Microsoft TLS root CAs
  * @library /test/lib
  * @build jtreg.SkippedException ValidatePathWithURL CAInterop
- * @run main/othervm -Djava.security.debug=certpath,ocsp CAInterop microsoftecc2017 OCSP
- * @run main/othervm -Djava.security.debug=certpath CAInterop microsoftecc2017 CRL
+ * @run main/othervm/manual -Djava.security.debug=certpath,ocsp CAInterop microsoftecc2017 OCSP
+ * @run main/othervm/manual -Djava.security.debug=certpath CAInterop microsoftecc2017 CRL
  */
 
 /*
@@ -267,8 +267,8 @@
  * @summary Interoperability tests with Microsoft TLS root CAs
  * @library /test/lib
  * @build jtreg.SkippedException ValidatePathWithURL CAInterop
- * @run main/othervm -Djava.security.debug=certpath,ocsp CAInterop microsoftrsa2017 OCSP
- * @run main/othervm -Djava.security.debug=certpath CAInterop microsoftrsa2017 CRL
+ * @run main/othervm/manual -Djava.security.debug=certpath,ocsp CAInterop microsoftrsa2017 OCSP
+ * @run main/othervm/manual -Djava.security.debug=certpath CAInterop microsoftrsa2017 CRL
  */
 
 /*
@@ -277,8 +277,8 @@
  * @summary Interoperability tests with QuoVadis Root CA1 G3 CA
  * @library /test/lib
  * @build jtreg.SkippedException ValidatePathWithURL CAInterop
- * @run main/othervm -Djava.security.debug=certpath,ocsp CAInterop quovadisrootca1g3 OCSP
- * @run main/othervm -Djava.security.debug=certpath CAInterop quovadisrootca1g3 CRL
+ * @run main/othervm/manual -Djava.security.debug=certpath,ocsp CAInterop quovadisrootca1g3 OCSP
+ * @run main/othervm/manual -Djava.security.debug=certpath CAInterop quovadisrootca1g3 CRL
  */
 
 /*
@@ -287,8 +287,8 @@
  * @summary Interoperability tests with QuoVadis Root CA2 G3 CA
  * @library /test/lib
  * @build jtreg.SkippedException ValidatePathWithURL CAInterop
- * @run main/othervm -Djava.security.debug=certpath,ocsp CAInterop quovadisrootca2g3 OCSP
- * @run main/othervm -Djava.security.debug=certpath CAInterop quovadisrootca2g3 CRL
+ * @run main/othervm/manual -Djava.security.debug=certpath,ocsp CAInterop quovadisrootca2g3 OCSP
+ * @run main/othervm/manual -Djava.security.debug=certpath CAInterop quovadisrootca2g3 CRL
  */
 
 /*
@@ -297,8 +297,8 @@
  * @summary Interoperability tests with QuoVadis Root CA3 G3 CA
  * @library /test/lib
  * @build jtreg.SkippedException ValidatePathWithURL CAInterop
- * @run main/othervm -Djava.security.debug=certpath,ocsp CAInterop quovadisrootca3g3 OCSP
- * @run main/othervm -Djava.security.debug=certpath CAInterop quovadisrootca3g3 CRL
+ * @run main/othervm/manual -Djava.security.debug=certpath,ocsp CAInterop quovadisrootca3g3 OCSP
+ * @run main/othervm/manual -Djava.security.debug=certpath CAInterop quovadisrootca3g3 CRL
  */
 
 /*
@@ -307,8 +307,8 @@
  * @summary Interoperability tests with DigiCert TLS ECC P384 Root G5
  * @library /test/lib
  * @build jtreg.SkippedException ValidatePathWithURL CAInterop
- * @run main/othervm -Djava.security.debug=certpath,ocsp CAInterop digicerttlseccrootg5 OCSP
- * @run main/othervm -Djava.security.debug=certpath CAInterop digicerttlseccrootg5 CRL
+ * @run main/othervm/manual -Djava.security.debug=certpath,ocsp CAInterop digicerttlseccrootg5 OCSP
+ * @run main/othervm/manual -Djava.security.debug=certpath CAInterop digicerttlseccrootg5 CRL
  */
 
 /*
@@ -317,8 +317,8 @@
  * @summary Interoperability tests with DigiCert TLS RSA4096 Root G5
  * @library /test/lib
  * @build jtreg.SkippedException ValidatePathWithURL CAInterop
- * @run main/othervm -Djava.security.debug=certpath,ocsp CAInterop digicerttlsrsarootg5 OCSP
- * @run main/othervm -Djava.security.debug=certpath CAInterop digicerttlsrsarootg5 CRL
+ * @run main/othervm/manual -Djava.security.debug=certpath,ocsp CAInterop digicerttlsrsarootg5 OCSP
+ * @run main/othervm/manual -Djava.security.debug=certpath CAInterop digicerttlsrsarootg5 CRL
  */
 
 /*
@@ -327,8 +327,8 @@
  * @summary Interoperability tests with SSL.com's RSA CA
  * @library /test/lib
  * @build jtreg.SkippedException ValidatePathWithURL CAInterop
- * @run main/othervm -Djava.security.debug=certpath,ocsp CAInterop sslrootrsaca OCSP
- * @run main/othervm -Djava.security.debug=certpath CAInterop sslrootrsaca CRL
+ * @run main/othervm/manual -Djava.security.debug=certpath,ocsp CAInterop sslrootrsaca OCSP
+ * @run main/othervm/manual -Djava.security.debug=certpath CAInterop sslrootrsaca CRL
  */
 
 /*
@@ -337,8 +337,8 @@
  * @summary Interoperability tests with SSL.com's EV RSA CA
  * @library /test/lib
  * @build jtreg.SkippedException ValidatePathWithURL CAInterop
- * @run main/othervm -Djava.security.debug=certpath,ocsp CAInterop sslrootevrsaca OCSP
- * @run main/othervm -Djava.security.debug=certpath CAInterop sslrootevrsaca CRL
+ * @run main/othervm/manual -Djava.security.debug=certpath,ocsp CAInterop sslrootevrsaca OCSP
+ * @run main/othervm/manual -Djava.security.debug=certpath CAInterop sslrootevrsaca CRL
  */
 
 /*
@@ -347,8 +347,8 @@
  * @summary Interoperability tests with SSL.com's ECC CA
  * @library /test/lib
  * @build jtreg.SkippedException ValidatePathWithURL CAInterop
- * @run main/othervm -Djava.security.debug=certpath,ocsp CAInterop sslrooteccca OCSP
- * @run main/othervm -Djava.security.debug=certpath CAInterop sslrooteccca CRL
+ * @run main/othervm/manual -Djava.security.debug=certpath,ocsp CAInterop sslrooteccca OCSP
+ * @run main/othervm/manual -Djava.security.debug=certpath CAInterop sslrooteccca CRL
  */
 
 /*
@@ -357,8 +357,8 @@
  * @summary Interoperability tests with TeliaSonera Root CA v1
  * @library /test/lib
  * @build jtreg.SkippedException ValidatePathWithURL CAInterop
- * @run main/othervm -Djava.security.debug=certpath,ocsp CAInterop teliasonerarootcav1 OCSP
- * @run main/othervm -Djava.security.debug=certpath CAInterop teliasonerarootcav1 CRL
+ * @run main/othervm/manual -Djava.security.debug=certpath,ocsp CAInterop teliasonerarootcav1 OCSP
+ * @run main/othervm/manual -Djava.security.debug=certpath CAInterop teliasonerarootcav1 CRL
  */
 
 /*
@@ -367,8 +367,8 @@
  * @summary Interoperability tests with TWCA Global Root CA from TAIWAN-CA
  * @library /test/lib
  * @build jtreg.SkippedException ValidatePathWithURL CAInterop
- * @run main/othervm -Djava.security.debug=certpath,ocsp CAInterop twcaglobalrootca OCSP
- * @run main/othervm -Djava.security.debug=certpath CAInterop twcaglobalrootca CRL
+ * @run main/othervm/manual -Djava.security.debug=certpath,ocsp CAInterop twcaglobalrootca OCSP
+ * @run main/othervm/manual -Djava.security.debug=certpath CAInterop twcaglobalrootca CRL
  */
 
 /*
@@ -377,8 +377,8 @@
  * @summary Interoperability tests with Certigna Root CAs from Dhimyotis
  * @library /test/lib
  * @build jtreg.SkippedException ValidatePathWithURL CAInterop
- * @run main/othervm -Djava.security.debug=certpath,ocsp CAInterop certignarootca OCSP
- * @run main/othervm -Djava.security.debug=certpath CAInterop certignarootca CRL
+ * @run main/othervm/manual -Djava.security.debug=certpath,ocsp CAInterop certignarootca OCSP
+ * @run main/othervm/manual -Djava.security.debug=certpath CAInterop certignarootca CRL
  */
 
 /*
@@ -387,8 +387,8 @@
  * @summary Interoperability tests with Telia Root CA V2
  * @library /test/lib
  * @build jtreg.SkippedException ValidatePathWithURL CAInterop
- * @run main/othervm -Djava.security.debug=certpath,ocsp CAInterop teliarootcav2 OCSP
- * @run main/othervm -Djava.security.debug=certpath CAInterop teliarootcav2 CRL
+ * @run main/othervm/manual -Djava.security.debug=certpath,ocsp CAInterop teliarootcav2 OCSP
+ * @run main/othervm/manual -Djava.security.debug=certpath CAInterop teliarootcav2 CRL
  */
 
 /*
@@ -397,8 +397,8 @@
  * @summary Interoperability tests with eMudhra Root CA G1
  * @library /test/lib
  * @build jtreg.SkippedException ValidatePathWithURL CAInterop
- * @run main/othervm -Djava.security.debug=certpath,ocsp CAInterop emsignrootcag1 OCSP
- * @run main/othervm -Djava.security.debug=certpath CAInterop emsignrootcag1 CRL
+ * @run main/othervm/manual -Djava.security.debug=certpath,ocsp CAInterop emsignrootcag1 OCSP
+ * @run main/othervm/manual -Djava.security.debug=certpath CAInterop emsignrootcag1 CRL
  */
 
 /*
@@ -407,8 +407,8 @@
  * @summary Interoperability tests with eMudhra ECC Root CA G3
  * @library /test/lib
  * @build jtreg.SkippedException ValidatePathWithURL CAInterop
- * @run main/othervm -Djava.security.debug=certpath,ocsp CAInterop emsigneccrootcag3 OCSP
- * @run main/othervm -Djava.security.debug=certpath CAInterop emsigneccrootcag3 CRL
+ * @run main/othervm/manual -Djava.security.debug=certpath,ocsp CAInterop emsigneccrootcag3 OCSP
+ * @run main/othervm/manual -Djava.security.debug=certpath CAInterop emsigneccrootcag3 CRL
  */
 
 /*
@@ -417,7 +417,7 @@
  * @summary Interoperability tests with Certainly Root R1
  * @library /test/lib
  * @build jtreg.SkippedException ValidatePathWithURL CAInterop
- * @run main/othervm -Djava.security.debug=certpath,ocsp CAInterop certainlyrootr1 DEFAULT
+ * @run main/othervm/manual -Djava.security.debug=certpath,ocsp CAInterop certainlyrootr1 DEFAULT
  */
 
 /*
@@ -426,11 +426,13 @@
  * @summary Interoperability tests with Certainly Root E1
  * @library /test/lib
  * @build jtreg.SkippedException ValidatePathWithURL CAInterop
- * @run main/othervm -Djava.security.debug=certpath,ocsp CAInterop certainlyroote1 DEFAULT
+ * @run main/othervm/manual -Djava.security.debug=certpath,ocsp CAInterop certainlyroote1 DEFAULT
  */
 
 /**
- * Collection of certificate validation tests for interoperability with external CAs
+ * Collection of certificate validation tests for interoperability with external CAs.
+ * These tests are marked as manual as they depend on external infrastructure and may fail
+ * with external reasons, for instance - change in CA test portal.
  */
 public class CAInterop {
 
