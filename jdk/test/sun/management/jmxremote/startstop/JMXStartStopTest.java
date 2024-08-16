@@ -765,7 +765,7 @@ public class JMXStartStopTest {
                 "jmxremote.ssl=false",
                 "jmxremote.port=" + pa.getPort1()
             );
-            testConnect(port1);
+            testConnect(pa.getPort1());
 
             jcmd(CMD_STOP);
             jcmd(CMD_START,
