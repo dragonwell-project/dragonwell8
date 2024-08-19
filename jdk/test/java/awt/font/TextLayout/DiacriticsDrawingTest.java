@@ -24,6 +24,7 @@
 /* @test
  * @bug 8170552
  * @summary verify enabling text layout for complex text on macOS
+ * @requires os.family == "mac"
  */
 
 import java.awt.Color;

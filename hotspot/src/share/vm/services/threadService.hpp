@@ -58,6 +58,8 @@ private:
   static PerfVariable* _peak_threads_count;
   static PerfVariable* _daemon_threads_count;
 
+  static volatile jlong _exited_allocated_bytes;
+
   // These 2 counters are atomically incremented once the thread is exiting.
   // They will be atomically decremented when ThreadService::remove_thread is called.
   static volatile int  _exiting_threads_count;
@@ -94,6 +96,14 @@ public:
 
   static int   exiting_threads_count()        { return _exiting_threads_count; }
   static int   exiting_daemon_threads_count() { return _exiting_daemon_threads_count; }
+
+  static jlong exited_allocated_bytes()       { return Atomic::load(&_exited_allocated_bytes); }
+  static void incr_exited_allocated_bytes(jlong size) {
+    // No need for an atomic add because called under the Threads_lock,
+    // but because _exited_allocated_bytes is read concurrently, need
+    // atomic store to avoid readers seeing a partial update.
+    Atomic::store(_exited_allocated_bytes + size, &_exited_allocated_bytes);
+  }
 
   // Support for thread dump
   static void   add_thread_dump(ThreadDumpResult* dump);

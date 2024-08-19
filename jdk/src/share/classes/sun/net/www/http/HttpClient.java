@@ -28,6 +28,7 @@ package sun.net.www.http;
 import java.io.*;
 import java.net.*;
 import java.util.Locale;
+import java.util.OptionalInt;
 import sun.net.NetworkClient;
 import sun.net.ProgressSource;
 import sun.net.www.MessageHeader;
@@ -114,13 +115,14 @@ public class HttpClient extends NetworkClient {
                                          recomputing the value of keepingAlive */
     int keepAliveConnections = -1;    /* number of keep-alives left */
 
-    /**Idle timeout value, in milliseconds. Zero means infinity,
-     * iff keepingAlive=true.
-     * Unfortunately, we can't always believe this one.  If I'm connected
-     * through a Netscape proxy to a server that sent me a keep-alive
-     * time of 15 sec, the proxy unilaterally terminates my connection
-     * after 5 sec.  So we have to hard code our effective timeout to
-     * 4 sec for the case where we're using a proxy. *SIGH*
+    /*
+     * The timeout if specified by the server. Following values possible
+     *  0: the server specified no keep alive headers
+     * -1: the server provided "Connection: keep-alive" but did not specify a
+     *     a particular time in a "Keep-Alive:" headers
+     * -2: the server provided "Connection: keep-alive" and timeout=0
+     * Positive values are the number of seconds specified by the server
+     * in a "Keep-Alive" header
      */
     int keepAliveTimeout = 0;
 
@@ -816,7 +818,23 @@ public class HttpClient extends NetworkClient {
                             responses.findValue("Keep-Alive"));
                         /* default should be larger in case of proxy */
                         keepAliveConnections = p.findInt("max", usingProxy?50:5);
-                        keepAliveTimeout = p.findInt("timeout", usingProxy?60:5);
+                        if (keepAliveConnections < 0) {
+                            keepAliveConnections = usingProxy?50:5;
+                        }
+                        OptionalInt timeout = p.findInt("timeout");
+                        if (!timeout.isPresent()) {
+                            keepAliveTimeout = -1;
+                        } else {
+                            keepAliveTimeout = timeout.getAsInt();
+                            if (keepAliveTimeout < 0) {
+                                // if the server specified a negative (invalid) value
+                                // then we set to -1, which is equivalent to no value
+                                keepAliveTimeout = -1;
+                            } else if (keepAliveTimeout == 0) {
+                                // handled specially to mean close connection immediately
+                                keepAliveTimeout = -2;
+                            }
+                        }
                     }
                 } else if (b[7] != '0') {
                     /*
@@ -1068,6 +1086,10 @@ public class HttpClient extends NetworkClient {
         } else {
             return ((InetSocketAddress)proxy.address()).getHostString();
         }
+    }
+
+    public boolean getUsingProxy() {
+        return usingProxy;
     }
 
     /**

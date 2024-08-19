@@ -130,7 +130,7 @@ struct cpool {
   void expandSignatures();
   void initGroupIndexes();
   void initMemberIndexes();
-  int  initLoadableValues(entry** loadable_entries);
+  void initValues(entry& e, byte tag, int n, int loadable_base=-1);
 
   void computeOutputOrder();
   void computeOutputIndexes();
@@ -411,9 +411,9 @@ struct unpacker {
   file*        get_next_file();  // returns null on last file
 
   // General purpose methods
-  void*        alloc(size_t size) { return alloc_heap(size, true); }
-  void*        temp_alloc(size_t size) { return alloc_heap(size, true, true); }
-  void*        alloc_heap(size_t size, bool smallOK = false, bool temp = false);
+  void*        calloc(size_t count, size_t size) { return calloc_heap(count, size, true); }
+  void*        temp_calloc(size_t count, size_t size) { return calloc_heap(count, size, true, true); }
+  void*        calloc_heap(size_t count, size_t size, bool smallOK = false, bool temp = false);
   void         saveTo(bytes& b, const char* str) { saveTo(b, (byte*)str, strlen(str)); }
   void         saveTo(bytes& b, bytes& data) { saveTo(b, data.ptr, data.len); }
   void         saveTo(bytes& b, byte* ptr, size_t len); //{ b.ptr = U_NEW...}
@@ -494,15 +494,15 @@ struct unpacker {
   void read_bcs();
   void read_bc_ops();
   void read_files();
-  void read_Utf8_values(entry* cpMap, int len);
-  void read_single_words(band& cp_band, entry* cpMap, int len);
-  void read_double_words(band& cp_bands, entry* cpMap, int len);
-  void read_single_refs(band& cp_band, byte refTag, entry* cpMap, int len);
-  void read_double_refs(band& cp_band, byte ref1Tag, byte ref2Tag, entry* cpMap, int len);
-  void read_signature_values(entry* cpMap, int len);
-  void read_method_handle(entry* cpMap, int len);
-  void read_method_type(entry* cpMap, int len);
-  void read_bootstrap_methods(entry* cpMap, int len);
+  void read_Utf8_values(entry* cpMap, int len, byte tag);
+  void read_single_words(band& cp_band, entry* cpMap, int len, byte tag, int loadable_base);
+  void read_double_words(band& cp_bands, entry* cpMap, int len, byte tag, int loadable_base);
+  void read_single_refs(band& cp_band, byte refTag, entry* cpMap, int len, byte tag, int loadable_base);
+  void read_double_refs(band& cp_band, byte ref1Tag, byte ref2Tag, entry* cpMap, int len, byte tag);
+  void read_signature_values(entry* cpMap, int len, byte tag);
+  void read_method_handle(entry* cpMap, int len, byte tag, int loadable_base);
+  void read_method_type(entry* cpMap, int len, byte tag, int loadable_base);
+  void read_bootstrap_methods(entry* cpMap, int len, byte tag);
 };
 
 inline void cpool::abort(const char* msg) { u->abort(msg); }
