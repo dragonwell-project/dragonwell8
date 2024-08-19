@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -30,6 +30,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 /*
  * @test 1.2 98/08/05
+ * @key headful
  * @bug 4373478 8079255
  * @summary Test mouse wheel functionality of Robot
  * @author bchristi: area=Robot

@@ -207,8 +207,7 @@
  * @summary Interoperability tests with Google's GlobalSign R4 and GTS Root certificates
  * @library /test/lib
  * @build jtreg.SkippedException ValidatePathWithURL CAInterop
- * @run main/othervm/manual -Djava.security.debug=certpath,ocsp CAInterop globalsigneccrootcar4 OCSP
- * @run main/othervm/manual -Djava.security.debug=certpath CAInterop globalsigneccrootcar4 CRL
+ * @run main/othervm/manual -Djava.security.debug=certpath,ocsp CAInterop globalsigneccrootcar4 DEFAULT
  */
 
 /*
@@ -217,8 +216,7 @@
  * @summary Interoperability tests with Google's GlobalSign R4 and GTS Root certificates
  * @library /test/lib
  * @build jtreg.SkippedException ValidatePathWithURL CAInterop
- * @run main/othervm/manual -Djava.security.debug=certpath,ocsp CAInterop gtsrootcar1 OCSP
- * @run main/othervm/manual -Djava.security.debug=certpath CAInterop gtsrootcar1 CRL
+ * @run main/othervm/manual -Djava.security.debug=certpath,ocsp CAInterop gtsrootcar1 DEFAULT
  */
 
 /*
@@ -227,8 +225,7 @@
  * @summary Interoperability tests with Google's GlobalSign R4 and GTS Root certificates
  * @library /test/lib
  * @build jtreg.SkippedException ValidatePathWithURL CAInterop
- * @run main/othervm/manual -Djava.security.debug=certpath,ocsp CAInterop gtsrootcar2 OCSP
- * @run main/othervm/manual -Djava.security.debug=certpath CAInterop gtsrootcar2 CRL
+ * @run main/othervm/manual -Djava.security.debug=certpath,ocsp CAInterop gtsrootcar2 DEFAULT
  */
 
 /*
@@ -237,8 +234,7 @@
  * @summary Interoperability tests with Google's GlobalSign R4 and GTS Root certificates
  * @library /test/lib
  * @build jtreg.SkippedException ValidatePathWithURL CAInterop
- * @run main/othervm/manual -Djava.security.debug=certpath,ocsp CAInterop gtsrootecccar3 OCSP
- * @run main/othervm/manual -Djava.security.debug=certpath CAInterop gtsrootecccar3 CRL
+ * @run main/othervm/manual -Djava.security.debug=certpath,ocsp CAInterop gtsrootecccar3 DEFAULT
  */
 
 /*
@@ -247,8 +243,7 @@
  * @summary Interoperability tests with Google's GlobalSign R4 and GTS Root certificates
  * @library /test/lib
  * @build jtreg.SkippedException ValidatePathWithURL CAInterop
- * @run main/othervm/manual -Djava.security.debug=certpath,ocsp CAInterop gtsrootecccar4 OCSP
- * @run main/othervm/manual -Djava.security.debug=certpath CAInterop gtsrootecccar4 CRL
+ * @run main/othervm/manual -Djava.security.debug=certpath,ocsp CAInterop gtsrootecccar4 DEFAULT
  */
 
 /*
@@ -382,6 +377,46 @@
  */
 
 /*
+ * @test id=affirmtrustcommercialca
+ * @bug 8040012
+ * @summary Interoperability tests with AffirmTrust Commercial CA
+ * @library /test/lib
+ * @build jtreg.SkippedException ValidatePathWithURL CAInterop
+ * @run main/othervm/manual -Djava.security.debug=certpath,ocsp CAInterop affirmtrustcommercialca OCSP
+ * @run main/othervm/manual -Djava.security.debug=certpath CAInterop affirmtrustcommercialca CRL
+ */
+
+/*
+ * @test id=affirmtrustnetworkingca
+ * @bug 8040012
+ * @summary Interoperability tests with AffirmTrust Networking CA
+ * @library /test/lib
+ * @build jtreg.SkippedException ValidatePathWithURL CAInterop
+ * @run main/othervm/manual -Djava.security.debug=certpath,ocsp CAInterop affirmtrustnetworkingca OCSP
+ * @run main/othervm/manual -Djava.security.debug=certpath CAInterop affirmtrustnetworkingca CRL
+ */
+
+/*
+ * @test id=affirmtrustpremiumca
+ * @bug 8040012
+ * @summary Interoperability tests with AffirmTrust Premium CA
+ * @library /test/lib
+ * @build jtreg.SkippedException ValidatePathWithURL CAInterop
+ * @run main/othervm/manual -Djava.security.debug=certpath,ocsp CAInterop affirmtrustpremiumca OCSP
+ * @run main/othervm/manual -Djava.security.debug=certpath CAInterop affirmtrustpremiumca CRL
+ */
+
+/*
+ * @test id=affirmtrustpremiumeccca
+ * @bug 8040012
+ * @summary Interoperability tests with AffirmTrust Premium ECC CA
+ * @library /test/lib
+ * @build jtreg.SkippedException ValidatePathWithURL CAInterop
+ * @run main/othervm/manual -Djava.security.debug=certpath,ocsp CAInterop affirmtrustpremiumeccca OCSP
+ * @run main/othervm/manual -Djava.security.debug=certpath CAInterop affirmtrustpremiumeccca CRL
+ */
+
+/*
  * @test id=teliarootcav2
  * @bug 8317373
  * @summary Interoperability tests with Telia Root CA V2
@@ -427,6 +462,26 @@
  * @library /test/lib
  * @build jtreg.SkippedException ValidatePathWithURL CAInterop
  * @run main/othervm/manual -Djava.security.debug=certpath,ocsp CAInterop certainlyroote1 DEFAULT
+ */
+
+/*
+ * @test id=globalsignr46
+ * @bug 8316138
+ * @summary Interoperability tests with GlobalSign Root R46
+ * @library /test/lib
+ * @build jtreg.SkippedException ValidatePathWithURL CAInterop
+ * @run main/othervm/manual -Djava.security.debug=certpath,ocsp CAInterop globalsignr46 OCSP
+ * @run main/othervm/manual -Djava.security.debug=certpath CAInterop globalsignr46 CRL
+ */
+
+/*
+ * @test id=globalsigne46
+ * @bug 8316138
+ * @summary Interoperability tests with GlobalSign Root E46
+ * @library /test/lib
+ * @build jtreg.SkippedException ValidatePathWithURL CAInterop
+ * @run main/othervm/manual -Djava.security.debug=certpath,ocsp CAInterop globalsigne46 OCSP
+ * @run main/othervm/manual -Djava.security.debug=certpath CAInterop globalsigne46 CRL
  */
 
 /**
@@ -572,6 +627,20 @@ public class CAInterop {
                     return new CATestURLs("https://juolukka.cover.telia.fi:10600",
                             "https://juolukka.cover.telia.fi:10601");
 
+            // These are listed at https://www.affirmtrust.com/resources/
+            case "affirmtrustcommercialca":
+                    return new CATestURLs("https://validcommercial.affirmtrust.com",
+                            "https://revokedcommercial.affirmtrust.com");
+            case "affirmtrustnetworkingca":
+                    return new CATestURLs("https://validnetworking.affirmtrust.com",
+                            "https://revokednetworking.affirmtrust.com");
+            case "affirmtrustpremiumca":
+                    return new CATestURLs("https://validpremium.affirmtrust.com",
+                            "https://revokedpremium.affirmtrust.com");
+            case "affirmtrustpremiumeccca":
+                    return new CATestURLs("https://validpremiumecc.affirmtrust.com",
+                            "https://revokedpremiumecc.affirmtrust.com");
+
             case "emsignrootcag1":
                     return new CATestURLs("https://testovg1.emsign.com/RootOVG1.html",
                             "https://testovg1r.emsign.com/RootOVG1MR.html");
@@ -585,6 +654,13 @@ public class CAInterop {
             case "certainlyroote1":
                     return new CATestURLs("https://valid.root-e1.certainly.com",
                             "https://revoked.root-e1.certainly.com");
+
+            case "globalsignr46":
+                    return new CATestURLs("https://valid.r46.roots.globalsign.com",
+                            "https://revoked.r46.roots.globalsign.com");
+            case "globalsigne46":
+                    return new CATestURLs("https://valid.e46.roots.globalsign.com",
+                            "https://revoked.e46.roots.globalsign.com");
 
             default: throw new RuntimeException("No test setup found for: " + alias);
         }

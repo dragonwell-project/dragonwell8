@@ -65,7 +65,7 @@ public class DoubleNodeTest extends OpTestCase {
     private static void assertEqualsListDoubleArray(List<Double> list, double[] array) {
         assertEquals(list.size(), array.length);
         for (int i = 0; i < array.length; i++)
-            assertEquals(array[i], list.get(i));
+            assertEquals(array[i], (double) list.get(i));
     }
 
     private List<Double> toList(double[] a) {
