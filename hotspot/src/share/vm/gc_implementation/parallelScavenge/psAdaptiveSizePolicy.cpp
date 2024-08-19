@@ -37,6 +37,278 @@
 
 PRAGMA_FORMAT_MUTE_WARNINGS_FOR_GCC
 
+class IOPolicy : public CHeapObj<mtGC> {
+  class IOWaitRecord {
+  public:
+    IOWaitRecord(bool *active) : _active(active), _last_cpu_total(0), _last_cpu_iowait(0) {}
+    void start() {
+      fill_value(&_last_cpu_total, &_last_cpu_iowait);
+    }
+    double stop() {
+      size_t total, iowait;
+      fill_value(&total, &iowait);
+
+      size_t total_diff = total - _last_cpu_total;
+      size_t iowait_diff = iowait - _last_cpu_iowait;
+      if (total_diff == 0) {
+        if (PrintAdaptiveSizePolicy) {
+          gclog_or_tty->print_cr("fail to record, cpu total diff is 0");
+        }
+        return 0;
+      } else {
+        return (double)iowait_diff / (double)total_diff;
+      }
+    }
+  private:
+    // if anything unexpected happened during record, we will deactivate the policy
+    bool *_active;
+    size_t _last_cpu_total;
+    size_t _last_cpu_iowait;
+    void fill_value_fail(FILE *file) {
+      if (file != NULL) {
+        fclose(file);
+      }
+      warning("Deactivate UseIOPrioritySizePolicy due to failed to parse cpu stat");
+      *_active = false;
+    }
+    void fill_value(size_t *total, size_t *iowait) {
+      FILE *file = fopen("/proc/stat", "r");
+      if (file == NULL) {
+        fill_value_fail(file);
+        return;
+      }
+
+      char line[256];
+      char *read_line = fgets(line, sizeof(line), file);
+      if (read_line == NULL) {
+        fill_value_fail(file);
+        return;
+      }
+
+      /*
+       * Expected stdout of the first line of /proc/stat should be like:
+       * cat /proc/stat
+       * cpu 417487649 75106 102895030 23107566512 152075 65480092 6013218 0 0 0
+       */
+      size_t user, nice, system, idle, iowait_time, irq, softirq, steal, guest, guest_nice;
+      int parse_line = sscanf(line, "cpu  " SIZE_FORMAT " " SIZE_FORMAT " " SIZE_FORMAT " " SIZE_FORMAT " " SIZE_FORMAT " " SIZE_FORMAT " " SIZE_FORMAT " " SIZE_FORMAT " " SIZE_FORMAT " " SIZE_FORMAT, &user,
+          &nice, &system, &idle, &iowait_time, &irq, &softirq, &steal, &guest, &guest_nice);
+      if (parse_line != 10) {
+        fill_value_fail(file);
+        return;
+      }
+
+      *total = user + nice + system + idle + iowait_time + irq + softirq + steal + guest + guest_nice;
+      *iowait = iowait_time;
+      fclose(file);
+    }
+  };
+
+  class UserTimeRecord {
+  public:
+    UserTimeRecord(bool *active) : _active(active), _starting_user_time(0), _starting_system_time(0), _starting_real_time(0) {}
+    void start() {
+      if (!os::getTimesSecs(&_starting_real_time, &_starting_user_time, &_starting_system_time)) {
+        warning("Deactivate UseIOPrioritySizePolicy due to failed to get cpu times");
+        *_active = false;
+      }
+    }
+    double stop() {
+      const static double INVALID = 99999;
+      double real_time, user_time, system_time;
+      if (!os::getTimesSecs(&real_time, &user_time, &system_time)) {
+        warning("Deactivate UseIOPrioritySizePolicy due to failed to get cpu times");
+        *_active = false;
+        return INVALID;
+      }
+      double user_diff = user_time - _starting_user_time;
+      double real_diff = real_time - _starting_real_time;
+      // too short interval to calculate a meaningful user time percent, thus we
+      // return a very large number to avoid trigger memory reduction.
+      if (real_diff < 0.00001) {
+        if (PrintAdaptiveSizePolicy) {
+          gclog_or_tty->print_cr("fail to record, real_duration too small: %f",
+                                 real_diff);
+        }
+        return INVALID;
+      }
+      return user_diff / real_diff;
+    }
+  private:
+    // if anything unexpected happened during record, we will deactivate the policy
+    bool *_active;
+    double _starting_user_time;
+    double _starting_system_time;
+    double _starting_real_time;
+  };
+
+  double _default_throughput_goal;
+
+  double _mutator_iowait_percent;
+  double _mutator_user_percent;
+  elapsedTimer _io_triggerred_major_gc_timer;
+
+  IOWaitRecord _io_wait_record;
+  UserTimeRecord _user_time_record;
+
+  bool _active;
+  bool _should_reduce_heap;
+
+public:
+  IOPolicy(double default_throughput_goal) :
+      _default_throughput_goal(default_throughput_goal),
+      _mutator_iowait_percent(0.0),
+      _mutator_user_percent(0.0),
+      _io_triggerred_major_gc_timer(),
+      _io_wait_record(&_active),
+      _user_time_record(&_active),
+      _active(true),
+      _should_reduce_heap(false) {
+    _io_triggerred_major_gc_timer.start();
+    start_mutator_record();
+    if (FLAG_IS_CMDLINE(NewSize)) {
+      if (PrintAdaptiveSizePolicy) {
+        gclog_or_tty->print_cr("NewSize or Xmn is set, which may introduce a large size for min young size");
+      }
+    }
+    if (MaxHeapSize == InitialHeapSize) {
+      if (PrintAdaptiveSizePolicy) {
+        gclog_or_tty->print_cr("Xmx is equal to Xms, which may introduce a large size for min young size");
+      }
+    }
+    if (PrintAdaptiveSizePolicy) {
+      gclog_or_tty->print_cr(
+          "min size: young " SIZE_FORMAT "M, old " SIZE_FORMAT
+          "M. IOPrioritySizePolicy can't decrease heap below these sizes",
+          ParallelScavengeHeap::young_gen()->min_gen_size() / M,
+          ParallelScavengeHeap::old_gen()->min_gen_size() / M);
+    }
+  }
+
+  void start_mutator_record() {
+    if (!_active) {
+      return;
+    }
+    _io_wait_record.start();
+    _user_time_record.start();
+  }
+
+  void stop_mutator_record() {
+    if (!_active) {
+      return;
+    }
+    _mutator_iowait_percent = _io_wait_record.stop();
+    _mutator_user_percent = _user_time_record.stop();
+  }
+
+  void print(double mutator_cost) const {
+    if (!_active) {
+      return;
+    }
+    if (PrintAdaptiveSizePolicy) {
+      gclog_or_tty->print_cr("mutator cost: %f, iowait : %f, user: %f",
+                             mutator_cost, _mutator_iowait_percent,
+                             _mutator_user_percent);
+    }
+  }
+
+  bool should_full_GC() {
+    if (!_active) {
+      return false;
+    }
+
+    // These thresholds are tuned by spark on TPC-DS workload.
+    const static double IOTriggerredFullGCUserThreshold = 0.75;
+    const static double IOTriggerredFullGCIOWaitThreshold = 0.4;
+    const static double IOTriggerredFullGCMinInterval =
+        60; // can be set longer if io heavy workload lasts long.
+
+    if (_mutator_user_percent < IOTriggerredFullGCUserThreshold &&
+        _mutator_iowait_percent > IOTriggerredFullGCIOWaitThreshold) {
+      _io_triggerred_major_gc_timer.stop();
+      if (_io_triggerred_major_gc_timer.seconds() >
+          IOTriggerredFullGCMinInterval) {
+        _io_triggerred_major_gc_timer.reset();
+        _io_triggerred_major_gc_timer.start();
+        if (PrintAdaptiveSizePolicy) {
+          gclog_or_tty->print_cr("decrease old gen by full gc");
+        }
+        return true;
+      } else {
+        if (PrintAdaptiveSizePolicy) {
+          gclog_or_tty->print_cr(
+              "decrease old gen FAILED because interval is %f < %f",
+              _io_triggerred_major_gc_timer.seconds(),
+              IOTriggerredFullGCMinInterval);
+        }
+        _io_triggerred_major_gc_timer.start();
+        return false;
+      }
+    }
+    return false;
+  }
+
+  double calculate_reduced_throughput_goal() {
+    if (!_active) {
+      return _default_throughput_goal;
+    }
+
+    const static double UserThreshold = 1.0;
+    const static double IOWaitThreshold = 0.1;
+
+    if (_mutator_user_percent < UserThreshold &&
+        _mutator_iowait_percent > IOWaitThreshold) {
+      double reduced_throughput_goal = _default_throughput_goal - (1 - _mutator_user_percent);
+      _should_reduce_heap = true;
+      if (PrintAdaptiveSizePolicy) {
+        gclog_or_tty->print_cr("decrease throughput goal to %.3f",
+                               reduced_throughput_goal);
+      }
+      return reduced_throughput_goal;
+    } else {
+      _should_reduce_heap = false;
+      return _default_throughput_goal;
+    }
+  }
+
+  size_t calculate_reduced_eden_size(size_t eden_size, float avg_survivor, size_t current_eden_size) const {
+    if (!_active || !_should_reduce_heap) {
+      return eden_size;
+    }
+    size_t reduced_size;
+    reduced_size = (size_t)MIN2((float)eden_size, avg_survivor * (float)IOPrioritySizePolicyEdenScale);
+    reduced_size = MAX2(reduced_size, ParallelScavengeHeap::heap()->young_gen()->max_size() / 10);
+    if (PrintAdaptiveSizePolicy) {
+      gclog_or_tty->print_cr(
+          "decrease eden from " SIZE_FORMAT "M to " SIZE_FORMAT
+          "M , survivor avg: %fM, min threshold: " SIZE_FORMAT "M",
+          current_eden_size / M, reduced_size / M, avg_survivor / M,
+          ParallelScavengeHeap::heap()->young_gen()->max_size() / 10 / M);
+    }
+    return reduced_size;
+  }
+
+  size_t calculate_reduced_promo_size(size_t promo_size, float avg_promo, size_t current_promo_size) const {
+    if (!_active || !_should_reduce_heap) {
+      return promo_size;
+    }
+    const static float PromoScale = 5;
+    size_t reduced_size;
+    reduced_size = (size_t)MIN2((float)promo_size, avg_promo * PromoScale);
+    reduced_size = MAX2(reduced_size,
+                       ParallelScavengeHeap::heap()->old_gen()->max_gen_size() / 10);
+    if (PrintAdaptiveSizePolicy) {
+      gclog_or_tty->print_cr(
+          "decrease promotion from " SIZE_FORMAT "M to " SIZE_FORMAT
+          "M , promo avg: %fM, min threshold: " SIZE_FORMAT "M",
+          current_promo_size / M, reduced_size / M, avg_promo / M,
+          ParallelScavengeHeap::heap()->old_gen()->max_gen_size() / 10 / M);
+    }
+    return reduced_size;
+  }
+};
+
+
 PSAdaptiveSizePolicy::PSAdaptiveSizePolicy(size_t init_eden_size,
                                            size_t init_promo_size,
                                            size_t init_survivor_size,
@@ -54,6 +326,7 @@ PSAdaptiveSizePolicy::PSAdaptiveSizePolicy(size_t init_eden_size,
      _live_at_last_full_gc(init_promo_size),
      _gc_minor_pause_goal_sec(gc_minor_pause_goal_sec),
      _latest_major_mutator_interval_seconds(0),
+     _throughput_goal(AdaptiveSizePolicy::_throughput_goal),
      _young_gen_change_for_major_pause_count(0)
 {
   // Sizing policy statistics
@@ -77,6 +350,9 @@ PSAdaptiveSizePolicy::PSAdaptiveSizePolicy(size_t init_eden_size,
   _major_timer.start();
 
   _old_gen_policy_is_ready = false;
+  if (UseIOPrioritySizePolicy) {
+    _io_policy = new IOPolicy(_throughput_goal);
+  }
 }
 
 size_t PSAdaptiveSizePolicy::calculate_free_based_on_live(size_t live, uintx ratio_as_percentage) {
@@ -111,6 +387,22 @@ size_t PSAdaptiveSizePolicy::calculated_old_free_size_in_bytes() const {
   return free_size;
 }
 
+void PSAdaptiveSizePolicy::minor_collection_begin() {
+  AdaptiveSizePolicy::minor_collection_begin();
+  if (UseIOPrioritySizePolicy) {
+    _io_policy->stop_mutator_record();
+  }
+}
+
+void PSAdaptiveSizePolicy::minor_collection_end(GCCause::Cause gc_cause) {
+  AdaptiveSizePolicy::minor_collection_end(gc_cause);
+  if (UseIOPrioritySizePolicy) {
+    _io_policy->start_mutator_record();
+    _io_policy->print(adjusted_mutator_cost());
+  }
+}
+
+
 void PSAdaptiveSizePolicy::major_collection_begin() {
   // Update the interval time
   _major_timer.stop();
@@ -131,6 +423,9 @@ void PSAdaptiveSizePolicy::major_collection_end(size_t amount_live,
   GCCause::Cause gc_cause) {
   // Update the pause time.
   _major_timer.stop();
+  if (UseIOPrioritySizePolicy) {
+    _io_policy->start_mutator_record();
+  }
 
   if (gc_cause != GCCause::_java_lang_system_gc ||
       UseAdaptiveSizePolicyWithSystemGC) {
@@ -175,6 +470,10 @@ void PSAdaptiveSizePolicy::major_collection_end(size_t amount_live,
     assert(collection_cost >= 0.0, "Expected to be non-negative");
     _major_collection_estimator->update(promo_size_in_mbytes,
         collection_cost);
+
+    if (UseIOPrioritySizePolicy) {
+      _io_policy->print(adjusted_mutator_cost());
+    }
   }
 
   // Update the amount live at the end of a full GC
@@ -196,6 +495,11 @@ void PSAdaptiveSizePolicy::major_collection_end(size_t amount_live,
 // that expected to be needed by the next collection, do a full
 // collection now.
 bool PSAdaptiveSizePolicy::should_full_GC(size_t old_free_in_bytes) {
+  if (UseIOPrioritySizePolicy) {
+    if (_io_policy->should_full_GC()) {
+      return true;
+    }
+  }
 
   // A similar test is done in the scavenge's should_attempt_scavenge().  If
   // this is changed, decide if that test should also be changed.
@@ -253,6 +557,9 @@ void PSAdaptiveSizePolicy::compute_eden_space_size(
                                            size_t cur_eden,
                                            size_t max_eden_size,
                                            bool   is_full_gc) {
+  if (UseIOPrioritySizePolicy) {
+    _throughput_goal = _io_policy->calculate_reduced_throughput_goal();
+  }
 
   // Update statistics
   // Time statistics are updated as we go, update footprint stats here
@@ -1030,6 +1337,11 @@ size_t PSAdaptiveSizePolicy::adjust_promo_for_footprint(
 
   size_t reduced_size = desired_promo_size - change;
 
+  if (UseIOPrioritySizePolicy) {
+    reduced_size = _io_policy->calculate_reduced_promo_size(reduced_size, avg_promoted()->average(), desired_promo_size);
+    change = desired_promo_size - reduced_size;
+  }
+
   if (PrintAdaptiveSizePolicy && Verbose) {
     gclog_or_tty->print_cr(
       "AdaptiveSizePolicy::adjust_promo_for_footprint "
@@ -1053,6 +1365,11 @@ size_t PSAdaptiveSizePolicy::adjust_eden_for_footprint(
   change = scale_down(change, desired_eden_size, desired_sum);
 
   size_t reduced_size = desired_eden_size - change;
+
+  if (UseIOPrioritySizePolicy) {
+    reduced_size = _io_policy->calculate_reduced_eden_size(reduced_size, avg_survived()->average(), desired_eden_size);
+    change = desired_eden_size - reduced_size;
+  }
 
   if (PrintAdaptiveSizePolicy && Verbose) {
     gclog_or_tty->print_cr(

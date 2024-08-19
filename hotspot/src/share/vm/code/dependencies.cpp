@@ -1578,6 +1578,10 @@ static bool overrides(Method* sub_m, Method* base_m) {
 // Include m itself in the set, unless it is abstract.
 // If this set has exactly one element, return that element.
 Method* Dependencies::find_unique_concrete_method(Klass* ctxk, Method* m) {
+  // Return NULL if m is marked old; must have been a redefined method.
+  if (m->is_old()) {
+    return NULL;
+  }
   ClassHierarchyWalker wf(m);
   assert(wf.check_method_context(ctxk, m), "proper context");
   wf.record_witnesses(1);
