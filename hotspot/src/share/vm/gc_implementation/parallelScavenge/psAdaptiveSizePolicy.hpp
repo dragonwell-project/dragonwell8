@@ -53,6 +53,7 @@
 
 // Forward decls
 class elapsedTimer;
+class IOPolicy;
 
 class PSAdaptiveSizePolicy : public AdaptiveSizePolicy {
  friend class PSGCAdaptivePolicyCounters;
@@ -106,6 +107,8 @@ class PSAdaptiveSizePolicy : public AdaptiveSizePolicy {
   // increase/decrease the young generation for major pause time
   int _change_young_gen_for_maj_pauses;
 
+  double _throughput_goal;
+  IOPolicy *_io_policy;
 
   // Flag indicating that the adaptive policy is ready to use
   bool _old_gen_policy_is_ready;
@@ -233,6 +236,9 @@ class PSAdaptiveSizePolicy : public AdaptiveSizePolicy {
                        double gc_pause_goal_sec,
                        double gc_minor_pause_goal_sec,
                        uint gc_time_ratio);
+
+  void minor_collection_begin();
+  void minor_collection_end(GCCause::Cause gc_cause);
 
   // Methods indicating events of interest to the adaptive size policy,
   // called by GC algorithms. It is the responsibility of users of this

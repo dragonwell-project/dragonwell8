@@ -350,6 +350,18 @@ public class BigDecimal extends Number implements Comparable<BigDecimal> {
     public static final BigDecimal TEN =
         zeroThroughTen[10];
 
+    private static boolean opt = false;
+    static {
+        try {
+            opt = Boolean.parseBoolean(System.getProperty("java.math.BigDecimal.optimization"));
+        } catch (SecurityException e) {
+            // When user define some secure environment(like Bug6937951Test.java),
+            // system property here may be inaccessible. So we'd better be conservative
+            // and turn off optimization.
+            opt = false;
+        }
+    }
+
     // Constructors
 
     /**
@@ -4423,6 +4435,38 @@ public class BigDecimal extends Number implements Comparable<BigDecimal> {
     /**
      * Remove insignificant trailing zeros from this
      * {@code BigInteger} value until the preferred scale is reached or no
+     * more zeros can be removed. This is a faster version of createAndStripZerosToMatchScale
+     * using binary search instead of linear search.
+     *
+     * @return new {@code BigDecimal} with a scale possibly reduced
+     * to be closed to the preferred scale.
+     */
+    private static BigDecimal createAndStripZerosToMatchScaleFast(BigInteger intVal, int scale, long preferredScale) {
+        BigInteger qr[]; // quotient-remainder pair
+        int scaleStep;
+        while (intVal.compareMagnitude(BigInteger.TEN) >= 0
+                && scale > preferredScale) {
+            scaleStep = checkScale(intVal, Math.max(((long) scale - preferredScale) / 2, 1l));
+            if (intVal.getLowestSetBit() >= scaleStep) { // intVal can be divided by pow(10, scaleStep) only if intVal has more trailing zeros than scaleStep
+                qr = intVal.divideAndRemainder(bigTenToThe(scaleStep));
+                if (qr[1].signum() == 0) {
+                    intVal = qr[0];
+                    scale = checkScale(intVal, (long) scale - scaleStep); // could Overflow
+                    continue;
+                }
+            }
+            if (scaleStep == 1) {
+                break;
+            } else {
+                preferredScale = scale - scaleStep;
+            }
+        }
+        return valueOf(intVal, scale, 0);
+    }
+
+    /**
+     * Remove insignificant trailing zeros from this
+     * {@code BigInteger} value until the preferred scale is reached or no
      * more zeros can be removed.  If the preferred scale is less than
      * Integer.MIN_VALUE, all the trailing zeros will be removed.
      *
@@ -4430,6 +4474,9 @@ public class BigDecimal extends Number implements Comparable<BigDecimal> {
      * to be closed to the preferred scale.
      */
     private static BigDecimal createAndStripZerosToMatchScale(BigInteger intVal, int scale, long preferredScale) {
+        if (opt && preferredScale >= Integer.MIN_VALUE) {
+            return createAndStripZerosToMatchScaleFast(intVal, scale, preferredScale);
+        }
         BigInteger qr[]; // quotient-remainder pair
         while (intVal.compareMagnitude(BigInteger.TEN) >= 0
                && scale > preferredScale) {
