@@ -91,8 +91,8 @@ class IOPolicy : public CHeapObj<mtGC> {
        * cpu 417487649 75106 102895030 23107566512 152075 65480092 6013218 0 0 0
        */
       size_t user, nice, system, idle, iowait_time, irq, softirq, steal, guest, guest_nice;
-      int parse_line = sscanf(line, "cpu  %lu %lu %lu %lu %lu %lu %lu %lu %lu %lu", &user,
-                              &nice, &system, &idle, &iowait_time, &irq, &softirq, &steal, &guest, &guest_nice);
+      int parse_line = sscanf(line, "cpu  " SIZE_FORMAT " " SIZE_FORMAT " " SIZE_FORMAT " " SIZE_FORMAT " " SIZE_FORMAT " " SIZE_FORMAT " " SIZE_FORMAT " " SIZE_FORMAT " " SIZE_FORMAT " " SIZE_FORMAT, &user,
+          &nice, &system, &idle, &iowait_time, &irq, &softirq, &steal, &guest, &guest_nice);
       if (parse_line != 10) {
         fill_value_fail(file);
         return;
@@ -276,8 +276,8 @@ public:
       return eden_size;
     }
     size_t reduced_size;
-    reduced_size = MIN(eden_size, avg_survivor * IOPrioritySizePolicyEdenScale);
-    reduced_size = MAX(reduced_size, ParallelScavengeHeap::heap()->young_gen()->max_size() / 10);
+    reduced_size = (size_t)MIN2((float)eden_size, avg_survivor * (float)IOPrioritySizePolicyEdenScale);
+    reduced_size = MAX2(reduced_size, ParallelScavengeHeap::heap()->young_gen()->max_size() / 10);
     if (PrintAdaptiveSizePolicy) {
       gclog_or_tty->print_cr(
           "decrease eden from " SIZE_FORMAT "M to " SIZE_FORMAT
@@ -294,8 +294,8 @@ public:
     }
     const static float PromoScale = 5;
     size_t reduced_size;
-    reduced_size = MIN(reduced_size, avg_promo * PromoScale);
-    reduced_size = MAX(reduced_size,
+    reduced_size = (size_t)MIN2((float)promo_size, avg_promo * PromoScale);
+    reduced_size = MAX2(reduced_size,
                        ParallelScavengeHeap::heap()->old_gen()->max_gen_size() / 10);
     if (PrintAdaptiveSizePolicy) {
       gclog_or_tty->print_cr(
