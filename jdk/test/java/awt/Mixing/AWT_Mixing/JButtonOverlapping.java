@@ -33,6 +33,7 @@ import javax.swing.*;
  * @key headful
  * @summary Simple Overlapping test for javax.swing.JButton
  * @author sergey.grinev@oracle.com: area=awt.mixing
+ * @library ../../regtesthelpers
  * @build Util
  * @run main JButtonOverlapping
  */
