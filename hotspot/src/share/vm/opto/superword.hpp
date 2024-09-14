@@ -614,6 +614,7 @@ class SWPointer VALUE_OBJ_CLASS_SPEC {
   static bool try_SubI_no_overflow(jint offset1, jint offset2, jint& result);
   static bool try_AddSubI_no_overflow(jint offset1, jint offset2, bool is_sub, jint& result);
   static bool try_LShiftI_no_overflow(jint offset1, int offset2, jint& result);
+  static bool try_MulI_no_overflow(jint offset1, jint offset2, jint& result);
 
 };
 
