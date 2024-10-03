@@ -33,7 +33,7 @@ import sun.security.validator.ValidatorException;
 
 /**
  * @test
- * @bug 8337664
+ * @bug 8337664 8341059
  * @summary Check that TLS Server certificates chaining back to distrusted
  *          Entrust roots are invalid
  * @library /lib/security
@@ -56,14 +56,14 @@ public class Distrust {
         "affirmtrustpremiumca", "affirmtrustpremiumeccca" };
 
     // A date that is after the restrictions take effect
-    private static final Date NOVEMBER_1_2024 =
-        Date.from(LocalDate.of(2024, 11, 1)
+    private static final Date NOVEMBER_12_2024 =
+        Date.from(LocalDate.of(2024, 11, 12)
                            .atStartOfDay(ZoneOffset.UTC)
                            .toInstant());
 
     // A date that is a second before the restrictions take effect
-    private static final Date BEFORE_NOVEMBER_1_2024 =
-        Date.from(LocalDate.of(2024, 11, 1)
+    private static final Date BEFORE_NOVEMBER_12_2024 =
+        Date.from(LocalDate.of(2024, 11, 12)
                            .atStartOfDay(ZoneOffset.UTC)
                            .minusSeconds(1)
                            .toInstant());
@@ -81,7 +81,7 @@ public class Distrust {
             Security.setProperty("jdk.security.caDistrustPolicies", "");
         }
 
-        Date notBefore = before ? BEFORE_NOVEMBER_1_2024 : NOVEMBER_1_2024;
+        Date notBefore = before ? BEFORE_NOVEMBER_12_2024 : NOVEMBER_12_2024;
 
         X509TrustManager pkixTM = getTMF("PKIX", null);
         X509TrustManager sunX509TM = getTMF("SunX509", null);
