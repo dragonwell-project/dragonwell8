@@ -120,6 +120,13 @@ TransformInterpFunc *pBicubicFunc = BicubicInterp;
 /* We reject coordinates not less than 1<<30 so that the distance between */
 /* any 2 of them is less than 1<<31 which would overflow into the sign */
 /* bit of a signed long value used to represent fixed point coordinates. */
+/// Properly define some macros to accommodate
+/// older MSVC versions.
+#if defined(_MSC_VER) && _MSC_VER <= 1700
+    #include <float.h>
+    #define isnan _isnan
+    #define isinf(x) (!_finite((x)))
+#endif
 #if  !defined(_MSC_VER) && (defined(__STDC_VERSION__) && __STDC_VERSION__ <= 199409)
     #if !defined(isinf)
     #define isinf(x) (!finite(x))
