@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -40,13 +40,13 @@ final class VersionHelper12 extends VersionHelper {
         "com.sun.jndi.ldap.object.trustURLCodebase";
 
     // System property to control whether classes are allowed to be loaded from
-    // 'javaSerializedData' attribute
+    // 'javaSerializedData', 'javaRemoteLocation' or 'javaReferenceAddress' attributes.
     private static final String TRUST_SERIAL_DATA_PROPERTY =
         "com.sun.jndi.ldap.object.trustSerialData";
 
     /**
-     * Determines whether objects may be deserialized from the content of
-     * 'javaSerializedData' attribute.
+     * Determines whether objects may be deserialized or reconstructed from a content of
+     * 'javaSerializedData', 'javaRemoteLocation' or 'javaReferenceAddress' LDAP attributes.
      */
     private static final boolean trustSerialData;
 
@@ -56,7 +56,7 @@ final class VersionHelper12 extends VersionHelper {
     static {
         String trust = getPrivilegedProperty(TRUST_URL_CODEBASE_PROPERTY, "false");
         trustURLCodebase = "true".equalsIgnoreCase(trust);
-        String trustSDString = getPrivilegedProperty(TRUST_SERIAL_DATA_PROPERTY, "true");
+        String trustSDString = getPrivilegedProperty(TRUST_SERIAL_DATA_PROPERTY, "false");
         trustSerialData = "true".equalsIgnoreCase(trustSDString);
     }
 
@@ -72,8 +72,9 @@ final class VersionHelper12 extends VersionHelper {
     VersionHelper12() {} // Disallow external from creating one of these.
 
     /**
-     * Returns true if deserialization of objects from 'javaSerializedData'
-     * and 'javaReferenceAddress' LDAP attributes is allowed.
+     * Returns true if deserialization or reconstruction of objects from
+     * 'javaSerializedData', 'javaRemoteLocation' and 'javaReferenceAddress'
+     * LDAP attributes is allowed.
      *
      * @return true if deserialization is allowed; false - otherwise
      */

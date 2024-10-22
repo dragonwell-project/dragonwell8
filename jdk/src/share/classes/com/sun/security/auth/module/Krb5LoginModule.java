@@ -41,7 +41,6 @@ import javax.security.auth.spi.*;
 import sun.security.krb5.*;
 import sun.security.jgss.krb5.Krb5Util;
 import sun.security.krb5.Credentials;
-import sun.misc.HexDumpEncoder;
 
 /**
  * <p> This <code>LoginModule</code> authenticates users using
@@ -786,15 +785,11 @@ public class Krb5LoginModule implements LoginModule {
 
                 if (debug) {
                     System.out.println("principal is " + principal);
-                    HexDumpEncoder hd = new HexDumpEncoder();
                     if (ktab != null) {
                         System.out.println("Will use keytab");
                     } else if (storeKey) {
                         for (int i = 0; i < encKeys.length; i++) {
-                            System.out.println("EncryptionKey: keyType=" +
-                                encKeys[i].getEType() +
-                                " keyBytes (hex dump)=" +
-                                hd.encodeBuffer(encKeys[i].getBytes()));
+                            System.out.println(encKeys[i].toString());
                         }
                     }
                 }
@@ -895,7 +890,7 @@ public class Krb5LoginModule implements LoginModule {
             }
             if (debug) {
                 System.out.println
-                    ("password is " + new String(password));
+                    ("Get password from shared state");
             }
             return;
         }

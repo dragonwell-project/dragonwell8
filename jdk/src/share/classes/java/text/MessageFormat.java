@@ -41,6 +41,7 @@ package java.text;
 import java.io.InvalidObjectException;
 import java.io.IOException;
 import java.io.ObjectInputStream;
+import java.io.ObjectStreamException;
 import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -960,6 +961,8 @@ public class MessageFormat extends Format {
                 maximumArgumentNumber = argumentNumbers[i];
             }
         }
+
+        // Constructors/applyPattern ensure that resultArray.length < MAX_ARGUMENT_INDEX
         Object[] resultArray = new Object[maximumArgumentNumber + 1];
 
         int patternOffset = 0;
@@ -1210,6 +1213,9 @@ public class MessageFormat extends Format {
      * @serial
      */
     private int[] argumentNumbers = new int[INITIAL_FORMATS];
+    // Implementation limit for ArgumentIndex pattern element. Valid indices must
+    // be less than this value
+    private static final int MAX_ARGUMENT_INDEX = 10000;
 
     /**
      * One less than the number of entries in <code>offsets</code>.  Can also be thought of
@@ -1434,6 +1440,11 @@ public class MessageFormat extends Format {
                                                + argumentNumber);
         }
 
+        if (argumentNumber >= MAX_ARGUMENT_INDEX) {
+            throw new IllegalArgumentException(
+                    argumentNumber + " exceeds the ArgumentIndex implementation limit");
+        }
+
         // resize format information arrays if necessary
         if (offsetNumber >= formats.length) {
             int newLength = formats.length * 2;
@@ -1580,24 +1591,52 @@ public class MessageFormat extends Format {
      * @throws InvalidObjectException if the objects read from the stream is invalid.
      */
     private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException {
-        in.defaultReadObject();
-        boolean isValid = maxOffset >= -1
-                && formats.length > maxOffset
-                && offsets.length > maxOffset
-                && argumentNumbers.length > maxOffset;
+        ObjectInputStream.GetField fields = in.readFields();
+        if (fields.defaulted("argumentNumbers") || fields.defaulted("offsets")
+                || fields.defaulted("formats") || fields.defaulted("locale")
+                || fields.defaulted("pattern") || fields.defaulted("maxOffset")){
+            throw new InvalidObjectException("Stream has missing data");
+        }
+
+        locale = (Locale) fields.get("locale", null);
+        String patt = (String) fields.get("pattern", null);
+        int maxOff = fields.get("maxOffset", -2);
+        int[] argNums = ((int[]) fields.get("argumentNumbers", null)).clone();
+        int[] offs = ((int[]) fields.get("offsets", null)).clone();
+        Format[] fmts = ((Format[]) fields.get("formats", null)).clone();
+
+        // Check arrays/maxOffset have correct value/length
+        boolean isValid = maxOff >= -1 && argNums.length > maxOff
+                && offs.length > maxOff && fmts.length > maxOff;
+
+        // Check the correctness of arguments and offsets
         if (isValid) {
-            int lastOffset = pattern.length() + 1;
-            for (int i = maxOffset; i >= 0; --i) {
-                if ((offsets[i] < 0) || (offsets[i] > lastOffset)) {
+            int lastOffset = patt.length() + 1;
+            for (int i = maxOff; i >= 0; --i) {
+                if (argNums[i] < 0 || argNums[i] >= MAX_ARGUMENT_INDEX
+                        || offs[i] < 0 || offs[i] > lastOffset) {
                     isValid = false;
                     break;
                 } else {
-                    lastOffset = offsets[i];
+                    lastOffset = offs[i];
                 }
             }
         }
+
         if (!isValid) {
-            throw new InvalidObjectException("Could not reconstruct MessageFormat from corrupt stream.");
+            throw new InvalidObjectException("Stream has invalid data");
         }
+        maxOffset = maxOff;
+        pattern = patt;
+        offsets = offs;
+        formats = fmts;
+        argumentNumbers = argNums;
+    }
+
+    /**
+     * Serialization without data not supported for this class.
+     */
+    private void readObjectNoData() throws ObjectStreamException {
+        throw new InvalidObjectException("Deserialized MessageFormat objects need data");
     }
 }
