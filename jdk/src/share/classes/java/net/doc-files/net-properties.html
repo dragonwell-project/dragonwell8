@@ -220,6 +220,14 @@ of proxies.</P>
 	      property is defined, then its value will be used a the domain
 	      name.</P>
 	</OL>
+	<LI><P><B>{@systemProperty jdk.http.maxHeaderSize}</B> (default: 393216 or 384kB)<BR>
+	This is the maximum header field section size that a client is prepared to accept.
+	This is computed as the sum of the size of the uncompressed header name, plus
+	the size of the uncompressed header value, plus an overhead of 32 bytes for
+	each field section line. If a peer sends a field section that exceeds this
+	size a {@link java.net.ProtocolException ProtocolException} will be raised.
+	This applies to all versions of the HTTP protocol. A value of zero or a negative
+	value means no limit. If left unspecified, the default value is 393216 bytes.
 </UL>
 <P>All these properties are checked only once at startup.</P>
 <a name="AddressCache"></a>

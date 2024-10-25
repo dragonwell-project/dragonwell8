@@ -908,15 +908,11 @@ class Krb5Context implements GSSContextSpi {
 
     public final byte[] wrap(byte inBuf[], int offset, int len,
                              MessageProp msgProp) throws GSSException {
-        if (DEBUG) {
-            System.out.println("Krb5Context.wrap: data=["
-                               + getHexBytes(inBuf, offset, len)
-                               + "]");
-        }
 
-        if (state != STATE_DONE)
-        throw new GSSException(GSSException.NO_CONTEXT, -1,
-                               "Wrap called in invalid state!");
+        if (state != STATE_DONE) {
+            throw new GSSException(GSSException.NO_CONTEXT, -1,
+                    "Wrap called in invalid state!");
+        }
 
         byte[] encToken = null;
         try {
@@ -1059,12 +1055,6 @@ class Krb5Context implements GSSContextSpi {
                         new WrapToken_v2(this, inBuf, offset, len, msgProp);
                 data = token.getData();
                 setSequencingAndReplayProps(token, msgProp);
-            }
-
-            if (DEBUG) {
-                System.out.println("Krb5Context.unwrap: data=["
-                                   + getHexBytes(data, 0, data.length)
-                                   + "]");
             }
 
             return data;
@@ -1412,8 +1402,8 @@ class Krb5Context implements GSSContextSpi {
 
         @Override
         public String toString() {
-            return "Kerberos session key: etype: " + key.getEType() + "\n" +
-                    new sun.misc.HexDumpEncoder().encodeBuffer(key.getBytes());
+            return "Kerberos session key: etype=" + key.getEType()
+                    + ", " + Krb5Util.keyInfo(key.getBytes());
         }
     }
 
