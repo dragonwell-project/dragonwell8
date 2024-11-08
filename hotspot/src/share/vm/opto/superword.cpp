@@ -2317,7 +2317,11 @@ char* SuperWord::blank(uint depth) {
 //----------------------------SWPointer------------------------
 SWPointer::SWPointer(MemNode* mem, SuperWord* slp) :
   _mem(mem), _slp(slp),  _base(NULL),  _adr(NULL),
-  _scale(0), _offset(0), _invar(NULL), _negate_invar(false) {
+  _scale(0), _offset(0), _invar(NULL), _negate_invar(false),
+  _has_int_index_after_convI2L(false),
+  _int_index_after_convI2L_offset(0),
+  _int_index_after_convI2L_invar(NULL),
+  _int_index_after_convI2L_scale(0) {
 
   Node* adr = mem->in(MemNode::Address);
   if (!adr->is_AddP()) {
@@ -2346,6 +2350,12 @@ SWPointer::SWPointer(MemNode* mem, SuperWord* slp) :
       break; // stop looking at addp's
     }
   }
+
+  if (!is_safe_to_use_as_simple_form(base, adr)) {
+    assert(!valid(), "does not have simple form");
+    return;
+  }
+
   _base = base;
   _adr  = adr;
   assert(valid(), "Usable");
@@ -2355,7 +2365,354 @@ SWPointer::SWPointer(MemNode* mem, SuperWord* slp) :
 // the pattern match of an address expression.
 SWPointer::SWPointer(SWPointer* p) :
   _mem(p->_mem), _slp(p->_slp),  _base(NULL),  _adr(NULL),
-  _scale(0), _offset(0), _invar(NULL), _negate_invar(false) {}
+  _scale(0), _offset(0), _invar(NULL), _negate_invar(false),
+  _has_int_index_after_convI2L(false),
+  _int_index_after_convI2L_offset(0),
+  _int_index_after_convI2L_invar(NULL),
+  _int_index_after_convI2L_scale(0) {}
+
+// We would like to make decisions about aliasing (i.e. removing memory edges) and adjacency
+// (i.e. which loads/stores can be packed) based on the simple form:
+//
+//   s_pointer = adr + offset + invar + scale * ConvI2L(iv)
+//
+// However, we parse the compound-long-int form:
+//
+//   c_pointer = adr + long_offset + long_invar + long_scale * ConvI2L(int_index)
+//   int_index =       int_offset  + int_invar  + int_scale  * iv
+//
+// In general, the simple and the compound-long-int form do not always compute the same pointer
+// at runtime. For example, the simple form would give a different result due to an overflow
+// in the int_index.
+//
+// Example:
+//   For both forms, we have:
+//     iv = 0
+//     scale = 1
+//
+//   We now account the offset and invar once to the long part and once to the int part:
+//     Pointer 1 (long offset and long invar):
+//       long_offset = min_int
+//       long_invar  = min_int
+//       int_offset  = 0
+//       int_invar   = 0
+//
+//     Pointer 2 (int offset and int invar):
+//       long_offset = 0
+//       long_invar  = 0
+//       int_offset  = min_int
+//       int_invar   = min_int
+//
+//   This gives us the following pointers:
+//     Compound-long-int form pointers:
+//       Form:
+//         c_pointer   = adr + long_offset + long_invar + long_scale * ConvI2L(int_offset + int_invar + int_scale * iv)
+//
+//       Pointers:
+//         c_pointer1  = adr + min_int     + min_int    + 1          * ConvI2L(0          + 0         + 1         * 0)
+//                     = adr + min_int + min_int
+//                     = adr - 2^32
+//
+//         c_pointer2  = adr + 0           + 0          + 1          * ConvI2L(min_int    + min_int   + 1         * 0)
+//                     = adr + ConvI2L(min_int + min_int)
+//                     = adr + 0
+//                     = adr
+//
+//     Simple form pointers:
+//       Form:
+//         s_pointer  = adr + offset                     + invar                     + scale                    * ConvI2L(iv)
+//         s_pointer  = adr + (long_offset + int_offset) + (long_invar  + int_invar) + (long_scale * int_scale) * ConvI2L(iv)
+//
+//       Pointers:
+//         s_pointer1 = adr + (min_int     + 0         ) + (min_int     + 0        ) + 1                        * 0
+//                    = adr + min_int + min_int
+//                    = adr - 2^32
+//         s_pointer2 = adr + (0           + min_int   ) + (0           + min_int  ) + 1                        * 0
+//                    = adr + min_int + min_int
+//                    = adr - 2^32
+//
+//   We see that the two addresses are actually 2^32 bytes apart (derived from the c_pointers), but their simple form look identical.
+//
+// Hence, we need to determine in which cases it is safe to make decisions based on the simple
+// form, rather than the compound-long-int form. If we cannot prove that using the simple form
+// is safe (i.e. equivalent to the compound-long-int form), then we do not get a valid SWPointer,
+// and the associated memop cannot be vectorized.
+bool SWPointer::is_safe_to_use_as_simple_form(Node* base, Node* adr) const {
+#ifndef _LP64
+  // On 32-bit platforms, there is never an explicit int_index with ConvI2L for the iv. Thus, the
+  // parsed pointer form is always the simple form, with int operations:
+  //
+  //   pointer = adr + offset + invar + scale * iv
+  //
+  assert(!_has_int_index_after_convI2L, "32-bit never has an int_index with ConvI2L for the iv");
+  return true;
+#else
+
+  // Array accesses that are not Unsafe always have a RangeCheck which ensures that there is no
+  // int_index overflow. This implies that the conversion to long can be done separately:
+  //
+  //   ConvI2L(int_index) = ConvI2L(int_offset) + ConvI2L(int_invar) + ConvI2L(scale) * ConvI2L(iv)
+  //
+  // And hence, the simple form is guaranteed to be identical to the compound-long-int form at
+  // runtime and the SWPointer is safe/valid to be used.
+  const TypeAryPtr* ary_ptr_t = _mem->adr_type()->isa_aryptr();
+
+  // We did not find the int_index. Just to be safe, reject this SWPointer.
+  if (!_has_int_index_after_convI2L) {
+    return false;
+  }
+
+  int int_offset  = _int_index_after_convI2L_offset;
+  Node* int_invar = _int_index_after_convI2L_invar;
+  int int_scale   = _int_index_after_convI2L_scale;
+  int long_scale  = _scale / int_scale;
+
+  // If "int_index = iv", then the simple form is identical to the compound-long-int form.
+  //
+  //   int_index = int_offset + int_invar + int_scale * iv
+  //             = 0            0           1         * iv
+  //             =                                      iv
+  if (int_offset == 0 && int_invar == NULL && int_scale == 1) {
+    return true;
+  }
+
+  // Intuition: What happens if the int_index overflows? Let us look at two pointers on the "overflow edge":
+  //
+  //              pointer1 = adr + ConvI2L(int_index1)
+  //              pointer2 = adr + ConvI2L(int_index2)
+  //
+  //              int_index1 = max_int + 0 = max_int  -> very close to but before the overflow
+  //              int_index2 = max_int + 1 = min_int  -> just enough to get the overflow
+  //
+  //            When looking at the difference of pointer1 and pointer2, we notice that it is very large
+  //            (almost 2^32). Since arrays have at most 2^31 elements, chances are high that pointer2 is
+  //            an actual out-of-bounds access at runtime. These would normally be prevented by range checks
+  //            at runtime. However, if the access was done by using Unsafe, where range checks are omitted,
+  //            then an out-of-bounds access constitutes undefined behavior. This means that we are allowed to
+  //            do anything, including changing the behavior.
+  //
+  //            If we can set the right conditions, we have a guarantee that an overflow is either impossible
+  //            (no overflow or range checks preventing that) or undefined behavior. In both cases, we are
+  //            safe to do a vectorization.
+  //
+  // Approach:  We want to prove a lower bound for the distance between these two pointers, and an
+  //            upper bound for the size of a memory object. We can derive such an upper bound for
+  //            arrays. We know they have at most 2^31 elements. If we know the size of the elements
+  //            in bytes, we have:
+  //
+  //              array_element_size_in_bytes * 2^31 >= max_possible_array_size_in_bytes
+  //                                                 >= array_size_in_bytes                      (ARR)
+  //
+  //            If some small difference "delta" leads to an int_index overflow, we know that the
+  //            int_index1 before overflow must have been close to max_int, and the int_index2 after
+  //            the overflow must be close to min_int:
+  //
+  //              pointer1 =        adr + long_offset + long_invar + long_scale * ConvI2L(int_index1)
+  //                       =approx  adr + long_offset + long_invar + long_scale * max_int
+  //
+  //              pointer2 =        adr + long_offset + long_invar + long_scale * ConvI2L(int_index2)
+  //                       =approx  adr + long_offset + long_invar + long_scale * min_int
+  //
+  //            We realize that the pointer difference is very large:
+  //
+  //              difference =approx  long_scale * 2^32
+  //
+  //            Hence, if we set the right condition for long_scale and array_element_size_in_bytes,
+  //            we can prove that an overflow is impossible (or would imply undefined behaviour).
+  //
+  // We must now take this intuition, and develop a rigorous proof. We start by stating the problem
+  // more precisely, with the help of some definitions and the Statement we are going to prove.
+  //
+  // Definition:
+  //   Two SWPointers are "comparable" (i.e. SWPointer::comparable is true, set with SWPointer::cmp()),
+  //   iff all of these conditions apply for the simple form:
+  //     1) Both SWPointers are valid.
+  //     2) The adr are identical, or both are array bases of different arrays.
+  //     3) They have identical scale.
+  //     4) They have identical invar.
+  //     5) The difference in offsets is limited: abs(offset1 - offset2) < 2^31.                 (DIFF)
+  //
+  // For the Vectorization Optimization, we pair-wise compare SWPointers and determine if they are:
+  //   1) "not comparable":
+  //        We do not optimize them (assume they alias, not assume adjacency).
+  //
+  //        Whenever we chose this option based on the simple form, it is also correct based on the
+  //        compound-long-int form, since we make no optimizations based on it.
+  //
+  //   2) "comparable" with different array bases at runtime:
+  //        We assume they do not alias (remove memory edges), but not assume adjacency.
+  //
+  //        Whenever we have two different array bases for the simple form, we also have different
+  //        array bases for the compound-long-form. Since SWPointers provably point to different
+  //        memory objects, they can never alias.
+  //
+  //   3) "comparable" with the same base address:
+  //        We compute the relative pointer difference, and based on the load/store size we can
+  //        compute aliasing and adjacency.
+  //
+  //        We must find a condition under which the pointer difference of the simple form is
+  //        identical to the pointer difference of the compound-long-form. We do this with the
+  //        Statement below, which we then proceed to prove.
+  //
+  // Statement:
+  //   If two SWPointers satisfy these 3 conditions:
+  //     1) They are "comparable".
+  //     2) They have the same base address.
+  //     3) Their long_scale is a multiple of the array element size in bytes:
+  //
+  //          abs(long_scale) % array_element_size_in_bytes = 0                                     (A)
+  //
+  //   Then their pointer difference of the simple form is identical to the pointer difference
+  //   of the compound-long-int form.
+  //
+  //   More precisely:
+  //     Such two SWPointers by definition have identical adr, invar, and scale.
+  //     Their simple form is:
+  //
+  //       s_pointer1 = adr + offset1 + invar + scale * ConvI2L(iv)                                 (B1)
+  //       s_pointer2 = adr + offset2 + invar + scale * ConvI2L(iv)                                 (B2)
+  //
+  //     Thus, the pointer difference of the simple forms collapses to the difference in offsets:
+  //
+  //       s_difference = s_pointer1 - s_pointer2 = offset1 - offset2                               (C)
+  //
+  //     Their compound-long-int form for these SWPointer is:
+  //
+  //       c_pointer1 = adr + long_offset1 + long_invar1 + long_scale1 * ConvI2L(int_index1)        (D1)
+  //       int_index1 = int_offset1 + int_invar1 + int_scale1 * iv                                  (D2)
+  //
+  //       c_pointer2 = adr + long_offset2 + long_invar2 + long_scale2 * ConvI2L(int_index2)        (D3)
+  //       int_index2 = int_offset2 + int_invar2 + int_scale2 * iv                                  (D4)
+  //
+  //     And these are the offset1, offset2, invar and scale from the simple form (B1) and (B2):
+  //
+  //       offset1 = long_offset1 + long_scale1 * ConvI2L(int_offset1)                              (D5)
+  //       offset2 = long_offset2 + long_scale2 * ConvI2L(int_offset2)                              (D6)
+  //
+  //       invar   = long_invar1 + long_scale1 * ConvI2L(int_invar1)
+  //               = long_invar2 + long_scale2 * ConvI2L(int_invar2)                                (D7)
+  //
+  //       scale   = long_scale1 * ConvI2L(int_scale1)
+  //               = long_scale2 * ConvI2L(int_scale2)                                              (D8)
+  //
+  //     The pointer difference of the compound-long-int form is defined as:
+  //
+  //       c_difference = c_pointer1 - c_pointer2
+  //
+  //   Thus, the statement claims that for the two SWPointer we have:
+  //
+  //     s_difference = c_difference                                                                (Statement)
+  //
+  // We prove the Statement with the help of a Lemma:
+  //
+  // Lemma:
+  //   There is some integer x, such that:
+  //
+  //     c_difference = s_difference + array_element_size_in_bytes * x * 2^32                       (Lemma)
+  //
+  // From condition (DIFF), we can derive:
+  //
+  //   abs(s_difference) < 2^31                                                                     (E)
+  //
+  // Assuming the Lemma, we prove the Statement:
+  //   If "x = 0" (intuitively: the int_index does not overflow), then:
+  //     c_difference = s_difference
+  //     and hence the simple form computes the same pointer difference as the compound-long-int form.
+  //   If "x != 0" (intuitively: the int_index overflows), then:
+  //     abs(c_difference) >= abs(s_difference + array_element_size_in_bytes * x * 2^32)
+  //                       >= array_element_size_in_bytes * 2^32 - abs(s_difference)
+  //                                                               --  apply (E)  --
+  //                       >  array_element_size_in_bytes * 2^32 - 2^31
+  //                       >= array_element_size_in_bytes * 2^31
+  //                              --  apply (ARR)  --
+  //                       >= max_possible_array_size_in_bytes
+  //                       >= array_size_in_bytes
+  //
+  //     This shows that c_pointer1 and c_pointer2 have a distance that exceeds the maximum array size.
+  //     Thus, at least one of the two pointers must be outside of the array bounds. But we can assume
+  //     that out-of-bounds accesses do not happen. If they still do, it is undefined behavior. Hence,
+  //     we are allowed to do anything. We can also "safely" use the simple form in this case even though
+  //     it might not match the compound-long-int form at runtime.
+  // QED Statement.
+  //
+  // We must now prove the Lemma.
+  //
+  // ConvI2L always truncates by some power of 2^32, i.e. there is some integer y such that:
+  //
+  //   ConvI2L(y1 + y2) = ConvI2L(y1) + ConvI2L(y2) + 2^32 * y                                  (F)
+  //
+  // It follows, that there is an integer y1 such that:
+  //
+  //   ConvI2L(int_index1) =  ConvI2L(int_offset1 + int_invar1 + int_scale1 * iv)
+  //                          -- apply (F) --
+  //                       =  ConvI2L(int_offset1)
+  //                        + ConvI2L(int_invar1)
+  //                        + ConvI2L(int_scale1) * ConvI2L(iv)
+  //                        + y1 * 2^32                                                         (G)
+  //
+  // Thus, we can write the compound-long-int form (D1) as:
+  //
+  //   c_pointer1 =   adr + long_offset1 + long_invar1 + long_scale1 * ConvI2L(int_index1)
+  //                  -- apply (G) --
+  //              =   adr
+  //                + long_offset1
+  //                + long_invar1
+  //                + long_scale1 * ConvI2L(int_offset1)
+  //                + long_scale1 * ConvI2L(int_invar1)
+  //                + long_scale1 * ConvI2L(int_scale1) * ConvI2L(iv)
+  //                + long_scale1 * y1 * 2^32                                                    (H)
+  //
+  // And we can write the simple form as:
+  //
+  //   s_pointer1 =   adr + offset1 + invar + scale * ConvI2L(iv)
+  //                  -- apply (D5, D7, D8) --
+  //              =   adr
+  //                + long_offset1
+  //                + long_scale1 * ConvI2L(int_offset1)
+  //                + long_invar1
+  //                + long_scale1 * ConvI2L(int_invar1)
+  //                + long_scale1 * ConvI2L(int_scale1) * ConvI2L(iv)                            (K)
+  //
+  // We now compute the pointer difference between the simple (K) and compound-long-int form (H).
+  // Most terms cancel out immediately:
+  //
+  //   sc_difference1 = c_pointer1 - s_pointer1 = long_scale1 * y1 * 2^32                        (L)
+  //
+  // Rearranging the equation (L), we get:
+  //
+  //   c_pointer1 = s_pointer1 + long_scale1 * y1 * 2^32                                         (M)
+  //
+  // And since long_scale1 is a multiple of array_element_size_in_bytes, there is some integer
+  // x1, such that (M) implies:
+  //
+  //   c_pointer1 = s_pointer1 + array_element_size_in_bytes * x1 * 2^32                         (N)
+  //
+  // With an analogue equation for c_pointer2, we can now compute the pointer difference for
+  // the compound-long-int form:
+  //
+  //   c_difference =  c_pointer1 - c_pointer2
+  //                   -- apply (N) --
+  //                =  s_pointer1 + array_element_size_in_bytes * x1 * 2^32
+  //                 -(s_pointer2 + array_element_size_in_bytes * x2 * 2^32)
+  //                   -- where "x = x1 - x2" --
+  //                =  s_pointer1 - s_pointer2 + array_element_size_in_bytes * x * 2^32
+  //                   -- apply (C) --
+  //                =  s_difference            + array_element_size_in_bytes * x * 2^32
+  // QED Lemma.
+  if (ary_ptr_t != NULL) {
+    BasicType array_element_bt = ary_ptr_t->elem()->array_element_basic_type();
+    if (is_java_primitive(array_element_bt)) {
+      int array_element_size_in_bytes = type2aelembytes(array_element_bt);
+      if (abs(long_scale) % array_element_size_in_bytes == 0) {
+        return true;
+      }
+    }
+  }
+
+  // General case: we do not know if it is safe to use the simple form.
+  return false;
+#endif
+}
 
 //------------------------scaled_iv_plus_offset--------------------
 // Match: k*iv + offset
@@ -2378,10 +2735,30 @@ bool SWPointer::scaled_iv_plus_offset(Node* n) {
     }
   } else if (opc == Op_SubI) {
     if (scaled_iv(n->in(1)) && offset_plus_k(n->in(2), true)) {
+      // (scale * iv) - (offset1 + invar1)
+      // Subtraction handled via "negate" flag of "offset_plus_k".
       return true;
     }
-    if (scaled_iv(n->in(2)) && offset_plus_k(n->in(1))) {
-      _scale *= -1;
+    SWPointer tmp(this);
+    if (tmp.scaled_iv(n->in(2)) && offset_plus_k(n->in(1))) {
+      // (offset1 + invar1) - (scale * iv)
+      // Subtraction handled explicitly below.
+      assert(_scale == 0, "shouldn't be set yet");
+      // _scale = -tmp._scale
+      if (!try_MulI_no_overflow(-1, tmp._scale, _scale)) {
+        return false; // mul overflow.
+      }
+      // _offset -= tmp._offset
+      if (!try_SubI_no_overflow(_offset, tmp._offset, _offset)) {
+        return false; // sub overflow.
+      }
+
+      // SWPointer tmp does not have an integer part to be forwarded
+      // (tmp._has_int_index_after_convI2L is false) because n is a SubI, all
+      // nodes above must also be of integer type (ConvL2I is not handled
+      // to allow a long) and ConvI2L (the only node that can add an integer
+      // part) won't be present.
+
       return true;
     }
   }
@@ -2409,16 +2786,56 @@ bool SWPointer::scaled_iv(Node* n) {
     }
   } else if (opc == Op_LShiftI) {
     if (n->in(1) == iv() && n->in(2)->is_Con()) {
-      _scale = 1 << n->in(2)->get_int();
+      if (!try_LShiftI_no_overflow(1, n->in(2)->get_int(), _scale)) {
+        return false; // shift overflow.
+      }
       return true;
     }
-  } else if (opc == Op_ConvI2L) {
+  } else if (opc == Op_ConvI2L && !has_iv()) {
     if (n->in(1)->Opcode() == Op_CastII &&
         n->in(1)->as_CastII()->has_range_check()) {
       // Skip range check dependent CastII nodes
       n = n->in(1);
     }
-    if (scaled_iv_plus_offset(n->in(1))) {
+
+    // So far we have not found the iv yet, and are about to enter a ConvI2L subgraph,
+    // which may be the int index (that might overflow) for the memory access, of the form:
+    //
+    //   int_index = int_offset + int_invar + int_scale * iv
+    //
+    // If we simply continue parsing with the current SWPointer, then the int_offset and
+    // int_invar simply get added to the long offset and invar. But for the checks in
+    // SWPointer::is_safe_to_use_as_simple_form() we need to have explicit access to the
+    // int_index. Thus, we must parse it explicitly here. For this, we use a temporary
+    // SWPointer, to pattern match the int_index sub-expression of the address.
+
+    SWPointer tmp(this);
+
+    if (tmp.scaled_iv_plus_offset(n->in(1)) && tmp.has_iv()) {
+      // We successfully matched an integer index, of the form:
+      //   int_index = int_offset + int_invar + int_scale * iv
+      // Forward scale.
+      assert(_scale == 0 && tmp._scale != 0, "iv only found just now");
+      _scale = tmp._scale;
+      // Accumulate offset.
+      if (!try_AddI_no_overflow(_offset, tmp._offset, _offset)) {
+        return false; // add overflow.
+      }
+      // Forward invariant if not already found.
+      if (tmp._invar != NULL) {
+        if (_invar != NULL) {
+          return false;
+        }
+        _invar = tmp._invar;
+        _negate_invar = tmp._negate_invar;
+      }
+      // Set info about the int_index:
+      assert(!_has_int_index_after_convI2L, "no previous int_index discovered");
+      _has_int_index_after_convI2L = true;
+      _int_index_after_convI2L_offset = tmp._offset;
+      _int_index_after_convI2L_invar  = tmp._invar;
+      _int_index_after_convI2L_scale  = tmp._scale;
+
       return true;
     }
   } else if (opc == Op_LShiftL) {
@@ -2429,9 +2846,27 @@ bool SWPointer::scaled_iv(Node* n) {
       SWPointer tmp(this);
       if (tmp.scaled_iv_plus_offset(n->in(1))) {
         if (tmp._invar == NULL) {
-          int mult = 1 << n->in(2)->get_int();
-          _scale   = tmp._scale  * mult;
-          _offset += tmp._offset * mult;
+          int shift = (int)(n->in(2)->get_int());
+          // Accumulate scale.
+          if (!try_LShiftI_no_overflow(tmp._scale, shift, _scale)) {
+            return false; // shift overflow.
+          }
+          // Accumulate offset.
+          jint shifted_offset = 0;
+          if (!try_LShiftI_no_overflow(tmp._offset, shift, shifted_offset)) {
+            return false; // shift overflow.
+          }
+          if (!try_AddI_no_overflow(_offset, shifted_offset, _offset)) {
+            return false; // add overflow.
+          }
+
+          // Forward info about the int_index:
+          assert(!_has_int_index_after_convI2L, "no previous int_index discovered");
+          _has_int_index_after_convI2L = tmp._has_int_index_after_convI2L;
+          _int_index_after_convI2L_offset = tmp._int_index_after_convI2L_offset;
+          _int_index_after_convI2L_invar  = tmp._int_index_after_convI2L_invar;
+          _int_index_after_convI2L_scale  = tmp._int_index_after_convI2L_scale;
+
           return true;
         }
       }
@@ -2446,7 +2881,9 @@ bool SWPointer::scaled_iv(Node* n) {
 bool SWPointer::offset_plus_k(Node* n, bool negate) {
   int opc = n->Opcode();
   if (opc == Op_ConI) {
-    _offset += negate ? -(n->get_int()) : n->get_int();
+    if (!try_AddSubI_no_overflow(_offset, n->get_int(), negate, _offset)) {
+      return false; // add/sub overflow.
+    }
     return true;
   } else if (opc == Op_ConL) {
     // Okay if value fits into an int
@@ -2454,7 +2891,9 @@ bool SWPointer::offset_plus_k(Node* n, bool negate) {
     if (t->higher_equal(TypeLong::INT)) {
       jlong loff = n->get_long();
       jint  off  = (jint)loff;
-      _offset += negate ? -off : loff;
+      if (!try_AddSubI_no_overflow(_offset, off, negate, _offset)) {
+        return false; // add/sub overflow.
+      }
       return true;
     }
     return false;
@@ -2464,10 +2903,14 @@ bool SWPointer::offset_plus_k(Node* n, bool negate) {
     if (n->in(2)->is_Con() && invariant(n->in(1))) {
       _negate_invar = negate;
       _invar = n->in(1);
-      _offset += negate ? -(n->in(2)->get_int()) : n->in(2)->get_int();
+      if (!try_AddSubI_no_overflow(_offset, n->in(2)->get_int(), negate, _offset)) {
+        return false; // add/sub overflow.
+      }
       return true;
     } else if (n->in(1)->is_Con() && invariant(n->in(2))) {
-      _offset += negate ? -(n->in(1)->get_int()) : n->in(1)->get_int();
+      if (!try_AddSubI_no_overflow(_offset, n->in(1)->get_int(), negate, _offset)) {
+        return false; // add/sub overflow.
+      }
       _negate_invar = negate;
       _invar = n->in(2);
       return true;
@@ -2477,10 +2920,14 @@ bool SWPointer::offset_plus_k(Node* n, bool negate) {
     if (n->in(2)->is_Con() && invariant(n->in(1))) {
       _negate_invar = negate;
       _invar = n->in(1);
-      _offset += !negate ? -(n->in(2)->get_int()) : n->in(2)->get_int();
+      if (!try_AddSubI_no_overflow(_offset, n->in(2)->get_int(), !negate, _offset)) {
+        return false; // add/sub overflow.
+      }
       return true;
     } else if (n->in(1)->is_Con() && invariant(n->in(2))) {
-      _offset += negate ? -(n->in(1)->get_int()) : n->in(1)->get_int();
+      if (!try_AddSubI_no_overflow(_offset, n->in(1)->get_int(), negate, _offset)) {
+        return false; // add/sub overflow.
+      }
       _negate_invar = !negate;
       _invar = n->in(2);
       return true;
@@ -2492,6 +2939,57 @@ bool SWPointer::offset_plus_k(Node* n, bool negate) {
     return true;
   }
   return false;
+}
+
+bool SWPointer::try_AddI_no_overflow(jint offset1, jint offset2, jint& result) {
+  jlong long_offset = java_add((jlong)(offset1), (jlong)(offset2));
+  jint  int_offset  = java_add(        offset1,          offset2);
+  if (long_offset != int_offset) {
+    return false;
+  }
+  result = int_offset;
+  return true;
+}
+
+bool SWPointer::try_SubI_no_overflow(jint offset1, jint offset2, jint& result) {
+  jlong long_offset = java_subtract((jlong)(offset1), (jlong)(offset2));
+  jint  int_offset  = java_subtract(        offset1,          offset2);
+  if (long_offset != int_offset) {
+    return false;
+  }
+  result = int_offset;
+  return true;
+}
+
+bool SWPointer::try_AddSubI_no_overflow(jint offset1, jint offset2, bool is_sub, jint& result) {
+  if (is_sub) {
+    return try_SubI_no_overflow(offset1, offset2, result);
+  } else {
+    return try_AddI_no_overflow(offset1, offset2, result);
+  }
+}
+
+bool SWPointer::try_LShiftI_no_overflow(jint offset, int shift, jint& result) {
+  if (shift < 0 || shift > 31) {
+    return false;
+  }
+  jlong long_offset = java_shift_left((jlong)(offset), (julong)((jlong)(shift)));
+  jint  int_offset  = java_shift_left(        offset,  (juint)((jint)(shift)));
+  if (long_offset != int_offset) {
+    return false;
+  }
+  result = int_offset;
+  return true;
+}
+
+bool SWPointer::try_MulI_no_overflow(jint offset1, jint offset2, jint& result) {
+  jlong long_offset = java_multiply((jlong)(offset1), (jlong)(offset2));
+  jint  int_offset  = java_multiply(        offset1,          offset2);
+  if (long_offset != int_offset) {
+    return false;
+  }
+  result = int_offset;
+  return true;
 }
 
 //----------------------------print------------------------

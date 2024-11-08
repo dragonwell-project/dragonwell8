@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2007, 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2007, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,7 +24,7 @@
  * @test
  * @bug 4691089 4819436 4942982 5104960 6544471 6627549 7066203 7195759
  *      8074350 8074351 8145952 8187946 8193552 8202026 8204269
- *      8208746 8209775 8274658 8283277 8296239
+ *      8208746 8209775 8274658 8283277 8296239 8321480 8334653
  * @summary Validate ISO 4217 data for Currency class.
  */
 
@@ -41,7 +41,7 @@
  *
  * 1) Make a golden-data file.
  *      From BSi's ISO4217 data (TABLE A1.doc), extract four (or eight, if currency is changing)
- *      fields and save as ./tablea1.txt.
+ *      fields and save as ./ISO4217-list-one.txt.
  *        <Country code>\t<Currency code>\t<Numeric code>\t<Minor unit>[\t<Cutover Date>\t<new Currency code>\t<new Numeric code>\t<new Minor unit>]
  *      The Cutover Date is given in SimpleDateFormat's 'yyyy-MM-dd-HH-mm-ss' format in the GMT time zone.
  *
@@ -64,7 +64,7 @@ public class ValidateISO4217 {
     static final byte SKIPPED = 2;
 
     /* input files */
-    static final String datafile = "tablea1.txt";
+    static final String datafile = "ISO4217-list-one.txt";
 
     /* alpha2-code table */
     static byte[] codes = new byte[ALPHA_NUM * ALPHA_NUM];
@@ -95,10 +95,10 @@ public class ValidateISO4217 {
     /* Codes that are obsolete, do not have related country, extra currency */
     static final String otherCodes =
         "ADP-AFA-ATS-AYM-AZM-BEF-BGL-BOV-BYB-BYR-CHE-CHW-CLF-COU-CUC-CYP-"
-        + "DEM-EEK-ESP-FIM-FRF-GHC-GRD-GWP-IEP-ITL-LTL-LUF-LVL-MGF-MRO-MTL-MXV-MZM-NLG-"
+        + "DEM-EEK-ESP-FIM-FRF-GHC-GRD-GWP-HRK-IEP-ITL-LTL-LUF-LVL-MGF-MRO-MTL-MXV-MZM-NLG-"
         + "PTE-ROL-RUR-SDD-SIT-SLL-SKK-SRG-STD-TMM-TPE-TRL-VEF-UYI-USN-USS-VEB-VED-"
         + "XAG-XAU-XBA-XBB-XBC-XBD-XDR-XFO-XFU-XPD-XPT-XSU-XTS-XUA-XXX-"
-        + "YUM-ZMK-ZWD-ZWN-ZWR";
+        + "YUM-ZMK-ZWD-ZWL-ZWN-ZWR";
 
     static boolean err = false;
 

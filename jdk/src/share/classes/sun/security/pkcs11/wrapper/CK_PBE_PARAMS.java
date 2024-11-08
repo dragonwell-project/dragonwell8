@@ -122,11 +122,6 @@ public class CK_PBE_PARAMS {
         buffer.append(Constants.NEWLINE);
 
         buffer.append(Constants.INDENT);
-        buffer.append("pPassword: ");
-        buffer.append(pPassword);
-        buffer.append(Constants.NEWLINE);
-
-        buffer.append(Constants.INDENT);
         buffer.append("ulSaltLen: ");
         buffer.append(pSalt.length);
         buffer.append(Constants.NEWLINE);
