@@ -892,6 +892,8 @@ void Parse::catch_inline_exceptions(SafePointNode* ex_map) {
         tty->print_cr("  Catching every inline exception bci:%d -> handler_bci:%d", bci(), handler_bci);
       }
 #endif
+      // If this is a backwards branch in the bytecodes, add safepoint
+      maybe_add_safepoint(handler_bci);
       merge_exception(handler_bci); // jump to handler
       return;                   // No more handling to be done here!
     }
@@ -925,6 +927,8 @@ void Parse::catch_inline_exceptions(SafePointNode* ex_map) {
         tty->cr();
       }
 #endif
+      // If this is a backwards branch in the bytecodes, add safepoint
+      maybe_add_safepoint(handler_bci);
       merge_exception(handler_bci);
     }
     set_control(not_subtype_ctrl);

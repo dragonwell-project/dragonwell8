@@ -39,6 +39,7 @@ import java.nio.file.Paths;
 import java.nio.file.SimpleFileVisitor;
 import java.nio.file.StandardCopyOption;
 import java.nio.file.attribute.BasicFileAttributes;
+import java.nio.file.FileVisitOption;
 import java.text.SimpleDateFormat;
 import java.time.chrono.JapaneseChronology;
 import java.time.chrono.JapaneseDate;
@@ -52,6 +53,7 @@ import static java.util.GregorianCalendar.*;
 import java.util.Locale;
 import java.util.Properties;
 import java.util.TimeZone;
+import java.util.EnumSet;
 
 import jdk.testlibrary.ProcessTools;
 import org.testng.annotations.BeforeTest;
@@ -71,7 +73,7 @@ public class SupplementalJapaneseEraTest {
     public void prepareTestJDK() throws IOException {
         Path src = Paths.get(System.getProperty("test.jdk")).toAbsolutePath();
         Path dst = Paths.get("testjava").toAbsolutePath();
-        Files.walkFileTree(src, new CopyFileVisitor(src, dst));
+        Files.walkFileTree(src, EnumSet.of(FileVisitOption.FOLLOW_LINKS), Integer.MAX_VALUE, new CopyFileVisitor(src, dst));
     }
 
     @Test

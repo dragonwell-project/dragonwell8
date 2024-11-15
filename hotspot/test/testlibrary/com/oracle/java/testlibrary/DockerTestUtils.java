@@ -30,12 +30,14 @@ import java.nio.file.Files;
 import java.nio.file.FileVisitResult;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.nio.file.FileVisitOption;
 import java.nio.file.SimpleFileVisitor;
 import java.nio.file.StandardCopyOption;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.EnumSet;
 
 import com.oracle.java.testlibrary.Utils;
 import com.oracle.java.testlibrary.Container;
@@ -144,7 +146,7 @@ public class DockerTestUtils {
 
         // Copy JDK-under-test tree to the docker build directory.
         // This step is required for building a docker image.
-        Files.walkFileTree(jdkSrcDir, new CopyFileVisitor(jdkSrcDir, jdkDstDir));
+        Files.walkFileTree(jdkSrcDir, EnumSet.of(FileVisitOption.FOLLOW_LINKS), Integer.MAX_VALUE, new CopyFileVisitor(jdkSrcDir, jdkDstDir));
         buildDockerImage(imageName, Paths.get(Utils.TEST_SRC, dockerfile), buildDir);
     }
 

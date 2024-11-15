@@ -50,6 +50,7 @@ import sun.hotspot.WhiteBox;
  *     sun.hotspot.WhiteBox$WhiteBoxPermission
  * @run main/othervm -Xbootclasspath/a:.
  *     -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
+ *     -XX:CompileOnly=jdk.jfr.event.compiler.TestCompilerCompile::dummyMethod,jdk.jfr.event.compiler.TestCompilerCompile::doTest
  *     jdk.jfr.event.compiler.TestCompilerCompile
  */
 public class TestCompilerCompile {

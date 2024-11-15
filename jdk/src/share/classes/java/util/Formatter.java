@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -4380,9 +4380,11 @@ public final class Formatter implements Closeable, Flushable {
 
             // apply zero padding
             len = sb.length();
-            if (width != -1 && f.contains(Flags.ZERO_PAD))
-                for (int k = 0; k < width - len; k++)
-                    sb.insert(begin, zero);
+            if (width > len && f.contains(Flags.ZERO_PAD)) {
+                char[] zeros = new char[width - len];
+                Arrays.fill(zeros, zero);
+                sb.insert(begin, zeros);
+            }
 
             return sb;
         }

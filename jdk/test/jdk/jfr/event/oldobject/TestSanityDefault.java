@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -40,7 +40,7 @@ import jdk.test.lib.jfr.Events;
  *
  * @library /test/lib /
  * @summary Purpose of this test is to run leak profiler without command line tweaks or WhiteBox hacks until we succeed
- * @run main/othervm jdk.jfr.event.oldobject.TestSanityDefault
+ * @run main/othervm -Xmx1G jdk.jfr.event.oldobject.TestSanityDefault
  */
 public class TestSanityDefault {
 

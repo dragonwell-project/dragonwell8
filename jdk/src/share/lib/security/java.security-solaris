@@ -705,6 +705,7 @@ jdk.jar.disabledAlgorithms=MD2, MD5, RSA keySize < 1024, \
 #   jdk.tls.disabledAlgorithms=MD5, SSLv3, DSA, RSA keySize < 2048
 jdk.tls.disabledAlgorithms=SSLv3, TLSv1, TLSv1.1, RC4, DES, MD5withRSA, \
     DH keySize < 1024, EC keySize < 224, 3DES_EDE_CBC, anon, NULL, \
+    ECDH, \
     include jdk.disabled.namedCurves
 
 # Legacy algorithms for Secure Socket Layer/Transport Layer Security (SSL/TLS)
@@ -1212,6 +1213,10 @@ jdk.sasl.disabledMechanisms=
 #     2. Apple IST CA 8 - G1, SHA-256 fingerprint:
 #        A4FE7C7F15155F3F0AEF7AAA83CF6E06DEB97CA3F909DF920AC1490882D488ED
 #        Distrust after December 31, 2019.
+#
+#   ENTRUST_TLS : Distrust TLS Server certificates anchored by
+#   an Entrust root CA and issued after November 11, 2024.
+#
 # Leading and trailing whitespace surrounding each value are ignored.
 # Unknown values are ignored. If the property is commented out or set to the
 # empty String, no policies are enforced.
@@ -1223,7 +1228,7 @@ jdk.sasl.disabledMechanisms=
 # jdk.certpath.disabledAlgorithms; those restrictions are still enforced even
 # if this property is not enabled.
 #
-jdk.security.caDistrustPolicies=SYMANTEC_TLS
+jdk.security.caDistrustPolicies=SYMANTEC_TLS,ENTRUST_TLS
 
 #
 # Policies for the proxy_impersonator Kerberos ccache configuration entry

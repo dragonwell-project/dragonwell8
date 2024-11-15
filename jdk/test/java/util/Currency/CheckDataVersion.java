@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2007, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2007, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -31,7 +31,7 @@ import java.lang.reflect.*;
 import java.security.*;
 
 class CheckDataVersion {
-    static final String datafile = "tablea1.txt";
+    static final String datafile = "ISO4217-list-one.txt";
     static final String FILEVERSIONKEY = "FILEVERSION=";
     static final String DATAVERSIONKEY = "DATAVERSION=";
     static String fileVersion;

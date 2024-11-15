@@ -475,6 +475,8 @@ security/infra/java/security/cert/CertPathValidator/certification/CAInterop.java
 security/infra/java/security/cert/CertPathValidator/certification/CAInterop.java#usertrusteccca generic-all
 security/infra/java/security/cert/CertPathValidator/certification/CAInterop.java#usertrustrsaca generic-all
 security/infra/java/security/cert/CertPathValidator/certification/CAInterop.java#globalsignrootcar6 generic-all
+security/infra/java/security/cert/CertPathValidator/certification/CAInterop.java#ssltlsrootrsa2022 generic-all
+security/infra/java/security/cert/CertPathValidator/certification/CAInterop.java#ssltlsrootecc2022 generic-all
 security/infra/java/security/cert/CertPathValidator/certification/DigicertCSRootG5.java generic-all
 security/infra/java/security/cert/CertPathValidator/certification/EmSignRootG2CA.java generic-all
 security/infra/java/security/cert/CertPathValidator/certification/LuxTrustCA.java generic-all

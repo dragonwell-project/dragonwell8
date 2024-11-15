@@ -1,7 +1,7 @@
 #! /bin/sh -e
 
 #
-# Copyright (c) 2002, 2011, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2002, 2024, Oracle and/or its affiliates. All rights reserved.
 # DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 #
 # This code is free software; you can redistribute it and/or modify it
@@ -25,6 +25,7 @@
 
 # @test
 # @bug 4630463 4630971 4636448 4701617 4721296 4710890 6247817 7021987 8067964
+#      8320964
 # @summary Tests miscellaneous native2ascii bugfixes and regressions
 
 
@@ -46,8 +47,8 @@ check() {
   # Strip carriage returns from output when comparing with n2a test output
   # on win32 systems
   if [ ${OS} = Windows ]; then
-     sed -e 's@\\r@@g' $out >$out.1
-     sed -e 's@\\r@@g' $expected >$out.expected
+     sed -e 's@\r@@g' $out >$out.1
+     sed -e 's@\r@@g' $expected >$out.expected
   else
      cp $out $out.1
      cp $expected $out.expected
