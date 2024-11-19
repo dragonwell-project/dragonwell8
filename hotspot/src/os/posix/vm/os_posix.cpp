@@ -876,7 +876,7 @@ bool os::ThreadCrashProtection::call(os::CrashProtectionCallback& cb) {
 
   Thread::muxAcquire(&_crash_mux, "CrashProtection");
 
-  _protected_thread = ThreadLocalStorage::thread();
+  _protected_thread = Thread::current_or_null();
   assert(_protected_thread != NULL, "Cannot crash protect a NULL thread");
 
   // we cannot rely on sigsetjmp/siglongjmp to save/restore the signal mask
