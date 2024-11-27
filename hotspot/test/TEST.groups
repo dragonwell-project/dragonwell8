@@ -153,6 +153,7 @@ hotspot_tier1 = \
 # Tests that require compact3 API's
 #
 needs_compact3 = \
+  compiler/8009761/Test8009761.java \
   compiler/jsr292/RedefineMethodUsedByMultipleMethodHandles.java \
   compiler/rangechecks/TestRangeCheckSmearing.java \
   compiler/whitebox/DeoptimizeMethodTest.java \

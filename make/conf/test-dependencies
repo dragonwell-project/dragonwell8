@@ -31,7 +31,9 @@ JTREG_BUILD=b01
 
 VS2010_FILENAME=VS2010Express1.iso
 VS2010_DIR=VS2010Express1
-VS2010_URL=https://debian.fmi.uni-sofia.bg/~aangelov/VS2010Express1.iso
+VS2010_URL=https://archive.org/download/vs-2010-express-1/VS2010Express1.iso
+VS2010_TORRENT_URL=https://archive.org/download/vs-2010-express-1/vs-2010-express-1_archive.torrent
+VS2010_TORRENT_DIR=vs-2010-express-1
 VS2010_SHA256=a9d5dcdf55e539a06547a8ebbc63d55dc167113e09ee9e42096ab9098313039b
 
 VS2017_FILENAME=vs2017.exe
