@@ -18,7 +18,7 @@ keys=2d dnd i18n intermittent randomness headful jfr
 othervm.dirs=java/awt java/beans java/rmi javax/accessibility javax/imageio javax/sound javax/print javax/management com/sun/awt sun/awt sun/java2d sun/pisces sun/rmi
 
 # Tests that cannot run concurrently
-exclusiveAccess.dirs=java/rmi/Naming java/util/Currency java/util/prefs sun/management/jmxremote sun/tools/jstatd sun/security/mscapi javax/rmi
+exclusiveAccess.dirs=java/rmi/Naming java/util/Currency java/util/prefs sun/management/jmxremote sun/tools/jstatd sun/security/mscapi javax/rmi com/alibaba/wisp/timer
 
 # Allow querying of sun.arch.data.model in @requires clauses
 requires.properties=sun.arch.data.model 
