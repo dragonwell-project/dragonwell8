@@ -203,6 +203,7 @@ jobs:
           - jdk/tier1
           - langtools/tier1
           - hotspot/tier1
+          - jdk/security_infra
         include:
           - test: jdk/tier1
             suites: jdk_tier1
@@ -210,6 +211,8 @@ jobs:
             suites: langtools_tier1
           - test: hotspot/tier1
             suites: hotspot_tier1
+          - test: jdk/security_infra
+            suites: jdk_security_infra
 
     env:
       JDK_VERSION: "${{ fromJson(needs.prerequisites.outputs.dependencies).JDK_MAJOR_VERSION }}.${{ fromJson(needs.prerequisites.outputs.dependencies).JDK_MINOR_VERSION }}.${{ fromJson(needs.prerequisites.outputs.dependencies).JDK_MICRO_VERSION }}"
@@ -559,6 +562,7 @@ jobs:
           - jdk/tier1
           - langtools/tier1
           - hotspot/tier1
+          - jdk/security_infra
         include:
           - test: jdk/tier1
             suites: jdk_tier1
@@ -566,6 +570,8 @@ jobs:
             suites: langtools_tier1
           - test: hotspot/tier1
             suites: hotspot_tier1
+          - test: jdk/security_infra
+            suites: jdk_security_infra
 
     # Reduced 32-bit build uses the same boot JDK as 64-bit build
     env:
@@ -1034,6 +1040,7 @@ jobs:
           - jdk/tier1
           - langtools/tier1
           - hotspot/tier1
+          - jdk/security_infra
         include:
           - test: jdk/tier1
             suites: jdk_tier1
@@ -1041,6 +1048,8 @@ jobs:
             suites: langtools_tier1
           - test: hotspot/tier1
             suites: hotspot_tier1
+          - test: jdk/security_infra
+            suites: jdk_security_infra
 
     env:
       JDK_VERSION: "${{ fromJson(needs.prerequisites.outputs.dependencies).JDK_MAJOR_VERSION }}.${{ fromJson(needs.prerequisites.outputs.dependencies).JDK_MINOR_VERSION }}.${{ fromJson(needs.prerequisites.outputs.dependencies).JDK_MICRO_VERSION }}"
@@ -1192,6 +1201,7 @@ jobs:
           - jdk/tier1
           - langtools/tier1
           - hotspot/tier1
+          - jdk/security_infra
         include:
           - test: jdk/tier1
             suites: jdk_tier1
@@ -1199,6 +1209,8 @@ jobs:
             suites: langtools_tier1
           - test: hotspot/tier1
             suites: hotspot_tier1
+          - test: jdk/security_infra
+            suites: jdk_security_infra
 
     env:
       JDK_VERSION: "${{ fromJson(needs.prerequisites.outputs.dependencies).JDK_MAJOR_VERSION }}.${{ fromJson(needs.prerequisites.outputs.dependencies).JDK_MINOR_VERSION }}.${{ fromJson(needs.prerequisites.outputs.dependencies).JDK_MICRO_VERSION }}"
@@ -1448,6 +1460,7 @@ jobs:
           - jdk/tier1
           - langtools/tier1
           - hotspot/tier1
+          - jdk/security_infra
         include:
           - test: jdk/tier1
             suites: jdk_tier1
@@ -1455,6 +1468,8 @@ jobs:
             suites: langtools_tier1
           - test: hotspot/tier1
             suites: hotspot_tier1
+          - test: jdk/security_infra
+            suites: jdk_security_infra
 
     env:
       JDK_VERSION: "${{ fromJson(needs.prerequisites.outputs.dependencies).JDK_MAJOR_VERSION }}.${{ fromJson(needs.prerequisites.outputs.dependencies).JDK_MINOR_VERSION }}.${{ fromJson(needs.prerequisites.outputs.dependencies).JDK_MICRO_VERSION }}"
@@ -1588,7 +1603,7 @@ jobs:
               -H 'Accept: application/vnd.github+json' \
               -H 'Authorization: Bearer ${{ github.token }}' \
               -H 'X-GitHub-Api-Version: 2022-11-28' \
-              '${{ github.api_url }}/repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts'
+              '${{ github.api_url }}/repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts?per_page=100'
 
       - name: Delete transient artifacts
         run: |
@@ -1598,7 +1613,7 @@ jobs:
               -H 'Accept: application/vnd.github+json' \
               -H 'Authorization: Bearer ${{ github.token }}' \
               -H 'X-GitHub-Api-Version: 2022-11-28' \
-              '${{ github.api_url }}/repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts')"
+              '${{ github.api_url }}/repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts?per_page=100')"
           BUNDLE_ARTIFACT_IDS="$(echo "$ALL_ARTIFACT_IDS" | jq -r -c '.artifacts | map(select(.name|startswith("transient_"))) | .[].id')"
           for id in $BUNDLE_ARTIFACT_IDS; do
             echo "Removing $id"

@@ -75,9 +75,10 @@ class Main {
      * iflag: generate jar index
      * nflag: Perform jar normalization at the end
      * pflag: preserve/don't strip leading slash and .. component from file name
+     * kflag: keep existing file
      *
      */
-    boolean cflag, uflag, xflag, tflag, vflag, flag0, Mflag, iflag, nflag, pflag;
+    boolean cflag, uflag, xflag, tflag, vflag, flag0, Mflag, iflag, nflag, pflag, kflag;
 
     static final String MANIFEST_DIR = "META-INF/";
     static final String VERSION = "1.0";
@@ -397,6 +398,9 @@ class Main {
                 case '0':
                     flag0 = true;
                     break;
+                case 'k':
+                    kflag = true;
+                    break;
                 case 'i':
                     if (cflag || uflag || xflag || tflag) {
                         usageError();
@@ -431,6 +435,10 @@ class Main {
             usageError();
             return false;
         }
+        if (kflag && !xflag) {
+            warn(formatMsg("warn.option.is.ignored", "k"));
+        }
+
         /* parse file arguments */
         int n = args.length - count;
         if (n > 0) {
@@ -1058,6 +1066,12 @@ class Main {
                 output(formatMsg("out.create", name));
             }
         } else {
+            if (f.exists() && kflag) {
+                if (vflag) {
+                    output(formatMsg("out.kept", name));
+                }
+                return rc;
+            }
             if (f.getParent() != null) {
                 File d = new File(f.getParent());
                 if (!d.exists() && !d.mkdirs() || !d.isDirectory()) {
@@ -1277,6 +1291,13 @@ class Main {
      * Print an error message; like something is broken
      */
     protected void error(String s) {
+        err.println(s);
+    }
+
+    /**
+     * Print a warning message
+     */
+    void warn(String s) {
         err.println(s);
     }
 
