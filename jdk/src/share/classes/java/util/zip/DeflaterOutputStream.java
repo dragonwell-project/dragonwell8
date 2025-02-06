@@ -40,6 +40,26 @@ import java.io.IOException;
  */
 public
 class DeflaterOutputStream extends FilterOutputStream {
+
+    /*
+     * The default size of the output buffer
+     */
+    static final int DEFAULT_BUF_SIZE = 512;
+
+    /*
+     * When calling Deflater.deflate() with Deflater.SYNC_FLUSH or Deflater.FULL_FLUSH,
+     * the callers are expected to ensure that the size of the buffer is greater than 6.
+     * This expectation comes from the underlying zlib library which in its zlib.h
+     * states:
+     * "If deflate returns with avail_out == 0, this function must be called again
+     * with the same value of the flush parameter and more output space (updated
+     * avail_out), until the flush is complete (deflate returns with non-zero
+     * avail_out). In the case of a Z_FULL_FLUSH or Z_SYNC_FLUSH, make sure that
+     * avail_out is greater than six when the flush marker begins, in order to avoid
+     * repeated flush markers upon calling deflate() again when avail_out == 0."
+     */
+    private static final int SYNC_FLUSH_MIN_BUF_SIZE = 7;
+
     /**
      * Compressor for this stream.
      */
@@ -124,7 +144,7 @@ class DeflaterOutputStream extends FilterOutputStream {
     public DeflaterOutputStream(OutputStream out,
                                 Deflater def,
                                 boolean syncFlush) {
-        this(out, def, 512, syncFlush);
+        this(out, def, DEFAULT_BUF_SIZE, syncFlush);
     }
 
 
@@ -139,7 +159,7 @@ class DeflaterOutputStream extends FilterOutputStream {
      * @param def the compressor ("deflater")
      */
     public DeflaterOutputStream(OutputStream out, Deflater def) {
-        this(out, def, 512, false);
+        this(out, def, DEFAULT_BUF_SIZE, false);
     }
 
     boolean usesDefaultDeflater = false;
@@ -159,7 +179,7 @@ class DeflaterOutputStream extends FilterOutputStream {
      * @since 1.7
      */
     public DeflaterOutputStream(OutputStream out, boolean syncFlush) {
-        this(out, new Deflater(), 512, syncFlush);
+        this(out, new Deflater(), DEFAULT_BUF_SIZE, syncFlush);
         usesDefaultDeflater = true;
     }
 
@@ -182,6 +202,7 @@ class DeflaterOutputStream extends FilterOutputStream {
      * @param b the byte to be written
      * @exception IOException if an I/O error has occurred
      */
+    @Override
     public void write(int b) throws IOException {
         byte[] buf = new byte[1];
         buf[0] = (byte)(b & 0xff);
@@ -196,6 +217,7 @@ class DeflaterOutputStream extends FilterOutputStream {
      * @param len the length of the data
      * @exception IOException if an I/O error has occurred
      */
+    @Override
     public void write(byte[] b, int off, int len) throws IOException {
         if (def.finished()) {
             throw new IOException("write beyond end of stream");
@@ -239,6 +261,7 @@ class DeflaterOutputStream extends FilterOutputStream {
      * underlying stream.
      * @exception IOException if an I/O error has occurred
      */
+    @Override
     public void close() throws IOException {
         if (!closed) {
             try {
@@ -278,13 +301,20 @@ class DeflaterOutputStream extends FilterOutputStream {
      *
      * @since 1.7
      */
+    @Override
     public void flush() throws IOException {
         if (syncFlush && !def.finished()) {
             int len = 0;
-            while ((len = def.deflate(buf, 0, buf.length, Deflater.SYNC_FLUSH)) > 0)
-            {
-                out.write(buf, 0, len);
-                if (len < buf.length)
+            // For SYNC_FLUSH, the Deflater.deflate() expects the callers
+            // to use a buffer whose length is greater than 6 to avoid
+            // flush marker (5 bytes) being repeatedly output to the output buffer
+            // every time it is invoked.
+            final byte[] flushBuf = buf.length < SYNC_FLUSH_MIN_BUF_SIZE
+                    ? new byte[DEFAULT_BUF_SIZE]
+                    : buf;
+            while ((len = def.deflate(flushBuf, 0, flushBuf.length, Deflater.SYNC_FLUSH)) > 0) {
+                out.write(flushBuf, 0, len);
+                if (len < flushBuf.length)
                     break;
             }
         }
