@@ -29,8 +29,7 @@ jdk_tier1 = \
     :jdk_lang \
     :jdk_util \
     :jdk_math \
-    :jdk_jdi \
-    :jdk_security_infra
+    :jdk_jdi
 
 jdk_tier2 = \
     :jdk_io \
