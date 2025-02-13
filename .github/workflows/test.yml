@@ -91,7 +91,7 @@ jobs:
         if: steps.check_if_run.outputs.should_run != 'false'
 
       - name: 'Get bundles'
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4.1.7
         with:
           name: bundles-${{ inputs.platform }}${{ inputs.debug-suffix }}
           path: bundles
