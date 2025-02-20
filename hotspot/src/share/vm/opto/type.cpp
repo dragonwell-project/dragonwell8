@@ -2560,7 +2560,7 @@ TypeOopPtr::TypeOopPtr(TYPES t, PTR ptr, ciKlass* k, bool xk, ciObject* o, int o
           if (field != NULL) {
             BasicType basic_elem_type = field->layout_type();
             _is_ptr_to_narrowoop = UseCompressedOops && (basic_elem_type == T_OBJECT ||
-                                                       basic_elem_type == T_ARRAY);
+                                                         basic_elem_type == T_ARRAY);
           } else {
             // unsafe access
             _is_ptr_to_narrowoop = UseCompressedOops;
