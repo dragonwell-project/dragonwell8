@@ -306,7 +306,7 @@ static const char* create_emergency_chunk_path(const char* repository_path) {
     return NULL;
   }
   // append the individual substrings
-  jio_snprintf(chunk_path, chunkname_max_len, "%s%s%s%s", repository_path_len, os::file_separator(), date_time_buffer, chunk_file_jfr_ext);
+  jio_snprintf(chunk_path, chunkname_max_len, "%s%s%s%s", repository_path, os::file_separator(), date_time_buffer, chunk_file_jfr_ext);
   return chunk_path;
 }
 
