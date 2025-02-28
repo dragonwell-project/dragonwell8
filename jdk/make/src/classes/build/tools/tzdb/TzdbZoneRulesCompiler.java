@@ -640,6 +640,9 @@ public final class TzdbZoneRulesCompiler {
         builtZones.remove("EST");
         builtZones.remove("HST");
         builtZones.remove("MST");
+        links.remove("EST");
+        links.remove("HST");
+        links.remove("MST");
     }
 
     /**
