@@ -126,10 +126,9 @@ Zone	Africa/Algiers	0:12:12 -	LMT	1891 Mar 16
 
 # Cape Verde / Cabo Verde
 #
-# From Paul Eggert (2018-02-16):
-# Shanks gives 1907 for the transition to +02.
-# For now, ignore that and follow the 1911-05-26 Portuguese decree
-# (see Europe/Lisbon).
+# From Tim Parenti (2024-07-01), per Paul Eggert (2018-02-16):
+# For timestamps before independence, see commentary for Europe/Lisbon.
+# Shanks gives 1907 instead for the transition to -02.
 #
 # Zone	NAME		STDOFF	RULES	FORMAT	[UNTIL]
 Zone Atlantic/Cape_Verde -1:34:04 -	LMT	1912 Jan 01  2:00u # Praia
@@ -368,10 +367,8 @@ Zone	Africa/Cairo	2:05:09 -	LMT	1900 Oct
 
 # Guinea-Bissau
 #
-# From Paul Eggert (2018-02-16):
-# Shanks gives 1911-05-26 for the transition to WAT,
-# evidently confusing the date of the Portuguese decree
-# (see Europe/Lisbon) with the date that it took effect.
+# From Tim Parenti (2024-07-01), per Paul Eggert (2018-02-16):
+# For timestamps before independence, see commentary for Europe/Lisbon.
 #
 # Zone	NAME		STDOFF	RULES	FORMAT	[UNTIL]
 Zone	Africa/Bissau	-1:02:20 -	LMT	1912 Jan  1  1:00u
@@ -1124,13 +1121,27 @@ Zone Africa/El_Aaiun	-0:52:48 -	LMT	1934 Jan # El Aaiún
 # Zambia
 # Zimbabwe
 #
-# Shanks gives 1903-03-01 for the transition to CAT.
-# Perhaps the 1911-05-26 Portuguese decree
-# https://dre.pt/pdf1sdip/1911/05/12500/23132313.pdf
-# merely made it official?
+# From Tim Parenti (2024-07-01):
+# For timestamps before Mozambique's independence, see commentary for
+# Europe/Lisbon.
+#
+# From Paul Eggert (2024-05-24):
+# The London Gazette, 1903-04-03, page 2245, says that
+# as of 1903-03-03 a time ball at the port of Lourenço Marques
+# (as Maputo was then called) was dropped daily at 13:00:00 LMT,
+# corresponding to 22:49:41.7 GMT, so local time was +02:10:18.3.
+# Conversely, the newspaper South Africa, 1909-02-09, page 321,
+# says the port had just installed an apparatus that communicated
+# "from the controlling clock in the new Observatory at Reuben Point ...
+# exact mean South African time, i.e., 30 deg., or 2 hours East of Greenwich".
+# Although Shanks gives 1903-03-01 for the transition to CAT,
+# evidently the port transitioned to CAT after 1903-03-03 but before
+# the Portuguese legal transition of 1912-01-01 (see Europe/Lisbon commentary).
+# For lack of better info, list 1909 as the transition date.
 #
 # Zone	NAME		STDOFF	RULES	FORMAT	[UNTIL]
-Zone	Africa/Maputo	2:10:20 -	LMT	1903 Mar
+		#STDOFF	2:10:18.3
+Zone	Africa/Maputo	2:10:18 -	LMT	1909
 			2:00	-	CAT
 
 # Namibia

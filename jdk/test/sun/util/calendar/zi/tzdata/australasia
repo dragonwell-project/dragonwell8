@@ -66,8 +66,8 @@ Zone Australia/Perth	 7:43:24 -	LMT	1895 Dec
 			 8:00	Aus	AW%sT	1943 Jul
 			 8:00	AW	AW%sT
 Zone Australia/Eucla	 8:35:28 -	LMT	1895 Dec
-			 8:45	Aus +0845/+0945	1943 Jul
-			 8:45	AW  +0845/+0945
+			 8:45	Aus	+0845/+0945	1943 Jul
+			 8:45	AW	+0845/+0945
 
 # Queensland
 #
@@ -232,7 +232,7 @@ Rule	LH	2008	max	-	Apr	Sun>=1	2:00	0	-
 Rule	LH	2008	max	-	Oct	Sun>=1	2:00	0:30	-
 Zone Australia/Lord_Howe 10:36:20 -	LMT	1895 Feb
 			10:00	-	AEST	1981 Mar
-			10:30	LH	+1030/+1130 1985 Jul
+			10:30	LH	+1030/+1130	1985 Jul
 			10:30	LH	+1030/+11
 
 # Australian miscellany

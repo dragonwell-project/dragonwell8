@@ -1233,6 +1233,13 @@ Zone	Asia/Tbilisi	2:59:11 -	LMT	1880
 
 # East Timor
 
+# From Tim Parenti (2024-07-01):
+# The 1912-01-01 transition occurred at 00:00 new time, per the 1911-05-24
+# Portuguese decree (see Europe/Lisbon).  A provision in article 5(c) of the
+# decree prescribed that Timor "will keep counting time in harmony with
+# neighboring foreign colonies, [for] as long as they do not adopt the time
+# that belongs to them in [the Washington Convention] system."
+
 # See Indonesia for the 1945 transition.
 
 # From João Carrascalão, brother of the former governor of East Timor, in
@@ -1256,7 +1263,7 @@ Zone	Asia/Tbilisi	2:59:11 -	LMT	1880
 # midnight on Saturday, September 16.
 
 # Zone	NAME		STDOFF	RULES	FORMAT	[UNTIL]
-Zone	Asia/Dili	8:22:20 -	LMT	1912 Jan  1
+Zone	Asia/Dili	8:22:20 -	LMT	1911 Dec 31 16:00u
 			8:00	-	+08	1942 Feb 21 23:00
 			9:00	-	+09	1976 May  3
 			8:00	-	+08	2000 Sep 17  0:00
@@ -1642,7 +1649,7 @@ Rule	Iran	2021	2022	-	Sep	21	24:00	0	-
 # Zone	NAME		STDOFF	RULES	FORMAT	[UNTIL]
 Zone	Asia/Tehran	3:25:44	-	LMT	1916
 			3:25:44	-	TMT	1935 Jun 13 # Tehran Mean Time
-			3:30	Iran	+0330/+0430 1977 Oct 20 24:00
+			3:30	Iran	+0330/+0430	1977 Oct 20 24:00
 			4:00	Iran	+04/+05	1979
 			3:30	Iran	+0330/+0430
 
@@ -2496,9 +2503,9 @@ Zone	Asia/Amman	2:23:44 -	LMT	1931
 # Almaty (formerly Alma-Ata), representing most locations in Kazakhstan
 # This includes Abai/Abay (ISO 3166-2 code KZ-10), Aqmola/Akmola (KZ-11),
 # Almaty (KZ-19), Almaty city (KZ-75), Astana city (KZ-71),
-# East Kazkhstan (KZ-63), Jambyl/Zhambyl (KZ-31), Jetisu/Zhetysu (KZ-33),
+# East Kazakhstan (KZ-63), Jambyl/Zhambyl (KZ-31), Jetisu/Zhetysu (KZ-33),
 # Karaganda (KZ-35), North Kazakhstan (KZ-59), Pavlodar (KZ-55),
-# Shyumkent city (KZ-79), Turkistan (KZ-61), and Ulytau (KZ-62).
+# Shymkent city (KZ-79), Turkistan (KZ-61), and Ulytau (KZ-62).
 Zone	Asia/Almaty	5:07:48 -	LMT	1924 May  2 # or Alma-Ata
 			5:00	-	+05	1930 Jun 21
 			6:00 RussiaAsia +06/+07	1991 Mar 31  2:00s
@@ -2810,7 +2817,7 @@ Rule	NBorneo	1935	1941	-	Dec	14	0:00	0	-
 # Zone	NAME		STDOFF	RULES	FORMAT	[UNTIL]
 Zone Asia/Kuching	7:21:20	-	LMT	1926 Mar
 			7:30	-	+0730	1933
-			8:00 NBorneo  +08/+0820	1942 Feb 16
+			8:00 NBorneo	+08/+0820	1942 Feb 16
 			9:00	-	+09	1945 Sep 12
 			8:00	-	+08
 
@@ -2920,9 +2927,37 @@ Zone	Indian/Maldives	4:54:00 -	LMT	1880 # Malé
 
 # From Arthur David Olson (2008-05-19):
 # Assume that Choibalsan is indeed offset by 8:00.
-# XXX--in the absence of better information, assume that transition
-# was at the start of 2008-03-31 (the day of Steffen Thorsen's report);
-# this is almost surely wrong.
+
+# From Heitor David Pinto (2024-06-23):
+# Sources about time zones in Mongolia seem to list one of two conflicting
+# configurations.  The first configuration, mentioned in a comment to the TZ
+# database in 1999, citing a Mongolian government website, lists the provinces
+# of Bayan-Ölgii, Khovd and Uvs in UTC+7, and the rest of the country in
+# UTC+8.  The second configuration, mentioned in a comment to the database in
+# 2001, lists Bayan-Ölgii, Khovd, Uvs, Govi-Altai and Zavkhan in UTC+7, Dornod
+# and Sükhbaatar in UTC+9, and the rest of the country in UTC+8.
+#
+# The first configuration is still mentioned by several Mongolian travel
+# agencies:
+# https://www.adventurerider.mn/en/page/about_mongolia
+# http://www.naturetours.mn/nt/mongolia.php
+# https://www.newjuulchin.mn/web/content/7506?unique=fa24a0f6e96e022a3578ee5195ac879638c734ce
+#
+# It also matches these flight schedules in 2013:
+# http://web.archive.org/web/20130722023600/https://www.hunnuair.com/en/timetabled
+# The flight times imply that the airports of Uliastai (Zavkhan), Choibalsan
+# (Dornod) and Altai (Govi-Altai) are in the same time zone as Ulaanbaatar,
+# and Khovd is one hour behind....
+#
+# The second configuration was mentioned by an official of the Mongolian
+# standards agency in an interview in 2014: https://ikon.mn/n/9v6
+# And it's still listed by the Mongolian aviation agency:
+# https://ais.mn/files/aip/eAIP/2023-12-25/html/eSUP/ZM-eSUP-23-04-en-MN.html
+#
+# ... I believe that the first configuration is what is actually observed in
+# Mongolia and has been so all along, at least since 1999.  The second
+# configuration closely matches the ideal time zone boundaries at 97.5° E and
+# 112.5° E but it doesn't seem to be used in practice.
 
 # From Ganbold Tsagaankhuu (2015-03-10):
 # It seems like yesterday Mongolian Government meeting has concluded to use
@@ -2966,13 +3001,6 @@ Zone	Asia/Hovd	6:06:36 -	LMT	1905 Aug
 # Ulaanbaatar, a.k.a. Ulan Bataar, Ulan Bator, Urga
 Zone	Asia/Ulaanbaatar 7:07:32 -	LMT	1905 Aug
 			7:00	-	+07	1978
-			8:00	Mongol	+08/+09
-# Choibalsan, a.k.a. Bajan Tümen, Bajan Tumen, Chojbalsan,
-# Choybalsan, Sanbejse, Tchoibalsan
-Zone	Asia/Choibalsan	7:38:00 -	LMT	1905 Aug
-			7:00	-	+07	1978
-			8:00	-	+08	1983 Apr
-			9:00	Mongol	+09/+10	2008 Mar 31
 			8:00	Mongol	+08/+09
 
 # Nepal
@@ -3676,14 +3704,14 @@ Zone	Asia/Hebron	2:20:23	-	LMT	1900 Oct
 # Philippine Star 2014-08-05
 # http://www.philstar.com/headlines/2014/08/05/1354152/pnoy-urged-declare-use-daylight-saving-time
 
-# From Paul Goyette (2018-06-15):
+# From Paul Goyette (2018-06-15) with URLs updated by Guy Harris (2024-02-15):
 # In the Philippines, there is a national law, Republic Act No. 10535
 # which declares the official time here as "Philippine Standard Time".
 # The act [1] even specifies use of PST as the abbreviation, although
 # the FAQ provided by PAGASA [2] uses the "acronym PhST to distinguish
 # it from the Pacific Standard Time (PST)."
-# [1] http://www.officialgazette.gov.ph/2013/05/15/republic-act-no-10535/
-# [2] https://www1.pagasa.dost.gov.ph/index.php/astronomy/philippine-standard-time#republic-act-10535
+# [1] https://www.officialgazette.gov.ph/2013/05/15/republic-act-no-10535/
+# [2] https://prsd.pagasa.dost.gov.ph/index.php/28-astronomy/302-philippine-standard-time
 #
 # From Paul Eggert (2018-06-19):
 # I surveyed recent news reports, and my impression is that "PST" is
@@ -4130,7 +4158,7 @@ Zone	Asia/Tashkent	4:37:11 -	LMT	1924 May  2
 # Võ Nguyên Giáp, Việt Nam Dân Quốc Công Báo, No. 1 (1945-09-29), page 13
 # http://baochi.nlv.gov.vn/baochi/cgi-bin/baochi?a=d&d=JwvzO19450929.2.5&dliv=none
 # It says that on 1945-09-01 at 24:00, Vietnam moved back two hours, to +07.
-# It also mentions a 1945-03-29 decree (by a Japanese Goveror-General)
+# It also mentions a 1945-03-29 decree (by a Japanese Governor-General)
 # to set the time zone to +09, but does not say whether that decree
 # merely legalized an earlier change to +09.
 #

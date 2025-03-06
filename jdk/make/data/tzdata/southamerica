@@ -1995,13 +1995,13 @@ Rule	Uruguay	2006	2014	-	Oct	Sun>=1	 2:00	1:00	-
 Zone America/Montevideo	-3:44:51 -	LMT	1908 Jun 10
 			-3:44:51 -	MMT	1920 May  1 # Montevideo MT
 			-4:00	-	-04	1923 Oct  1
-			-3:30	Uruguay	-0330/-03 1942 Dec 14
-			-3:00	Uruguay	-03/-0230 1960
+			-3:30	Uruguay	-0330/-03	1942 Dec 14
+			-3:00	Uruguay	-03/-0230	1960
 			-3:00	Uruguay	-03/-02	1968
-			-3:00	Uruguay	-03/-0230 1970
+			-3:00	Uruguay	-03/-0230	1970
 			-3:00	Uruguay	-03/-02	1974
-			-3:00	Uruguay	-03/-0130 1974 Mar 10
-			-3:00	Uruguay	-03/-0230 1974 Dec 22
+			-3:00	Uruguay	-03/-0130	1974 Mar 10
+			-3:00	Uruguay	-03/-0230	1974 Dec 22
 			-3:00	Uruguay	-03/-02
 
 # Venezuela
