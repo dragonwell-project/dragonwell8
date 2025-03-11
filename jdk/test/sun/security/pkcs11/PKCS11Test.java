@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -90,7 +90,7 @@ public abstract class PKCS11Test {
     // NSS version info
     public static enum ECCState { None, Basic, Extended };
     static double nss_version = -1;
-    static ECCState nss_ecc_status = ECCState.Extended;
+    static ECCState nss_ecc_status = ECCState.Basic;
 
     // The NSS library we need to search for in getNSSLibDir()
     // Default is "libsoftokn3.so", listed as "softokn3"
