@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -216,7 +216,7 @@ public final class JarUtils {
                         changes.remove(name);
                     } else {
                         System.out.println(String.format("- Copy %s", name));
-                        jos.putNextEntry(entry);
+                        jos.putNextEntry(copyEntry(entry));
                         Utils.transferTo(srcJarFile.getInputStream(entry), jos);
                     }
                 }
@@ -275,5 +275,18 @@ public final class JarUtils {
         return normalized.subpath(0, normalized.getNameCount())  // drop root
                 .toString()
                 .replace(File.separatorChar, '/');
+    }
+
+    private static JarEntry copyEntry(JarEntry e1) {
+        JarEntry e2 = new JarEntry(e1.getName());
+        e2.setMethod(e1.getMethod());
+        e2.setTime(e1.getTime());
+        e2.setComment(e1.getComment());
+        e2.setExtra(e1.getExtra());
+        if (e1.getMethod() == JarEntry.STORED) {
+            e2.setSize(e1.getSize());
+            e2.setCrc(e1.getCrc());
+        }
+        return e2;
     }
 }
