@@ -155,6 +155,7 @@ public class Resources extends java.util.ListResourceBundle {
 
         {"history.with.ts", "- Signed by \"%1$s\"\n    Digest algorithm: %2$s\n    Signature algorithm: %3$s, %4$s\n  Timestamped by \"%6$s\" on %5$tc\n    Timestamp digest algorithm: %7$s\n    Timestamp signature algorithm: %8$s, %9$s"},
         {"history.without.ts", "- Signed by \"%1$s\"\n    Digest algorithm: %2$s\n    Signature algorithm: %3$s, %4$s"},
+        {"history.nonexistent.entries", "    Warning: nonexistent signed entries: "},
         {"history.unparsable", "- Unparsable signature-related file %s"},
         {"history.nosf", "- Missing signature-related file META-INF/%s.SF"},
         {"history.nobk", "- Missing block file for signature-related file META-INF/%s.SF"},
@@ -165,6 +166,7 @@ public class Resources extends java.util.ListResourceBundle {
         {"key.bit.weak", "%d-bit key (weak)"},
         {"key.bit.disabled", "%d-bit key (disabled)"},
         {"unknown.size", "unknown size"},
+        {"nonexistent.entries.found", "This jar contains signed entries for files that do not exist. See the -verbose output for more details."},
 
         {"jarsigner.", "jarsigner: "},
         {"signature.filename.must.consist.of.the.following.characters.A.Z.0.9.or.",
