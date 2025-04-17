@@ -19,7 +19,7 @@ concurrency:
 jobs:
   prerequisites:
     name: Prerequisites
-    runs-on: "ubuntu-20.04"
+    runs-on: "ubuntu-22.04"
     outputs:
       should_run: ${{ steps.check_submit.outputs.should_run }}
       bundle_id: ${{ steps.check_bundle_id.outputs.bundle_id }}
@@ -115,7 +115,7 @@ jobs:
 
   linux_x64_build:
     name: Linux x64
-    runs-on: "ubuntu-20.04"
+    runs-on: "ubuntu-22.04"
     needs: prerequisites
     if: needs.prerequisites.outputs.should_run != 'false' && needs.prerequisites.outputs.platform_linux_x64 != 'false'
 
@@ -191,7 +191,7 @@ jobs:
 
   linux_x64_test:
     name: Linux x64
-    runs-on: "ubuntu-20.04"
+    runs-on: "ubuntu-22.04"
     needs:
       - prerequisites
       - linux_x64_build
@@ -308,7 +308,7 @@ jobs:
 
   linux_additional_build:
     name: Linux additional
-    runs-on: "ubuntu-20.04"
+    runs-on: "ubuntu-22.04"
     needs:
       - prerequisites
     if: needs.prerequisites.outputs.should_run != 'false' && needs.prerequisites.outputs.platform_linux_additional != 'false'
@@ -464,7 +464,7 @@ jobs:
 
   linux_x86_build:
     name: Linux x86
-    runs-on: "ubuntu-20.04"
+    runs-on: "ubuntu-22.04"
     needs: prerequisites
     if: needs.prerequisites.outputs.should_run != 'false' && needs.prerequisites.outputs.platform_linux_x86 != 'false'
 
@@ -550,7 +550,7 @@ jobs:
 
   linux_x86_test:
     name: Linux x86
-    runs-on: "ubuntu-20.04"
+    runs-on: "ubuntu-22.04"
     needs:
       - prerequisites
       - linux_x86_build
@@ -1584,7 +1584,7 @@ jobs:
 
   artifacts:
     name: Post-process artifacts
-    runs-on: "ubuntu-20.04"
+    runs-on: "ubuntu-22.04"
     if: always()
     continue-on-error: true
     needs:
