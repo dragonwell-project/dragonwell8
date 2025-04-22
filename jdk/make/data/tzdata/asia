@@ -1233,6 +1233,13 @@ Zone	Asia/Tbilisi	2:59:11 -	LMT	1880
 
 # East Timor
 
+# From Tim Parenti (2024-07-01):
+# The 1912-01-01 transition occurred at 00:00 new time, per the 1911-05-24
+# Portuguese decree (see Europe/Lisbon).  A provision in article 5(c) of the
+# decree prescribed that Timor "will keep counting time in harmony with
+# neighboring foreign colonies, [for] as long as they do not adopt the time
+# that belongs to them in [the Washington Convention] system."
+
 # See Indonesia for the 1945 transition.
 
 # From João Carrascalão, brother of the former governor of East Timor, in
@@ -1256,7 +1263,7 @@ Zone	Asia/Tbilisi	2:59:11 -	LMT	1880
 # midnight on Saturday, September 16.
 
 # Zone	NAME		STDOFF	RULES	FORMAT	[UNTIL]
-Zone	Asia/Dili	8:22:20 -	LMT	1912 Jan  1
+Zone	Asia/Dili	8:22:20 -	LMT	1911 Dec 31 16:00u
 			8:00	-	+08	1942 Feb 21 23:00
 			9:00	-	+09	1976 May  3
 			8:00	-	+08	2000 Sep 17  0:00
@@ -1642,7 +1649,7 @@ Rule	Iran	2021	2022	-	Sep	21	24:00	0	-
 # Zone	NAME		STDOFF	RULES	FORMAT	[UNTIL]
 Zone	Asia/Tehran	3:25:44	-	LMT	1916
 			3:25:44	-	TMT	1935 Jun 13 # Tehran Mean Time
-			3:30	Iran	+0330/+0430 1977 Oct 20 24:00
+			3:30	Iran	+0330/+0430	1977 Oct 20 24:00
 			4:00	Iran	+04/+05	1979
 			3:30	Iran	+0330/+0430
 
@@ -2496,9 +2503,9 @@ Zone	Asia/Amman	2:23:44 -	LMT	1931
 # Almaty (formerly Alma-Ata), representing most locations in Kazakhstan
 # This includes Abai/Abay (ISO 3166-2 code KZ-10), Aqmola/Akmola (KZ-11),
 # Almaty (KZ-19), Almaty city (KZ-75), Astana city (KZ-71),
-# East Kazkhstan (KZ-63), Jambyl/Zhambyl (KZ-31), Jetisu/Zhetysu (KZ-33),
+# East Kazakhstan (KZ-63), Jambyl/Zhambyl (KZ-31), Jetisu/Zhetysu (KZ-33),
 # Karaganda (KZ-35), North Kazakhstan (KZ-59), Pavlodar (KZ-55),
-# Shyumkent city (KZ-79), Turkistan (KZ-61), and Ulytau (KZ-62).
+# Shymkent city (KZ-79), Turkistan (KZ-61), and Ulytau (KZ-62).
 Zone	Asia/Almaty	5:07:48 -	LMT	1924 May  2 # or Alma-Ata
 			5:00	-	+05	1930 Jun 21
 			6:00 RussiaAsia +06/+07	1991 Mar 31  2:00s
@@ -2810,7 +2817,7 @@ Rule	NBorneo	1935	1941	-	Dec	14	0:00	0	-
 # Zone	NAME		STDOFF	RULES	FORMAT	[UNTIL]
 Zone Asia/Kuching	7:21:20	-	LMT	1926 Mar
 			7:30	-	+0730	1933
-			8:00 NBorneo  +08/+0820	1942 Feb 16
+			8:00 NBorneo	+08/+0820	1942 Feb 16
 			9:00	-	+09	1945 Sep 12
 			8:00	-	+08
 
@@ -2920,9 +2927,37 @@ Zone	Indian/Maldives	4:54:00 -	LMT	1880 # Malé
 
 # From Arthur David Olson (2008-05-19):
 # Assume that Choibalsan is indeed offset by 8:00.
-# XXX--in the absence of better information, assume that transition
-# was at the start of 2008-03-31 (the day of Steffen Thorsen's report);
-# this is almost surely wrong.
+
+# From Heitor David Pinto (2024-06-23):
+# Sources about time zones in Mongolia seem to list one of two conflicting
+# configurations.  The first configuration, mentioned in a comment to the TZ
+# database in 1999, citing a Mongolian government website, lists the provinces
+# of Bayan-Ölgii, Khovd and Uvs in UTC+7, and the rest of the country in
+# UTC+8.  The second configuration, mentioned in a comment to the database in
+# 2001, lists Bayan-Ölgii, Khovd, Uvs, Govi-Altai and Zavkhan in UTC+7, Dornod
+# and Sükhbaatar in UTC+9, and the rest of the country in UTC+8.
+#
+# The first configuration is still mentioned by several Mongolian travel
+# agencies:
+# https://www.adventurerider.mn/en/page/about_mongolia
+# http://www.naturetours.mn/nt/mongolia.php
+# https://www.newjuulchin.mn/web/content/7506?unique=fa24a0f6e96e022a3578ee5195ac879638c734ce
+#
+# It also matches these flight schedules in 2013:
+# http://web.archive.org/web/20130722023600/https://www.hunnuair.com/en/timetabled
+# The flight times imply that the airports of Uliastai (Zavkhan), Choibalsan
+# (Dornod) and Altai (Govi-Altai) are in the same time zone as Ulaanbaatar,
+# and Khovd is one hour behind....
+#
+# The second configuration was mentioned by an official of the Mongolian
+# standards agency in an interview in 2014: https://ikon.mn/n/9v6
+# And it's still listed by the Mongolian aviation agency:
+# https://ais.mn/files/aip/eAIP/2023-12-25/html/eSUP/ZM-eSUP-23-04-en-MN.html
+#
+# ... I believe that the first configuration is what is actually observed in
+# Mongolia and has been so all along, at least since 1999.  The second
+# configuration closely matches the ideal time zone boundaries at 97.5° E and
+# 112.5° E but it doesn't seem to be used in practice.
 
 # From Ganbold Tsagaankhuu (2015-03-10):
 # It seems like yesterday Mongolian Government meeting has concluded to use
@@ -2966,13 +3001,6 @@ Zone	Asia/Hovd	6:06:36 -	LMT	1905 Aug
 # Ulaanbaatar, a.k.a. Ulan Bataar, Ulan Bator, Urga
 Zone	Asia/Ulaanbaatar 7:07:32 -	LMT	1905 Aug
 			7:00	-	+07	1978
-			8:00	Mongol	+08/+09
-# Choibalsan, a.k.a. Bajan Tümen, Bajan Tumen, Chojbalsan,
-# Choybalsan, Sanbejse, Tchoibalsan
-Zone	Asia/Choibalsan	7:38:00 -	LMT	1905 Aug
-			7:00	-	+07	1978
-			8:00	-	+08	1983 Apr
-			9:00	Mongol	+09/+10	2008 Mar 31
 			8:00	Mongol	+08/+09
 
 # Nepal
@@ -3660,30 +3688,79 @@ Zone	Asia/Hebron	2:20:23	-	LMT	1900 Oct
 # be immediately followed by 1845-01-01; see R.H. van Gent's
 # History of the International Date Line
 # https://webspace.science.uu.nl/~gent0113/idl/idl_philippines.htm
-# The rest of the data entries are from Shanks & Pottenger.
 
-# From Jesper Nørgaard Welen (2006-04-26):
-# ... claims that Philippines had DST last time in 1990:
-# http://story.philippinetimes.com/p.x/ct/9/id/145be20cc6b121c0/cid/3e5bbccc730d258c/
-# [a story dated 2006-04-25 by Cris Larano of Dow Jones Newswires,
-# but no details]
+# From P Chan (2021-05-10):
+# Here's a fairly comprehensive article in Japanese:
+#	https://wiki.suikawiki.org/n/Philippine%20Time
+# (2021-05-16):
+# According to the references listed in the article,
+# the periods that the Philippines (Manila) observed DST or used +9 are:
+#
+# 1936-10-31 24:00 to 1937-01-15 24:00
+#	(Proclamation No. 104, Proclamation No. 126)
+# 1941-12-15 24:00 to 1945-11-30 24:00
+#	(Proclamation No. 789, Proclamation No. 20)
+# 1954-04-11 24:00 to 1954-06-04 24:00
+#	(Proclamation No. 13, Proclamation No. 33)
+# 1977-03-27 24:00 to 1977-09-21 24:00
+#	(Proclamation No. 1629, Proclamation No. 1641)
+# 1990-05-21 00:00 to 1990-07-28 24:00
+#	(National Emergency Memorandum Order No. 17, Executive Order No. 415)
+#
+# Proclamation No. 104 ... October 30, 1936
+#  https://www.officialgazette.gov.ph/1936/10/30/proclamation-no-104-s-1936/
+# Proclamation No. 126 ... January 15, 1937
+#  https://www.officialgazette.gov.ph/1937/01/15/proclamation-no-126-s-1937/
+# Proclamation No. 789 ... December 13, 1941
+#  https://www.officialgazette.gov.ph/1941/12/13/proclamation-no-789-s-1941/
+# Proclamation No. 20 ... November 11, 1945
+#  https://www.officialgazette.gov.ph/1945/11/11/proclamation-no-20-s-1945/
+# Proclamation No. 13 ... April 6, 1954
+#  https://www.officialgazette.gov.ph/1954/04/06/proclamation-no-13-s-1954/
+# Proclamation No. 33 ... June 3, 1954
+#  https://www.officialgazette.gov.ph/1954/06/03/proclamation-no-33-s-1954/
+# Proclamation No. 1629 ... March 25, 1977
+#  https://www.officialgazette.gov.ph/1977/03/25/proclamation-no-1629-s-1977/
+# Proclamation No. 1641 ...May 26, 1977
+#  https://www.officialgazette.gov.ph/1977/05/26/proclamation-no-1641-s-1977/
+# National Emergency Memorandum Order No. 17 ... May 2, 1990
+#  https://www.officialgazette.gov.ph/1990/05/02/national-emergency-memorandum-order-no-17-s-1990/
+# Executive Order No. 415 ... July 20, 1990
+#  https://www.officialgazette.gov.ph/1990/07/20/executive-order-no-415-s-1990/
+#
+# During WWII, Proclamation No. 789 fixed two periods of DST. The first period
+# was set to continue only until January 31, 1942. But Manila was occupied by
+# the Japanese earlier in the month....
+#
+# For the date of the adoption of standard time, Shank[s] gives 1899-05-11.
+# The article is not able to state the basis of that. I guess it was based on
+# a US War Department Circular issued on that date.
+#	https://books.google.com/books?id=JZ1PAAAAYAAJ&pg=RA3-PA8
+#
+# However, according to other sources, standard time was adopted on
+# 1899-09-06.  Also, the LMT was GMT+8:03:52
+#	https://books.google.com/books?id=MOYIAQAAIAAJ&pg=PA521
+#	https://books.google.com/books?id=lSnqqatpYikC&pg=PA21
+#
+# From Paul Eggert (2024-09-05):
+# The penultimate URL in P Chan's email refers to page 521 of
+# Selga M, The Time Service in the Philippines.
+# Proc Pan-Pacific Science Congress. Vol. 1 (1923), 519-532.
+# It says, "The change from the meridian 120° 58' 04" to the 120th implied a
+# change of 3 min. 52s.26 in time; consequently on 6th September, 1899,
+# Manila Observatory gave the noon signal 3 min. 52s.26 later than before".
+#
+# Wikipedia says the US declared Manila liberated on March 4, 1945;
+# this doesn't affect clocks, just our time zone abbreviation and DST flag.
 
-# From Paul Eggert (2014-08-14):
-# The following source says DST may be instituted November-January and again
-# March-June, but this is not definite.  It also says DST was last proclaimed
-# during the Ramos administration (1992-1998); but again, no details.
-# Carcamo D. PNoy urged to declare use of daylight saving time.
-# Philippine Star 2014-08-05
-# http://www.philstar.com/headlines/2014/08/05/1354152/pnoy-urged-declare-use-daylight-saving-time
-
-# From Paul Goyette (2018-06-15):
+# From Paul Goyette (2018-06-15) with URLs updated by Guy Harris (2024-02-15):
 # In the Philippines, there is a national law, Republic Act No. 10535
 # which declares the official time here as "Philippine Standard Time".
 # The act [1] even specifies use of PST as the abbreviation, although
 # the FAQ provided by PAGASA [2] uses the "acronym PhST to distinguish
 # it from the Pacific Standard Time (PST)."
-# [1] http://www.officialgazette.gov.ph/2013/05/15/republic-act-no-10535/
-# [2] https://www1.pagasa.dost.gov.ph/index.php/astronomy/philippine-standard-time#republic-act-10535
+# [1] https://www.officialgazette.gov.ph/2013/05/15/republic-act-no-10535/
+# [2] https://prsd.pagasa.dost.gov.ph/index.php/28-astronomy/302-philippine-standard-time
 #
 # From Paul Eggert (2018-06-19):
 # I surveyed recent news reports, and my impression is that "PST" is
@@ -3692,24 +3769,26 @@ Zone	Asia/Hebron	2:20:23	-	LMT	1900 Oct
 # influence of the sources.  There is no current abbreviation for DST,
 # so use "PDT", the usual American style.
 
-# From P Chan (2021-05-10):
-# Here's a fairly comprehensive article in Japanese:
-# https://wiki.suikawiki.org/n/Philippine%20Time
-# From Paul Eggert (2021-05-10):
-# The info in the Japanese table has not been absorbed (yet) below.
-
 # Rule	NAME	FROM	TO	-	IN	ON	AT	SAVE	LETTER/S
-Rule	Phil	1936	only	-	Nov	1	0:00	1:00	D
-Rule	Phil	1937	only	-	Feb	1	0:00	0	S
-Rule	Phil	1954	only	-	Apr	12	0:00	1:00	D
-Rule	Phil	1954	only	-	Jul	1	0:00	0	S
-Rule	Phil	1978	only	-	Mar	22	0:00	1:00	D
-Rule	Phil	1978	only	-	Sep	21	0:00	0	S
+Rule	Phil	1936	only	-	Oct	31	24:00	1:00	D
+Rule	Phil	1937	only	-	Jan	15	24:00	0	S
+Rule	Phil	1941	only	-	Dec	15	24:00	1:00	D
+# The following three rules were canceled by Japan:
+#Rule	Phil	1942	only	-	Jan	31	24:00	0	S
+#Rule	Phil	1942	only	-	Mar	 1	 0:00	1:00	D
+#Rule	Phil	1942	only	-	Jun	30	24:00	0	S
+Rule	Phil	1945	only	-	Nov	30	24:00	0	S
+Rule	Phil	1954	only	-	Apr	11	24:00	1:00	D
+Rule	Phil	1954	only	-	Jun	 4	24:00	0	S
+Rule	Phil	1977	only	-	Mar	27	24:00	1:00	D
+Rule	Phil	1977	only	-	Sep	21	24:00	0	S
+Rule	Phil	1990	only	-	May	21	 0:00	1:00	D
+Rule	Phil	1990	only	-	Jul	28	24:00	0	S
 # Zone	NAME		STDOFF	RULES	FORMAT	[UNTIL]
-Zone	Asia/Manila	-15:56:00 -	LMT	1844 Dec 31
-			8:04:00 -	LMT	1899 May 11
-			8:00	Phil	P%sT	1942 May
-			9:00	-	JST	1944 Nov
+Zone	Asia/Manila	-15:56:08 -	LMT	1844 Dec 31
+			8:03:52 -	LMT	1899 Sep  6  4:00u
+			8:00	Phil	P%sT	1942 Feb 11 24:00
+			9:00	-	JST	1945 Mar  4
 			8:00	Phil	P%sT
 
 # Bahrain
@@ -4130,7 +4209,7 @@ Zone	Asia/Tashkent	4:37:11 -	LMT	1924 May  2
 # Võ Nguyên Giáp, Việt Nam Dân Quốc Công Báo, No. 1 (1945-09-29), page 13
 # http://baochi.nlv.gov.vn/baochi/cgi-bin/baochi?a=d&d=JwvzO19450929.2.5&dliv=none
 # It says that on 1945-09-01 at 24:00, Vietnam moved back two hours, to +07.
-# It also mentions a 1945-03-29 decree (by a Japanese Goveror-General)
+# It also mentions a 1945-03-29 decree (by a Japanese Governor-General)
 # to set the time zone to +09, but does not say whether that decree
 # merely legalized an earlier change to +09.
 #

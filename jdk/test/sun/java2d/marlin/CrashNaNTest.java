@@ -39,7 +39,7 @@ import javax.imageio.ImageIO;
  * @test
  * @bug 8149338
  * @summary Verifies that Marlin supports NaN coordinates and no JVM crash happens !
- * @run main CrashNaNTest
+ * @run main/othervm -Dsun.java2d.renderer=sun.java2d.marlin.MarlinRenderingEngine CrashNaNTest
  */
 public class CrashNaNTest {
 
