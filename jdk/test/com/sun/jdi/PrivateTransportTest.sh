@@ -148,13 +148,13 @@ elif [ -f ${libloc}/libdt_socket.dylib ]; then
     echo cp ${libloc}/libdt_socket.dylib ${fullpath}
     cp ${libloc}/libdt_socket.dylib ${fullpath}
     # make sure we can find libraries in current directory
-    if [ "${LD_LIBRARY_PATH}" = "" ] ; then
-        LD_LIBRARY_PATH=${libdir}
+    if [ "${DYLD_LIBRARY_PATH}" = "" ] ; then
+        DYLD_LIBRARY_PATH=${libdir}
     else
-        LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:${libdir}
+        DYLD_LIBRARY_PATH=${DYLD_LIBRARY_PATH}:${libdir}
     fi
-    export LD_LIBRARY_PATH
-    echo LD_LIBRARY_PATH=${LD_LIBRARY_PATH}
+    export DYLD_LIBRARY_PATH
+    echo DYLD_LIBRARY_PATH=${DYLD_LIBRARY_PATH}
 elif [ -f ${libloc}/libdt_socket.so ] ; then
     fullpath=${libdir}/lib${private_transport}.so
     rm -f ${fullpath}

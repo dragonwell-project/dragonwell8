@@ -33,13 +33,7 @@
 
 import java.io.ByteArrayOutputStream;
 
-import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.Assertions;
-import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.TestInstance;
-import org.junit.jupiter.api.TestInstance.Lifecycle;
+import org.junit.*;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -60,8 +54,7 @@ import java.util.zip.ZipOutputStream;
 import jdk.testlibrary.FileUtils;
 import sun.tools.jar.Main;
 
-@TestInstance(Lifecycle.PER_CLASS)
-class MultipleManifestTest {
+public class MultipleManifestTest {
     private final String nl = System.lineSeparator();
     private final ByteArrayOutputStream baos = new ByteArrayOutputStream();
     private final PrintStream jarOut = new PrintStream(baos);
@@ -85,8 +78,9 @@ class MultipleManifestTest {
      *
      * @throws IOException if an unexpected IOException occurs
      */
-    @AfterAll
+    @After
     public void cleanup() throws IOException {
+        rm("META-INF entry1.txt entry2.txt");
         Files.deleteIfExists(zip);
     }
 
@@ -95,7 +89,7 @@ class MultipleManifestTest {
      *
      * @throws IOException if an error occurs
      */
-    @BeforeAll
+    @Before
     public void writeManifestAsFirstSecondAndFourthEntry() throws IOException {
         int locPosA, locPosB, cenPos;
         System.out.printf("%n%n*****Creating Jar with the Manifest as the 1st, 2nd and 4th entry*****%n%n");
@@ -132,11 +126,6 @@ class MultipleManifestTest {
         Files.write(zip, template);
     }
 
-    @AfterEach
-    public void removeExtractedFiles() {
-        rm("META-INF entry1.txt entry2.txt");
-    }
-
     /**
      * Extract by default should have the last manifest.
      */
@@ -144,13 +133,13 @@ class MultipleManifestTest {
     public void testOverwrite() throws IOException {
         jar("xvf " + zip.toString());
         println();
-        Assertions.assertEquals("3.0", getManifestVersion());
+        Assert.assertEquals("3.0", getManifestVersion());
         String output = " inflated: META-INF/MANIFEST.MF" + nl +
                 " inflated: META-INF/MANIFEST.MF" + nl +
                 " inflated: entry1.txt" + nl +
                 " inflated: META-INF/MANIFEST.MF" + nl +
                 " inflated: entry2.txt" + nl;
-        Assertions.assertArrayEquals(baos.toByteArray(), output.getBytes());
+        Assert.assertArrayEquals(baos.toByteArray(), output.getBytes());
     }
 
     /**
@@ -160,13 +149,13 @@ class MultipleManifestTest {
     public void testKeptOldFile() throws IOException {
         jar("xkvf " + zip.toString());
         println();
-        Assertions.assertEquals("1.0", getManifestVersion());
+        Assert.assertEquals("1.0", getManifestVersion());
         String output = " inflated: META-INF/MANIFEST.MF" + nl +
                 "  skipped: META-INF/MANIFEST.MF exists" + nl +
                 " inflated: entry1.txt" + nl +
                 "  skipped: META-INF/MANIFEST.MF exists" + nl +
                 " inflated: entry2.txt" + nl;
-        Assertions.assertArrayEquals(baos.toByteArray(), output.getBytes());
+        Assert.assertArrayEquals(baos.toByteArray(), output.getBytes());
     }
 
     private String getManifestVersion() throws IOException {

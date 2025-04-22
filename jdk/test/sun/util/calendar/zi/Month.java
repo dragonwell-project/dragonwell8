@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,11 +23,6 @@
  * questions.
  */
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-
 /**
  * Month enum handles month related manipulation.
  *
@@ -49,15 +44,6 @@ enum Month {
 
     private final String abbr;
 
-    private static final Map<String,Month> abbreviations
-                                = new HashMap<String,Month>(12);
-
-    static {
-        for (Month m : Month.values()) {
-            abbreviations.put(m.abbr, m);
-        }
-    }
-
     private Month(String abbr) {
         this.abbr = abbr;
     }
@@ -72,11 +58,22 @@ enum Month {
      * @return the Month value
      */
     static Month parse(String name) {
-        Month m = abbreviations.get(name);
-        if (m != null) {
-            return m;
-        }
-        return null;
+        int len = name.length();
+
+        if (name.regionMatches(true, 0, "January", 0, len)) return Month.JANUARY;
+        if (name.regionMatches(true, 0, "February", 0, len)) return Month.FEBRUARY;
+        if (name.regionMatches(true, 0, "March", 0, len)) return Month.MARCH;
+        if (name.regionMatches(true, 0, "April", 0, len)) return Month.APRIL;
+        if (name.regionMatches(true, 0, "May", 0, len)) return Month.MAY;
+        if (name.regionMatches(true, 0, "June", 0, len)) return Month.JUNE;
+        if (name.regionMatches(true, 0, "July", 0, len)) return Month.JULY;
+        if (name.regionMatches(true, 0, "August", 0, len)) return Month.AUGUST;
+        if (name.regionMatches(true, 0, "September", 0, len)) return Month.SEPTEMBER;
+        if (name.regionMatches(true, 0, "October", 0, len)) return Month.OCTOBER;
+        if (name.regionMatches(true, 0, "November", 0, len)) return Month.NOVEMBER;
+        if (name.regionMatches(true, 0, "December", 0, len)) return Month.DECEMBER;
+
+        throw new IllegalArgumentException("Unknown month: " + name);
     }
 
     /**

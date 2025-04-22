@@ -500,7 +500,7 @@ public class JMXStartStopTest {
             testConnect(ports[0]);
 
             jcmd(CMD_STOP);
-            testConnect(ports[0]);
+            testNoConnect(ports[0]);
 
             jcmd(CMD_START, "jmxremote.port=" + ports[1]);
             testConnect(ports[1]);

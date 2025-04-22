@@ -31,12 +31,7 @@
  * @run junit/othervm ExtractFilesTest
  */
 
-import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.Assertions;
-import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.TestInstance;
-import org.junit.jupiter.api.TestInstance.Lifecycle;
+import org.junit.*;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -51,13 +46,12 @@ import java.util.stream.Stream;
 import jdk.testlibrary.FileUtils;
 import sun.tools.jar.Main;
 
-@TestInstance(Lifecycle.PER_CLASS)
 public class ExtractFilesTest {
     private final String nl = System.lineSeparator();
     private final ByteArrayOutputStream baos = new ByteArrayOutputStream();
     private final PrintStream out = new PrintStream(baos);
 
-    @BeforeAll
+    @Before
     public void setupJar() throws IOException {
         mkdir("test1 test2");
         echo("testfile1", "test1/testfile1");
@@ -66,7 +60,7 @@ public class ExtractFilesTest {
         rm("test1 test2");
     }
 
-    @AfterAll
+    @After
     public void cleanup() {
         rm("test.jar");
     }
@@ -83,7 +77,7 @@ public class ExtractFilesTest {
                 " inflated: testfile1" + nl +
                 " inflated: testfile2" + nl;
         rm("META-INF testfile1 testfile2");
-        Assertions.assertArrayEquals(baos.toByteArray(), output.getBytes());
+        Assert.assertArrayEquals(baos.toByteArray(), output.getBytes());
     }
 
     /**
@@ -98,9 +92,9 @@ public class ExtractFilesTest {
                 " inflated: META-INF/MANIFEST.MF" + nl +
                 " inflated: testfile1" + nl +
                 " inflated: testfile2" + nl;
-        Assertions.assertEquals("testfile1", cat("testfile1"));
+        Assert.assertEquals("testfile1", cat("testfile1"));
         rm("META-INF testfile1 testfile2");
-        Assertions.assertArrayEquals(baos.toByteArray(), output.getBytes());
+        Assert.assertArrayEquals(baos.toByteArray(), output.getBytes());
     }
 
     /**
@@ -115,10 +109,10 @@ public class ExtractFilesTest {
                 " inflated: META-INF/MANIFEST.MF" + nl +
                 "  skipped: testfile1 exists" + nl +
                 " inflated: testfile2" + nl;
-        Assertions.assertEquals("", cat("testfile1"));
-        Assertions.assertEquals("testfile2", cat("testfile2"));
+        Assert.assertEquals("", cat("testfile1"));
+        Assert.assertEquals("testfile2", cat("testfile2"));
         rm("META-INF testfile1 testfile2");
-        Assertions.assertArrayEquals(baos.toByteArray(), output.getBytes());
+        Assert.assertArrayEquals(baos.toByteArray(), output.getBytes());
     }
 
     /**
@@ -133,10 +127,10 @@ public class ExtractFilesTest {
                 " inflated: META-INF/MANIFEST.MF" + nl +
                 "  skipped: testfile1 exists" + nl +
                 "  skipped: testfile2 exists" + nl;
-        Assertions.assertEquals("", cat("testfile1"));
-        Assertions.assertEquals("", cat("testfile2"));
+        Assert.assertEquals("", cat("testfile1"));
+        Assert.assertEquals("", cat("testfile2"));
         rm("META-INF testfile1 testfile2");
-        Assertions.assertArrayEquals(baos.toByteArray(), output.getBytes());
+        Assert.assertArrayEquals(baos.toByteArray(), output.getBytes());
     }
 
     /**
@@ -152,8 +146,8 @@ public class ExtractFilesTest {
                 "testfile1" + nl +
                 "testfile2" + nl;
 
-        Assertions.assertArrayEquals(baos.toByteArray(), output.getBytes());
-        Assertions.assertEquals("Warning: The k option is not valid with current usage, will be ignored." + nl, err);
+        Assert.assertArrayEquals(baos.toByteArray(), output.getBytes());
+        Assert.assertEquals("Warning: The k option is not valid with current usage, will be ignored." + nl, err);
     }
 
     private Stream<Path> mkpath(String... args) {

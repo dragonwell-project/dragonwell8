@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2012, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -941,6 +941,14 @@ static bool can_overflow(const TypeInt* t, jint c) {
           (c > 0 && (java_add(t_hi, c) < t_hi)));
 }
 
+// Check if addition of a long with type 't' and a constant 'c' can overflow.
+static bool can_overflow(const TypeLong* t, jlong c) {
+  jlong t_lo = t->_lo;
+  jlong t_hi = t->_hi;
+  return ((c < 0 && (java_add(t_lo, c) > t_lo)) ||
+          (c > 0 && (java_add(t_hi, c) < t_hi)));
+}
+
 //=============================================================================
 //------------------------------Idealize---------------------------------------
 // MINs show up in range-check loop limit calculations.  Look for
@@ -1052,6 +1060,31 @@ Node *MinINode::Ideal(PhaseGVN *phase, bool can_reshape) {
 //
 // Note: we assume that SubL was already replaced by an AddL, and that the stride
 // has its sign flipped: SubL(limit, stride) -> AddL(limit, -stride).
+//
+// Proof MaxL collapsed version equivalent to original (MinL version similar):
+// is_sub_con ensures that con1, con2 ∈ [min_int, 0[
+//
+// Original:
+// - AddL2 underflow => x + con2 ∈ ]max_long - min_int, max_long], ALWAYS BAILOUT as x + con1 + con2 surely fails can_overflow (*)
+// - AddL2 no underflow => x + con2 ∈ [min_long, max_long]
+//   - MaxL2 clamp => min_int
+//     - AddL1 underflow: NOT POSSIBLE: cannot underflow since min_int + con1 ∈ [2 * min_int, min_int] always > min_long
+//     - AddL1 no underflow => min_int + con1 ∈ [2 * min_int, min_int]
+//       - MaxL1 clamp => min_int (RESULT 1)
+//       - MaxL1 no clamp: NOT POSSIBLE: min_int + con1 ∈ [2 * min_int, min_int] always <= min_int, so clamp always taken
+//   - MaxL2 no clamp => x + con2 ∈ [min_int, max_long]
+//     - AddL1 underflow: NOT POSSIBLE: cannot underflow since x + con2 + con1 ∈ [2 * min_int, max_long] always > min_long
+//     - AddL1 no underflow => x + con2 + con1 ∈ [2 * min_int, max_long]
+//       - MaxL1 clamp => min_int (RESULT 2)
+//       - MaxL1 no clamp => x + con2 + con1 ∈ ]min_int, max_long] (RESULT 3)
+//
+// Collapsed:
+// - AddL2 (cannot underflow) => con2 + con1 ∈ [2 * min_int, 0]
+//   - AddL1 underflow: NOT POSSIBLE: would have bailed out at can_overflow (*)
+//   - AddL1 no underflow => x + con2 + con1 ∈ [min_long, max_long]
+//     - MaxL clamp => min_int (RESULT 1 and RESULT 2)
+//     - MaxL no clamp => x + con2 + con1 ∈ ]min_int, max_long] (RESULT 3)
+//
 static bool is_clamp(PhaseGVN* phase, Node* n, Node* c) {
   // Check that the two clamps have the correct values.
   jlong clamp = (n->Opcode() == Op_MaxL) ? min_jint : max_jint;
@@ -1083,6 +1116,10 @@ Node* fold_subI_no_underflow_pattern(Node* n, PhaseGVN* phase) {
         Node* x    = add2->in(1);
         Node* con2 = add2->in(2);
         if (is_sub_con(phase, n, con2)) {
+          // Collapsed graph not equivalent if potential over/underflow -> bailing out (*)
+          if (can_overflow(phase->type(x)->is_long(), con1->get_long() + con2->get_long())) {
+            return NULL;
+          }
           Node* new_con = phase->transform(new (phase->C) AddLNode(con1, con2));
           Node* new_sub = phase->transform(new (phase->C) AddLNode(x, new_con));
           n->set_req_X(1, new_sub, phase);

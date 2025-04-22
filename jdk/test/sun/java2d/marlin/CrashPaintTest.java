@@ -47,7 +47,7 @@ import javax.imageio.ImageIO;
  * @bug 8148886
  * @summary Verifies that Marlin supports reentrant operations (ThreadLocal)
  * like in custom Paint or custom Composite
- * @run main CrashPaintTest
+ * @run main/othervm -Dsun.java2d.renderer=sun.java2d.marlin.MarlinRenderingEngine CrashPaintTest
  */
 public class CrashPaintTest {
 

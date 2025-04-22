@@ -35,9 +35,9 @@ import javax.imageio.ImageIO;
 /**
  * @test
  * @summary Simple crash rendering test using huge GeneralPaths with the Marlin renderer
- * @run main/othervm -mx512m CrashTest
+ * @run main/othervm -Dsun.java2d.renderer=sun.java2d.marlin.MarlinRenderingEngine -mx512m CrashTest
  * @ignore tests that take a long time and consumes 5Gb memory
- * @run main/othervm -ms4g -mx4g CrashTest -slow
+ * @run main/othervm -Dsun.java2d.renderer=sun.java2d.marlin.MarlinRenderingEngine -ms4g -mx4g CrashTest -slow
 */
 public class CrashTest {
 

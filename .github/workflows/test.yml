@@ -106,6 +106,13 @@ jobs:
         shell: bash
         if: steps.check_if_run.outputs.should_run != 'false'
 
+      - name: 'Install dependencies in x64 env'
+        run: |
+          # reduce c compiler version to avoid some self-dev cases cannot be compiled
+          sudo apt install -y gcc-10 g++-10
+          sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-10 100 --slave /usr/bin/g++ g++ /usr/bin/g++-10
+        if:  inputs.platform == 'linux-x64' && steps.check_if_run.outputs.should_run != 'false'
+
       - name: 'Get jtreg'
         id: get_jtreg
         run: |
