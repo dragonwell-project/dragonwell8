@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1996, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -150,7 +150,7 @@ class Main {
     /**
      * Starts main program with the specified arguments.
      */
-    public synchronized boolean run(String args[]) {
+    public synchronized boolean run(String[] args) {
         ok = true;
         if (!parseArgs(args)) {
             return false;
@@ -293,25 +293,19 @@ class Main {
                 if (fname != null) {
                     list(fname, files);
                 } else {
-                    InputStream in = new FileInputStream(FileDescriptor.in);
-                    try {
-                        list(new BufferedInputStream(in), files);
-                    } finally {
-                        in.close();
+                    try (InputStream in = new FileInputStream(FileDescriptor.in);
+                         BufferedInputStream bis = new BufferedInputStream(in)) {
+                        list(bis, files);
                     }
                 }
             } else if (xflag) {
                 replaceFSC(files);
-                if (fname != null && files != null) {
+                if (fname != null) {
                     extract(fname, files);
                 } else {
-                    InputStream in = (fname == null)
-                        ? new FileInputStream(FileDescriptor.in)
-                        : new FileInputStream(fname);
-                    try {
-                        extract(new BufferedInputStream(in), files);
-                    } finally {
-                        in.close();
+                    try (InputStream in = new FileInputStream(FileDescriptor.in);
+                         BufferedInputStream bis = new BufferedInputStream(in)) {
+                        extract(bis, files);
                     }
                 }
             } else if (iflag) {
@@ -335,7 +329,7 @@ class Main {
     /**
      * Parses command line arguments.
      */
-    boolean parseArgs(String args[]) {
+    boolean parseArgs(String[] args) {
         /* Preprocess and expand @file arguments */
         try {
             args = CommandLine.parse(args);
@@ -586,92 +580,90 @@ class Main {
                    InputStream newManifest,
                    JarIndex jarIndex) throws IOException
     {
-        ZipInputStream zis = new ZipInputStream(in);
-        ZipOutputStream zos = new JarOutputStream(out);
-        ZipEntry e = null;
-        boolean foundManifest = false;
         boolean updateOk = true;
+        try (ZipInputStream zis = new ZipInputStream(in);
+            ZipOutputStream zos = new JarOutputStream(out)) {
 
-        if (jarIndex != null) {
-            addIndex(jarIndex, zos);
-        }
+            if (jarIndex != null) {
+                addIndex(jarIndex, zos);
+            }
+            ZipEntry e = null;
+            boolean foundManifest = false;
 
-        // put the old entries first, replace if necessary
-        while ((e = zis.getNextEntry()) != null) {
-            String name = e.getName();
+            // put the old entries first, replace if necessary
+            while ((e = zis.getNextEntry()) != null) {
+                String name = e.getName();
 
-            boolean isManifestEntry = equalsIgnoreCase(name, MANIFEST_NAME);
+                boolean isManifestEntry = equalsIgnoreCase(name, MANIFEST_NAME);
 
-            if ((jarIndex != null && equalsIgnoreCase(name, INDEX_NAME))
-                || (Mflag && isManifestEntry)) {
-                continue;
-            } else if (isManifestEntry && ((newManifest != null) ||
+                if ((jarIndex != null && equalsIgnoreCase(name, INDEX_NAME))
+                        || (Mflag && isManifestEntry)) {
+                    continue;
+                } else if (isManifestEntry && ((newManifest != null) ||
                         (ename != null))) {
-                foundManifest = true;
-                if (newManifest != null) {
-                    // Don't read from the newManifest InputStream, as we
-                    // might need it below, and we can't re-read the same data
-                    // twice.
-                    FileInputStream fis = new FileInputStream(mname);
-                    boolean ambiguous = isAmbiguousMainClass(new Manifest(fis));
-                    fis.close();
-                    if (ambiguous) {
+                    foundManifest = true;
+                    if (newManifest != null) {
+                        // Don't read from the newManifest InputStream, as we
+                        // might need it below, and we can't re-read the same data
+                        // twice.
+                        try (FileInputStream fis = new FileInputStream(mname)) {
+                            if (isAmbiguousMainClass(new Manifest(fis))) {
+                                return false;
+                            }
+                        }
+                    }
+
+                    // Update the manifest.
+                    Manifest old = new Manifest(zis);
+                    if (newManifest != null) {
+                        old.read(newManifest);
+                    }
+                    if (!updateManifest(old, zos)) {
                         return false;
                     }
-                }
-
-                // Update the manifest.
-                Manifest old = new Manifest(zis);
-                if (newManifest != null) {
-                    old.read(newManifest);
-                }
-                if (!updateManifest(old, zos)) {
-                    return false;
-                }
-            } else {
-                if (!entryMap.containsKey(name)) { // copy the old stuff
-                    // do our own compression
-                    ZipEntry e2 = new ZipEntry(name);
-                    e2.setMethod(e.getMethod());
-                    e2.setTime(e.getTime());
-                    e2.setComment(e.getComment());
-                    e2.setExtra(e.getExtra());
-                    if (e.getMethod() == ZipEntry.STORED) {
-                        e2.setSize(e.getSize());
-                        e2.setCrc(e.getCrc());
+                } else {
+                    if (!entryMap.containsKey(name)) { // copy the old stuff
+                        // do our own compression
+                        ZipEntry e2 = new ZipEntry(name);
+                        e2.setMethod(e.getMethod());
+                        e2.setTime(e.getTime());
+                        e2.setComment(e.getComment());
+                        e2.setExtra(e.getExtra());
+                        if (e.getMethod() == ZipEntry.STORED) {
+                            e2.setSize(e.getSize());
+                            e2.setCrc(e.getCrc());
+                        }
+                        zos.putNextEntry(e2);
+                        copy(zis, zos);
+                    } else { // replace with the new files
+                        File f = entryMap.get(name);
+                        addFile(zos, f);
+                        entryMap.remove(name);
+                        entries.remove(f);
                     }
-                    zos.putNextEntry(e2);
-                    copy(zis, zos);
-                } else { // replace with the new files
-                    File f = entryMap.get(name);
-                    addFile(zos, f);
-                    entryMap.remove(name);
-                    entries.remove(f);
                 }
             }
-        }
 
-        // add the remaining new files
-        for (File f: entries) {
-            addFile(zos, f);
-        }
-        if (!foundManifest) {
-            if (newManifest != null) {
-                Manifest m = new Manifest(newManifest);
-                updateOk = !isAmbiguousMainClass(m);
-                if (updateOk) {
-                    if (!updateManifest(m, zos)) {
+            // add the remaining new files
+            for (File f : entries) {
+                addFile(zos, f);
+            }
+            if (!foundManifest) {
+                if (newManifest != null) {
+                    Manifest m = new Manifest(newManifest);
+                    updateOk = !isAmbiguousMainClass(m);
+                    if (updateOk) {
+                        if (!updateManifest(m, zos)) {
+                            updateOk = false;
+                        }
+                    }
+                } else if (ename != null) {
+                    if (!updateManifest(new Manifest(), zos)) {
                         updateOk = false;
                     }
                 }
-            } else if (ename != null) {
-                if (!updateManifest(new Manifest(), zos)) {
-                    updateOk = false;
-                }
             }
         }
-        zis.close();
-        zos.close();
         return updateOk;
     }
 
@@ -978,11 +970,9 @@ class Main {
     /**
      * Extracts specified entries from JAR file.
      */
-    void extract(InputStream in, String files[]) throws IOException {
+    void extract(InputStream in, String[] files) throws IOException {
         ZipInputStream zis = new ZipInputStream(in);
         ZipEntry e;
-        // Set of all directory entries specified in archive.  Disallows
-        // null entries.  Disallows all entries if using pre-6.0 behavior.
         Set<ZipEntry> dirs = newDirSet();
         while ((e = zis.getNextEntry()) != null) {
             if (files == null) {
@@ -1008,25 +998,26 @@ class Main {
     /**
      * Extracts specified entries from JAR file, via ZipFile.
      */
-    void extract(String fname, String files[]) throws IOException {
-        ZipFile zf = new ZipFile(fname);
-        Set<ZipEntry> dirs = newDirSet();
-        Enumeration<? extends ZipEntry> zes = zf.entries();
-        while (zes.hasMoreElements()) {
-            ZipEntry e = zes.nextElement();
-            if (files == null) {
-                dirs.add(extractFile(zf.getInputStream(e), e));
-            } else {
-                String name = e.getName();
-                for (String file : files) {
-                    if (name.startsWith(file)) {
-                        dirs.add(extractFile(zf.getInputStream(e), e));
-                        break;
+    void extract(String fname, String[] files) throws IOException {
+        final Set<ZipEntry> dirs;
+        try (ZipFile zf = new ZipFile(fname)) {
+            dirs = newDirSet();
+            Enumeration<? extends ZipEntry> zes = zf.entries();
+            while (zes.hasMoreElements()) {
+                ZipEntry e = zes.nextElement();
+                if (files == null) {
+                    dirs.add(extractFile(zf.getInputStream(e), e));
+                } else {
+                    String name = e.getName();
+                    for (String file : files) {
+                        if (name.startsWith(file)) {
+                            dirs.add(extractFile(zf.getInputStream(e), e));
+                            break;
+                        }
                     }
                 }
             }
         }
-        zf.close();
         updateLastModifiedTime(dirs);
     }
 
@@ -1107,7 +1098,7 @@ class Main {
     /**
      * Lists contents of JAR file.
      */
-    void list(InputStream in, String files[]) throws IOException {
+    void list(InputStream in, String[] files) throws IOException {
         ZipInputStream zis = new ZipInputStream(in);
         ZipEntry e;
         while ((e = zis.getNextEntry()) != null) {
@@ -1125,13 +1116,13 @@ class Main {
     /**
      * Lists contents of JAR file, via ZipFile.
      */
-    void list(String fname, String files[]) throws IOException {
-        ZipFile zf = new ZipFile(fname);
-        Enumeration<? extends ZipEntry> zes = zf.entries();
-        while (zes.hasMoreElements()) {
-            printEntry(zes.nextElement(), files);
+    void list(String fname, String[] files) throws IOException {
+        try (ZipFile zf = new ZipFile(fname)) {
+            Enumeration<? extends ZipEntry> zes = zf.entries();
+            while (zes.hasMoreElements()) {
+                printEntry(zes.nextElement(), files);
+            }
         }
-        zf.close();
     }
 
     /**
@@ -1174,10 +1165,8 @@ class Main {
         // class path attribute will give us jar file name with
         // '/' as separators, so we need to change them to the
         // appropriate one before we open the jar file.
-        JarFile rf = new JarFile(jar.replace('/', File.separatorChar));
-
-        if (rf != null) {
-            Manifest man = rf.getManifest();
+        try (JarFile jarFile = new JarFile(jar.replace('/', File.separatorChar))) {
+            Manifest man = jarFile.getManifest();
             if (man != null) {
                 Attributes attr = man.getMainAttributes();
                 if (attr != null) {
@@ -1198,7 +1187,6 @@ class Main {
                 }
             }
         }
-        rf.close();
         return files;
     }
 
@@ -1304,7 +1292,7 @@ class Main {
     /**
      * Main routine to start program.
      */
-    public static void main(String args[]) {
+    public static void main(String[] args) {
         Main jartool = new Main(System.out, System.err, "jar");
         System.exit(jartool.run(args) ? 0 : 1);
     }

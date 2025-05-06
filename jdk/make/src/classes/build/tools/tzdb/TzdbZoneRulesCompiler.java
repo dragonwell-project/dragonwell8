@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -248,7 +248,7 @@ public final class TzdbZoneRulesCompiler {
             // link version-region-rules
             out.writeShort(builtZones.size());
             for (Map.Entry<String, ZoneRules> entry : builtZones.entrySet()) {
-                 int regionIndex = Arrays.binarySearch(regionArray, entry.getKey());
+                 int regionIndex = findRegionIndex(regionArray, entry.getKey());
                  int rulesIndex = rulesList.indexOf(entry.getValue());
                  out.writeShort(regionIndex);
                  out.writeShort(rulesIndex);
@@ -256,8 +256,8 @@ public final class TzdbZoneRulesCompiler {
             // alias-region
             out.writeShort(links.size());
             for (Map.Entry<String, String> entry : links.entrySet()) {
-                 int aliasIndex = Arrays.binarySearch(regionArray, entry.getKey());
-                 int regionIndex = Arrays.binarySearch(regionArray, entry.getValue());
+                 int aliasIndex = findRegionIndex(regionArray, entry.getKey());
+                 int regionIndex = findRegionIndex(regionArray, entry.getValue());
                  out.writeShort(aliasIndex);
                  out.writeShort(regionIndex);
             }
@@ -270,8 +270,6 @@ public final class TzdbZoneRulesCompiler {
     }
 
     private static final Pattern YEAR = Pattern.compile("(?i)(?<min>min)|(?<max>max)|(?<only>only)|(?<year>[0-9]+)");
-    private static final Pattern MONTH = Pattern.compile("(?i)(jan)|(feb)|(mar)|(apr)|(may)|(jun)|(jul)|(aug)|(sep)|(oct)|(nov)|(dec)");
-    private static final Matcher DOW = Pattern.compile("(?i)(mon)|(tue)|(wed)|(thu)|(fri)|(sat)|(sun)").matcher("");
     private static final Matcher TIME = Pattern.compile("(?<neg>-)?+(?<hour>[0-9]{1,2})(:(?<minute>[0-5][0-9]))?+(:(?<second>[0-5][0-9]))?+").matcher("");
 
     /** The TZDB rules. */
@@ -285,6 +283,14 @@ public final class TzdbZoneRulesCompiler {
 
     /** The built zones. */
     private final SortedMap<String, ZoneRules> builtZones = new TreeMap<>();
+
+    private static int findRegionIndex(String[] regionArray, String region) {
+        int index = Arrays.binarySearch(regionArray, region);
+        if (index < 0) {
+            throw new IllegalArgumentException("Unknown region: " + region);
+        }
+        return index;
+    }
 
     /** Whether to output verbose messages. */
     private boolean verbose;
@@ -495,26 +501,37 @@ public final class TzdbZoneRulesCompiler {
     }
 
     private int parseMonth(Scanner s) {
-        if (s.hasNext(MONTH)) {
-            s.next(MONTH);
-            for (int moy = 1; moy < 13; moy++) {
-                if (s.match().group(moy) != null) {
-                    return moy;
-                }
-            }
-        }
-        throw new IllegalArgumentException("Unknown month: " + s.next());
+        String mon = s.next();
+        int len = mon.length();
+
+        if (mon.regionMatches(true, 0, "January", 0, len)) return 1;
+        if (mon.regionMatches(true, 0, "February", 0, len)) return 2;
+        if (mon.regionMatches(true, 0, "March", 0, len)) return 3;
+        if (mon.regionMatches(true, 0, "April", 0, len)) return 4;
+        if (mon.regionMatches(true, 0, "May", 0, len)) return 5;
+        if (mon.regionMatches(true, 0, "June", 0, len)) return 6;
+        if (mon.regionMatches(true, 0, "July", 0, len)) return 7;
+        if (mon.regionMatches(true, 0, "August", 0, len)) return 8;
+        if (mon.regionMatches(true, 0, "September", 0, len)) return 9;
+        if (mon.regionMatches(true, 0, "October", 0, len)) return 10;
+        if (mon.regionMatches(true, 0, "November", 0, len)) return 11;
+        if (mon.regionMatches(true, 0, "December", 0, len)) return 12;
+
+        throw new IllegalArgumentException("Unknown month: " + mon);
     }
 
-    private int parseDayOfWeek(String str) {
-        if (DOW.reset(str).matches()) {
-            for (int dow = 1; dow < 8; dow++) {
-                if (DOW.group(dow) != null) {
-                    return dow;
-                }
-            }
-        }
-        throw new IllegalArgumentException("Unknown day-of-week: " + str);
+    private int parseDayOfWeek(String dow) {
+        int len = dow.length();
+
+        if (dow.regionMatches(true, 0, "Monday", 0, len)) return 1;
+        if (dow.regionMatches(true, 0, "Tuesday", 0, len)) return 2;
+        if (dow.regionMatches(true, 0, "Wednesday", 0, len)) return 3;
+        if (dow.regionMatches(true, 0, "Thursday", 0, len)) return 4;
+        if (dow.regionMatches(true, 0, "Friday", 0, len)) return 5;
+        if (dow.regionMatches(true, 0, "Saturday", 0, len)) return 6;
+        if (dow.regionMatches(true, 0, "Sunday", 0, len)) return 7;
+
+        throw new IllegalArgumentException("Unknown day-of-week: " + dow);
     }
 
     private String parseOptional(String str) {
@@ -623,6 +640,9 @@ public final class TzdbZoneRulesCompiler {
         builtZones.remove("EST");
         builtZones.remove("HST");
         builtZones.remove("MST");
+        links.remove("EST");
+        links.remove("HST");
+        links.remove("MST");
     }
 
     /**

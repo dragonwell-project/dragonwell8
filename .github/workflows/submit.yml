@@ -45,7 +45,7 @@ jobs:
       platform: linux-x64
       conf-arguments: linux-x86_64-normal-server
       make-target: 'images'
-      runs-on: '"ubuntu-20.04"'
+      runs-on: '"ubuntu-22.04"'
     if: needs.prerequisites.outputs.should_run != 'false' && needs.prerequisites.outputs.platform_linux_x64 != 'false'
 
   build-linux-aarch64:
@@ -67,7 +67,7 @@ jobs:
     with:
       platform: linux-x64
       debug-suffix: -release
-      runs-on: '"ubuntu-20.04"'
+      runs-on: '"ubuntu-22.04"'
 
   test-linux-aarch64:
     name: linux-aarch64

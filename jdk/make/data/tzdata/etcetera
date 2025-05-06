@@ -28,7 +28,7 @@
 
 # These entries are for uses not otherwise covered by the tz database.
 # Their main practical use is for platforms like Android that lack
-# support for POSIX.1-2017-style TZ strings.  On such platforms these entries
+# support for POSIX proleptic TZ strings.  On such platforms these entries
 # can be useful if the timezone database is wrong or if a ship or
 # aircraft at sea is not in a timezone.
 
@@ -73,6 +73,10 @@ Link	Etc/GMT				GMT
 #		zic -l GMT-12
 # so we moved the names into the Etc subdirectory.
 # Also, the time zone abbreviations are now compatible with %z.
+
+# There is no "Etc/Unknown" entry, as CLDR says that "Etc/Unknown"
+# corresponds to an unknown or invalid time zone, and things would get
+# confusing if Etc/Unknown were made valid here.
 
 Zone	Etc/GMT-14	14	-	+14
 Zone	Etc/GMT-13	13	-	+13

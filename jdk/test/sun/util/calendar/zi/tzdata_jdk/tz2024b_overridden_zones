@@ -1,0 +1,36 @@
+#
+# Copyright (c) 2024, Oracle and/or its affiliates. All rights reserved.
+# DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
+#
+# This code is free software; you can redistribute it and/or modify it
+# under the terms of the GNU General Public License version 2 only, as
+# published by the Free Software Foundation.
+#
+# This code is distributed in the hope that it will be useful, but WITHOUT
+# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+# FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+# version 2 for more details (a copy is included in the LICENSE file that
+# accompanied this code).
+#
+# You should have received a copy of the GNU General Public License version
+# 2 along with this work; if not, write to the Free Software Foundation,
+# Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.
+#
+# Please contact Oracle, 500 Oracle Parkway, Redwood Shores, CA 94065 USA
+# or visit www.oracle.com if you need additional information or have any
+# questions.
+
+# TZdata2024b changes announced on 5th September 2024 includes changes to
+# "EST", "MST", and "HST", i.e., changing those time zones from distinct
+# time zones to links to other time zones. Previously
+# they were defined as fixed offset zones,
+# e.g., "EST" is "-05:00" without any DST transitions.
+# With 2024b, "EST" is now a link to "America/Panama."
+# This change has Java 8+ specification implications in java.time.ZoneId.SHORT_IDS field
+# Solution for jdk24+ to modify the mappings in ZoneId class which requires modification of the spec.
+# Update releases will not make the ZoneId changes due to current specification.
+
+# Zone	NAME		GMTOFF	RULES/SAVE	FORMAT	[UNTIL]
+Zone    EST              -5:00  -       EST
+Zone    MST              -7:00  -       MST
+Zone    HST             -10:00  -       HST
