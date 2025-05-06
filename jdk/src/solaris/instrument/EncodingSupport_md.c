@@ -30,6 +30,7 @@
 #include <locale.h>
 #include <langinfo.h>
 #include <iconv.h>
+#include <pthread.h>
 
 /* Routines to convert back and forth between Platform Encoding and UTF-8 */
 
@@ -43,9 +44,33 @@
 #define UTF_ASSERT(x) ( (x)==0 ? UTF_ERROR("ASSERT ERROR " #x) : (void)0 )
 #define UTF_DEBUG(x)
 
-/* Global variables */
-static iconv_t iconvToPlatform          = (iconv_t)-1;
-static iconv_t iconvFromPlatform        = (iconv_t)-1;
+static pthread_key_t iconvToPlatformKey;
+static pthread_key_t iconvFromPlatformKey;
+static pthread_once_t key_once = PTHREAD_ONCE_INIT;
+
+/*
+ * Terminate all utf processing
+ */
+static void
+utfTerminate(void *arg)
+{
+    iconv_t iconvCd;
+    if ((iconvCd = pthread_getspecific(iconvToPlatformKey)) != NULL) {
+        (void)iconv_close(iconvCd);
+        pthread_setspecific(iconvToPlatformKey, NULL);
+    }
+    if ((iconvCd = pthread_getspecific(iconvFromPlatformKey)) != NULL) {
+        (void)iconv_close(iconvCd);
+        pthread_setspecific(iconvFromPlatformKey, NULL);
+    }
+}
+
+static void
+make_key()
+{
+    (void) pthread_key_create(&iconvToPlatformKey, utfTerminate);
+    (void) pthread_key_create(&iconvFromPlatformKey, utfTerminate);
+}
 
 /*
  * Error handler
@@ -84,30 +109,16 @@ utfInitialize(void)
     }
 
     /* Open conversion descriptors */
-    iconvToPlatform   = iconv_open(codeset, "UTF-8");
+    iconv_t iconvToPlatform   = iconv_open(codeset, "UTF-8");
     if ( iconvToPlatform == (iconv_t)-1 ) {
         UTF_ERROR("Failed to complete iconv_open() setup");
     }
-    iconvFromPlatform = iconv_open("UTF-8", codeset);
+    pthread_setspecific(iconvToPlatformKey, iconvToPlatform);
+    iconv_t iconvFromPlatform = iconv_open("UTF-8", codeset);
     if ( iconvFromPlatform == (iconv_t)-1 ) {
         UTF_ERROR("Failed to complete iconv_open() setup");
     }
-}
-
-/*
- * Terminate all utf processing
- */
-static void
-utfTerminate(void)
-{
-    if ( iconvFromPlatform!=(iconv_t)-1 ) {
-        (void)iconv_close(iconvFromPlatform);
-    }
-    if ( iconvToPlatform!=(iconv_t)-1 ) {
-        (void)iconv_close(iconvToPlatform);
-    }
-    iconvToPlatform   = (iconv_t)-1;
-    iconvFromPlatform = (iconv_t)-1;
+    pthread_setspecific(iconvToPlatformKey, iconvFromPlatform);
 }
 
 /*
@@ -127,7 +138,7 @@ iconvConvert(iconv_t ic, char *bytes, int len, char *output, int outputMaxLen)
     output[0] = 0;
     outputLen = 0;
 
-    if ( ic != (iconv_t)-1 ) {
+    if ( ic != (iconv_t)-1 && ic != NULL ) {
         int          returnValue;
         size_t       inLeft;
         size_t       outLeft;
@@ -161,7 +172,7 @@ iconvConvert(iconv_t ic, char *bytes, int len, char *output, int outputMaxLen)
  *    Returns length or -1 if output overflows.
  */
 static int
-utf8ToPlatform(char *utf8, int len, char *output, int outputMaxLen)
+utf8ToPlatform(iconv_t iconvToPlatform, char *utf8, int len, char *output, int outputMaxLen)
 {
     return iconvConvert(iconvToPlatform, utf8, len, output, outputMaxLen);
 }
@@ -171,15 +182,18 @@ utf8ToPlatform(char *utf8, int len, char *output, int outputMaxLen)
  *    Returns length or -1 if output overflows.
  */
 static int
-platformToUtf8(char *str, int len, char *output, int outputMaxLen)
+platformToUtf8(iconv_t iconvFromPlatform, char *str, int len, char *output, int outputMaxLen)
 {
     return iconvConvert(iconvFromPlatform, str, len, output, outputMaxLen);
 }
 
 int
 convertUft8ToPlatformString(char* utf8_str, int utf8_len, char* platform_str, int platform_len) {
-    if (iconvToPlatform ==  (iconv_t)-1) {
+    (void) pthread_once(&key_once, make_key);
+    iconv_t iconvToPlatform;
+    if ((iconvToPlatform = pthread_getspecific(iconvToPlatformKey)) == NULL) {
         utfInitialize();
     }
-    return utf8ToPlatform(utf8_str, utf8_len, platform_str, platform_len);
+    iconvToPlatform = pthread_getspecific(iconvToPlatformKey);
+    return utf8ToPlatform(iconvToPlatform, utf8_str, utf8_len, platform_str, platform_len);
 }
