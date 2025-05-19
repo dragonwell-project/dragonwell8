@@ -3862,11 +3862,11 @@ void AwtComponent::SetCandidateWindow(int iCandType, int x, int y)
     HIMC hIMC = ImmGetContext(hwnd);
     if (hIMC) {
         CANDIDATEFORM cf;
-        cf.dwStyle = CFS_POINT;
+        cf.dwStyle = CFS_CANDIDATEPOS;
         ImmGetCandidateWindow(hIMC, 0, &cf);
         if (x != cf.ptCurrentPos.x || y != cf.ptCurrentPos.y) {
             cf.dwIndex = iCandType;
-            cf.dwStyle = CFS_POINT;
+            cf.dwStyle = CFS_CANDIDATEPOS;
             cf.ptCurrentPos.x = x;
             cf.ptCurrentPos.y = y;
             cf.rcArea.left = cf.rcArea.top = cf.rcArea.right = cf.rcArea.bottom = 0;
