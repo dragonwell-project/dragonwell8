@@ -1725,7 +1725,8 @@ public class HtmlDocletWriter extends HtmlDocWriter {
                 if (!(relativeLinkLowerCase.startsWith("mailto:") ||
                         relativeLinkLowerCase.startsWith("http:") ||
                         relativeLinkLowerCase.startsWith("https:") ||
-                        relativeLinkLowerCase.startsWith("file:"))) {
+                        relativeLinkLowerCase.startsWith("file:") ||
+                        relativeLinkLowerCase.startsWith("ftp:"))) {
                     relativeLink = "{@"+(new DocRootTaglet()).getName() + "}/"
                         + redirectPathFromRoot.resolve(relativeLink).getPath();
                     textBuff.replace(begin, end, relativeLink);
