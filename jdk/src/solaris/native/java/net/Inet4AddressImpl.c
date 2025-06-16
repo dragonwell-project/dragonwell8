@@ -332,37 +332,33 @@ Java_java_net_Inet4AddressImpl_getHostByAddr(JNIEnv *env, jobject this,
  */
 JNIEXPORT jstring JNICALL
 Java_java_net_Inet4AddressImpl_getLocalHostName(JNIEnv *env, jobject this) {
-    char hostname[NI_MAXHOST+1];
+    char hostname[NI_MAXHOST + 1];
 
     hostname[0] = '\0';
     if (JVM_GetHostName(hostname, sizeof(hostname))) {
-        /* Something went wrong, maybe networking is not setup? */
         strcpy(hostname, "localhost");
     } else {
+#if defined(__solaris__)
+        // try to resolve hostname via nameservice
+        // if it is known but getnameinfo fails, hostname will still be the
+        // value from gethostname
         struct addrinfo hints, *res;
-        int error;
 
+        // make sure string is null-terminated
         hostname[NI_MAXHOST] = '\0';
         memset(&hints, 0, sizeof(hints));
         hints.ai_flags = AI_CANONNAME;
         hints.ai_family = AF_INET;
 
-        error = getaddrinfo(hostname, NULL, &hints, &res);
-
-        if (error == 0) {/* host is known to name service */
-            getnameinfo(res->ai_addr,
-                        res->ai_addrlen,
-                        hostname,
-                        NI_MAXHOST,
-                        NULL,
-                        0,
-                        NI_NAMEREQD);
-
-            /* if getnameinfo fails hostname is still the value
-               from gethostname */
-
+        if (getaddrinfo(hostname, NULL, &hints, &res) == 0) {
+            getnameinfo(res->ai_addr, res->ai_addrlen, hostname, NI_MAXHOST,
+                        NULL, 0, NI_NAMEREQD);
             freeaddrinfo(res);
         }
+#else
+        // make sure string is null-terminated
+        hostname[NI_MAXHOST] = '\0';
+#endif
     }
     return (*env)->NewStringUTF(env, hostname);
 }
