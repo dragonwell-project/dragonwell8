@@ -883,23 +883,28 @@ CGGlyphImages_GetGlyphImagePtrs(jlong glyphInfos[],
         return;
     }
 
-    // just do one malloc, and carve it up for all the buffers
-    void *buffer = malloc((sizeof(CGRect) + sizeof(CGSize) + sizeof(CGGlyph) + sizeof(UniChar)) * len);
-    if (buffer == NULL) {
+    CGRect *bboxes   = (CGRect*)calloc(len, sizeof(CGRect));
+    CGSize *advances = (CGSize*)calloc(len, sizeof(CGSize));
+    CGGlyph *glyphs  = (CGGlyph*)calloc(len, sizeof(CGGlyph));
+    UniChar *uniChars = (UniChar*)calloc(len, sizeof(UniChar));
+
+    if (bboxes == NULL || advances == NULL || glyphs == NULL || uniChars == NULL) {
+        free(bboxes);
+        free(advances);
+        free(glyphs);
+        free(uniChars);
         [[NSException exceptionWithName:NSMallocException
             reason:@"Failed to allocate memory for the temporary glyph strike and measurement buffers." userInfo:nil] raise];
     }
-
-    CGRect *bboxes = (CGRect *)(buffer);
-    CGSize *advances = (CGSize *)(bboxes + sizeof(CGRect) * len);
-    CGGlyph *glyphs = (CGGlyph *)(advances + sizeof(CGGlyph) * len);
-    UniChar *uniChars = (UniChar *)(glyphs + sizeof(UniChar) * len);
 
     CGGI_CreateGlyphsAndScanForComplexities(glyphInfos, strike, &mode,
                                             rawGlyphCodes, uniChars, glyphs,
                                             advances, bboxes, len);
 
-    free(buffer);
+    free(bboxes);
+    free(advances);
+    free(glyphs);
+    free(uniChars);
 }
 
 #define TX_FIXED_UNSAFE(v)  (isinf(v) || isnan(v) || fabs(v) >= (1<<30))
