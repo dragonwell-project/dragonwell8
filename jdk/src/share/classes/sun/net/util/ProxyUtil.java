@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1994, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,38 +23,27 @@
  * questions.
  */
 
-/*-
- *      FTP stream opener
- */
+package sun.net.util;
 
-package sun.net.www.protocol.ftp;
+import sun.net.ApplicationProxy;
 
-import java.io.IOException;
-import java.net.URL;
 import java.net.Proxy;
-import static sun.net.util.ProxyUtil.copyProxy;
 
-/** open an ftp connection given a URL */
-public class Handler extends java.net.URLStreamHandler {
+public final class ProxyUtil {
 
-    protected int getDefaultPort() {
-        return 21;
+    private ProxyUtil() {}
+
+    /**
+     * Creates a new {@link Proxy} instance for the given proxy iff it is
+     * neither null, {@link Proxy#NO_PROXY Proxy.NO_PROXY}, an
+     * {@link ApplicationProxy} instance, nor already a {@code Proxy} instance.
+     */
+    public static Proxy copyProxy(Proxy proxy) {
+        return proxy == null
+                || proxy.getClass() == Proxy.class
+                || proxy instanceof ApplicationProxy
+                ? proxy
+                : new Proxy(proxy.type(), proxy.address());
     }
 
-    protected boolean equals(URL u1, URL u2) {
-        String userInfo1 = u1.getUserInfo();
-        String userInfo2 = u2.getUserInfo();
-        return super.equals(u1, u2) &&
-            (userInfo1 == null? userInfo2 == null: userInfo1.equals(userInfo2));
-    }
-
-    protected java.net.URLConnection openConnection(URL u)
-        throws IOException {
-        return openConnection(u, null);
-    }
-
-    protected java.net.URLConnection openConnection(URL u, Proxy proxy)
-        throws IOException {
-        return new FtpURLConnection(u, copyProxy(proxy));
-    }
 }

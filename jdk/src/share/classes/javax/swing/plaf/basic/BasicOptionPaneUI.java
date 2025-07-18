@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -423,6 +423,11 @@ public class BasicOptionPaneUI extends OptionPaneUI {
             } else {
                 JLabel label;
                 label = new JLabel( s, JLabel.LEADING );
+                if (Boolean.TRUE.equals(
+                    this.optionPane.getClientProperty("html.disable"))) {
+                    label.putClientProperty("html.disable", true);
+                    BasicHTML.updateRenderer(label, label.getText());
+                }
                 label.setName("OptionPane.label");
                 configureMessageLabel(label);
                 addMessageComponents(container, cons, label, maxll, true);
