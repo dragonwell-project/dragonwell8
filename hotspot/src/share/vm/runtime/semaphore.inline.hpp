@@ -25,7 +25,7 @@
 #ifndef SHARE_VM_RUNTIME_SEMAPHORE_INLINE_HPP
 #define SHARE_VM_RUNTIME_SEMAPHORE_INLINE_HPP
 
-#include "runtime/interfaceSupport.inline.hpp"
+#include "runtime/interfaceSupport.hpp"
 #include "runtime/semaphore.hpp"
 #include "runtime/thread.inline.hpp"
 
