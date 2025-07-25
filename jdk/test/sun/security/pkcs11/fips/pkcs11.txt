@@ -5,4 +5,5 @@ NSS=trustOrder=75 cipherOrder=100 slotParams={0x00000001=[slotFlags=RSA,RC4,RC2,
 
 library=libnssckbi.so
 name=Builtin Roots Module
-NSS=trustOrder=100 
+NSS=trustOrder=100    
+

@@ -237,6 +237,7 @@ CGGI_CopyImageFromCanvasToRGBInfo(CGGI_GlyphCanvas *canvas, GlyphInfo *info)
 {
     UInt32 *src = (UInt32 *)canvas->image->data;
     size_t srcRowWidth = canvas->image->width;
+    size_t srcHeight = canvas->image->height;
 
     UInt8 *dest = (UInt8 *)info->image;
     size_t destRowWidth = info->width;
@@ -246,12 +247,12 @@ CGGI_CopyImageFromCanvasToRGBInfo(CGGI_GlyphCanvas *canvas, GlyphInfo *info)
     size_t y;
     
     // fill empty glyph image with black-on-white glyph
-    for (y = 0; y < height; y++) {
+    for (y = 0; y < height && y < srcHeight; y++) {
         size_t destRow = y * destRowWidth * 3;
         size_t srcRow = y * srcRowWidth;
 
         size_t x;
-        for (x = 0; x < destRowWidth; x++) {
+        for (x = 0; x < destRowWidth && x < srcRowWidth; x++) {
             CGGI_CopyARGBPixelToRGBPixel(src[srcRow + x],
                                          dest + destRow + x * 3);
         }
@@ -289,6 +290,7 @@ CGGI_CopyImageFromCanvasToAlphaInfo(CGGI_GlyphCanvas *canvas, GlyphInfo *info)
 {
     UInt32 *src = (UInt32 *)canvas->image->data;
     size_t srcRowWidth = canvas->image->width;
+    size_t srcHeight = canvas->image->height;
 
     UInt8 *dest = (UInt8 *)info->image;
     size_t destRowWidth = info->width;
@@ -298,11 +300,11 @@ CGGI_CopyImageFromCanvasToAlphaInfo(CGGI_GlyphCanvas *canvas, GlyphInfo *info)
     size_t y;
     
     // fill empty glyph image with black-on-white glyph
-    for (y = 0; y < height; y++) {
+    for (y = 0; y < height && y < srcHeight; y++) {
         size_t destRow = y * destRowWidth;
         size_t srcRow = y * srcRowWidth;
         size_t x;
-        for (x = 0; x < destRowWidth; x++) {
+        for (x = 0; x < destRowWidth && x < srcRowWidth; x++) {
             UInt32 p = src[srcRow + x];
             dest[destRow + x] = CGGI_ConvertBWPixelToByteGray(p);
         }
@@ -384,8 +386,10 @@ CGGI_InitCanvas(CGGI_GlyphCanvas *canvas,
 
     canvas->image->data = (void *)calloc(byteCount, sizeof(UInt8));
     if (canvas->image->data == NULL) {
-        [[NSException exceptionWithName:NSMallocException
-            reason:@"Failed to allocate memory for the buffer which backs the CGContext for glyph strikes." userInfo:nil] raise];
+        canvas->image->width = 0;
+        canvas->image->height = 0;
+        canvas->image->rowBytes = 0;
+        canvas->image->data = malloc(0);
     }
 
     uint32_t bmpInfo = kCGImageAlphaPremultipliedFirst;
@@ -435,6 +439,10 @@ CGGI_FreeCanvas(CGGI_GlyphCanvas *canvas)
 
 /*
  * Quick and easy inline to check if this canvas is big enough.
+ * This function only increases the size. To get a smaller canvas, free it first.
+ * This function adds padding / slack multiplier to the requested size.
+ * So resizes must be based on the size you need, not the size of the canvas.
+ * The function will internally account for the multiplier it uses.
  */
 static inline void
 CGGI_SizeCanvas(CGGI_GlyphCanvas *canvas, const vImagePixelCount width,
@@ -442,18 +450,31 @@ CGGI_SizeCanvas(CGGI_GlyphCanvas *canvas, const vImagePixelCount width,
         const CGGI_RenderingMode* mode)
 {
     if (canvas->image != NULL &&
-        width  < canvas->image->width &&
-        height < canvas->image->height)
+        width  * CGGI_GLYPH_CANVAS_SLACK <= canvas->image->width &&
+        height * CGGI_GLYPH_CANVAS_SLACK <= canvas->image->height)
     {
         return;
+    }
+
+    vImagePixelCount w = width * CGGI_GLYPH_CANVAS_SLACK;
+    vImagePixelCount h = height * CGGI_GLYPH_CANVAS_SLACK;
+
+    // Do not allow the canvas to be resized smaller.
+    if (canvas->image != NULL) {
+       if (w < canvas->image->width) {
+           w = canvas->image->width;
+       }
+       if (h < canvas->image->height) {
+           h = canvas->image->height;
+       }
     }
 
     // if we don't have enough space to strike the largest glyph in the
     // run, resize the canvas
     CGGI_FreeCanvas(canvas);
     CGGI_InitCanvas(canvas,
-                    width * CGGI_GLYPH_CANVAS_SLACK,
-                    height * CGGI_GLYPH_CANVAS_SLACK,
+                    w,
+                    h,
                     mode);
     JRSFontSetRenderingStyleOnContext(canvas->context, mode->cgFontMode);
 }
@@ -469,6 +490,12 @@ CGGI_ClearCanvas(CGGI_GlyphCanvas *canvas, GlyphInfo *info)
     canvasRectToClear.data = canvas->image->data;
     canvasRectToClear.height = info->height;
     canvasRectToClear.width = info->width;
+    if (canvas->image->width < canvasRectToClear.width) {
+          canvasRectToClear.width = canvas->image->width;
+    }
+    if (canvas->image->height < canvasRectToClear.height) {
+          canvasRectToClear.height = canvas->image->height;
+    }
     // use the row stride of the canvas, not the info
     canvasRectToClear.rowBytes = canvas->image->rowBytes;
 
@@ -605,10 +632,8 @@ CGGI_CreateImageForUnicode
     JRSFontRenderingStyle style = JRSFontAlignStyleForFractionalMeasurement(strike->fStyle);
 
     CGRect bbox;
-    JRSFontGetBoundingBoxesForGlyphsAndStyle(fallback, &tx, style, &glyph, 1, &bbox);
-
     CGSize advance;
-    CTFontGetAdvancesForGlyphs(fallback, kCTFontDefaultOrientation, &glyph, &advance, 1);
+    CGGlyphImages_GetGlyphMetrics(fallback, &tx, style, &glyph, 1, &bbox, &advance);
 
     // create the Sun2D GlyphInfo we are going to strike into
     GlyphInfo *info = CGGI_CreateNewGlyphInfoFrom(advance, bbox, strike, mode);
@@ -764,8 +789,8 @@ CGGI_CreateGlyphInfos(jlong *glyphInfos, const AWTStrike *strike,
     CGAffineTransform tx = strike->fTx;
     JRSFontRenderingStyle bboxCGMode = JRSFontAlignStyleForFractionalMeasurement(strike->fStyle);
 
-    JRSFontGetBoundingBoxesForGlyphsAndStyle((CTFontRef)font->fFont, &tx, bboxCGMode, glyphs, len, bboxes);
-    CTFontGetAdvancesForGlyphs((CTFontRef)font->fFont, kCTFontDefaultOrientation, glyphs, advances, len);
+    CTFontRef fontRef = (CTFontRef)font->fFont;
+    CGGlyphImages_GetGlyphMetrics(fontRef, &tx, bboxCGMode, glyphs, len, bboxes, advances);
 
     size_t maxWidth = 1;
     size_t maxHeight = 1;
@@ -783,7 +808,6 @@ CGGI_CreateGlyphInfos(jlong *glyphInfos, const AWTStrike *strike,
         CGRect bbox = bboxes[i];
 
         GlyphInfo *glyphInfo = CGGI_CreateNewGlyphInfoFrom(advance, bbox, strike, mode);
-
         if (maxWidth < glyphInfo->width)   maxWidth = glyphInfo->width;
         if (maxHeight < glyphInfo->height) maxHeight = glyphInfo->height;
 
@@ -859,22 +883,68 @@ CGGlyphImages_GetGlyphImagePtrs(jlong glyphInfos[],
         return;
     }
 
-    // just do one malloc, and carve it up for all the buffers
-    void *buffer = malloc(sizeof(CGRect) * sizeof(CGSize) *
-                          sizeof(CGGlyph) * sizeof(UniChar) * len);
-    if (buffer == NULL) {
+    CGRect *bboxes   = (CGRect*)calloc(len, sizeof(CGRect));
+    CGSize *advances = (CGSize*)calloc(len, sizeof(CGSize));
+    CGGlyph *glyphs  = (CGGlyph*)calloc(len, sizeof(CGGlyph));
+    UniChar *uniChars = (UniChar*)calloc(len, sizeof(UniChar));
+
+    if (bboxes == NULL || advances == NULL || glyphs == NULL || uniChars == NULL) {
+        free(bboxes);
+        free(advances);
+        free(glyphs);
+        free(uniChars);
         [[NSException exceptionWithName:NSMallocException
             reason:@"Failed to allocate memory for the temporary glyph strike and measurement buffers." userInfo:nil] raise];
     }
-
-    CGRect *bboxes = (CGRect *)(buffer);
-    CGSize *advances = (CGSize *)(bboxes + sizeof(CGRect) * len);
-    CGGlyph *glyphs = (CGGlyph *)(advances + sizeof(CGGlyph) * len);
-    UniChar *uniChars = (UniChar *)(glyphs + sizeof(UniChar) * len);
 
     CGGI_CreateGlyphsAndScanForComplexities(glyphInfos, strike, &mode,
                                             rawGlyphCodes, uniChars, glyphs,
                                             advances, bboxes, len);
 
-    free(buffer);
+    free(bboxes);
+    free(advances);
+    free(glyphs);
+    free(uniChars);
+}
+
+#define TX_FIXED_UNSAFE(v)  (isinf(v) || isnan(v) || fabs(v) >= (1<<30))
+
+/*
+ * Calculates bounding boxes (for given transform) and advance (for untransformed 1pt-size font) for specified glyphs.
+ */
+void
+CGGlyphImages_GetGlyphMetrics(const CTFontRef font,
+                              const CGAffineTransform *tx,
+                              const JRSFontRenderingStyle style,
+                              const CGGlyph glyphs[],
+                              size_t count,
+                              CGRect bboxes[],
+                              CGSize advances[]) {
+
+    if (TX_FIXED_UNSAFE(tx->a) || TX_FIXED_UNSAFE(tx->b) || TX_FIXED_UNSAFE(tx->c) ||
+        TX_FIXED_UNSAFE(tx->d) || TX_FIXED_UNSAFE(tx->tx) || TX_FIXED_UNSAFE(tx->tx)) {
+
+        if (bboxes) {
+            for (int i = 0; i < count; i++) {
+                bboxes[i].origin.x = 0;
+                bboxes[i].origin.y = 0;
+                bboxes[i].size.width = 0;
+                bboxes[i].size.height = 0;
+            }
+        }
+        if (advances) {
+            for (int i = 0; i < count; i++) {
+                advances[i].width = 0;
+                advances[i].height = 0;
+            }
+        }
+        return;
+    }
+
+    if (bboxes) {
+        JRSFontGetBoundingBoxesForGlyphsAndStyle(font, tx, style, glyphs, count, bboxes);
+    }
+    if (advances) {
+        CTFontGetAdvancesForGlyphs(font, kCTFontDefaultOrientation, glyphs, advances, count);
+    }
 }
