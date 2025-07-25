@@ -156,7 +156,7 @@ JNF_COCOA_ENTER(env);
     // to indicate we should use CoreText to substitute the character
     CGGlyph glyph;
     const CTFontRef fallback = CTS_CopyCTFallbackFontAndGlyphForJavaGlyphCode(awtFont, glyphCode, &glyph);
-    CTFontGetAdvancesForGlyphs(fallback, kCTFontDefaultOrientation, &glyph, &advance, 1);
+    CGGlyphImages_GetGlyphMetrics(fallback, &awtStrike->fAltTx, awtStrike->fStyle, &glyph, 1, NULL, &advance);
     CFRelease(fallback);
     advance = CGSizeApplyAffineTransform(advance, awtStrike->fFontTx);
     if (!JRSFontStyleUsesFractionalMetrics(awtStrike->fStyle)) {
@@ -193,7 +193,7 @@ JNF_COCOA_ENTER(env);
     const CTFontRef fallback = CTS_CopyCTFallbackFontAndGlyphForJavaGlyphCode(awtFont, glyphCode, &glyph);
 
     CGRect bbox;
-    JRSFontGetBoundingBoxesForGlyphsAndStyle(fallback, &tx, awtStrike->fStyle, &glyph, 1, &bbox);
+    CGGlyphImages_GetGlyphMetrics(fallback, &tx, awtStrike->fStyle, &glyph, 1, &bbox, NULL);
     CFRelease(fallback);
 
     // the origin of this bounding box is relative to the bottom-left corner baseline

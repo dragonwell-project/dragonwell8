@@ -416,16 +416,34 @@ public final class Options {
      * @param args arguments from command line
      */
     public void process(final String[] args) {
+        final LinkedList<String> prepArgList = new LinkedList<>();
+        addSystemProperties(NASHORN_ARGS_PREPEND_PROPERTY, prepArgList);
+        final LinkedList<String> postArgList = new LinkedList<>();
+        addSystemProperties(NASHORN_ARGS_PROPERTY, postArgList);
         final LinkedList<String> argList = new LinkedList<>();
-        addSystemProperties(NASHORN_ARGS_PREPEND_PROPERTY, argList);
+        for (final String arg : args) {
+            if (arg.startsWith(definePropPrefix)) {
+                final String value = arg.substring(definePropPrefix.length());
+                final int eq = value.indexOf('=');
+                if (eq != -1) {
+                    String name = value.substring(0, eq);
+                    if (name.equals(NASHORN_ARGS_PREPEND_PROPERTY)) {
+                        addNashornProperties(value.substring(eq + 1), prepArgList, false);
+                        continue;
+                    } else if (name.equals(NASHORN_ARGS_PROPERTY)) {
+                        addNashornProperties(value.substring(eq + 1), postArgList, true);
+                        continue;
+                    }
+                }
+            }
+            argList.add(arg);
+        }
+        processArgList(prepArgList);
+        assert prepArgList.isEmpty();
         processArgList(argList);
         assert argList.isEmpty();
-        Collections.addAll(argList, args);
-        processArgList(argList);
-        assert argList.isEmpty();
-        addSystemProperties(NASHORN_ARGS_PROPERTY, argList);
-        processArgList(argList);
-        assert argList.isEmpty();
+        processArgList(postArgList);
+        assert postArgList.isEmpty();
     }
 
     private void processArgList(final LinkedList<String> argList) {
@@ -515,6 +533,23 @@ public final class Options {
             final StringTokenizer st = new StringTokenizer(sysArgs);
             while (st.hasMoreTokens()) {
                 argList.add(st.nextToken());
+            }
+        }
+    }
+
+    private static void addNashornProperties(final String args, final LinkedList<String> argList, boolean prepend) {
+        if (args != null) {
+            final StringTokenizer st = new StringTokenizer(args);
+            final LinkedList<String> prepArgList = new LinkedList<>();
+            while (st.hasMoreTokens()) {
+                if (prepend) {
+                    prepArgList.add(st.nextToken());
+                } else {
+                    argList.add(st.nextToken());
+                }
+            }
+            if (prepend) {
+                argList.addAll(0,prepArgList);
             }
         }
     }
