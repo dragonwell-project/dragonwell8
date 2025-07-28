@@ -36,7 +36,9 @@ import java.util.StringTokenizer;
 import sun.misc.VM;
 import sun.net.util.IPAddressUtil;
 import sun.security.util.SecurityConstants;
-
+import java.security.AccessControlContext;
+import java.security.AccessController;
+import sun.security.action.GetBooleanAction;
 /**
  * Class {@code URL} represents a Uniform Resource
  * Locator, a pointer to a "resource" on the World
@@ -227,7 +229,16 @@ public final class URL implements java.io.Serializable {
     private int hashCode = -1;
 
     private transient UrlDeserializedState tempState;
+    private static boolean DISABLE_HOSTNAME_CHECK = privilegedGetProperty("java.net.URL.disableHostnameCheck");
 
+    private static boolean privilegedGetProperty(String theProp) {
+        if (System.getSecurityManager() == null) {
+            return Boolean.getBoolean(theProp);
+        } else {
+            return AccessController.doPrivileged(
+                    new GetBooleanAction(theProp));
+        }
+    }
     /**
      * Creates a {@code URL} object from the specified
      * {@code protocol}, {@code host}, {@code port}
@@ -423,7 +434,7 @@ public final class URL implements java.io.Serializable {
             throw new MalformedURLException("unknown protocol: " + protocol);
         }
         this.handler = handler;
-        if (host != null && isBuiltinStreamHandler(handler)) {
+        if (!DISABLE_HOSTNAME_CHECK && host != null && isBuiltinStreamHandler(handler)) {
             String s = IPAddressUtil.checkExternalForm(this);
             if (s != null) {
                 throw new MalformedURLException(s);
@@ -987,7 +998,7 @@ public final class URL implements java.io.Serializable {
      */
     public URI toURI() throws URISyntaxException {
         URI uri = new URI(toString());
-        if (authority != null && isBuiltinStreamHandler(handler)) {
+        if (!DISABLE_HOSTNAME_CHECK && authority != null && isBuiltinStreamHandler(handler)) {
             String s = IPAddressUtil.checkAuthority(this);
             if (s != null) throw new URISyntaxException(authority, s);
         }
