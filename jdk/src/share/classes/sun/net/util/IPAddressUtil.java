@@ -28,6 +28,9 @@ package sun.net.util;
 import java.net.URL;
 import java.nio.CharBuffer;
 import java.util.Arrays;
+import java.security.AccessControlContext;
+import java.security.AccessController;
+import sun.security.action.GetBooleanAction;
 
 import sun.security.action.GetPropertyAction;
 
@@ -350,6 +353,16 @@ public class IPAddressUtil {
             65109,65110,65119,65131,65283,65295,65306,65311,65312
     };
 
+    private static boolean DISABLE_HOSTNAME_CHECK = privilegedGetProperty("java.net.URL.disableHostnameCheck");
+
+    private static boolean privilegedGetProperty(String theProp) {
+        if (System.getSecurityManager() == null) {
+            return Boolean.getBoolean(theProp);
+        } else {
+            return AccessController.doPrivileged(
+                    new GetBooleanAction(theProp));
+        }
+    }
     // Tell whether the given character is found by the given mask pair
     public static boolean match(char c, long lowMask, long highMask) {
         if (c < 64)
@@ -398,6 +411,7 @@ public class IPAddressUtil {
 
     private static String checkUserInfo(String str) {
         // colon is permitted in user info
+        if (DISABLE_HOSTNAME_CHECK) return null;
         int index = scan(str, L_EXCLUDE & ~L_COLON,
                 H_EXCLUDE & ~H_COLON);
         if (index >= 0) {
@@ -409,6 +423,7 @@ public class IPAddressUtil {
 
     private static String checkHost(String str) {
         int index;
+        if (DISABLE_HOSTNAME_CHECK) return null;
         if (str.startsWith("[") && str.endsWith("]")) {
             str = str.substring(1, str.length() - 1);
             if (isIPv6LiteralAddress(str)) {
@@ -436,6 +451,7 @@ public class IPAddressUtil {
     }
 
     private static String checkAuth(String str) {
+        if (DISABLE_HOSTNAME_CHECK) return null;
         int index = scan(str,
                 L_EXCLUDE & ~L_AUTH_DELIMS,
                 H_EXCLUDE & ~H_AUTH_DELIMS);
@@ -449,6 +465,7 @@ public class IPAddressUtil {
     // check authority of hierarchical URL. Appropriate for
     // HTTP-like protocol handlers
     public static String checkAuthority(URL url) {
+        if (DISABLE_HOSTNAME_CHECK) return null;
         String s, u, h;
         if (url == null) return null;
         if ((s = checkUserInfo(u = url.getUserInfo())) != null) {
@@ -466,6 +483,7 @@ public class IPAddressUtil {
     // minimal syntax checks - deeper check may be performed
     // by the appropriate protocol handler
     public static String checkExternalForm(URL url) {
+        if (DISABLE_HOSTNAME_CHECK) return null;
         String s;
         if (url == null) return null;
         int index = scan(s = url.getUserInfo(),
@@ -483,6 +501,7 @@ public class IPAddressUtil {
 
     public static String checkHostString(String host) {
         if (host == null) return null;
+        if (DISABLE_HOSTNAME_CHECK) return null;
         int index = scan(host,
                 L_NON_PRINTABLE | L_SLASH,
                 H_NON_PRINTABLE | H_SLASH,
