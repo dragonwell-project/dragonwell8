@@ -158,17 +158,6 @@ public class FtpURLConnection extends URLConnection {
     }
 
     static URL checkURL(URL u) throws IllegalArgumentException {
-        if (u != null) {
-            if (u.toExternalForm().indexOf('\n') > -1) {
-                Exception mfue = new MalformedURLException("Illegal character in URL");
-                throw new IllegalArgumentException(mfue.getMessage(), mfue);
-            }
-        }
-        String s = IPAddressUtil.checkAuthority(u);
-        if (s != null) {
-            Exception mfue = new MalformedURLException(s);
-            throw new IllegalArgumentException(mfue.getMessage(), mfue);
-        }
         return u;
     }
 
