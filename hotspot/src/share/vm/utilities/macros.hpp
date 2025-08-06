@@ -173,6 +173,17 @@
 #define JFR_ONLY(code)
 #endif
 
+// Alibaba AI-Extension
+#ifndef INCLUDE_AIEXT
+#define INCLUDE_AIEXT 0
+#endif
+
+#if INCLUDE_AIEXT
+#define AIEXT_ONLY(code) code
+#else
+#define AIEXT_ONLY(code)
+#endif
+
 // COMPILER1 variant
 #ifdef COMPILER1
 #ifdef COMPILER2

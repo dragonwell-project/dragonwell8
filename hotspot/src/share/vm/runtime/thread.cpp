@@ -119,6 +119,9 @@
 #if INCLUDE_JFR
 #include "jfr/jfr.hpp"
 #endif
+#if INCLUDE_AIEXT
+#include "opto/aiExtension.hpp"
+#endif
 
 PRAGMA_FORMAT_MUTE_WARNINGS_FOR_GCC
 
@@ -3722,6 +3725,12 @@ jint Threads::create_vm(JavaVMInitArgs* args, bool* canTryAgain) {
 
   jint ergo_result = Arguments::apply_ergo();
   if (ergo_result != JNI_OK) return ergo_result;
+
+#if INCLUDE_AIEXT
+  if (!AIExt::init()) {
+    return JNI_EINVAL;
+  }
+#endif // INCLUDE_AIEXT
 
   if (PauseAtStartup) {
     os::pause();

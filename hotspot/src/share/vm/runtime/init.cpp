@@ -37,7 +37,9 @@
 #include "runtime/sharedRuntime.hpp"
 #include "services/memTracker.hpp"
 #include "utilities/macros.hpp"
-
+#if INCLUDE_AIEXT
+#include "opto/aiExtension.hpp"
+#endif
 
 // Initialization done by VM thread in vm_init_globals()
 void check_ThreadShadow();
@@ -179,6 +181,9 @@ void exit_globals() {
       SymbolTable::dump(tty);
       StringTable::dump(tty);
     }
+#if INCLUDE_AIEXT
+    AIExt::destroy();
+#endif // INCLUDE_AIEXT
     ostream_exit();
   }
 }

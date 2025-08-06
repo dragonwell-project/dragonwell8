@@ -447,4 +447,7 @@ public class WhiteBox {
 
   // Decoder
   public native void disableElfSectionCache();
+
+  // AI-Extension support
+  public native boolean isAIExtSupported();
 }

@@ -850,6 +850,7 @@ JDK_MICRO_VERSION
 JDK_MINOR_VERSION
 JDK_MAJOR_VERSION
 USER_RELEASE_SUFFIX
+ENABLE_AIEXT
 ENABLE_JFR
 COMPRESS_JARS
 UNLIMITED_CRYPTO
@@ -1068,6 +1069,7 @@ enable_hotspot_test_in_build
 with_cacerts_file
 enable_unlimited_crypto
 enable_jfr
+enable_aiext
 with_milestone
 with_update_version
 with_user_release_suffix
@@ -1857,6 +1859,7 @@ Optional Features:
   --enable-unlimited-crypto
                           Enable unlimited crypto policy [disabled]
   --disable-jfr           Disable Java Flight Recorder support [enabled]
+  --disable-aiext         Disable AI-Extension support [enabled]
   --disable-debug-symbols disable generation of debug symbols [enabled]
   --disable-zip-debug-info
                           disable zipping of debug-info files [enabled]
@@ -4432,7 +4435,7 @@ VS_TOOLSET_SUPPORTED_2022=true
 #CUSTOM_AUTOCONF_INCLUDE
 
 # Do not change or remove the following line, it is needed for consistency checks:
-DATE_WHEN_GENERATED=1716396030
+DATE_WHEN_GENERATED=1769678056
 
 ###############################################################################
 #
@@ -20325,6 +20328,46 @@ fi
   fi
   { $as_echo "$as_me:${as_lineno-$LINENO}: result: $ENABLE_JFR" >&5
 $as_echo "$ENABLE_JFR" >&6; }
+
+
+  ###############################################################################
+  #
+  # Enable or disable AI-Extension
+  #
+  { $as_echo "$as_me:${as_lineno-$LINENO}: checking whether to build AI-Extension" >&5
+$as_echo_n "checking whether to build AI-Extension... " >&6; }
+  # Check whether --enable-aiext was given.
+if test "${enable_aiext+set}" = set; then :
+  enableval=$enable_aiext;
+else
+  enable_aiext=auto
+fi
+
+  if test "x$enable_aiext" = "xno"; then
+    ENABLE_AIEXT=false
+  elif test "x$enable_aiext" = "xyes" -o "x$enable_aiext" = "xauto"; then
+    if test "x$JVM_VARIANT_SERVER" != "xtrue"; then
+      if test "x$enable_aiext" = "xyes"; then
+        as_fn_error $? "cannot enable AI-Extension on non-server build" "$LINENO" 5
+      else
+        ENABLE_AIEXT=false
+      fi
+    elif test "x$OPENJDK_TARGET_OS" != xlinux || \
+         (test "x$OPENJDK_TARGET_CPU" != xx86_64 && \
+          test "x$OPENJDK_TARGET_CPU" != xaarch64); then
+      if test "x$enable_aiext" = "xyes"; then
+        as_fn_error $? "Only Linux x86-64/aarch64 support AI-Extension" "$LINENO" 5
+      else
+        ENABLE_AIEXT=false
+      fi
+    else
+      ENABLE_AIEXT=true
+    fi
+  else
+    as_fn_error $? "--enable-aiext must be set to either yes or no" "$LINENO" 5
+  fi
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: $ENABLE_AIEXT" >&5
+$as_echo "$ENABLE_AIEXT" >&6; }
 
 
 

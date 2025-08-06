@@ -33,6 +33,8 @@ import java.util.concurrent.Callable;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import sun.hotspot.WhiteBox;
+
 /**
  * The Class to be invoked by jtreg prior Test Suite execution to
  * collect information about VM.
@@ -53,6 +55,7 @@ public class VMProps implements Callable<Map<String, String>> {
         map.put("vm.compMode", vmCompMode());
         map.put("vm.bits", vmBits());
         map.put("vm.debug", vmDebug());
+        map.put("vm.aiext", vmAIExt());
         dump(map);
         return map;
     }
@@ -109,6 +112,15 @@ public class VMProps implements Callable<Map<String, String>> {
      */
     protected String vmDebug() {
         return "" + System.getProperty("java.vm.version").toLowerCase().contains("debug");
+    }
+
+    /**
+     * Checks AI-Extension support.
+     *
+     * @return true if AI-Extension is supported.
+     */
+    private String vmAIExt() {
+        return "" + WhiteBox.getWhiteBox().isAIExtSupported();
     }
 
     /**

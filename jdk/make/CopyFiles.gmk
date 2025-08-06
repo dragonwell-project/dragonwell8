@@ -45,6 +45,7 @@ H_TARGET_FILES = $(INCLUDEDIR)/jdwpTransport.h \
     $(OPENJDK_TARGET_OS_INCLUDE)/jni_md.h \
     $(OPENJDK_TARGET_OS_INCLUDE)/jawt_md.h \
     $(INCLUDEDIR)/tenantenv.h \
+    $(INCLUDEDIR)/aiext.h \
 
 $(INCLUDEDIR)/%.h: $(JDK_TOPDIR)/src/share/javavm/export/%.h
 	$(call install-file)

@@ -1562,6 +1562,14 @@ WB_ENTRY(jint, WB_GetOffsetForName(JNIEnv* env, jobject o, jstring name))
 WB_END
 #endif // INCLUDE_CDS
 
+WB_ENTRY(jboolean, WB_IsAIExtSupported(JNIEnv* env))
+#if INCLUDE_AIEXT
+  return true;
+#else
+  return false;
+#endif // INCLUDE_AIEXT
+WB_END
+
 #define CC (char*)
 
 static JNINativeMethod methods[] = {
@@ -1712,6 +1720,7 @@ static JNINativeMethod methods[] = {
   {CC"isInCurrentTLAB",    CC"(Ljava/lang/Object;)Z", (void*)&WB_IsInCurrentTLAB },
   {CC"gcLockCritical",            CC"()V",            (void*)&WB_GCLockCritical},
   {CC"gcUnlockCritical",          CC"()V",            (void*)&WB_GCUnlockCritical},
+  {CC"isAIExtSupported", CC"()Z",                     (void*)&WB_IsAIExtSupported},
 };
 
 #undef CC

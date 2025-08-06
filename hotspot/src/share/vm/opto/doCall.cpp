@@ -39,6 +39,9 @@
 #include "opto/subnode.hpp"
 #include "prims/nativeLookup.hpp"
 #include "runtime/sharedRuntime.hpp"
+#if INCLUDE_AIEXT
+#include "opto/aiExtension.hpp"
+#endif
 
 void trace_type_profile(Compile* C, ciMethod *method, int depth, int bci, ciMethod *prof_method, ciKlass *prof_klass, int site_count, int receiver_count) {
   if (TraceTypeProfile || C->print_inlining()) {
@@ -105,6 +108,17 @@ CallGenerator* Compile::call_generator(ciMethod* callee, int vtable_index, bool 
     }
     log->end_elem();
   }
+
+#if INCLUDE_AIEXT
+  // Handle native acceleration before intrinsic, to make sure we can always
+  // call the replaced version of the current method.
+  if (callee->accel_call_entry() != NULL) {
+    void* native_func = callee->accel_call_entry()->get_native_func();
+    if (native_func != NULL) {
+      return new AccelCallGenerator(callee, call_does_dispatch, native_func);
+    }
+  }
+#endif // INCLUDE_AIEXT
 
   // Special case the handling of certain common, profitable library
   // methods.  If these methods are replaced with specialized code,

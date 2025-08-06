@@ -94,6 +94,9 @@
 #ifdef TARGET_OS_FAMILY_bsd
 # include "os_bsd.inline.hpp"
 #endif
+#if INCLUDE_AIEXT
+#include "opto/aiExtension.hpp"
+#endif
 
 static jint CurrentVersion = JNI_VERSION_1_8;
 
@@ -5277,6 +5280,13 @@ static jint JNI_CreateJavaVM_inner(JavaVM **vm, void **penv, void *args) {
 
     // Since this is not a JVM_ENTRY we have to set the thread state manually before leaving.
     ThreadStateTransition::transition_and_fence(thread, _thread_in_vm, _thread_in_native);
+#if INCLUDE_AIEXT
+    if (!AIExt::post_init()) {
+      // Failed to perform post initialization for AI-Extension units,
+      // just exit VM.
+      vm_exit(1);
+    }
+#endif // INCLUDE_AIEXT
   } else {
     if (can_try_again) {
       // reset safe_to_recreate_vm to 1 so that retrial would be possible
