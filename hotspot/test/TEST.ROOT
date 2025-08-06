@@ -34,10 +34,13 @@ groups=TEST.groups [closed/TEST.groups]
 # Source files for classes that will be used at the beginning of each test suite run,
 # to determine additional characteristics of the system for use with the @requires tag.
 requires.extraPropDefns = ../../test/jtreg-ext/requires/VMProps.java
+requires.extraPropDefns.bootlibs = ../../test/lib/sun
+requires.extraPropDefns.vmOpts = -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI -Xbootclasspath/a:bootClasses
 requires.properties=sun.arch.data.model \
     vm.flavor \
     vm.bits \
-    vm.debug
+    vm.debug \
+    vm.aiext
 
 # Minimum jtreg version
 requiredVersion=4.2 b13

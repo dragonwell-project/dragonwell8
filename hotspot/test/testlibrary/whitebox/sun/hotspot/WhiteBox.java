@@ -278,4 +278,6 @@ public class WhiteBox {
   // TLAB
   public native boolean isInCurrentTLAB(Object obj);
 
+  // AI-Extension support
+  public native boolean isAIExtSupported();
 }

@@ -204,6 +204,14 @@
   product(bool, UseBigDecimalOpt, true,                                     \
           "use binary search in zero stripping of BigDecimal")              \
                                                                             \
+  AIEXT_ONLY(experimental(bool, UseAIExtension, false,                      \
+                     "Enable Alibaba Dragonwell AI Extension"))             \
+                                                                            \
+  AIEXT_ONLY(experimental(ccstrlist, AIExtensionUnit, "",                   \
+                     "Load external AI-Extension units"))                   \
+                                                                            \
+  AIEXT_ONLY(experimental(bool, PrintAIExtensionDetails, false,             \
+                     "Print AI-Extension detail information to stdout"))    \
   //add new AJVM specific flags here
 
 

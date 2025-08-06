@@ -651,6 +651,7 @@ public:
   friend class CounterDecay;
   static Klass* try_get_next_class();
 
+  static Dictionary*         dictionary() { return _dictionary; }
   static Dictionary*         shared_dictionary() { return _shared_dictionary; }
 protected:
   static void validate_protection_domain(instanceKlassHandle klass,
@@ -659,7 +660,6 @@ protected:
 
   friend class VM_PopulateDumpSharedSpace;
   friend class TraversePlaceholdersClosure;
-  static Dictionary*         dictionary() { return _dictionary; }
   static PlaceholderTable*   placeholders() { return _placeholders; }
   static LoaderConstraintTable* constraints() { return _loader_constraints; }
   static ResolutionErrorTable* resolution_errors() { return _resolution_errors; }

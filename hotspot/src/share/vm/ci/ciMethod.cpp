@@ -57,6 +57,9 @@
 #include "ci/ciTypeFlow.hpp"
 #include "oops/method.hpp"
 #endif
+#if INCLUDE_AIEXT
+#include "opto/aiExtension.hpp"
+#endif
 
 // ciMethod
 //
@@ -97,6 +100,11 @@ ciMethod::ciMethod(methodHandle h_m, ciInstanceKlass* holder) :
   _flow               = NULL;
   _bcea               = NULL;
 #endif // COMPILER2 || SHARK
+
+#if INCLUDE_AIEXT
+  // Get entry of accelerated call.
+  _accel_call_entry = AIExt::find(h_m->klass_name(), h_m->name(), h_m->signature());
+#endif // INCLUDE_AIEXT
 
   ciEnv *env = CURRENT_ENV;
   if (env->jvmti_can_hotswap_or_post_breakpoint() && can_be_compiled()) {
@@ -165,6 +173,9 @@ ciMethod::ciMethod(ciInstanceKlass* holder,
   _holder(                 holder),
   _intrinsic_id(           vmIntrinsics::_none),
   _liveness(               NULL),
+#if INCLUDE_AIEXT
+  _accel_call_entry(       NULL),
+#endif // INCLUDE_AIEXT
   _can_be_statically_bound(false),
   _method_blocks(          NULL),
   _method_data(            NULL)

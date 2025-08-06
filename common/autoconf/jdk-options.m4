@@ -461,6 +461,40 @@ AC_DEFUN_ONCE([JDKOPT_SETUP_JDK_OPTIONS],
   fi
   AC_MSG_RESULT([$ENABLE_JFR])
   AC_SUBST(ENABLE_JFR)
+
+  ###############################################################################
+  #
+  # Enable or disable AI-Extension
+  #
+  AC_MSG_CHECKING([whether to build AI-Extension])
+  AC_ARG_ENABLE(aiext, [AS_HELP_STRING([--disable-aiext],
+      [Disable AI-Extension support @<:@enabled@:>@])],,
+      [enable_aiext=auto])
+  if test "x$enable_aiext" = "xno"; then
+    ENABLE_AIEXT=false
+  elif test "x$enable_aiext" = "xyes" -o "x$enable_aiext" = "xauto"; then
+    if test "x$JVM_VARIANT_SERVER" != "xtrue"; then
+      if test "x$enable_aiext" = "xyes"; then
+        AC_MSG_ERROR([cannot enable AI-Extension on non-server build])
+      else
+        ENABLE_AIEXT=false
+      fi
+    elif test "x$OPENJDK_TARGET_OS" != xlinux || \
+         (test "x$OPENJDK_TARGET_CPU" != xx86_64 && \
+          test "x$OPENJDK_TARGET_CPU" != xaarch64); then
+      if test "x$enable_aiext" = "xyes"; then
+        AC_MSG_ERROR([Only Linux x86-64/aarch64 support AI-Extension])
+      else
+        ENABLE_AIEXT=false
+      fi
+    else
+      ENABLE_AIEXT=true
+    fi
+  else
+    AC_MSG_ERROR([--enable-aiext must be set to either yes or no])
+  fi
+  AC_MSG_RESULT([$ENABLE_AIEXT])
+  AC_SUBST(ENABLE_AIEXT)
 ])
 
 ###############################################################################

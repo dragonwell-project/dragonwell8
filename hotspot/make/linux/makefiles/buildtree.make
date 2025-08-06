@@ -211,6 +211,12 @@ else
   INCLUDE_JFR = 0
 endif
 
+ifeq ($(ENABLE_AIEXT), true)
+  INCLUDE_AIEXT = 1
+else
+  INCLUDE_AIEXT = 0
+endif
+
 
 flags.make: $(BUILDTREE_MAKE) ../shared_dirs.lst
 	@echo Creating $@ ...
@@ -292,6 +298,7 @@ flags.make: $(BUILDTREE_MAKE) ../shared_dirs.lst
 	    echo "HOTSPOT_EXTRA_SYSDEFS\$$(HOTSPOT_EXTRA_SYSDEFS) = $(HOTSPOT_EXTRA_SYSDEFS)" && \
 	    echo "SYSDEFS += \$$(HOTSPOT_EXTRA_SYSDEFS)"; \
 	echo && echo "CFLAGS += -DINCLUDE_JFR=$(INCLUDE_JFR)"; \
+	echo && echo "CFLAGS += -DINCLUDE_AIEXT=$(INCLUDE_AIEXT)"; \
 	echo; \
 	[ -n "$(SPEC)" ] && \
 	    echo "include $(SPEC)"; \

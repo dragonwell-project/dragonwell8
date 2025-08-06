@@ -212,6 +212,11 @@ ifeq ($(Platform_arch_model), x86_64)
 Src_Files_EXCLUDE += \*x86_32\*
 endif
 
+# Special handling of AI-Extension.
+ifneq ($(ENABLE_AIEXT),true)
+Src_Files_EXCLUDE += aiext.cpp aiExtension.cpp
+endif
+
 # Alternate vm.make
 # This has to be included here to allow changes to the source
 # directories and excluded files before they are expanded
