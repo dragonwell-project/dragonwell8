@@ -44,8 +44,8 @@ runs:
       id: maven
       run: |
         mkdir -p /opt/maven
-        wget https://dlcdn.apache.org/maven/maven-3/3.8.8/binaries/apache-maven-3.8.8-bin.tar.gz
-        tar -xvf apache-maven-3.8.8-bin.tar.gz -C /opt/maven --strip-components=1
+        wget https://dlcdn.apache.org/maven/maven-3/3.8.9/binaries/apache-maven-3.8.9-bin.tar.gz
+        tar -xvf apache-maven-3.8.9-bin.tar.gz -C /opt/maven --strip-components=1
         echo "::set-output name=path::/opt/maven"
       shell: bash
 

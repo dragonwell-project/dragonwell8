@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -417,7 +417,11 @@ public class BasicTabbedPaneUI extends TabbedPaneUI implements SwingConstants {
         }
         tabPane.addContainerListener(getHandler());
         if (tabPane.getTabCount()>0) {
-            htmlViews = createHTMLVector();
+            Boolean htmlDisabled = (Boolean)
+                                    tabPane.getClientProperty("html.disable");
+            if (!(Boolean.TRUE.equals(htmlDisabled))) {
+                htmlViews = createHTMLVector();
+            }
         }
     }
 
@@ -3584,8 +3588,10 @@ public class BasicTabbedPaneUI extends TabbedPaneUI implements SwingConstants {
 
         private void updateHtmlViews(int index) {
             String title = tabPane.getTitleAt(index);
+            Boolean htmlDisabled = (Boolean)
+                                    tabPane.getClientProperty("html.disable");
             boolean isHTML = BasicHTML.isHTMLString(title);
-            if (isHTML) {
+            if (isHTML && !(Boolean.TRUE.equals(htmlDisabled))) {
                 if (htmlViews==null) {    // Initialize vector
                     htmlViews = createHTMLVector();
                 } else {                  // Vector already exists

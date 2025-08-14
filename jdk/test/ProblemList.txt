@@ -277,8 +277,6 @@ sun/rmi/transport/tcp/DisableRMIOverHttp/DisableRMIOverHTTPTest.java    windows-
 
 # jdk_security
 
-# 8026976
-sun/security/pkcs11/ec/TestKeyFactory.java                      generic-all
 # 8180837
 sun/security/pkcs11/Secmod/AddTrustedCert.java                  generic-all
 sun/security/pkcs11/tls/TestKeyMaterial.java                    generic-all
