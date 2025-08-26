@@ -21,14 +21,15 @@
  * questions.
  */
 
-/*
-  @test
-  @bug 7154841
-  @summary JPopupMenu is overlapped by a Dock on Mac OS X
-  @author Petr Pchelko
-  @library ../../../../lib/testlibrary
-  @build ExtendedRobot jdk.testlibrary.OSInfo
-  @run main bug7154841
+/**
+ * @test
+ * @key headful
+ * @bug 7154841
+ * @summary JPopupMenu is overlapped by a Dock on Mac OS X
+ * @author Petr Pchelko
+ * @library ../../../../lib/testlibrary
+ * @build ExtendedRobot jdk.testlibrary.OSInfo
+ * @run main bug7154841
  */
 
 import java.awt.*;

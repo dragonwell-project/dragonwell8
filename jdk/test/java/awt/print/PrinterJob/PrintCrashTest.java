@@ -21,9 +21,9 @@
  * questions.
  */
 
-/*
+/**
  * @test
- * @key headful
+ * @key printer headful
  * @bug 8163889
  * @summary Printing crashes on OSX.
  * @run main PrintCrashTest

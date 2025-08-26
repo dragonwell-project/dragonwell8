@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2007, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2007, 2017, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,8 +23,9 @@
 
 import java.awt.*;
 
-/*
+/**
  * @test
+ * @key headful
  * @summary When Frame.setExtendedState(Frame.MAXIMIZED_BOTH)
  *          is called for a Frame after been called setMaximizedBounds() with
  *          certain value, Frame bounds must equal to this value.
