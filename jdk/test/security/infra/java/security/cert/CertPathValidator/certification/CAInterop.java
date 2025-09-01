@@ -377,46 +377,6 @@
  */
 
 /*
- * @test id=affirmtrustcommercialca
- * @bug 8040012
- * @summary Interoperability tests with AffirmTrust Commercial CA
- * @library /test/lib
- * @build jtreg.SkippedException ValidatePathWithURL CAInterop
- * @run main/othervm -Djava.security.debug=certpath,ocsp CAInterop affirmtrustcommercialca OCSP
- * @run main/othervm -Djava.security.debug=certpath CAInterop affirmtrustcommercialca CRL
- */
-
-/*
- * @test id=affirmtrustnetworkingca
- * @bug 8040012
- * @summary Interoperability tests with AffirmTrust Networking CA
- * @library /test/lib
- * @build jtreg.SkippedException ValidatePathWithURL CAInterop
- * @run main/othervm -Djava.security.debug=certpath,ocsp CAInterop affirmtrustnetworkingca OCSP
- * @run main/othervm -Djava.security.debug=certpath CAInterop affirmtrustnetworkingca CRL
- */
-
-/*
- * @test id=affirmtrustpremiumca
- * @bug 8040012
- * @summary Interoperability tests with AffirmTrust Premium CA
- * @library /test/lib
- * @build jtreg.SkippedException ValidatePathWithURL CAInterop
- * @run main/othervm -Djava.security.debug=certpath,ocsp CAInterop affirmtrustpremiumca OCSP
- * @run main/othervm -Djava.security.debug=certpath CAInterop affirmtrustpremiumca CRL
- */
-
-/*
- * @test id=affirmtrustpremiumeccca
- * @bug 8040012
- * @summary Interoperability tests with AffirmTrust Premium ECC CA
- * @library /test/lib
- * @build jtreg.SkippedException ValidatePathWithURL CAInterop
- * @run main/othervm -Djava.security.debug=certpath,ocsp CAInterop affirmtrustpremiumeccca OCSP
- * @run main/othervm -Djava.security.debug=certpath CAInterop affirmtrustpremiumeccca CRL
- */
-
-/*
  * @test id=teliarootcav2
  * @bug 8317373
  * @summary Interoperability tests with Telia Root CA V2
@@ -676,20 +636,6 @@ public class CAInterop {
             case "teliarootcav2":
                     return new CATestURLs("https://juolukka.cover.telia.fi:10600",
                             "https://juolukka.cover.telia.fi:10601");
-
-            // These are listed at https://www.affirmtrust.com/resources/
-            case "affirmtrustcommercialca":
-                    return new CATestURLs("https://validcommercial.affirmtrust.com",
-                            "https://revokedcommercial.affirmtrust.com");
-            case "affirmtrustnetworkingca":
-                    return new CATestURLs("https://validnetworking.affirmtrust.com",
-                            "https://revokednetworking.affirmtrust.com");
-            case "affirmtrustpremiumca":
-                    return new CATestURLs("https://validpremium.affirmtrust.com",
-                            "https://revokedpremium.affirmtrust.com");
-            case "affirmtrustpremiumeccca":
-                    return new CATestURLs("https://validpremiumecc.affirmtrust.com",
-                            "https://revokedpremiumecc.affirmtrust.com");
 
             case "emsignrootcag1":
                     return new CATestURLs("https://testovg1.emsign.com/RootOVG1.html",
