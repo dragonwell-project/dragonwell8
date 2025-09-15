@@ -107,6 +107,11 @@ $(eval $(call SetupNativeCompilation,BUILD_LIBJ2GSS, \
         $(call SET_SHARED_LIBRARY_ORIGIN), \
     LDFLAGS_SUFFIX := $(LIBDL), \
     LDFLAGS_SUFFIX_solaris := -lc, \
+    VERSIONINFO_RESOURCE := $(JDK_TOPDIR)/src/windows/resource/version.rc, \
+    RC_FLAGS := $(RC_FLAGS) \
+        -D "JDK_FNAME=j2gss.dll" \
+        -D "JDK_INTERNAL_NAME=j2gss" \
+        -D "JDK_FTYPE=0x2L", \
     OBJECT_DIR := $(JDK_OUTPUTDIR)/objs/libj2gss, \
     DEBUG_SYMBOLS := $(DEBUG_ALL_BINARIES)))
 
@@ -124,6 +129,11 @@ ifeq ($(OPENJDK_TARGET_OS), windows)
     LDFLAGS := $(LDFLAGS_JDKLIB) \
         $(call SET_SHARED_LIBRARY_ORIGIN), \
     LDFLAGS_SUFFIX := $(LIBDL), \
+    VERSIONINFO_RESOURCE := $(JDK_TOPDIR)/src/windows/resource/version.rc, \
+    RC_FLAGS := $(RC_FLAGS) \
+        -D "JDK_FNAME=sspi_bridge.dll" \
+        -D "JDK_INTERNAL_NAME=sspi_bridge" \
+        -D "JDK_FTYPE=0x2L", \
     OBJECT_DIR := $(JDK_OUTPUTDIR)/objs/libsspi_bridge, \
     DEBUG_SYMBOLS := $(DEBUG_ALL_BINARIES)))
 
