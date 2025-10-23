@@ -377,46 +377,6 @@
  */
 
 /*
- * @test id=affirmtrustcommercialca
- * @bug 8040012
- * @summary Interoperability tests with AffirmTrust Commercial CA
- * @library /test/lib
- * @build jtreg.SkippedException ValidatePathWithURL CAInterop
- * @run main/othervm -Djava.security.debug=certpath,ocsp CAInterop affirmtrustcommercialca OCSP
- * @run main/othervm -Djava.security.debug=certpath CAInterop affirmtrustcommercialca CRL
- */
-
-/*
- * @test id=affirmtrustnetworkingca
- * @bug 8040012
- * @summary Interoperability tests with AffirmTrust Networking CA
- * @library /test/lib
- * @build jtreg.SkippedException ValidatePathWithURL CAInterop
- * @run main/othervm -Djava.security.debug=certpath,ocsp CAInterop affirmtrustnetworkingca OCSP
- * @run main/othervm -Djava.security.debug=certpath CAInterop affirmtrustnetworkingca CRL
- */
-
-/*
- * @test id=affirmtrustpremiumca
- * @bug 8040012
- * @summary Interoperability tests with AffirmTrust Premium CA
- * @library /test/lib
- * @build jtreg.SkippedException ValidatePathWithURL CAInterop
- * @run main/othervm -Djava.security.debug=certpath,ocsp CAInterop affirmtrustpremiumca OCSP
- * @run main/othervm -Djava.security.debug=certpath CAInterop affirmtrustpremiumca CRL
- */
-
-/*
- * @test id=affirmtrustpremiumeccca
- * @bug 8040012
- * @summary Interoperability tests with AffirmTrust Premium ECC CA
- * @library /test/lib
- * @build jtreg.SkippedException ValidatePathWithURL CAInterop
- * @run main/othervm -Djava.security.debug=certpath,ocsp CAInterop affirmtrustpremiumeccca OCSP
- * @run main/othervm -Djava.security.debug=certpath CAInterop affirmtrustpremiumeccca CRL
- */
-
-/*
  * @test id=teliarootcav2
  * @bug 8317373
  * @summary Interoperability tests with Telia Root CA V2
@@ -612,20 +572,20 @@ public class CAInterop {
                     "https://revoked.sfig2.catest.starfieldtech.com");
 
             case "globalsigneccrootcar4":
-                    return new CATestURLs("https://good.gsr4.demo.pki.goog",
-                    "https://revoked.gsr4.demo.pki.goog");
+                    return new CATestURLs("https://good.gsr4.demosite.pki.goog",
+                    "https://revoked.gsr4.demosite.pki.goog");
             case "gtsrootcar1":
-                    return new CATestURLs("https://good.gtsr1.demo.pki.goog",
-                    "https://revoked.gtsr1.demo.pki.goog");
+                    return new CATestURLs("https://good.gtsr1.demosite.pki.goog",
+                    "https://revoked.gtsr1.demosite.pki.goog");
             case "gtsrootcar2":
-                    return new CATestURLs("https://good.gtsr2.demo.pki.goog",
-                    "https://revoked.gtsr2.demo.pki.goog");
+                    return new CATestURLs("https://good.gtsr2.demosite.pki.goog",
+                    "https://revoked.gtsr2.demosite.pki.goog");
             case "gtsrootecccar3":
-                    return new CATestURLs("https://good.gtsr3.demo.pki.goog",
-                    "https://revoked.gtsr3.demo.pki.goog");
+                    return new CATestURLs("https://good.gtsr3.demosite.pki.goog",
+                    "https://revoked.gtsr3.demosite.pki.goog");
             case "gtsrootecccar4":
-                    return new CATestURLs("https://good.gtsr4.demo.pki.goog",
-                    "https://revoked.gtsr4.demo.pki.goog");
+                    return new CATestURLs("https://good.gtsr4.demosite.pki.goog",
+                    "https://revoked.gtsr4.demosite.pki.goog");
 
             case "microsoftecc2017":
                     return new CATestURLs("https://acteccroot2017.pki.microsoft.com",
@@ -676,20 +636,6 @@ public class CAInterop {
             case "teliarootcav2":
                     return new CATestURLs("https://juolukka.cover.telia.fi:10600",
                             "https://juolukka.cover.telia.fi:10601");
-
-            // These are listed at https://www.affirmtrust.com/resources/
-            case "affirmtrustcommercialca":
-                    return new CATestURLs("https://validcommercial.affirmtrust.com",
-                            "https://revokedcommercial.affirmtrust.com");
-            case "affirmtrustnetworkingca":
-                    return new CATestURLs("https://validnetworking.affirmtrust.com",
-                            "https://revokednetworking.affirmtrust.com");
-            case "affirmtrustpremiumca":
-                    return new CATestURLs("https://validpremium.affirmtrust.com",
-                            "https://revokedpremium.affirmtrust.com");
-            case "affirmtrustpremiumeccca":
-                    return new CATestURLs("https://validpremiumecc.affirmtrust.com",
-                            "https://revokedpremiumecc.affirmtrust.com");
 
             case "emsignrootcag1":
                     return new CATestURLs("https://testovg1.emsign.com/RootOVG1.html",

@@ -21,7 +21,9 @@
  * questions.
  */
 
-/* @test
+/**
+ * @test
+ * @key headful
  * @bug 8157827
  * @summary AWT_Desktop/Automated/Exceptions/BasicTest loads incorrect GTK
  * version when jdk.gtk.version=3

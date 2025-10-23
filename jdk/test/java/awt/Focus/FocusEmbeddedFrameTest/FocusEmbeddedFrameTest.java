@@ -21,15 +21,17 @@
  * questions.
  */
 
-/*
-  @test
-  @bug       6516675
-  @summary   Tests that EmbeddedFrame can be focused.
-  @author    anton.tarasov: area=awt-focus
-  @library   ../../regtesthelpers
-  @build     Util UtilInternal
-  @run       main FocusEmbeddedFrameTest
-*/
+/**
+ * @test
+ * @key       headful
+ * @bug       6516675
+ * @summary   Tests that EmbeddedFrame can be focused.
+ * @author    anton.tarasov: area=awt-focus
+ * @requires (os.family == "windows")
+ * @library ../../regtesthelpers
+ * @build     Util UtilInternal
+ * @run       main FocusEmbeddedFrameTest
+ */
 
 import java.awt.*;
 import java.awt.event.*;
