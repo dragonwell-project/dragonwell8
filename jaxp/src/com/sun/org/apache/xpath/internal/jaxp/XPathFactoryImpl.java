@@ -187,6 +187,7 @@ public  class XPathFactoryImpl extends XPathFactory {
                 if (value && _featureManager != null) {
                     _featureManager.setFeature(JdkXmlFeatures.XmlFeature.ENABLE_EXTENSION_FUNCTION,
                             JdkXmlFeatures.State.FSP, false);
+                    _xmlSecMgr.setSecureProcessing(value);
                 }
 
                 // all done processing feature

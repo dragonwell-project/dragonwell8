@@ -55,6 +55,7 @@
 #include <errno.h>
 
 #include <sys/poll.h>
+#include "jvm.h"
 
 /*
  * Stack allocated by thread when doing blocking operation
@@ -376,61 +377,61 @@ int NET_SocketClose(int fd) {
 /************** Basic I/O operations here ***************/
 
 /*
- * Macro to perform a blocking IO operation. Restarts
- * automatically if interrupted by signal (other than
- * our wakeup signal)
+ * Macro to perform a blocking IO operation.
+ * If interrupted by signal (other than our wakeup signal), and if RETRY is true,
+ * then restarts automatically
  */
-#define BLOCKING_IO_RETURN_INT(FD, FUNC) {      \
-    int ret;                                    \
-    threadEntry_t self;                         \
-    fdEntry_t *fdEntry = getFdEntry(FD);        \
-    if (fdEntry == NULL) {                      \
-        errno = EBADF;                          \
-        return -1;                              \
-    }                                           \
-    do {                                        \
-        startOp(fdEntry, &self);                \
-        ret = FUNC;                             \
-        endOp(fdEntry, &self);                  \
-    } while (ret == -1 && errno == EINTR);      \
-    return ret;                                 \
+#define BLOCKING_IO_RETURN_INT(FD, FUNC, RETRY) {     \
+    int ret;                                          \
+    threadEntry_t self;                               \
+    fdEntry_t *fdEntry = getFdEntry(FD);              \
+    if (fdEntry == NULL) {                            \
+        errno = EBADF;                                \
+        return -1;                                    \
+    }                                                 \
+    do {                                              \
+        startOp(fdEntry, &self);                      \
+        ret = FUNC;                                   \
+        endOp(fdEntry, &self);                        \
+    } while ((RETRY) && ret == -1 && errno == EINTR); \
+    return ret;                                       \
 }
 
 int NET_Read(int s, void* buf, size_t len) {
-    BLOCKING_IO_RETURN_INT( s, recv(s, buf, len, 0) );
+    BLOCKING_IO_RETURN_INT( s, recv(s, buf, len, 0), JNI_TRUE );
 }
 
 int NET_NonBlockingRead(int s, void* buf, size_t len) {
-    BLOCKING_IO_RETURN_INT(s, recv(s, buf, len, MSG_NONBLOCK));
+    BLOCKING_IO_RETURN_INT(s, recv(s, buf, len, MSG_NONBLOCK), JNI_TRUE );
 }
 
 int NET_ReadV(int s, const struct iovec * vector, int count) {
-    BLOCKING_IO_RETURN_INT( s, readv(s, vector, count) );
+    BLOCKING_IO_RETURN_INT( s, readv(s, vector, count), JNI_TRUE );
 }
 
 int NET_RecvFrom(int s, void *buf, int len, unsigned int flags,
        struct sockaddr *from, int *fromlen) {
     socklen_t socklen = *fromlen;
-    BLOCKING_IO_RETURN_INT( s, recvfrom(s, buf, len, flags, from, &socklen) );
+    BLOCKING_IO_RETURN_INT( s, recvfrom(s, buf, len, flags, from, &socklen), JNI_TRUE );
     *fromlen = socklen;
 }
 
 int NET_Send(int s, void *msg, int len, unsigned int flags) {
-    BLOCKING_IO_RETURN_INT( s, send(s, msg, len, flags) );
+    BLOCKING_IO_RETURN_INT( s, send(s, msg, len, flags), JNI_TRUE );
 }
 
 int NET_WriteV(int s, const struct iovec * vector, int count) {
-    BLOCKING_IO_RETURN_INT( s, writev(s, vector, count) );
+    BLOCKING_IO_RETURN_INT( s, writev(s, vector, count), JNI_TRUE );
 }
 
 int NET_SendTo(int s, const void *msg, int len,  unsigned  int
        flags, const struct sockaddr *to, int tolen) {
-    BLOCKING_IO_RETURN_INT( s, sendto(s, msg, len, flags, to, tolen) );
+    BLOCKING_IO_RETURN_INT( s, sendto(s, msg, len, flags, to, tolen), JNI_TRUE );
 }
 
 int NET_Accept(int s, struct sockaddr *addr, int *addrlen) {
     socklen_t socklen = *addrlen;
-    BLOCKING_IO_RETURN_INT( s, accept(s, addr, &socklen) );
+    BLOCKING_IO_RETURN_INT( s, accept(s, addr, &socklen), JNI_TRUE );
     *addrlen = socklen;
 }
 
@@ -490,13 +491,13 @@ int NET_Connect(int s, struct sockaddr *addr, int addrlen) {
 
 #ifndef USE_SELECT
 int NET_Poll(struct pollfd *ufds, unsigned int nfds, int timeout) {
-    BLOCKING_IO_RETURN_INT( ufds[0].fd, poll(ufds, nfds, timeout) );
+    BLOCKING_IO_RETURN_INT( ufds[0].fd, poll(ufds, nfds, timeout), JNI_FALSE );
 }
 #else
 int NET_Select(int s, fd_set *readfds, fd_set *writefds,
                fd_set *exceptfds, struct timeval *timeout) {
     BLOCKING_IO_RETURN_INT( s-1,
-                            select(s, readfds, writefds, exceptfds, timeout) );
+                            select(s, readfds, writefds, exceptfds, timeout), JNI_TRUE );
 }
 #endif
 

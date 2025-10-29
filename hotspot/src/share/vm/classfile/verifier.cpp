@@ -668,7 +668,6 @@ void ClassVerifier::verify_method(methodHandle m, TRAPS) {
     // Merge with the next instruction
     {
       u2 index;
-      int target;
       VerificationType type, type2;
       VerificationType atype;
 
@@ -1480,9 +1479,8 @@ void ClassVerifier::verify_method(methodHandle m, TRAPS) {
         case Bytecodes::_ifle:
           current_frame.pop_stack(
             VerificationType::integer_type(), CHECK_VERIFY(this));
-          target = bcs.dest();
           stackmap_table.check_jump_target(
-            &current_frame, target, CHECK_VERIFY(this));
+            &current_frame, bcs.bci(), bcs.get_offset_s2(), CHECK_VERIFY(this));
           no_control_flow = false; break;
         case Bytecodes::_if_acmpeq :
         case Bytecodes::_if_acmpne :
@@ -1493,19 +1491,16 @@ void ClassVerifier::verify_method(methodHandle m, TRAPS) {
         case Bytecodes::_ifnonnull :
           current_frame.pop_stack(
             VerificationType::reference_check(), CHECK_VERIFY(this));
-          target = bcs.dest();
           stackmap_table.check_jump_target
-            (&current_frame, target, CHECK_VERIFY(this));
+            (&current_frame, bcs.bci(), bcs.get_offset_s2(), CHECK_VERIFY(this));
           no_control_flow = false; break;
         case Bytecodes::_goto :
-          target = bcs.dest();
           stackmap_table.check_jump_target(
-            &current_frame, target, CHECK_VERIFY(this));
+            &current_frame, bcs.bci(), bcs.get_offset_s2(), CHECK_VERIFY(this));
           no_control_flow = true; break;
         case Bytecodes::_goto_w :
-          target = bcs.dest_w();
           stackmap_table.check_jump_target(
-            &current_frame, target, CHECK_VERIFY(this));
+            &current_frame, bcs.bci(), bcs.get_offset_s4(), CHECK_VERIFY(this));
           no_control_flow = true; break;
         case Bytecodes::_tableswitch :
         case Bytecodes::_lookupswitch :
@@ -2107,15 +2102,14 @@ void ClassVerifier::verify_switch(
       }
     }
   }
-  int target = bci + default_offset;
-  stackmap_table->check_jump_target(current_frame, target, CHECK_VERIFY(this));
+  stackmap_table->check_jump_target(current_frame, bci, default_offset, CHECK_VERIFY(this));
   for (int i = 0; i < keys; i++) {
     // Because check_jump_target() may safepoint, the bytecode could have
     // moved, which means 'aligned_bcp' is no good and needs to be recalculated.
     aligned_bcp = (address)round_to((intptr_t)(bcs->bcp() + 1), jintSize);
-    target = bci + (jint)Bytes::get_Java_u4(aligned_bcp+(3+i*delta)*jintSize);
+    int offset = (jint)Bytes::get_Java_u4(aligned_bcp+(3+i*delta)*jintSize);
     stackmap_table->check_jump_target(
-      current_frame, target, CHECK_VERIFY(this));
+      current_frame, bci, offset, CHECK_VERIFY(this));
   }
   NOT_PRODUCT(aligned_bcp = NULL);  // no longer valid at this point
 }
@@ -2376,8 +2370,13 @@ bool ClassVerifier::ends_in_athrow(u4 start_bc_offset) {
         break;
 
       case Bytecodes::_goto:
-      case Bytecodes::_goto_w:
-        target = (opcode == Bytecodes::_goto ? bcs.dest() : bcs.dest_w());
+      case Bytecodes::_goto_w: {
+        int offset = (opcode == Bytecodes::_goto ? bcs.get_offset_s2() : bcs.get_offset_s4());
+        int min_offset = -1 * max_method_code_size;
+        // Check offset for overflow
+        if (offset < min_offset || offset > max_method_code_size) return false;
+
+        target = bci + offset;
         if (visited_branches->contains(bci)) {
           if (bci_stack->is_empty()) {
             if (handler_stack->is_empty()) {
@@ -2398,6 +2397,7 @@ bool ClassVerifier::ends_in_athrow(u4 start_bc_offset) {
           visited_branches->append(bci);
         }
         break;
+        }
 
       // Check that all switch alternatives end in 'athrow' bytecodes. Since it
       // is  difficult to determine where each switch alternative ends, parse
@@ -2434,7 +2434,10 @@ bool ClassVerifier::ends_in_athrow(u4 start_bc_offset) {
 
           // Push the switch alternatives onto the stack.
           for (int i = 0; i < keys; i++) {
-            u4 target = bci + (jint)Bytes::get_Java_u4(aligned_bcp+(3+i*delta)*jintSize);
+            int min_offset = -1 * max_method_code_size;
+            int offset = (jint)Bytes::get_Java_u4(aligned_bcp+(3+i*delta)*jintSize);
+            if (offset < min_offset || offset > max_method_code_size) return false;
+            u4 target = bci + offset;
             if (target > code_length) return false;
             bci_stack->push(target);
           }
