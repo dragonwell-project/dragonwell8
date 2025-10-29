@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2009, 2017, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,12 +21,14 @@
  * questions.
  */
 
-/* @test
-   @bug 6713352
-   @summary Deadlock in JFileChooser with synchronized custom FileSystemView
-   @author Pavel Porvatov
-   @run main bug6713352
-*/
+/**
+ * @test
+ * @key headful
+ * @bug 6713352
+ * @summary Deadlock in JFileChooser with synchronized custom FileSystemView
+ * @author Pavel Porvatov
+ * @run main bug6713352
+ */
 
 import sun.awt.shell.ShellFolder;
 

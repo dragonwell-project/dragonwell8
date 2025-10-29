@@ -120,7 +120,7 @@ public class GenerateCurrencyData {
 
     private static final int maxOtherCurrencies = 128;
     private static int otherCurrenciesCount = 0;
-    private static StringBuffer otherCurrencies = new StringBuffer();
+    private static String[] otherCurrencies = new String[maxOtherCurrencies];
     private static int[] otherCurrenciesDefaultFractionDigits = new int[maxOtherCurrencies];
     private static int[] otherCurrenciesNumericCode= new int[maxOtherCurrencies];
 
@@ -323,10 +323,7 @@ public class GenerateCurrencyData {
                 if (otherCurrenciesCount == maxOtherCurrencies) {
                     throw new RuntimeException("too many other currencies");
                 }
-                if (otherCurrencies.length() > 0) {
-                    otherCurrencies.append('-');
-                }
-                otherCurrencies.append(currencyCode);
+                otherCurrencies[otherCurrenciesCount] = currencyCode;
                 otherCurrenciesDefaultFractionDigits[otherCurrenciesCount] = getDefaultFractionDigits(currencyCode);
                 otherCurrenciesNumericCode[otherCurrenciesCount] = getNumericCode(currencyCode);
                 otherCurrenciesCount++;
@@ -355,35 +352,41 @@ public class GenerateCurrencyData {
         out.writeInt(Integer.parseInt(dataVersion));
         writeIntArray(mainTable, mainTable.length);
         out.writeInt(specialCaseCount);
-        writeLongArray(specialCaseCutOverTimes, specialCaseCount);
-        writeStringArray(specialCaseOldCurrencies, specialCaseCount);
-        writeStringArray(specialCaseNewCurrencies, specialCaseCount);
-        writeIntArray(specialCaseOldCurrenciesDefaultFractionDigits, specialCaseCount);
-        writeIntArray(specialCaseNewCurrenciesDefaultFractionDigits, specialCaseCount);
-        writeIntArray(specialCaseOldCurrenciesNumericCode, specialCaseCount);
-        writeIntArray(specialCaseNewCurrenciesNumericCode, specialCaseCount);
+        writeSpecialCaseEntries();
         out.writeInt(otherCurrenciesCount);
-        out.writeUTF(otherCurrencies.toString());
-        writeIntArray(otherCurrenciesDefaultFractionDigits, otherCurrenciesCount);
-        writeIntArray(otherCurrenciesNumericCode, otherCurrenciesCount);
+        writeOtherCurrencies();
     }
 
     private static void writeIntArray(int[] ia, int count) throws IOException {
-        for (int i = 0; i < count; i ++) {
+        for (int i = 0; i < count; i++) {
             out.writeInt(ia[i]);
         }
     }
 
-    private static void writeLongArray(long[] la, int count) throws IOException  {
-        for (int i = 0; i < count; i ++) {
-            out.writeLong(la[i]);
+    private static void writeSpecialCaseEntries() throws IOException {
+        for (int index = 0; index < specialCaseCount; index++) {
+            out.writeLong(specialCaseCutOverTimes[index]);
+            String str = (specialCaseOldCurrencies[index] != null)
+                    ? specialCaseOldCurrencies[index] : "";
+            out.writeUTF(str);
+            str = (specialCaseNewCurrencies[index] != null)
+                    ? specialCaseNewCurrencies[index] : "";
+            out.writeUTF(str);
+            out.writeInt(specialCaseOldCurrenciesDefaultFractionDigits[index]);
+            out.writeInt(specialCaseNewCurrenciesDefaultFractionDigits[index]);
+            out.writeInt(specialCaseOldCurrenciesNumericCode[index]);
+            out.writeInt(specialCaseNewCurrenciesNumericCode[index]);
         }
     }
 
-    private static void writeStringArray(String[] sa, int count) throws IOException  {
-        for (int i = 0; i < count; i ++) {
-            String str = (sa[i] != null) ? sa[i] : "";
+    private static void writeOtherCurrencies() throws IOException {
+        for (int index = 0; index < otherCurrenciesCount; index++) {
+            String str = (otherCurrencies[index] != null)
+                    ? otherCurrencies[index] : "";
             out.writeUTF(str);
+            out.writeInt(otherCurrenciesDefaultFractionDigits[index]);
+            out.writeInt(otherCurrenciesNumericCode[index]);
         }
     }
+
 }

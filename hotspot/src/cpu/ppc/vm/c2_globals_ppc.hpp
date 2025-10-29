@@ -83,7 +83,7 @@ define_pd_global(intx, ReservedCodeCacheSize,        256*M);
 define_pd_global(intx, CodeCacheExpansionSize,       64*K);
 
 // Ergonomics related flags
-define_pd_global(uint64_t,MaxRAM,                    4ULL*G);
+define_pd_global(uint64_t,MaxRAM,                    128ULL*G);
 define_pd_global(uintx, CodeCacheMinBlockLength,     4);
 define_pd_global(uintx, CodeCacheMinimumUseSpace,    400*K);
 
