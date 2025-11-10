@@ -21,8 +21,9 @@
  * questions.
  */
 
-/*
+/**
  * @test
+ * @key headful
  * @bug 8171949 8214046
  * @summary Tests that bitwise mask is set and state listener is notified during state transition.
  * @author Dmitry Markov

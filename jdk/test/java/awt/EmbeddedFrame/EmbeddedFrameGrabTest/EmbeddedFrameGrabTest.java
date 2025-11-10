@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,19 +21,16 @@
  * questions.
  */
 
-/*
- @test
- @bug 6345002
- @summary grab problems with EmbeddedFrame
- @requires (os.family == "windows")
- @author Oleg.Semenov@sun.com area=EmbeddedFrame
- @run main EmbeddedFrameGrabTest
- */
 /**
- * EmbeddedFrameGrabTest.java
- *
- * summary: grab problems with EmbeddedFrame
+ * @test
+ * @key headful
+ * @bug 6345003
+ * @summary grab problems with EmbeddedFrame
+ * @requires (os.family == "windows")
+ * @author Oleg.Semenov@sun.com area=EmbeddedFrame
+ * @run main EmbeddedFrameGrabTest
  */
+
 import java.awt.Frame;
 import java.awt.peer.FramePeer;
 import javax.swing.JComboBox;
