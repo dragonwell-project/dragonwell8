@@ -357,16 +357,23 @@ void os::init_system_properties_values() {
   // Important note: if the location of libjvm.so changes this
   // code needs to be changed accordingly.
 
-// See ld(1):
-//      The linker uses the following search paths to locate required
-//      shared libraries:
-//        1: ...
-//        ...
-//        7: The default directories, normally /lib and /usr/lib.
+  // See ld(1):
+  //      The linker uses the following search paths to locate required
+  //      shared libraries:
+  //        1: ...
+  //        ...
+  //        7: The default directories, normally /lib and /usr/lib.
 #if defined(AMD64) || defined(_LP64) && (defined(SPARC) || defined(PPC) || defined(S390))
-#define DEFAULT_LIBPATH "/usr/lib64:/lib64:/lib:/usr/lib"
+  #define DEFAULT_LIBPATH "/usr/lib64:/lib64:/lib:/usr/lib"
 #else
-#define DEFAULT_LIBPATH "/lib:/usr/lib"
+#if defined(AARCH64)
+  // Use 32-bit locations first for AARCH64 (a 64-bit architecture), since some systems
+  // might not adhere to the FHS and it would be a change in behaviour if we used
+  // DEFAULT_LIBPATH of other 64-bit architectures which prefer the 64-bit paths.
+  #define DEFAULT_LIBPATH "/lib:/usr/lib:/usr/lib64:/lib64"
+#else
+  #define DEFAULT_LIBPATH "/lib:/usr/lib"
+#endif // AARCH64
 #endif
 
 // Base path of extensions installed on the system.
