@@ -3832,6 +3832,11 @@ void AwtComponent::SetCompositionWindow(RECT& r)
         return;
     }
     COMPOSITIONFORM cf = {CFS_DEFAULT, {0, 0}, {0, 0, 0, 0}};
+    LOGFONT lf;
+    HFONT hFont = (HFONT) GetStockObject(DEFAULT_GUI_FONT);
+    if (GetObject(hFont, sizeof(lf), (LPVOID)&lf) == sizeof(lf)) {
+        ImmSetCompositionFont(hIMC, &lf);
+    }
     ImmSetCompositionWindow(hIMC, &cf);
     ImmReleaseContext(hwnd, hIMC);
 }
