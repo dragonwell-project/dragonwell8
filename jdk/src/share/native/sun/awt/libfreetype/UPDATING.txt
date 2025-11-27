@@ -12,6 +12,8 @@ Import just what is needed.
 Before attempting compilation be sure to diff the JDK copy and the freetype copy
 of src/java.desktop/share/native/libfreetype/include/freetype/config/ftoption.h
 and re-apply the same edits made for the JDK option file.
+Also modules the JDK does not include must be commented out in
+src/java.desktop/share/native/libfreetype/include/freetype/config/ftmodule.h.
 Notably JDK is not using GZIP or LZW or BDF support which are on by default
 for the freetype distribution.
 If you don't make the edits the build will fail due to not copying the relevant
@@ -19,9 +21,15 @@ sources.
 
 Use "expand" and "sed" to remove tabs and trailing white space from the imported
 sources. The current version of freetype is quite clean in this respect.
-./src/base/md5.h and ./src/base/md5.c are the only files with tabs,
-and ./include/freetype/ftdriver.h has the only trailing white space.
+None of files we import have tabs, and ./include/freetype/freetype.h,
+and ./include/freetype/ftlcdfil.h have the only trailing white space.
 If you forget this step, or aren't thorough, jcheck will remind you.
 
 Remember to update the freetype version identified in
 src/java.desktop/share/legal/freetype.md
+
+When updating specify --with-freetype=bundled to test builds to
+expose build issues.
+This is important because presently on Linux and Solaris the build
+defaults to linking against the system library and does not attempt
+to compile the sources.
