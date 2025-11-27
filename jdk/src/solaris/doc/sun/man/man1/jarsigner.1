@@ -624,6 +624,11 @@ Informational warnings include those that are not errors but regarded as bad pra
 hasExpiringCert
 This jar contains entries whose signer certificate will expire within six months\&.
 .TP     
+internalInconsistenciesDetected
+This jar contains internal inconsistencies detected during verification
+that may result in different contents when reading via JarFile
+and JarInputStream\&.
+.TP     
 noTimestamp
 This jar contains signatures that does not include a timestamp\&. Without a timestamp, users may not be able to validate this JAR file after the signer certificate\&'s expiration date (\f3YYYY-MM-DD\fR) or after any future revocation date\&.
 .SH EXAMPLES    
