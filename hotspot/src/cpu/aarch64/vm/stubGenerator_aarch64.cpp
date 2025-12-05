@@ -1093,7 +1093,7 @@ class StubGenerator: public StubCodeGenerator {
 
   void copy_memory_small(Register s, Register d, Register count, Register tmp, int step) {
     bool is_backwards = step < 0;
-    size_t granularity = uabs(step);
+    size_t granularity = g_uabs(step);
     int direction = is_backwards ? -1 : 1;
     int unit = wordSize * direction;
 
@@ -1149,7 +1149,7 @@ class StubGenerator: public StubCodeGenerator {
                    Register count, Register tmp, int step) {
     copy_direction direction = step < 0 ? copy_backwards : copy_forwards;
     bool is_backwards = step < 0;
-    int granularity = uabs(step);
+    unsigned int granularity = g_uabs(step);
     const Register t0 = r3, t1 = r4;
 
     // <= 96 bytes do inline. Direction doesn't matter because we always
