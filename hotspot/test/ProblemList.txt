@@ -49,6 +49,7 @@ runtime/LoadClass/LoadClassNegative.java 8028095 generic-all
 runtime/NMT/MallocStressTest.java 8166548 generic-all
 runtime/InitialThreadOverflow/testme.sh 8029139 generic-all
 runtime/memory/ReadFromNoaccessArea.java 8028398 generic-all
+runtime/containers/docker/TestCPUAwareness.java 8370492 linux-all
 
 # :hotspot_compiler
 
