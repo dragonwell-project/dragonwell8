@@ -33,6 +33,7 @@
 #include "mlib_image.h"
 #include "mlib_ImageConv.h"
 #include "mlib_c_ImageConv.h"
+#include "safe_math.h"
 
 /***************************************************************/
 #ifdef i386 /* do not copy by mlib_d64 data type for x86 */
@@ -234,6 +235,9 @@ mlib_status mlib_c_conv2x2nw_s16(mlib_image       *dst,
   LOAD_KERNEL_INTO_DOUBLE();
   GET_SRC_DST_PARAMETERS(DTYPE);
 
+  if (!SAFE_TO_ADD(wid, 1)) {
+    return MLIB_FAILURE;
+  }
   wid1 = (wid + 1) &~ 1;
 
   if (wid1 > BUFF_LINE) {
@@ -375,8 +379,14 @@ mlib_status mlib_c_conv2x2ext_s16(mlib_image       *dst,
   LOAD_KERNEL_INTO_DOUBLE();
   GET_SRC_DST_PARAMETERS(DTYPE);
 
+  if (!SAFE_TO_ADD(wid, D_KER)) {
+    return MLIB_FAILURE;
+  }
   swid = wid + D_KER;
 
+  if (!SAFE_TO_ADD(swid, 1)) {
+    return MLIB_FAILURE;
+  }
   wid1 = (swid + 1) &~ 1;
 
   if (wid1 > BUFF_LINE) {
@@ -527,6 +537,9 @@ mlib_status mlib_c_conv2x2nw_u16(mlib_image       *dst,
   LOAD_KERNEL_INTO_DOUBLE();
   GET_SRC_DST_PARAMETERS(DTYPE);
 
+  if (!SAFE_TO_ADD(wid, 1)) {
+    return MLIB_FAILURE;
+  }
   wid1 = (wid + 1) &~ 1;
 
   if (wid1 > BUFF_LINE) {
@@ -672,8 +685,14 @@ mlib_status mlib_c_conv2x2ext_u16(mlib_image       *dst,
   LOAD_KERNEL_INTO_DOUBLE();
   GET_SRC_DST_PARAMETERS(DTYPE);
 
+  if (!SAFE_TO_ADD(wid, D_KER)) {
+    return MLIB_FAILURE;
+  }
   swid = wid + D_KER;
 
+  if (!SAFE_TO_ADD(swid, 1)) {
+    return MLIB_FAILURE;
+  }
   wid1 = (swid + 1) &~ 1;
 
   if (wid1 > BUFF_LINE) {
@@ -826,6 +845,9 @@ mlib_status mlib_c_conv2x2nw_u8(mlib_image       *dst,
   LOAD_KERNEL_INTO_DOUBLE();
   GET_SRC_DST_PARAMETERS(DTYPE);
 
+  if (!SAFE_TO_ADD(wid, 1)) {
+    return MLIB_FAILURE;
+  }
   wid1 = (wid + 1) &~ 1;
 
   if (wid1 > BUFF_LINE) {
@@ -977,8 +999,14 @@ mlib_status mlib_c_conv2x2ext_u8(mlib_image       *dst,
   LOAD_KERNEL_INTO_DOUBLE();
   GET_SRC_DST_PARAMETERS(DTYPE);
 
+  if (!SAFE_TO_ADD(wid, D_KER)) {
+    return MLIB_FAILURE;
+  }
   swid = wid + D_KER;
 
+  if (!SAFE_TO_ADD(swid, 1)) {
+    return MLIB_FAILURE;
+  }
   wid1 = (swid + 1) &~ 1;
 
   if (wid1 > BUFF_LINE) {
