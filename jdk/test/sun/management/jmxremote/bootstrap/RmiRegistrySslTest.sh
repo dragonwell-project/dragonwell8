@@ -34,6 +34,7 @@ echo `basename $0 .sh` : Non SSL RMIRegistry - Non SSL Lookup
 echo -------------------------------------------------------------
 
 ${TESTJAVA}/bin/java ${TESTVMOPTS} -classpath ${TESTCLASSES} \
+    -Djdk.rmi.ssl.client.enableEndpointIdentification=false \
     -Dtest.src=${TESTSRC} \
     -DtestID=Test1 \
     -Dcom.sun.management.config.file=${TESTSRC}/rmiregistry.properties \
@@ -44,6 +45,7 @@ echo `basename $0 .sh` : SSL RMIRegistry - Non SSL Lookup
 echo -------------------------------------------------------------
 
 ${TESTJAVA}/bin/java ${TESTVMOPTS} -classpath ${TESTCLASSES} \
+    -Djdk.rmi.ssl.client.enableEndpointIdentification=false \
     -Dtest.src=${TESTSRC} \
     -DtestID=Test2 \
     -Dcom.sun.management.config.file=${TESTSRC}/rmiregistryssl.properties \
@@ -54,6 +56,7 @@ echo `basename $0 .sh` : SSL RMIRegistry - SSL Lookup
 echo -------------------------------------------------------------
 
 ${TESTJAVA}/bin/java ${TESTVMOPTS} -classpath ${TESTCLASSES} \
+    -Djdk.rmi.ssl.client.enableEndpointIdentification=false \
     -Dtest.src=${TESTSRC} \
     -DtestID=Test3 \
     -Djavax.net.ssl.keyStore=${TESTSRC}/ssl/keystore \
