@@ -23,7 +23,7 @@
 #
 
 # @test
-# @bug 6332666 6863624 7180362 8003846 8074350 8074351
+# @bug 6332666 6863624 7180362 8003846 8074350 8074351 7102969 8157138
 # @summary tests the capability of replacing the currency data with user
 #     specified currency properties file
 # @build PropertiesTest
@@ -122,6 +122,16 @@ echo "Properties location: ${PROPLOCATION}"
 # run
 echo ''
 sh -xc "${WRITABLEJDK}${FS}bin${FS}java ${TESTVMOPTS} -cp ${TESTCLASSES} PropertiesTest -d dump3"
+if [ $? != 0 ]; then failures=`expr $failures + 1`; fi
+
+# run bug7102969 test
+echo ''
+${WRITABLEJDK}${FS}bin${FS}java ${TESTVMOPTS} -cp ${TESTCLASSES} PropertiesTest bug7102969
+if [ $? != 0 ]; then failures=`expr $failures + 1`; fi
+
+# run bug8157138 test
+echo ''
+${WRITABLEJDK}${FS}bin${FS}java ${TESTVMOPTS} -cp ${TESTCLASSES} PropertiesTest bug8157138
 if [ $? != 0 ]; then failures=`expr $failures + 1`; fi
 
 # Cleanup

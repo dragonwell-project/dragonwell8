@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2007, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,32 +21,17 @@
  * questions.
  */
 
-/**
- * @test
- * @key headful
- * @bug 6668439
- * @summary Verifies that no exceptions are thrown when frame is resized to 0x0
- * @author Dmitri.Trembovetski@sun.com: area=Graphics
- * @run main/othervm IAEforEmptyFrameTest
- * @run main/othervm -Dsun.java2d.d3d=false IAEforEmptyFrameTest
- */
+public class NativeThread {
 
-import javax.swing.JFrame;
+    public static final int SIGPIPE;
 
-public class IAEforEmptyFrameTest {
-    public static void main(String[] args) {
-        JFrame f = null;
-        try {
-            f = new JFrame("IAEforEmptyFrameTest");
-            f.setUndecorated(true);
-            f.setBounds(100, 100, 320, 240);
-            f.setVisible(true);
-            try { Thread.sleep(1000); } catch (Exception z) {}
-            f.setBounds(0, 0, 0, 0);
-            try { Thread.sleep(1000); } catch (Exception z) {}
-            f.dispose();
-        } finally {
-            f.dispose();
-        };
+    static {
+        SIGPIPE = getSIGPIPE();
     }
+
+    public static native long getID();
+
+    public static native int signal(long threadId, int sig);
+
+    private static native int getSIGPIPE();
 }

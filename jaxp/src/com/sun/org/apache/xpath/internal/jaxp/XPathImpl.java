@@ -20,6 +20,7 @@
 
 package com.sun.org.apache.xpath.internal.jaxp;
 
+import javax.xml.XMLConstants;
 import javax.xml.namespace.QName;
 import javax.xml.namespace.NamespaceContext;
 import javax.xml.xpath.XPathExpressionException;
@@ -180,6 +181,10 @@ public class XPathImpl implements javax.xml.xpath.XPath {
             // so we really have to create a fresh DocumentBuilder every time we need one
             // - KK
             DocumentBuilderFactory dbf = JdkXmlUtils.getDOMFactory(overrideDefaultParser);
+            if (xmlSecMgr != null && xmlSecMgr.isSecureProcessingSet()) {
+                dbf.setFeature(XMLConstants.FEATURE_SECURE_PROCESSING,
+                        xmlSecMgr.isSecureProcessing());
+            }
             return dbf.newDocumentBuilder();
         } catch (ParserConfigurationException e) {
             // this should never happen with a well-behaving JAXP implementation.

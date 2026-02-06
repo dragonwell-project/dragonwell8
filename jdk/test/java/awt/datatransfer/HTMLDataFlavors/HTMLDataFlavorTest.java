@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,15 +21,17 @@
  * questions.
  */
 
-/*
-  @test
-  @bug 7075105
-  @summary WIN: Provide a way to format HTML on drop
-  @author Denis Fokin: area=datatransfer
-  @build HtmlTransferable PutAllHtmlFlavorsOnClipboard
-  @build PutOnlyAllHtmlFlavorOnClipboard PutSelectionAndFragmentHtmlFlavorsOnClipboard
-  @run main HTMLDataFlavorTest
-*/
+/**
+ * @test
+ * @key headful
+ * @bug 7075105
+ * @summary WIN: Provide a way to format HTML on drop
+ * @author Denis Fokin: area=datatransfer
+ * @requires (os.family == "windows")
+ * @build HtmlTransferable PutAllHtmlFlavorsOnClipboard
+ * @build PutOnlyAllHtmlFlavorOnClipboard PutSelectionAndFragmentHtmlFlavorsOnClipboard
+ * @run main HTMLDataFlavorTest
+ */
 
 import java.awt.*;
 import java.awt.datatransfer.*;

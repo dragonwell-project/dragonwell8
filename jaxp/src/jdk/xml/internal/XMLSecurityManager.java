@@ -190,6 +190,12 @@ public final class XMLSecurityManager {
     boolean secureProcessing;
 
     /**
+     * Flag indicating the secure processing is set explicitly through factories'
+     * setFeature method and then the setSecureProcessing method
+     */
+    boolean secureProcessingSet;
+
+    /**
      * States that determine if properties are set explicitly
      */
     private boolean[] isSet;
@@ -236,6 +242,7 @@ public final class XMLSecurityManager {
      * Setting FEATURE_SECURE_PROCESSING explicitly
      */
     public void setSecureProcessing(boolean secure) {
+        secureProcessingSet = true;
         secureProcessing = secure;
         for (Limit limit : Limit.values()) {
             if (secure) {
@@ -252,6 +259,15 @@ public final class XMLSecurityManager {
      */
     public boolean isSecureProcessing() {
         return secureProcessing;
+    }
+
+    /**
+     * Returns the state indicating whether the Secure Processing is set explicitly,
+     * via factories' setFeature and then this class' setSecureProcessing method.
+     * @return the state indicating whether the Secure Processing is set explicitly
+     */
+    public boolean isSecureProcessingSet() {
+        return secureProcessingSet;
     }
 
     /**

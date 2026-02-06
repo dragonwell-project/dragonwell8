@@ -21,27 +21,27 @@
  * questions.
  */
 
-/* @test
-* @bug      7123767
-*
-* @summary  Check if a tooltip location in Multi-Monitor
-*           configurations is correct.
-*           If the configurations number per device exceeds 5,
-*           then some 5 random configurations will be checked.
-*           Please Use -Dseed=X to set the random generator seed
-*           (if necessary).
-*
-* @author   Vladislav Karnaukhov
-*
-* @key      headful
-* @key      randomness
-*
-* @modules  java.desktop/sun.awt
-* @library  /lib/testlibrary/
-* @build    jdk.testlibrary.*
-*
-* @run      main/timeout=300 bug7123767
-*/
+/**
+ * @test
+ * @bug      7123767
+ *
+ * @summary  Check if a tooltip location in Multi-Monitor
+ *           configurations is correct.
+ *           If the configurations number per device exceeds 5,
+ *           then some 5 random configurations will be checked.
+ *           Please Use -Dseed=X to set the random generator seed
+ *           (if necessary).
+ *
+ * @author   Vladislav Karnaukhov
+ *
+ * @key      headful randomness
+ *
+ * @modules  java.desktop/sun.awt
+ * @library  /lib/testlibrary/
+ * @build    jdk.testlibrary.*
+ *
+ * @run      main/timeout=300 bug7123767
+ */
 
 import javax.swing.*;
 import javax.swing.plaf.metal.MetalLookAndFeel;
