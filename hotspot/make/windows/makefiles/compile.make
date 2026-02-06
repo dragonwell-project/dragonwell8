@@ -172,7 +172,7 @@ COMPILER_NAME=VS2017
 !if "$(MSC_VER)" >= "1920" && "$(MSC_VER)" <= "1929"
 COMPILER_NAME=VS2019
 !endif
-!if "$(MSC_VER)" >= "1930" && "$(MSC_VER)" <= "1938"
+!if "$(MSC_VER)" >= "1930" && "$(MSC_VER)" <= "1944"
 COMPILER_NAME=VS2022
 !endif
 !endif
