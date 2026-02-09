@@ -731,13 +731,6 @@ jobs:
         with:
           path: jdk
 
-      - name: Checkout the FreeType source
-        uses: actions/checkout@v4
-        with:
-          repository: "freetype/freetype"
-          ref: VER-2-8-1
-          path: freetype
-
       - name: Restore boot JDK from cache
         id: bootjdk
         uses: actions/cache@v4
@@ -804,18 +797,11 @@ jobs:
       - name: Fix OpenJDK permissions
         run: bash -c "chmod -R 0777 jdk"
 
-      - name: Copy FreeType project file
-        run: >
-          Remove-Item "$env:GITHUB_WORKSPACE\freetype\builds\windows\vc2010\freetype.vcxproj" ;
-          Copy-Item -Path "$env:GITHUB_WORKSPACE\jdk\.github\workflows\freetype.vcxproj"
-          -Destination "$env:GITHUB_WORKSPACE\freetype\builds\windows\vc2010\freetype.vcxproj" ;
-
       - name: Configure
         run: >
           $env:Path = "$HOME\cygwin\cygwin64\bin;$HOME\cygwin\cygwin64\bin;$env:Path" ;
           $env:Path = $env:Path -split ";" -match "C:\\Windows|PowerShell|cygwin" -join ";" ;
           $env:BOOT_JDK = cygpath "$HOME/bootjdk/$env:BOOT_JDK_VERSION" ;
-          $env:FREETYPE_HOME = "$env:GITHUB_WORKSPACE\freetype" ;
           $env:JT_HOME = cygpath "$HOME/jtreg" ;
           & bash configure
           --with-toolchain-version=2017
@@ -824,7 +810,6 @@ jobs:
           --with-user-release-suffix="$env:GITHUB_ACTOR-$env:GITHUB_SHA"
           --with-build-number=b00
           --with-boot-jdk="$env:BOOT_JDK"
-          --with-freetype-src="$env:FREETYPE_HOME"
           --with-jtreg="$env:JT_HOME" ;
           bash -c "cat $(find -name config.log)"
         working-directory: jdk
@@ -881,6 +866,10 @@ jobs:
       VS2010_TORRENT_URL: "${{ fromJson(needs.prerequisites.outputs.dependencies).VS2010_TORRENT_URL }}"
       VS2010_TORRENT_DIR: "${{ fromJson(needs.prerequisites.outputs.dependencies).VS2010_TORRENT_DIR }}"
       VS2010_SHA256: "${{ fromJson(needs.prerequisites.outputs.dependencies).VS2010_SHA256 }}"
+      PS2DLC_FILENAME: "${{ fromJson(needs.prerequisites.outputs.dependencies).PS2DLC_FILENAME }}"
+      PS2DLC_DIR: "${{ fromJson(needs.prerequisites.outputs.dependencies).PS2DLC_DIR }}"
+      PS2DLC_URL: "${{ fromJson(needs.prerequisites.outputs.dependencies).PS2DLC_URL }}"
+      PS2DLC_SHA256: "${{ fromJson(needs.prerequisites.outputs.dependencies).PS2DLC_SHA256 }}"
 
     steps:
       - name: Restore cygwin installer from cache
@@ -912,13 +901,6 @@ jobs:
         with:
           path: jdk
 
-      - name: Checkout the FreeType source
-        uses: actions/checkout@v4
-        with:
-          repository: "freetype/freetype"
-          ref: VER-2-8-1
-          path: freetype
-
       - name: Restore boot JDK from cache
         id: bootjdk
         uses: actions/cache@v4
@@ -935,6 +917,26 @@ jobs:
           & unzip "$HOME/bootjdk/$env:BOOT_JDK_FILENAME" -d "$HOME/bootjdk/$env:BOOT_JDK_VERSION"
           Get-ChildItem "$HOME\bootjdk\$env:BOOT_JDK_VERSION\*\*" | Move-Item -Destination "$HOME\bootjdk\$env:BOOT_JDK_VERSION"
         if: steps.bootjdk.outputs.cache-hit != 'true'
+
+      - name: Restore PowerShell 2 from cache
+        id: ps2dlc
+        uses: actions/cache@v4
+        with:
+          path: ~/${{ env.PS2DLC_DIR }}
+          key: ps2dlc
+
+      - name: Download and unpack PowerShell 2
+        run: |
+          & curl -L "$env:PS2DLC_URL" -o "$HOME/$env:PS2DLC_FILENAME"
+          $FileHash = Get-FileHash -Algorithm SHA256 "$HOME/$env:PS2DLC_FILENAME"
+          $FileHash.Hash -eq $env:PS2DLC_SHA256
+          & unzip "$HOME/$env:PS2DLC_FILENAME" -d "$HOME"
+        if: steps.ps2dlc.outputs.cache-hit != 'true'
+
+      - name: Install PowerShell 2
+        run: |
+          cd "$HOME/$env:PS2DLC_DIR"
+          & powershell.exe -executionpolicy bypass -file ./loadGAC.ps1
 
       - name: Restore Visual Studio 2010 from cache
         id: vs2010
@@ -976,18 +978,11 @@ jobs:
       - name: Fix OpenJDK permissions
         run: bash -c "chmod -R 0777 jdk"
 
-      - name: Copy FreeType project file
-        run: >
-          Remove-Item "$env:GITHUB_WORKSPACE\freetype\builds\windows\vc2010\freetype.vcxproj" ;
-          Copy-Item -Path "$env:GITHUB_WORKSPACE\jdk\.github\workflows\freetype.vcxproj"
-          -Destination "$env:GITHUB_WORKSPACE\freetype\builds\windows\vc2010\freetype.vcxproj" ;
-
       - name: Configure
         run: >
           $env:Path = "$HOME\cygwin\cygwin64\bin;$HOME\cygwin\cygwin64\bin;$env:Path" ;
           $env:Path = $env:Path -split ";" -match "C:\\Windows|PowerShell|cygwin" -join ";" ;
           $env:BOOT_JDK = cygpath "$HOME/bootjdk/$env:BOOT_JDK_VERSION" ;
-          $env:FREETYPE_HOME = "$env:GITHUB_WORKSPACE\freetype" ;
           $env:JT_HOME = cygpath "$HOME/jtreg" ;
           & bash configure
           --with-conf-name=windows-x86
@@ -998,7 +993,6 @@ jobs:
           --with-user-release-suffix="$env:GITHUB_ACTOR-$env:GITHUB_SHA"
           --with-build-number=b00
           --with-boot-jdk="$env:BOOT_JDK"
-          --with-freetype-src="$env:FREETYPE_HOME"
           --with-jtreg="$env:JT_HOME" ;
           bash -c "cat $(find -name config.log)"
         working-directory: jdk

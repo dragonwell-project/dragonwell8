@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -62,6 +62,7 @@ final class WInputMethod extends InputMethodAdapter
     private Locale currentLocale;
     // indicate whether status window is hidden or not.
     private boolean statusWindowHidden = false;
+    private boolean hasCompositionString = false;
 
     // attribute definition in Win32 (in IMM.H)
     public final static byte ATTR_INPUT                 = 0x00;
@@ -241,6 +242,7 @@ final class WInputMethod extends InputMethodAdapter
         } else if (locale.getLanguage().equals(Locale.KOREAN.getLanguage())) {
             if (subset1 == UnicodeBlock.BASIC_LATIN || subset1 == InputSubset.LATIN_DIGITS) {
                 setOpenStatus(context, false);
+                setConversionStatus(context, IME_CMODE_ALPHANUMERIC);
             } else {
                 if (subset1 == UnicodeBlock.CJK_UNIFIED_IDEOGRAPHS
                     || subset1 == InputSubset.HANJA
@@ -258,11 +260,14 @@ final class WInputMethod extends InputMethodAdapter
         } else if (locale.getLanguage().equals(Locale.CHINESE.getLanguage())) {
             if (subset1 == UnicodeBlock.BASIC_LATIN || subset1 == InputSubset.LATIN_DIGITS) {
                 setOpenStatus(context, false);
+                newmode = getConversionStatus(context);
+                newmode &= ~IME_CMODE_FULLSHAPE;
+                setConversionStatus(context, newmode);
             } else {
                 if (subset1 == UnicodeBlock.CJK_UNIFIED_IDEOGRAPHS
                     || subset1 == InputSubset.TRADITIONAL_HANZI
                     || subset1 == InputSubset.SIMPLIFIED_HANZI)
-                    newmode = IME_CMODE_NATIVE;
+                    newmode = IME_CMODE_NATIVE | IME_CMODE_FULLSHAPE;
                 else if (subset1 == InputSubset.FULLWIDTH_LATIN)
                     newmode = IME_CMODE_FULLSHAPE;
                 else
@@ -313,6 +318,15 @@ final class WInputMethod extends InputMethodAdapter
             setLocale(currentLocale, true);
         }
 
+        // Compare IM's composition string with Java's composition string
+        if (hasCompositionString && !isCompositionStringAvailable(context)) {
+            endCompositionNative(context, DISCARD_INPUT);
+            sendInputMethodEvent(InputMethodEvent.INPUT_METHOD_TEXT_CHANGED,
+                EventQueue.getMostRecentEventTime(),
+                null, null, null, null, null, 0, 0, 0);
+            hasCompositionString = false;
+        }
+
         /* If the status window or Windows language bar is turned off due to
            native input method was switched to java input method, we
            have to turn it on otherwise it is gone for good until next time
@@ -340,6 +354,12 @@ final class WInputMethod extends InputMethodAdapter
             isLastFocussedActiveClient = haveActiveClient();
         }
         isActive = false;
+        hasCompositionString = isCompositionStringAvailable(context);
+
+        // IME is going to be disabled commit the composition string
+        if (hasCompositionString) {
+            endComposition();
+        }
     }
 
     /**
@@ -644,4 +664,5 @@ final class WInputMethod extends InputMethodAdapter
     static native Locale getNativeLocale();
     static native boolean setNativeLocale(String localeName, boolean onActivate);
     private native void openCandidateWindow(WComponentPeer peer, int x, int y);
+    private native boolean isCompositionStringAvailable(int context);
 }
