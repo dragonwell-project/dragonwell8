@@ -33,7 +33,7 @@ https://github.com/dragonwell-project/dragonwell8/releases.
 Alibaba Dragonwell is officially supported and maintained in Alibaba Cloud Linux 2 (Aliyun Linux 2) YUM repository, and this repo should be also compatible with Aliyun Linux 17.1, Red Hat Enterprise Linux 7 and CentOS 7.
 
 * For users running Alibaba Cloud Linux 2 OS, you should be able to install Alibaba Dragonwell by simply running: `sudo yum install -y java-1.8.0-alibaba-dragonwell`;
-* For users running with aforementioned compatible distros, place a new repository file under `/etc/yum.repos.d` (e.g.: `/etc/repos.d/alinux-plus.repo`) with contents as follows, then you should be able to install Alibaba Dragonwell by executing: `sudo yum install -y java-1.8.0-alibaba-dragonwell`:
+* For users running with aforementioned compatible distros, place a new repository file under `/etc/yum.repos.d` (e.g.: `/etc/yum.repos.d/alinux-plus.repo`) with contents as follows, then you should be able to install Alibaba Dragonwell by executing: `sudo yum install -y java-1.8.0-alibaba-dragonwell`:
 ```
 # plus packages provided by Aliyun Linux dev team
 [plus]
