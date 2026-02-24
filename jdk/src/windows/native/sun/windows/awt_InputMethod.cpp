@@ -528,6 +528,23 @@ JNIEXPORT jobjectArray JNICALL Java_sun_awt_windows_WInputMethodDescriptor_getNa
     CATCH_BAD_ALLOC_RET(NULL);
 }
 
+/*
+ * Class:     sun_awt_windows_WInputMethod
+ * Method:    isCompositionStringAvailable
+ * Signature: (I)Z
+ */
+JNIEXPORT jboolean JNICALL Java_sun_awt_windows_WInputMethod_isCompositionStringAvailable
+  (JNIEnv *env, jobject self, jint context)
+{
+    LONG length;
+    length = ImmGetCompositionString((HIMC)IntToPtr(context), GCS_COMPSTR, NULL, 0);
+    if (length > 0) {
+        return JNI_TRUE;
+    } else {
+        return JNI_FALSE;
+    }
+}
+
 /**
  * Class:     sun_awt_windows_WInputMethod
  * Method:    getNativeIMMDescription
