@@ -40,6 +40,11 @@ VS2017_FILENAME=vs2017.exe
 VS2017_URL=https://github.com/akashche/msvs_2017_installer_bootstrap/raw/master/vs_community__7955ddbf8a9b49dda0f8d18876e93bd2.exe
 VS2017_SHA256=ca4ebbc3bee27caa44ef91b21bc30837a028c23a046c009600038316e5976b5b
 
+PS2DLC_FILENAME=ps2DLC.zip
+PS2DLC_DIR=ps2DLC
+PS2DLC_URL=https://download.microsoft.com/download/2b37839b-e146-465a-a78c-c9066609c553/ps2DLC.zip
+PS2DLC_SHA256=d9812e7be1f72ff49d73f3179e207aa0000852d9d0efd92455ad376fad5d9b7c
+
 WINDOWS_X64_BOOT_JDK_FILENAME=openjdk-8_windows-x64_bin.zip
 WINDOWS_X64_BOOT_JDK_URL=https://github.com/adoptium/temurin8-binaries/releases/download/jdk8u322-b06/OpenJDK8U-jdk_x64_windows_hotspot_8u322b06.zip
 WINDOWS_X64_BOOT_JDK_SHA256=c9e06afb5df850e90a4da9da31c2edf10bd6da9962c4b253e91b41237f8fb2fb

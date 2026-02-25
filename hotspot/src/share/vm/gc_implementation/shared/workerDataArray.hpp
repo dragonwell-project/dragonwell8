@@ -99,13 +99,17 @@ class WorkerDataArray  : public CHeapObj<mtGC> {
 class LineBuffer: public StackObj {
 
 private:
-  static const int BUFFER_LEN = 1024;
+  static const int BUFFER_LEN = 1024*3;
   static const int INDENT_CHARS = 3;
   char _buffer[BUFFER_LEN];
   int _indent_level;
   int _cur;
 
   void vappend(const char* format, va_list ap)  ATTRIBUTE_PRINTF(2, 0) {
+    if (_cur >= BUFFER_LEN) {
+      DEBUG_ONLY(warning("previous LineBuffer overflow, request ignored");)
+      return;
+    }
     int res = vsnprintf(&_buffer[_cur], BUFFER_LEN - _cur, format, ap);
     if (res != -1) {
       _cur += res;

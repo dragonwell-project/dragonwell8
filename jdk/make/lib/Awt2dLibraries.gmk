@@ -857,6 +857,51 @@ endif
 
 ##########################################################################################
 
+ifeq ($(FREETYPE_TO_USE), system)
+  # For use by libfontmanager:
+  LIBFREETYPE_CFLAGS := $(FREETYPE_CFLAGS)
+  LIBFREETYPE_LIBS := $(FREETYPE_LIBS)
+else
+  LIBFREETYPE_SRC := $(TOPDIR)/jdk/src/share/native/sun/awt/libfreetype
+  BUILD_LIBFREETYPE_HEADER_DIRS := $(LIBFREETYPE_SRC)/include
+
+# BUILD_LIBFREETYPE_HEADERS := $(addprefix -I, $(BUILD_LIBFREETYPE_HEADER_DIRS))
+
+  # For use by libfontmanager:
+  LIBFREETYPE_CFLAGS := -I$(LIBFREETYPE_SRC)/include
+  ifeq ($(OPENJDK_TARGET_OS), windows)
+    LIBFREETYPE_LIBS := $(JDK_OUTPUTDIR)/objs/libfreetype/freetype.lib
+    # freetype now requires you to manually define this (see ftconfig.h)
+    BUILD_LIBFREETYPE_CFLAGS += -DDLL_EXPORT
+  else
+    LIBFREETYPE_LIBS := -lfreetype
+  endif
+
+  $(eval $(call SetupNativeCompilation,BUILD_LIBFREETYPE, \
+      LIBRARY := freetype, \
+      OUTPUT_DIR := $(INSTALL_LIBRARIES_HERE), \
+      SRC := $(LIBFREETYPE_SRC)/src, \
+      LANG := C, \
+      OPTIMIZATION := HIGHEST, \
+      CFLAGS := $(CFLAGS_JDKLIB) $(LIBFREETYPE_CFLAGS) \
+          $(BUILD_LIBFREETYPE_CFLAGS) \
+          -DFT2_BUILD_LIBRARY, \
+      LDFLAGS := $(LDFLAGS_JDKLIB) \
+          $(call SET_SHARED_LIBRARY_ORIGIN), \
+      VERSIONINFO_RESOURCE := $(GLOBAL_VERSION_INFO_RESOURCE), \
+      RC_FLAGS := $(RC_FLAGS) \
+          -D "JDK_FNAME=freetype.dll" \
+          -D "JDK_INTERNAL_NAME=freetype" \
+          -D "JDK_FTYPE=0x2L", \
+      OBJECT_DIR := $(JDK_OUTPUTDIR)/objs/libfreetype, \
+      DEBUG_SYMBOLS := $(DEBUG_ALL_BINARIES) \
+  ))
+
+  BUILD_LIBRARIES += $(BUILD_LIBFREETYPE)
+endif
+
+##########################################################################################
+
 ifndef OPENJDK
   FONT_HEADERS := -I$(JDK_TOPDIR)/src/closed/share/native/sun/font/t2k
   BUILD_LIBFONTMANAGER_MAPFILE := $(JDK_TOPDIR)/make/mapfiles/libfontmanager/mapfile-vers
@@ -896,6 +941,9 @@ BUILD_LIBFONTMANAGER_CFLAGS_COMMON := \
     -I$(JDK_TOPDIR)/src/share/native/sun/java2d/pipe \
     -I$(JDK_TOPDIR)/src/$(OPENJDK_TARGET_OS_API_DIR)/native/sun/java2d \
     -I$(JDK_TOPDIR)/src/share/native/sun/java2d
+
+BUILD_LIBFONTMANAGER_CFLAGS_COMMON += $(LIBFREETYPE_CFLAGS)
+BUILD_LIBFONTMANAGER_FONTLIB += $(LIBFREETYPE_LIBS)
 
 # Turn off aliasing with GCC for ExtensionSubtables.cpp
 ifeq ($(OPENJDK_TARGET_OS), linux)
