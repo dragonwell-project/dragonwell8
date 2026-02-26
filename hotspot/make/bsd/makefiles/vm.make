@@ -227,6 +227,11 @@ ifeq ($(Platform_arch_model), x86_64)
 Src_Files_EXCLUDE += \*x86_32\*
 endif
 
+# Special handling of AI-Extension.
+ifneq ($(ENABLE_AIEXT),true)
+Src_Files_EXCLUDE += aiext.cpp aiExtension.cpp
+endif
+
 # Locate all source files in the given directory, excluding files in Src_Files_EXCLUDE.
 define findsrc
 	$(notdir $(shell find $(1)/. ! -name . -prune \
