@@ -21,12 +21,12 @@
  * questions.
  */
 
-#include "opto/aiExtension.hpp"
-
 #include <string.h>
 
+#include "precompiled.hpp"
 #include "classfile/symbolTable.hpp"
 #include "memory/resourceArea.hpp"
+#include "opto/aiExtension.hpp"
 #include "opto/aiExtensionLog.hpp"
 #include "opto/callnode.hpp"
 #include "opto/graphKit.hpp"

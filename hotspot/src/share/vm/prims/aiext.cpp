@@ -21,11 +21,10 @@
  * questions.
  */
 
-#include "aiext.h"
-
 #include <string.h>
 
 #include "precompiled.hpp"
+#include "aiext.h"
 #include "classfile/classLoaderData.inline.hpp"
 #include "classfile/dictionary.hpp"
 #include "classfile/javaClasses.hpp"

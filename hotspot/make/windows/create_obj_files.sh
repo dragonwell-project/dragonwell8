@@ -132,6 +132,11 @@ case "${Platform_arch_model}" in
 	"x86_64") Src_Files_EXCLUDE="${Src_Files_EXCLUDE} *x86_32*" ;;
 esac
 
+# Special handling of AI-Extension.
+if [ "${ENABLE_AIEXT}" != "true" ]; then
+  Src_Files_EXCLUDE="${Src_Files_EXCLUDE} aiext.cpp aiExtension.cpp" ;;
+fi
+
 # Locate all source files in the given directory, excluding files in Src_Files_EXCLUDE.
 function findsrc {
     $FIND ${1}/. ! -name . -prune \
