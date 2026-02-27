@@ -134,7 +134,7 @@ esac
 
 # Special handling of AI-Extension.
 if [ "${ENABLE_AIEXT}" != "true" ]; then
-  Src_Files_EXCLUDE="${Src_Files_EXCLUDE} aiext.cpp aiExtension.cpp" ;;
+  Src_Files_EXCLUDE="${Src_Files_EXCLUDE} aiext.cpp aiExtension.cpp"
 fi
 
 # Locate all source files in the given directory, excluding files in Src_Files_EXCLUDE.
