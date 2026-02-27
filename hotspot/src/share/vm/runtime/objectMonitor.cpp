@@ -1027,6 +1027,14 @@ void ATTR ObjectMonitor::exit(bool not_suspended, TRAPS) {
        // in native code by throwing an exception.
        // TODO: Throw an IllegalMonitorStateException ?
        TEVENT (Exit - Throw IMSX) ;
+       if (UseWispMonitor) {
+        JavaThread *pt = ((WispThread*)Self)->thread();
+        tty->print_cr("[Wisp] Fatal IMSX: this=%p, pt=%p, current_coroutine=%p, self=%p (stack: %p - %p), _owner=%p, _owner->coro=%p",
+                  this, pt, ((JavaThread*)pt)->current_coroutine(), Self,
+                  ((WispThread*)Self)->coroutine()->stack()->stack_base(),
+                  ((WispThread*)Self)->coroutine()->stack()->stack_base() - ((WispThread*)Self)->coroutine()->stack()->stack_size(),
+                  _owner, ((WispThread*)_owner)->coroutine());
+        }
        assert(false, "Non-balanced monitor enter/exit!");
        if (false) {
           THROW(vmSymbols::java_lang_IllegalMonitorStateException());
