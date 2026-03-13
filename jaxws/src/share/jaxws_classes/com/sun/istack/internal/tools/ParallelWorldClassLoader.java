@@ -197,9 +197,19 @@ public class ParallelWorldClassLoader extends ClassLoader implements Closeable {
     }
 
     public synchronized void close() throws IOException {
+        IOException ioe = null;
         for (JarFile jar : jars) {
-            jar.close();
+            try {
+                jar.close();
+            } catch (IOException e) {
+                if (ioe == null) {
+                    ioe = e;
+                } else {
+                    ioe.ddSuppressed(e);
+                }
+            }
         }
+        if (ioe != null) return ioe;
     }
 
     /**
