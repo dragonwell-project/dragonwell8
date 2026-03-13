@@ -4517,7 +4517,10 @@ void create_switchTo_contents(MacroAssembler *masm, int start, OopMapSet* oop_ma
     __ movl(Address(old_coroutine, Coroutine::thread_status_offset()), temp);
     __ movl(temp, Address(thread, JavaThread::java_call_counter_offset()));
     __ movl(Address(old_coroutine, Coroutine::java_call_counter_offset()), temp);
-
+    __ movptr(temp, Address(thread, JavaThread::monitor_chunks_offset()));
+    __ movptr(Address(old_coroutine, Coroutine::monitor_chunks_offset()), temp);
+    __ movbool(temp, Address(thread, JavaThread::do_not_unlock_if_synchronized_offset()));
+    __ movbool(Address(old_coroutine, Coroutine::do_not_unlock_if_synchronized_offset()), temp);
     if (EagerAppCDS && !UseSharedSpaces) {
       __ movptr(temp, Address(thread, JavaThread::initiating_loader_offset()));
       __ movptr(Address(old_coroutine, Coroutine::initiating_loader_offset()), temp);
@@ -4562,6 +4565,10 @@ void create_switchTo_contents(MacroAssembler *masm, int start, OopMapSet* oop_ma
       __ movl(Address(temp, java_lang_Thread::thread_status_offset()), temp2);
       __ movl(temp, Address(target_coroutine, Coroutine::java_call_counter_offset()));
       __ movl(Address(thread, JavaThread::java_call_counter_offset()), temp);
+      __ movptr(temp, Address(target_coroutine, Coroutine::monitor_chunks_offset()));
+      __ movptr(Address(thread, JavaThread::monitor_chunks_offset()), temp);
+      __ movbool(temp, Address(target_coroutine, Coroutine::do_not_unlock_if_synchronized_offset()));
+      __ movbool(Address(thread, JavaThread::do_not_unlock_if_synchronized_offset()), temp);
 #ifdef ASSERT
       __ movptr(Address(target_coroutine, Coroutine::handle_area_offset()), (intptr_t)NULL_WORD);
       __ movptr(Address(target_coroutine, Coroutine::resource_area_offset()), (intptr_t)NULL_WORD);

@@ -119,6 +119,8 @@ Coroutine* Coroutine::create_thread_coroutine(JavaThread* thread, CoroutineStack
   coro->_last_SEH = NULL;
 #endif
   coro->_privileged_stack_top = NULL;
+  coro->_monitor_chunks = NULL;
+  coro->_do_not_unlock_if_synchronized = false;
   coro->_wisp_thread  = UseWispMonitor ? new WispThread(coro) : NULL;
   coro->_wisp_engine  = NULL;
   coro->_wisp_task    = NULL;
@@ -169,6 +171,8 @@ Coroutine* Coroutine::create_coroutine(JavaThread* thread, CoroutineStack* stack
   coro->_last_SEH = NULL;
 #endif
   coro->_privileged_stack_top = NULL;
+  coro->_monitor_chunks = NULL;
+  coro->_do_not_unlock_if_synchronized = false;
   coro->_wisp_thread  = UseWispMonitor ? new WispThread(coro) : NULL;
   coro->_wisp_engine  = NULL;
   coro->_wisp_task    = NULL;
@@ -307,6 +311,10 @@ void Coroutine::oops_do(OopClosure* f, CLDClosure* cld_f, CodeBlobClosure* cf) {
     _active_handles->oops_do(f);
     if (_privileged_stack_top != NULL) {
       _privileged_stack_top->oops_do(f);
+    }
+    // Traverse the monitor chunks
+    for (MonitorChunk* chunk = _monitor_chunks; chunk != NULL; chunk = chunk->next()) {
+      chunk->oops_do(f);
     }
   }
   if (_wisp_task != NULL) {
@@ -864,6 +872,8 @@ void WispThread::unpark(int task_id, bool using_wisp_park, bool proxy_unpark, Pa
 }
 
 int WispThread::get_proxy_unpark(jintArray res) {
+  HandleMark hm;
+  typeArrayHandle a(JavaThread::current(), typeArrayOop(JNIHandles::resolve_non_null(res)));
   // We need to hoist code of safepoint state out of MutexLocker to prevent safepoint deadlock problem
   // See the same usage: SR_lock in `JavaThread::exit()`
   ThreadBlockInVM tbivm(JavaThread::current());
@@ -877,8 +887,7 @@ int WispThread::get_proxy_unpark(jintArray res) {
     // current wait(true): first safepoint then hold lock to deal with the problem.
     Wisp_lock->wait(Mutex::_no_safepoint_check_flag);
   }
-  typeArrayOop a = typeArrayOop(JNIHandles::resolve_non_null(res));
-  if (a == NULL) {
+  if (a.is_null()) {
     return 0;
   }
   int copy_cnt = a->length() < _proxy_unpark->length() ? a->length() : _proxy_unpark->length();
