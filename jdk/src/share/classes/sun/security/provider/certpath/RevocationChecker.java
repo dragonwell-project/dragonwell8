@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -39,6 +39,7 @@ import java.security.cert.CertPathValidatorException.BasicReason;
 import java.security.cert.Extension;
 import java.security.cert.*;
 import java.util.*;
+import java.util.stream.Collectors;
 import javax.security.auth.x500.X500Principal;
 
 import static sun.security.provider.certpath.OCSP.*;
@@ -986,13 +987,19 @@ class RevocationChecker extends PKIXRevocationChecker {
         // any way to convey them back to the application.
         // That's the default, so no need to write code.
         builderParams.setDate(params.date());
-        builderParams.setCertPathCheckers(params.certPathCheckers());
         builderParams.setSigProvider(params.sigProvider());
 
         // Skip revocation during this build to detect circular
         // references. But check revocation afterwards, using the
         // key (or any other that works).
         builderParams.setRevocationEnabled(false);
+        // Remove itself from params to avoid circular reference.
+        builderParams.setCertPathCheckers(params.certPathCheckers()
+                .stream()
+                .filter(checker -> checker != this)
+                .collect(Collectors.collectingAndThen(
+                        Collectors.toList(),
+                        Collections::unmodifiableList)));
 
         // check for AuthorityInformationAccess extension
         if (Builder.USE_AIA == true) {

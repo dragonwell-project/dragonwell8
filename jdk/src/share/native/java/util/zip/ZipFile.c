@@ -163,7 +163,7 @@ Java_java_util_zip_ZipFile_close(JNIEnv *env, jclass cls, jlong zfile)
 
 JNIEXPORT jlong JNICALL
 Java_java_util_zip_ZipFile_getEntry(JNIEnv *env, jclass cls, jlong zfile,
-                                    jbyteArray name, jboolean addSlash)
+                                    jbyteArray name)
 {
 #define MAXNAME 1024
     jzfile *zip = jlong_to_ptr(zfile);
@@ -182,7 +182,7 @@ Java_java_util_zip_ZipFile_getEntry(JNIEnv *env, jclass cls, jlong zfile,
     }
     (*env)->GetByteArrayRegion(env, name, 0, ulen, (jbyte *)path);
     path[ulen] = '\0';
-    ze = ZIP_GetEntry2(zip, path, (jint)ulen, addSlash);
+    ze = ZIP_GetEntry(zip, path);
     if (path != buf) {
         free(path);
     }

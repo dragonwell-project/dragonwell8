@@ -39,8 +39,6 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Iterator;
-import java.util.NoSuchElementException;
-import java.util.Set;
 import javax.imageio.spi.IIORegistry;
 import javax.imageio.spi.ImageReaderSpi;
 import javax.imageio.spi.ImageReaderWriterSpi;
@@ -1394,7 +1392,7 @@ public final class ImageIO {
             throw new IllegalArgumentException("input == null!");
         }
 
-        InputStream istream = null;
+        InputStream istream;
         try {
             istream = input.openStream();
         } catch (IOException e) {

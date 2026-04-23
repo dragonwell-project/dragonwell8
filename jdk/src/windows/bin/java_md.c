@@ -108,7 +108,7 @@ int awtPreloadD3D = -1;
  * GetParamValue("theParam", "theParam=value") returns pointer to "value".
  */
 const char * GetParamValue(const char *paramName, const char *arg) {
-    int nameLen = JLI_StrLen(paramName);
+    size_t nameLen = JLI_StrLen(paramName);
     if (JLI_StrNCmp(paramName, arg, nameLen) == 0) {
         /* arg[nameLen] is valid (may contain final NULL) */
         if (arg[nameLen] == '=') {
@@ -583,7 +583,7 @@ JLI_Snprintf(char* buffer, size_t size, const char* format, ...) {
     if (rc < 0) {
         /* apply ansi semantics */
         buffer[size - 1] = '\0';
-        return size;
+        return (int)size;
     } else if (rc == size) {
         /* force a null terminator */
         buffer[size - 1] = '\0';
@@ -1164,11 +1164,6 @@ void SplashFreeLibrary() {
     }
 }
 
-const char *
-jlong_format_specifier() {
-    return "%I64d";
-}
-
 /*
  * Block current thread and continue execution in a new thread
  */
@@ -1318,7 +1313,7 @@ int AWTPreload(const char *funcName)
     if (hPreloadAwt == NULL) {
         /* awt.dll is not loaded yet */
         char libraryPath[MAXPATHLEN];
-        int jrePathLen = 0;
+        size_t jrePathLen = 0;
         HMODULE hJava = NULL;
         HMODULE hVerify = NULL;
 
@@ -1460,7 +1455,8 @@ filterArgs(StdArg *stdargs, const int nargc, StdArg **pargv) {
 jobjectArray
 CreateApplicationArgs(JNIEnv *env, char **strv, int argc)
 {
-    int i, j, idx, tlen;
+    int i, j, idx;
+    size_t tlen;
     jobjectArray outArray, inArray;
     char *ostart, *astart, **nargv;
     jboolean needs_expansion = JNI_FALSE;

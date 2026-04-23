@@ -738,13 +738,10 @@ public final class SoftSynthesizer implements AudioSynthesizer,
 
             for (PrivilegedAction<InputStream> action : actions) {
                 try {
-                    InputStream is = AccessController.doPrivileged(action);
-                    if(is == null) continue;
                     Soundbank sbk;
-                    try {
+                    try (InputStream is = AccessController.doPrivileged(action)) {
+                        if (is == null) continue;
                         sbk = MidiSystem.getSoundbank(new BufferedInputStream(is));
-                    } finally {
-                        is.close();
                     }
                     if (sbk != null) {
                         defaultSoundBank = sbk;
@@ -766,30 +763,28 @@ public final class SoftSynthesizer implements AudioSynthesizer,
                 /*
                  * Save generated soundbank to disk for faster future use.
                  */
-                OutputStream out = AccessController
-                        .doPrivileged((PrivilegedAction<OutputStream>) () -> {
-                            try {
-                                File userhome = new File(System
-                                        .getProperty("user.home"), ".gervill");
-                                if (!userhome.exists()) {
-                                    userhome.mkdirs();
-                                }
-                                File emg_soundbank_file = new File(
-                                        userhome, "soundbank-emg.sf2");
-                                if (emg_soundbank_file.exists()) {
-                                    return null;
-                                }
-                                return new FileOutputStream(emg_soundbank_file);
-                            } catch (final FileNotFoundException ignored) {
-                            }
-                            return null;
-                        });
-                if (out != null) {
+                final PrivilegedAction<OutputStream> action = () -> {
                     try {
-                        ((SF2Soundbank) defaultSoundBank).save(out);
-                        out.close();
-                    } catch (final IOException ignored) {
+                        File userhome = new File(System
+                                .getProperty("user.home"), ".gervill");
+                        if (!userhome.exists()) {
+                            userhome.mkdirs();
+                        }
+                        File emg_soundbank_file = new File(
+                                userhome, "soundbank-emg.sf2");
+                        if (emg_soundbank_file.exists()) {
+                            return null;
+                        }
+                        return new FileOutputStream(emg_soundbank_file);
+                    } catch (final FileNotFoundException ignored) {
                     }
+                    return null;
+                };
+                try (OutputStream out = AccessController.doPrivileged(action)) {
+                    if (out != null) {
+                        ((SF2Soundbank) defaultSoundBank).save(out);
+                    }
+                } catch (final IOException ignored) {
                 }
             }
         }

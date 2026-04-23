@@ -54,9 +54,9 @@ LIBJSIG_MAPFILE = $(MAKEFILES_DIR)/mapfile-vers-jsig
 
 LFLAGS_JSIG += -D_GNU_SOURCE -pthread $(LDFLAGS_HASH_STYLE) $(EXTRA_LDFLAGS)
 
-ifeq ($(OS_VENDOR), Darwin)
 # bring in minimum version argument or we'll fail on OSX 10.10
-LFLAGS_JSIG += $(LFLAGS)
+ifeq ($(OS_VENDOR), Darwin)
+  LFLAGS_JSIG += $(MAC_FLAGS)
 endif
 
 # DEBUG_BINARIES overrides everything, use full -g debug information

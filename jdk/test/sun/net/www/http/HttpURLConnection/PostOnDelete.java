@@ -80,6 +80,13 @@ public class PostOnDelete {
             server.start();
         }
 
+        public String getAuthority() {
+            InetAddress address = server.getAddress().getAddress();
+            String hostaddr = address.isAnyLocalAddress() ? "localhost" : address.getHostAddress();
+            hostaddr =  (hostaddr.indexOf(':') >= 0) ? ("[" + hostaddr + "]") : hostaddr;
+            return hostaddr + ":" + getPort();
+        }
+
         public int getPort() {
             return server.getAddress().getPort();
         }

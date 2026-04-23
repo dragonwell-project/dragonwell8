@@ -65,6 +65,7 @@ public class X509Factory extends CertificateFactorySpi {
     public static final String END_CERT = "-----END CERTIFICATE-----";
 
     private static final int ENC_MAX_LENGTH = 4096 * 1024; // 4 MB MAX
+    public static final int BER_ITERATION_COUNT = 128; // Limit nested depth
 
     private static final Cache<Object, X509CertImpl> certCache
         = Cache.newSoftMemoryCache(750);
@@ -549,7 +550,7 @@ public class X509Factory extends CertificateFactorySpi {
         if (c == DerValue.tag_Sequence) {
             ByteArrayOutputStream bout = new ByteArrayOutputStream(2048);
             bout.write(c);
-            readBERInternal(is, bout, c);
+            readBERInternal(is, bout, c, BER_ITERATION_COUNT);
             return bout.toByteArray();
         } else {
             // Read BASE64 encoded data, might skip info at the beginning
@@ -664,12 +665,16 @@ public class X509Factory extends CertificateFactorySpi {
      * @param is    Read from this InputStream
      * @param bout  Write into this OutputStream
      * @param tag   Tag already read (-1 mean not read)
+     * @param depth nesting depth limit
      * @returns     The current tag, used to check EOC in indefinite-length BER
      * @throws IOException Any parsing error
      */
     private static int readBERInternal(InputStream is,
-            ByteArrayOutputStream bout, int tag) throws IOException {
+        ByteArrayOutputStream bout, int tag, int depth) throws IOException {
 
+        if (depth-- == 0) {
+            throw new IOException("Nesting sequence depth limit reached.");
+        }
         if (tag == -1) {        // Not read before the call, read now
             tag = is.read();
             if (tag == -1) {
@@ -695,7 +700,7 @@ public class X509Factory extends CertificateFactorySpi {
                         "Non constructed encoding must have definite length");
             }
             while (true) {
-                int subTag = readBERInternal(is, bout, -1);
+                int subTag = readBERInternal(is, bout, -1, depth);
                 if (subTag == 0) {   // EOC, end of indefinite-length section
                     break;
                 }

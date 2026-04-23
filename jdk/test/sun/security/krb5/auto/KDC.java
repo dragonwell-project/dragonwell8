@@ -355,11 +355,12 @@ public class KDC {
                         name.indexOf('/') < 0 ?
                                 PrincipalName.KRB_NT_UNKNOWN :
                                 PrincipalName.KRB_NT_SRV_HST);
-                ktab.addEntry(pn,
-                        getSalt(pn),
-                        pass,
-                        kvno,
-                        true);
+                int[] etypes = EType.getDefaults("default_tkt_enctypes");
+                EncryptionKey[] keys = new EncryptionKey[etypes.length];
+                for (int i = 0; i < etypes.length; i++) {
+                    keys[i] = keyForUser(pn, etypes[i], false);
+                }
+                ktab.addEntry(pn, keys, kvno, true);
             } else {
                 nativeKdc.ktadd(name, tab);
             }
@@ -657,10 +658,7 @@ public class KDC {
      */
     private char[] getPassword(PrincipalName p, boolean server)
             throws KrbException {
-        String pn = p.toString();
-        if (p.getRealmString() == null) {
-            pn = pn + "@" + getRealm();
-        }
+        String pn = nameOf(p);
         char[] pass = passwords.get(pn);
         if (pass == null) {
             throw new KrbException(server?
@@ -676,10 +674,7 @@ public class KDC {
      * @return the salt
      */
     protected String getSalt(PrincipalName p) {
-        String pn = p.toString();
-        if (p.getRealmString() == null) {
-            pn = pn + "@" + getRealm();
-        }
+        String pn = nameOf(p);
         if (salts.containsKey(pn)) {
             return salts.get(pn);
         }
@@ -709,10 +704,7 @@ public class KDC {
         switch (etype) {
             case EncryptedData.ETYPE_AES128_CTS_HMAC_SHA1_96:
             case EncryptedData.ETYPE_AES256_CTS_HMAC_SHA1_96:
-                String pn = p.toString();
-                if (p.getRealmString() == null) {
-                    pn = pn + "@" + getRealm();
-                }
+                String pn = nameOf(p);
                 if (s2kparamses.containsKey(pn)) {
                     return s2kparamses.get(pn);
                 }
@@ -720,6 +712,23 @@ public class KDC {
             default:
                 return null;
         }
+    }
+
+    /**
+     * Returns the name of a PrincipalName inside KDC dbs.
+     * @param p the principal name
+     * @return the name
+     */
+    private String nameOf(PrincipalName p) {
+        String pn = p.toString();
+        if (p.getRealmString() == null) {
+            pn = pn + "@" + getRealm();
+        }
+        if (pn.startsWith("krbtgt/")) {
+            // We always register krbtgt using REALM
+            pn = "krbtgt/" + pn.substring(7).toUpperCase(Locale.ROOT);
+        }
+        return pn;
     }
 
     /**

@@ -1028,12 +1028,12 @@ That's all there is to it!
 
 -------------------------------------------------------------------------------
 
-%% This notice is provided with respect to Freetype v2.13.3 which may be
+%% This notice is provided with respect to Freetype v2.14.2 which may be
 included with JRE 8, JDK 8, and OpenJDK 8.
 
 --- begin of LICENSE ---
 
-## The FreeType Project: Freetype v2.13.3
+## The FreeType Project: Freetype v2.14.2
 
 
 ### FreeType Notice
@@ -1056,25 +1056,24 @@ which fits your needs best.
 ### FreeType License
 ```
 
-Copyright (C) 1996-2024 by David Turner, Robert Wilhelm, and Werner Lemberg.
-Copyright (C) 2007-2024 by Dereg Clegg and Michael Toftdal.
-Copyright (C) 1996-2024 by Just van Rossum, David Turner, Robert Wilhelm, and Werner Lemberg.
-Copyright (C) 2022-2024 by David Turner, Robert Wilhelm, Werner Lemberg, George Williams, and
-Copyright (C) 2004-2024 by Masatake YAMATO and Redhat K.K.
-Copyright (C) 2007-2024 by Derek Clegg and Michael Toftdal.
-Copyright (C) 2003-2024 by Masatake YAMATO, Red Hat K.K.,
-Copyright (C) 1996-2024 by David Turner, Robert Wilhelm, Werner Lemberg, and Dominik Röttsches.
-Copyright (C) 2007-2024 by David Turner.
-Copyright (C) 2022-2024 by David Turner, Robert Wilhelm, Werner Lemberg, and Moazin Khatti.
-Copyright (C) 2007-2024 by Rahul Bhalerao <rahul.bhalerao@redhat.com>, <b.rahul.pm@gmail.com>.
-Copyright (C) 2008-2024 by David Turner, Robert Wilhelm, Werner Lemberg, and suzuki toshiya.
-Copyright (C) 2013-2024 by Google, Inc.
-Copyright (C) 2019-2024 by Nikhil Ramakrishnan, David Turner, Robert Wilhelm, and Werner Lemberg.
-Copyright (C) 2009-2024 by Oran Agra and Mickey Gabel.
-Copyright (C) 2018-2024 by David Turner, Robert Wilhelm, Dominik Röttsches, and Werner Lemberg.
-Copyright (C) 2004-2024 by David Turner, Robert Wilhelm, Werner Lemberg, and George Williams.
-
-
+Copyright (C) 1996-2025 by David Turner, Robert Wilhelm, and Werner Lemberg.
+Copyright (C) 2007-2025 by Dereg Clegg and Michael Toftdal.
+Copyright (C) 1996-2025 by Just van Rossum, David Turner, Robert Wilhelm, and Werner Lemberg.
+Copyright (C) 2022-2025 by David Turner, Robert Wilhelm, Werner Lemberg, George Williams, and
+Copyright (C) 2004-2025 by Masatake YAMATO and Redhat K.K.
+Copyright (C) 2007-2025 by Derek Clegg and Michael Toftdal.
+Copyright (C) 2003-2025 by Masatake YAMATO, Red Hat K.K.,
+Copyright (C) 1996-2025 by David Turner, Robert Wilhelm, Werner Lemberg, and Dominik Röttsches.
+Copyright (C) 2007-2025 by David Turner.
+Copyright (C) 2022-2025 by David Turner, Robert Wilhelm, Werner Lemberg, and Moazin Khatti.
+Copyright (C) 2007-2025 by Rahul Bhalerao <rahul.bhalerao@redhat.com>, <b.rahul.pm@gmail.com>.
+Copyright (C) 2025 by Behdad Esfahbod.
+Copyright (C) 2008-2025 by David Turner, Robert Wilhelm, Werner Lemberg, and suzuki toshiya.
+Copyright (C) 2013-2025 by Google, Inc.
+Copyright (C) 2019-2025 by Nikhil Ramakrishnan, David Turner, Robert Wilhelm, and Werner Lemberg.
+Copyright (C) 2009-2025 by Oran Agra and Mickey Gabel.
+Copyright (C) 2018-2025 by David Turner, Robert Wilhelm, Dominik Röttsches, and Werner Lemberg.
+Copyright (C) 2004-2025 by David Turner, Robert Wilhelm, Werner Lemberg, and George Williams.
                     The FreeType Project LICENSE
                     ----------------------------
 
@@ -1241,6 +1240,7 @@ Legal Terms
   Our home page can be found at
 
     https://www.freetype.org
+
 
 ```
 
@@ -2131,7 +2131,7 @@ included with JDK 8 and OpenJDK 8 source distributions.
 
 -------------------------------------------------------------------------------
 
-%% This notice is provided with respect to libpng 1.6.51, which may be
+%% This notice is provided with respect to libpng 1.6.57, which may be
 included with JRE 8, JDK 8, and OpenJDK 8.
 
 --- begin of LICENSE ---
@@ -2142,8 +2142,8 @@ COPYRIGHT NOTICE, DISCLAIMER, and LICENSE
 PNG Reference Library License version 2
 ---------------------------------------
 
-Copyright (C) 1995-2025 The PNG Reference Library Authors.
-Copyright (C) 2018-2025 Cosmin Truta
+Copyright (C) 1995-2026 The PNG Reference Library Authors.
+Copyright (C) 2018-2026 Cosmin Truta
 Copyright (C) 1998-2018 Glenn Randers-Pehrson
 Copyright (C) 1996-1997 Andreas Dilger
 Copyright (C) 1995-1996 Guy Eric Schalnat, Group 42, Inc.
@@ -2307,6 +2307,7 @@ This is the list of PNG Reference Library ("libpng") Contributing
 Authors, for copyright and licensing purposes.
 
  * Adam Richter
+ * Alexander Smorkalov
  * Andreas Dilger
  * Chris Blume
  * Cosmin Truta
@@ -2316,8 +2317,10 @@ Authors, for copyright and licensing purposes.
  * Glenn Randers-Pehrson
  * Greg Roelofs
  * Guy Eric Schalnat
+ * Halil Oktay
  * James Yu
  * John Bowler
+ * Joshua Inscoe
  * Kevin Bracey
  * Lucas Chollet
  * Magnus Holmgren
@@ -2326,19 +2329,23 @@ Authors, for copyright and licensing purposes.
  * Mans Rullgard
  * Matt Sarett
  * Mike Klein
+ * Mohammad Seet
  * Pascal Massimino
  * Paul Schmidt
+ * Petr Simecek
  * Philippe Antoine
  * Qiang Zhou
  * Sam Bushell
  * Samuel Williams
  * Simon-Pierre Cadieux
+ * Taegu Ha (하태구)
  * Tim Wegner
  * Tobias Stoeckmann
  * Tom Lane
  * Tom Tanner
  * Vadim Barkov
  * Willem van Schaik
+ * Yuelin Wang (王跃林)
  * Zhijie Liang
  * Apple Inc.
     - Zixu Wang (王子旭)
@@ -2358,6 +2365,8 @@ Authors, for copyright and licensing purposes.
     - ZhangLixia (张利霞)
  * Samsung Group
     - Filip Wasil
+ * SpacemiT Hangzhou Technology, Co.
+    - Liang Junzhao (梁俊钊)
 
 The build projects, the build scripts, the test scripts, and other
 files in the "projects", "scripts" and "tests" directories, have
@@ -2372,12 +2381,12 @@ licenses.
 
 -------------------------------------------------------------------------------
 
-%% This notice is provided with respect to GIFLIB 5.2.1 & libungif 4.1.3, 
+%% This notice is provided with respect to GIFLIB 6.1.2 & libungif 4.1.3,
 which may be included with JRE 8, JDK 8, and OpenJDK 8.
 
 --- begin of LICENSE ---
 
-The GIFLIB distribution is Copyright (c) 1997  Eric S. Raymond
+= MIT LICENSE
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -2397,11 +2406,36 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 
+---------------------------------
+The below applies to the following file(s):
+giflib/dgif_lib.c
+giflib/gifalloc.c
+giflib/gif_err.c
+giflib/openbsd-reallocarray.c
+
+Copyright (C) 1989 Gershon Elber
+Copyright (C) 2008 Otto Moerbeek <otto@drijf.net>
+Copyright (C) Eric S. Raymond <esr@thyrsus.com>
+
+SPDX-License-Identifier: MIT
+
+== Authors ==
+
+Gershon Elber <gershon[AT]cs.technion.sc.il>
+original giflib code
+
+Toshio Kuratomi <toshio[AT]tiki-lounge.com>
+uncompressed gif writing code
+former maintainer
+
+Eric Raymond <esr[AT]snark.thyrsus.com>
+current as well as long time former maintainer of giflib code
+
 --- end of LICENSE ---
 
 -------------------------------------------------------------------------------
 
-%% This notice is provided with respect to Little CMS 2.14, which may be
+%% This notice is provided with respect to Little CMS 2.15, which may be
 included with JRE 8, JDK 8, and OpenJDK 8.
 
 --- begin of LICENSE ---
@@ -2413,7 +2447,7 @@ LittleCMS core is released under MIT License
 ---------------------------------
 
 Little CMS
-Copyright (c) 1998-2022 Marti Maria Saguer
+Copyright (c) 1998-2023 Marti Maria Saguer
 
 Permission is hereby granted, free of charge, to any person obtaining
 a copy of this software and associated documentation files (the
@@ -2435,7 +2469,6 @@ TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
 SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 ---------------------------------
-
 The below license applies to the following files:
 liblcms/cmssm.c
 
@@ -2447,8 +2480,8 @@ SoftSurfer makes no warranty for this code, and cannot be held
 liable for any real or imagined damage resulting from its use.
 Users of this code must verify correctness for their application.
 
-
 AUTHORS File Information:
+
 
 Main Author
 ------------
@@ -2490,11 +2523,15 @@ Mark Allen
 Noel Carboni
 Sergei Trofimovic
 Philipp Knechtges
+Amyspark
+Lovell Fuller
+Eli Schwartz
 
 Special Thanks
 --------------
 Artifex software
 AlienSkin software
+libVIPS
 Jan Morovic
 Jos Vernon (WebSupergoo)
 Harald Schneider (Maxon)
@@ -2502,7 +2539,6 @@ Christian Albrecht
 Dimitrios Anastassakis
 Lemke Software
 Tim Zaman
-
 
 --- end of LICENSE ---
 

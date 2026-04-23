@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,6 +24,7 @@
 /* @test
  * @summary Unit test for java.net.ResponseCache
  * @bug 4837267
+ * @library /lib/testlibrary
  * @author Yingxian Wang
  */
 
@@ -32,6 +33,7 @@ import java.util.*;
 import java.io.*;
 import sun.net.www.ParseUtil;
 import javax.net.ssl.*;
+import jdk.testlibrary.net.URIBuilder;
 
 /**
  * Request should get serviced by the cache handler. Response get
@@ -91,14 +93,17 @@ public class ResponseCacheTest implements Runnable {
             try { fis.close(); } catch (IOException unused) {}
         }
     }
-static class NameVerifier implements HostnameVerifier {
+    static class NameVerifier implements HostnameVerifier {
         public boolean verify(String hostname, SSLSession session) {
             return true;
         }
     }
     ResponseCacheTest() throws Exception {
         /* start the server */
-        ss = new ServerSocket(0);
+        InetAddress loopback = InetAddress.getLoopbackAddress();
+        ss = new ServerSocket();
+        ss.bind(new InetSocketAddress(loopback, 0));
+
         (new Thread(this)).start();
         /* establish http connection to server */
         url1 = new URL("http://localhost/file1.cache");
@@ -127,8 +132,12 @@ static class NameVerifier implements HostnameVerifier {
         http.disconnect();
 
         // testing ResponseCacheHandler.put()
-        url2 = new URL("http://localhost:" +
-                       Integer.toString(ss.getLocalPort())+"/file2.1");
+        url2 = URIBuilder.newBuilder()
+                   .scheme("http")
+                   .host(ss.getInetAddress())
+                   .port(ss.getLocalPort())
+                   .path("/file2.1")
+                   .toURL();
         http = (HttpURLConnection)url2.openConnection();
         System.out.println("responsecode2 is :"+http.getResponseCode());
         Map<String,List<String>> headers2 = http.getHeaderFields();

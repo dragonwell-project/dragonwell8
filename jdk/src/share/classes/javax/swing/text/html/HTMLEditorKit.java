@@ -391,12 +391,11 @@ public class HTMLEditorKit extends StyledEditorKit implements Accessible {
         if (defaultStyles == null) {
             defaultStyles = new StyleSheet();
             appContext.put(DEFAULT_STYLES_KEY, defaultStyles);
-            try {
-                InputStream is = HTMLEditorKit.getResourceAsStream(DEFAULT_CSS);
-                Reader r = new BufferedReader(
-                        new InputStreamReader(is, "ISO-8859-1"));
+            try (InputStream is = HTMLEditorKit.getResourceAsStream(DEFAULT_CSS);
+                 InputStreamReader isr = new InputStreamReader(is, "ISO-8859-1");
+                 Reader r = new BufferedReader(isr))
+            {
                 defaultStyles.loadRules(r, null);
-                r.close();
             } catch (Throwable e) {
                 // on error we simply have no styles... the html
                 // will look mighty wrong but still function.

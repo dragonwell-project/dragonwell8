@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, Red Hat Inc.
+ * Copyright (c) 2020, 2022, Red Hat Inc.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -58,6 +58,7 @@ class CgroupV2Subsystem: public CgroupSubsystem {
 
     char *mem_limit_val();
     char *mem_swp_limit_val();
+    char *mem_swp_current_val();
     char *mem_soft_limit_val();
     char *cpu_quota_val();
     jlong limit_from_str(char* limit_str);
@@ -77,8 +78,12 @@ class CgroupV2Subsystem: public CgroupSubsystem {
     jlong memory_soft_limit_in_bytes();
     jlong memory_usage_in_bytes();
     jlong memory_max_usage_in_bytes();
+
     char * cpu_cpuset_cpus();
     char * cpu_cpuset_memory_nodes();
+
+    void print_version_specific_info(outputStream* st);
+
     const char * container_type() {
       return "cgroupv2";
     }
