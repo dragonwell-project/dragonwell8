@@ -30,6 +30,7 @@
 #include <float.h>
 #include <Windows.h>
 #include <shlwapi.h>  // for AssocQueryStringW
+#include "awt_Desktop.h"
 #include <wchar.h>
 #include <cwchar>
 #include <string.h>

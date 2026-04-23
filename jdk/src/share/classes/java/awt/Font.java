@@ -919,18 +919,13 @@ public class Font implements java.io.Serializable
 
             int totalSize = 0;
             try {
-                final OutputStream outStream =
-                    AccessController.doPrivileged(
-                        new PrivilegedExceptionAction<OutputStream>() {
-                            public OutputStream run() throws IOException {
-                                return new FileOutputStream(tFile);
-                            }
-                        }
-                    );
-                if (tracker != null) {
-                    tracker.set(tFile, outStream);
-                }
-                try {
+                /* don't close the input stream */
+                try (final OutputStream outStream = AccessController.doPrivileged(
+                            (PrivilegedExceptionAction<OutputStream>)
+                                () -> new FileOutputStream(tFile))) {
+                    if (tracker != null) {
+                        tracker.set(tFile, outStream);
+                    }
                     byte[] buf = new byte[8192];
                     for (;;) {
                         int bytesRead = fontStream.read(buf);
@@ -951,9 +946,6 @@ public class Font implements java.io.Serializable
                         }
                         outStream.write(buf, 0, bytesRead);
                     }
-                    /* don't close the input stream */
-                } finally {
-                    outStream.close();
                 }
                 /* After all references to a Font2D are dropped, the file
                  * will be removed. To support long-lived AppContexts,

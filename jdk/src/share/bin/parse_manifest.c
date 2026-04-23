@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -174,7 +174,7 @@ find_end(int fd, Byte *eb)
      */
     if ((pos = JLI_Lseek(fd, -ENDHDR, SEEK_END)) < (jlong)0)
         return (-1);
-    if ((bytes = read(fd, eb, ENDHDR)) < 0)
+    if (read(fd, eb, ENDHDR) < 0)
         return (-1);
     if (GETSIG(eb) == ENDSIG) {
         return haveZIP64(eb) ? find_end64(fd, eb, pos) : pos;
@@ -193,7 +193,13 @@ find_end(int fd, Byte *eb)
         return (-1);
     if ((buffer = malloc(END_MAXLEN)) == NULL)
         return (-1);
-    if ((bytes = read(fd, buffer, len)) < 0) {
+
+    /*
+     * read() on windows takes an unsigned int for count. Casting len
+     * to an unsigned int here is safe since it is guaranteed to be
+     * less than END_MAXLEN.
+     */
+    if ((bytes = read(fd, buffer, (unsigned int)len)) < 0) {
         free(buffer);
         return (-1);
     }
@@ -577,7 +583,7 @@ JLI_ParseManifest(char *jarfile, manifest_info *info)
     info->jre_version = NULL;
     info->jre_restrict_search = 0;
     info->splashscreen_image_file_name = NULL;
-    if (rc = find_file(fd, &entry, manifest_name) != 0) {
+    if ((rc = find_file(fd, &entry, manifest_name)) != 0) {
         close(fd);
         return (-2);
     }
@@ -677,7 +683,7 @@ JLI_ManifestIterate(const char *jarfile, attribute_closure ac, void *user_data)
         return (-1);
     }
 
-    if (rc = find_file(fd, &entry, manifest_name) != 0) {
+    if ((rc = find_file(fd, &entry, manifest_name)) != 0) {
         close(fd);
         return (-2);
     }

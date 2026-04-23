@@ -2561,7 +2561,7 @@ cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* end confdefs.h.  */
 $4
 int
-main (void)
+main ()
 {
 static int test_array [1 - 2 * !(($2) >= 0)];
 test_array [0] = 0;
@@ -2578,7 +2578,7 @@ if ac_fn_cxx_try_compile "$LINENO"; then :
 /* end confdefs.h.  */
 $4
 int
-main (void)
+main ()
 {
 static int test_array [1 - 2 * !(($2) <= $ac_mid)];
 test_array [0] = 0;
@@ -2605,7 +2605,7 @@ else
 /* end confdefs.h.  */
 $4
 int
-main (void)
+main ()
 {
 static int test_array [1 - 2 * !(($2) < 0)];
 test_array [0] = 0;
@@ -2622,7 +2622,7 @@ if ac_fn_cxx_try_compile "$LINENO"; then :
 /* end confdefs.h.  */
 $4
 int
-main (void)
+main ()
 {
 static int test_array [1 - 2 * !(($2) >= $ac_mid)];
 test_array [0] = 0;
@@ -2657,7 +2657,7 @@ while test "x$ac_lo" != "x$ac_hi"; do
 /* end confdefs.h.  */
 $4
 int
-main (void)
+main ()
 {
 static int test_array [1 - 2 * !(($2) <= $ac_mid)];
 test_array [0] = 0;
@@ -2682,12 +2682,12 @@ esac
     cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* end confdefs.h.  */
 $4
-static long int longval (void) { return $2; }
-static unsigned long int ulongval (void) { return $2; }
+static long int longval () { return $2; }
+static unsigned long int ulongval () { return $2; }
 #include <stdio.h>
 #include <stdlib.h>
 int
-main (void)
+main ()
 {
 
   FILE *f = fopen ("conftest.val", "w");
@@ -2794,7 +2794,7 @@ else
 #define $2 innocuous_$2
 
 /* System header to define __stub macros and hopefully few prototypes,
-    which can conflict with char $2 (void); below.
+    which can conflict with char $2 (); below.
     Prefer <limits.h> to <assert.h> if __STDC__ is defined, since
     <limits.h> exists even on freestanding compilers.  */
 
@@ -2812,7 +2812,7 @@ else
 #ifdef __cplusplus
 extern "C"
 #endif
-char $2 (void);
+char $2 ();
 /* The GNU C library defines this for functions which it implements
     to always fail with ENOSYS.  Some functions are actually named
     something starting with __ and the normal name is an alias.  */
@@ -2821,7 +2821,7 @@ choke me
 #endif
 
 int
-main (void)
+main ()
 {
 return $2 ();
   ;
@@ -3710,7 +3710,7 @@ ac_configure="$SHELL $ac_aux_dir/configure"  # Please don't use this var.
 
 
 #
-# Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2011, 2025, Oracle and/or its affiliates. All rights reserved.
 # DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 #
 # This code is free software; you can redistribute it and/or modify it
@@ -3790,7 +3790,6 @@ ac_configure="$SHELL $ac_aux_dir/configure"  # Please don't use this var.
 #                                [RUN-IF-FALSE])
 # ------------------------------------------------------------
 # Check that the C and C++ compilers support an argument
-
 
 
 
@@ -4411,7 +4410,7 @@ VS_TOOLSET_SUPPORTED_2022=true
 #CUSTOM_AUTOCONF_INCLUDE
 
 # Do not change or remove the following line, it is needed for consistency checks:
-DATE_WHEN_GENERATED=1716396031
+DATE_WHEN_GENERATED=1767977874
 
 ###############################################################################
 #
@@ -28905,7 +28904,7 @@ cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* end confdefs.h.  */
 
 int
-main (void)
+main ()
 {
 
   ;
@@ -29045,7 +29044,7 @@ cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* end confdefs.h.  */
 #include <stdio.h>
 int
-main (void)
+main ()
 {
 FILE *f = fopen ("conftest.out", "w");
  return ferror (f) || fclose (f) != 0;
@@ -29109,7 +29108,7 @@ else
 /* end confdefs.h.  */
 
 int
-main (void)
+main ()
 {
 
   ;
@@ -29160,7 +29159,7 @@ else
 /* end confdefs.h.  */
 
 int
-main (void)
+main ()
 {
 #ifndef __GNUC__
        choke me
@@ -29201,7 +29200,7 @@ else
 /* end confdefs.h.  */
 
 int
-main (void)
+main ()
 {
 
   ;
@@ -29216,7 +29215,7 @@ else
 /* end confdefs.h.  */
 
 int
-main (void)
+main ()
 {
 
   ;
@@ -29232,7 +29231,7 @@ else
 /* end confdefs.h.  */
 
 int
-main (void)
+main ()
 {
 
   ;
@@ -29281,7 +29280,9 @@ struct stat;
 /* Most of the following tests are stolen from RCS 5.7's src/conf.sh.  */
 struct buf { int x; };
 FILE * (*rcsopen) (struct buf *, struct stat *, int);
-static char *e (char **p, int i)
+static char *e (p, i)
+     char **p;
+     int i;
 {
   return p[i];
 }
@@ -29316,7 +29317,7 @@ int pairnames (int, char **, FILE *(*)(struct buf *, struct stat *, int), int, i
 int argc;
 char **argv;
 int
-main (void)
+main ()
 {
 return f (e, argv, 0) != argv[0]  ||  f (e, argv, 1) != argv[1];
   ;
@@ -30649,7 +30650,7 @@ else
 /* end confdefs.h.  */
 
 int
-main (void)
+main ()
 {
 #ifndef __GNUC__
        choke me
@@ -30690,7 +30691,7 @@ else
 /* end confdefs.h.  */
 
 int
-main (void)
+main ()
 {
 
   ;
@@ -30705,7 +30706,7 @@ else
 /* end confdefs.h.  */
 
 int
-main (void)
+main ()
 {
 
   ;
@@ -30721,7 +30722,7 @@ else
 /* end confdefs.h.  */
 
 int
-main (void)
+main ()
 {
 
   ;
@@ -33234,7 +33235,7 @@ else
 /* end confdefs.h.  */
 
 int
-main (void)
+main ()
 {
 #ifndef __GNUC__
        choke me
@@ -33275,7 +33276,7 @@ else
 /* end confdefs.h.  */
 
 int
-main (void)
+main ()
 {
 
   ;
@@ -33290,7 +33291,7 @@ else
 /* end confdefs.h.  */
 
 int
-main (void)
+main ()
 {
 
   ;
@@ -33306,7 +33307,7 @@ else
 /* end confdefs.h.  */
 
 int
-main (void)
+main ()
 {
 
   ;
@@ -41312,6 +41313,19 @@ $as_echo "$as_me: Rewriting BUILD_LD to \"$new_complete\"" >&6;}
     # This is later checked when setting flags.
   fi
 
+  if test "x$TOOLCHAIN_TYPE" = xgcc; then
+    if test "x$OPENJDK_TARGET_CPU_ARCH" = "xaarch64" ; then
+      { $as_echo "$as_me:${as_lineno-$LINENO}: checking for broken aarch64 gcc 4.x" >&5
+$as_echo_n "checking for broken aarch64 gcc 4.x... " >&6; }
+      COMPILER_VERSION_NUMBER_MAJOR=`$ECHO "$COMPILER_VERSION_NUMBER" | $SED  "s/[^0-9].*//"`
+      { $as_echo "$as_me:${as_lineno-$LINENO}: result: found $COMPILER_VERSION_NUMBER_MAJOR.x" >&5
+$as_echo "found $COMPILER_VERSION_NUMBER_MAJOR.x" >&6; }
+      if test $COMPILER_VERSION_NUMBER_MAJOR -lt 5; then
+        as_fn_error $? "GCC < 5 may incorrectly compile HotSpot on aarch64. See JDK-8360869." "$LINENO" 5
+      fi
+    fi
+  fi
+
   # Check for broken SuSE 'ld' for which 'Only anonymous version tag is allowed
   # in executable.'
   USING_BROKEN_SUSE_LD=no
@@ -41852,7 +41866,7 @@ else
 #include <float.h>
 
 int
-main (void)
+main ()
 {
 
   ;
@@ -41922,7 +41936,7 @@ else
 
 #define XOR(e, f) (((e) && !(f)) || (!(e) && (f)))
 int
-main (void)
+main ()
 {
   int i;
   for (i = 0; i < 256; i++)
@@ -42220,7 +42234,7 @@ rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
 	     #include <sys/param.h>
 
 int
-main (void)
+main ()
 {
 #if ! (defined BYTE_ORDER && defined BIG_ENDIAN \
 		     && defined LITTLE_ENDIAN && BYTE_ORDER && BIG_ENDIAN \
@@ -42240,7 +42254,7 @@ if ac_fn_cxx_try_compile "$LINENO"; then :
 		#include <sys/param.h>
 
 int
-main (void)
+main ()
 {
 #if BYTE_ORDER != BIG_ENDIAN
 		 not big endian
@@ -42266,7 +42280,7 @@ rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
 #include <limits.h>
 
 int
-main (void)
+main ()
 {
 #if ! (defined _LITTLE_ENDIAN || defined _BIG_ENDIAN)
 	      bogus endian macros
@@ -42283,7 +42297,7 @@ if ac_fn_cxx_try_compile "$LINENO"; then :
 #include <limits.h>
 
 int
-main (void)
+main ()
 {
 #ifndef _BIG_ENDIAN
 		 not big endian
@@ -42325,7 +42339,7 @@ short int ascii_mm[] =
 		extern int foo;
 
 int
-main (void)
+main ()
 {
 return use_ascii (foo) == use_ebcdic (foo);
   ;
@@ -42351,7 +42365,7 @@ else
 /* end confdefs.h.  */
 $ac_includes_default
 int
-main (void)
+main ()
 {
 
 	     /* Are we little or big endian?  From Harbison&Steele.  */
@@ -42408,29 +42422,13 @@ $as_echo "$ac_cv_c_bigendian" >&6; }
   # How to compile shared libraries.
   #
 
-  if test "x$TOOLCHAIN_TYPE" = xgcc; then
-    PICFLAG="-fPIC"
-    PIEFLAG="-fPIE"
-    C_FLAG_REORDER=''
-    CXX_FLAG_REORDER=''
-
-    if test "x$OPENJDK_TARGET_OS" = xmacosx; then
-      # Linking is different on MacOSX
-      SHARED_LIBRARY_FLAGS="-dynamiclib -compatibility_version 1.0.0 -current_version 1.0.0 $PICFLAG"
-      SET_EXECUTABLE_ORIGIN='-Xlinker -rpath -Xlinker @loader_path/.'
-      SET_SHARED_LIBRARY_ORIGIN="$SET_EXECUTABLE_ORIGIN"
-      SET_SHARED_LIBRARY_NAME='-Xlinker -install_name -Xlinker @rpath/$1'
-      SET_SHARED_LIBRARY_MAPFILE=''
+  if test "x$TOOLCHAIN_TYPE" = xgcc -o "x$TOOLCHAIN_TYPE" = xclang; then
+    if test "x$TOOLCHAIN_TYPE" = xgcc; then
+      PICFLAG="-fPIC"
+      PIEFLAG="-fPIE"
     else
-      # Default works for linux, might work on other platforms as well.
-      SHARED_LIBRARY_FLAGS='-shared'
-      SET_EXECUTABLE_ORIGIN='-Xlinker -rpath -Xlinker \$$$$ORIGIN$1'
-      SET_SHARED_LIBRARY_ORIGIN="-Xlinker -z -Xlinker origin $SET_EXECUTABLE_ORIGIN"
-      SET_SHARED_LIBRARY_NAME='-Xlinker -soname=$1'
-      SET_SHARED_LIBRARY_MAPFILE='-Xlinker -version-script=$1'
+      PICFLAG=''
     fi
-  elif test "x$TOOLCHAIN_TYPE" = xclang; then
-    PICFLAG=''
     C_FLAG_REORDER=''
     CXX_FLAG_REORDER=''
 
@@ -42584,21 +42582,7 @@ $as_echo "$ac_cv_c_bigendian" >&6; }
   else
     # The remaining toolchains share opt flags between CC and CXX;
     # setup for C and duplicate afterwards.
-    if test "x$TOOLCHAIN_TYPE" = xgcc; then
-      if test "x$OPENJDK_TARGET_OS" = xmacosx; then
-        # On MacOSX we optimize for size, something
-        # we should do for all platforms?
-        C_O_FLAG_HIGHEST="-Os"
-        C_O_FLAG_HI="-Os"
-        C_O_FLAG_NORM="-Os"
-        C_O_FLAG_NONE=""
-      else
-        C_O_FLAG_HIGHEST="-O3"
-        C_O_FLAG_HI="-O3"
-        C_O_FLAG_NORM="-O2"
-        C_O_FLAG_NONE="-O0"
-      fi
-    elif test "x$TOOLCHAIN_TYPE" = xclang; then
+    if test "x$TOOLCHAIN_TYPE" = xgcc -o "x$TOOLCHAIN_TYPE" = xclang; then
       if test "x$OPENJDK_TARGET_OS" = xmacosx; then
         # On MacOSX we optimize for size, something
         # we should do for all platforms?
@@ -42649,7 +42633,7 @@ $as_echo "$ac_cv_c_bigendian" >&6; }
     LDFLAGS_JDK="${LDFLAGS_JDK} -q64 -brtl -bnolibpath -liconv -bexpall"
     CFLAGS_JDK="${CFLAGS_JDK} -qchars=signed -q64 -qfullpath -qsaveopt"
     CXXFLAGS_JDK="${CXXFLAGS_JDK} -qchars=signed -q64 -qfullpath -qsaveopt"
-  elif test "x$TOOLCHAIN_TYPE" = xgcc; then
+  elif test "x$TOOLCHAIN_TYPE" = xgcc -o "x$TOOLCHAIN_TYPE" = xclang; then
     LEGACY_HOST_CFLAGS="$LEGACY_HOST_CFLAGS -fstack-protector"
     LEGACY_TARGET_CFLAGS="$LEGACY_TARGET_CFLAGS -fstack-protector"
     LEGACY_HOST_CXXFLAGS="$LEGACY_HOST_CXXFLAGS -fstack-protector"
@@ -42785,10 +42769,10 @@ fi
   FDLIBM_CFLAGS=""
   # Setup compiler/platform specific flags to CFLAGS_JDK,
   # CXXFLAGS_JDK and CCXXFLAGS_JDK (common to C and CXX?)
-  if test "x$TOOLCHAIN_TYPE" = xgcc; then
+  if test "x$TOOLCHAIN_TYPE" = xgcc -o "x$TOOLCHAIN_TYPE" = xclang; then
     # these options are used for both C and C++ compiles
     CCXXFLAGS_JDK="$CCXXFLAGS $CCXXFLAGS_JDK -Wall -Wno-parentheses -Wextra -Wno-unused -Wno-unused-parameter -Wformat=2 \
-        -pipe -fstack-protector -D_GNU_SOURCE -D_REENTRANT -D_LARGEFILE64_SOURCE"
+        -pipe -fstack-protector"
     case $OPENJDK_TARGET_CPU_ARCH in
       arm )
         # on arm we don't prevent gcc to omit frame pointer but do prevent strict aliasing
@@ -42802,6 +42786,8 @@ fi
         CFLAGS_JDK="${CFLAGS_JDK} -fno-strict-aliasing"
         ;;
     esac
+
+    if test "x$TOOLCHAIN_TYPE" = xgcc; then
 
   REFERENCE_VERSION=6
 
@@ -43019,6 +43005,8 @@ $as_echo "$supports" >&6; }
   else
     :
   fi
+
+    fi
 
     # Check that the compiler supports -Wformat-overflow flag
     # Set USE_FORMAT_OVERFLOW to 1 if it does.
@@ -43375,6 +43363,8 @@ $as_echo "$supports" >&6; }
     CCXXFLAGS_JDK="$CCXXFLAGS_JDK -DPPC64"
   elif test "x$OPENJDK_TARGET_OS" = xbsd; then
     CCXXFLAGS_JDK="$CCXXFLAGS_JDK -D_ALLBSD_SOURCE"
+  elif test "x$OPENJDK_TARGET_OS" = xlinux; then
+    CCXXFLAGS_JDK="$CCXXFLAGS_JDK -D_GNU_SOURCE -D_REENTRANT -D_LARGEFILE64_SOURCE"
   fi
 
   # Additional macosx handling
@@ -44173,7 +44163,7 @@ if test "$ac_x_libraries" = no; then
 /* end confdefs.h.  */
 #include <X11/Xlib.h>
 int
-main (void)
+main ()
 {
 XrmInitialize ()
   ;
@@ -44259,7 +44249,7 @@ $as_echo_n "checking whether -R must be followed by a space... " >&6; }
 /* end confdefs.h.  */
 
 int
-main (void)
+main ()
 {
 
   ;
@@ -44276,7 +44266,7 @@ else
 /* end confdefs.h.  */
 
 int
-main (void)
+main ()
 {
 
   ;
@@ -44320,9 +44310,9 @@ rm -f core conftest.err conftest.$ac_objext \
 #ifdef __cplusplus
 extern "C"
 #endif
-char XOpenDisplay (void);
+char XOpenDisplay ();
 int
-main (void)
+main ()
 {
 return XOpenDisplay ();
   ;
@@ -44348,9 +44338,9 @@ cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 #ifdef __cplusplus
 extern "C"
 #endif
-char dnet_ntoa (void);
+char dnet_ntoa ();
 int
-main (void)
+main ()
 {
 return dnet_ntoa ();
   ;
@@ -44389,9 +44379,9 @@ cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 #ifdef __cplusplus
 extern "C"
 #endif
-char dnet_ntoa (void);
+char dnet_ntoa ();
 int
-main (void)
+main ()
 {
 return dnet_ntoa ();
   ;
@@ -44449,9 +44439,9 @@ cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 #ifdef __cplusplus
 extern "C"
 #endif
-char gethostbyname (void);
+char gethostbyname ();
 int
-main (void)
+main ()
 {
 return gethostbyname ();
   ;
@@ -44490,9 +44480,9 @@ cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 #ifdef __cplusplus
 extern "C"
 #endif
-char gethostbyname (void);
+char gethostbyname ();
 int
-main (void)
+main ()
 {
 return gethostbyname ();
   ;
@@ -44546,9 +44536,9 @@ cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 #ifdef __cplusplus
 extern "C"
 #endif
-char connect (void);
+char connect ();
 int
-main (void)
+main ()
 {
 return connect ();
   ;
@@ -44595,9 +44585,9 @@ cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 #ifdef __cplusplus
 extern "C"
 #endif
-char remove (void);
+char remove ();
 int
-main (void)
+main ()
 {
 return remove ();
   ;
@@ -44644,9 +44634,9 @@ cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 #ifdef __cplusplus
 extern "C"
 #endif
-char shmat (void);
+char shmat ();
 int
-main (void)
+main ()
 {
 return shmat ();
   ;
@@ -44696,9 +44686,9 @@ cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 #ifdef __cplusplus
 extern "C"
 #endif
-char IceConnectionNumber (void);
+char IceConnectionNumber ();
 int
-main (void)
+main ()
 {
 return IceConnectionNumber ();
   ;
@@ -46282,7 +46272,7 @@ cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 
 
 int
-main (void)
+main ()
 {
 return main ();
   ;
@@ -46372,9 +46362,9 @@ cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 #ifdef __cplusplus
 extern "C"
 #endif
-char DGifGetCode (void);
+char DGifGetCode ();
 int
-main (void)
+main ()
 {
 return DGifGetCode ();
   ;
@@ -46438,9 +46428,9 @@ cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 #ifdef __cplusplus
 extern "C"
 #endif
-char compress (void);
+char compress ();
 int
-main (void)
+main ()
 {
 return compress ();
   ;
@@ -46524,7 +46514,7 @@ $as_echo "system not found" >&6; }
 /* end confdefs.h.  */
 #include <time.h>
 int
-main (void)
+main ()
 {
 return (int)altzone;
   ;
@@ -46565,9 +46555,9 @@ cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 #ifdef __cplusplus
 extern "C"
 #endif
-char cos (void);
+char cos ();
 int
-main (void)
+main ()
 {
 return cos ();
   ;
@@ -46624,9 +46614,9 @@ cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 #ifdef __cplusplus
 extern "C"
 #endif
-char dlopen (void);
+char dlopen ();
 int
-main (void)
+main ()
 {
 return dlopen ();
   ;
@@ -46694,7 +46684,7 @@ ac_compiler_gnu=$ac_cv_cxx_compiler_gnu
 /* end confdefs.h.  */
 
 int
-main (void)
+main ()
 {
 return 0;
   ;
@@ -46736,7 +46726,7 @@ ac_compiler_gnu=$ac_cv_cxx_compiler_gnu
 /* end confdefs.h.  */
 
 int
-main (void)
+main ()
 {
 return 0;
   ;
@@ -52527,7 +52517,7 @@ $as_echo_n "checking if C-compiler supports ccache precompiled headers... " >&6;
 /* end confdefs.h.  */
 
 int
-main (void)
+main ()
 {
 
   ;

@@ -111,10 +111,10 @@ endif
 
 
 ifneq ($(OS_VENDOR), Darwin)
-SA_LFLAGS = $(MAPFLAG:FILENAME=$(SAMAPFILE))
+  SA_LFLAGS = $(MAPFLAG:FILENAME=$(SAMAPFILE))
 else
-# bring in minimum version argument or we'll fail on OSX 10.10
-SA_LFLAGS = $(LFLAGS)
+  # bring in minimum version argument or we'll fail on OSX 10.10
+  SA_LFLAGS = $(MAC_FLAGS)
 endif
 SA_LFLAGS += $(LDFLAGS_HASH_STYLE) $(EXTRA_LDFLAGS)
 

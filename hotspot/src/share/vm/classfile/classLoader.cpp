@@ -746,6 +746,9 @@ ClassPathEntry* ClassLoader::create_class_path_entry(const char *path, const str
       if (throw_exception) {
         THROW_MSG_(vmSymbols::java_lang_ClassNotFoundException(), msg, NULL);
       } else {
+        if (TraceClassLoading || TraceClassPaths) {
+          tty->print_cr("[Path failed: %s, err: %s]", path, error_msg);
+        }
         return NULL;
       }
     }

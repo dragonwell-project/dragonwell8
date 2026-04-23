@@ -401,7 +401,8 @@ public class XPathImpl implements javax.xml.xpath.XPath {
             // Can have errorListener
             XPathExpressionImpl ximpl = new XPathExpressionImpl(xpath,
                     prefixResolver, functionResolver, variableResolver,
-                    featureSecureProcessing, featureManager );
+                    featureSecureProcessing, featureManager,
+                    xmlSecMgr);
             return ximpl;
         } catch ( javax.xml.transform.TransformerException te ) {
             throw new XPathExpressionException ( te ) ;

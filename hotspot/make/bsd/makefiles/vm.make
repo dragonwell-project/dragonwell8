@@ -119,8 +119,8 @@ CFLAGS += $(CFLAGS_WARN/BYFILE)
 CFLAGS += $(CFLAGS/NOEX)
 
 # Extra flags from gnumake's invocation or environment
-CFLAGS += $(EXTRA_CFLAGS)
-LFLAGS += $(EXTRA_CFLAGS) $(EXTRA_LDFLAGS)
+CFLAGS += $(EXTRA_CXXFLAGS)
+LFLAGS += $(EXTRA_CXXFLAGS) $(EXTRA_LDFLAGS)
 ASFLAGS += $(EXTRA_ASFLAGS)
 
 # Don't set excutable bit on stack segment

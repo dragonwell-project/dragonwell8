@@ -175,7 +175,10 @@ jobs:
         working-directory: jdk
 
       - name: Build
-        run: make CONF_NAME=linux-x64 LOG_LEVEL=debug images
+        run: |
+          cat build/linux-x64/spec.gmk
+          cat build/linux-x64/hotspot-spec.gmk
+          make CONF_NAME=linux-x64 LOG_LEVEL=debug images
         working-directory: jdk
 
       - name: Pack artifacts
@@ -534,7 +537,10 @@ jobs:
         working-directory: jdk
 
       - name: Build
-        run: make CONF_NAME=linux-x86 images
+        run: |
+          cat build/linux-x86/spec.gmk
+          cat build/linux-x86/hotspot-spec.gmk
+          make CONF_NAME=linux-x86 images
         working-directory: jdk
 
       - name: Pack artifacts
@@ -1344,7 +1350,7 @@ jobs:
 
   macos_x64_build:
     name: macOS x64
-    runs-on: "macos-13"
+    runs-on: "macos-15-intel"
     needs: prerequisites
     if: needs.prerequisites.outputs.should_run != 'false' && needs.prerequisites.outputs.platform_macos_x64 != 'false'
 
@@ -1411,7 +1417,23 @@ jobs:
         run: brew install make gawk
 
       - name: Select Xcode version
-        run: sudo xcode-select --switch /Applications/Xcode_14.3.1.app/Contents/Developer
+        run: sudo xcode-select --switch /Applications/Xcode_16.4.app/Contents/Developer
+
+      # Remove once JDK-8376511 has been completed
+      - name: Checkout the Apple Openjdk
+        uses: actions/checkout@v4
+        with:
+          repository: apple/openjdk
+          path: appleopenjdk
+
+      # Remove once JDK-8376511 has been completed
+      - name: Copy missing JNF files
+        run: |
+          sudo mkdir /Applications/Xcode_16.4.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX15.5.sdk/System/Library/Frameworks/JavaNativeFoundation.framework/Versions/Current/Headers
+          sudo cp appleopenjdk/apple/JavaNativeFoundation/JavaNativeFoundation/*.h /Applications/Xcode_16.4.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX15.5.sdk/System/Library/Frameworks/JavaNativeFoundation.framework/Versions/Current/Headers/
+          sudo cp -R appleopenjdk/apple/JavaNativeFoundation/JavaNativeFoundation/Modules /Applications/Xcode_16.4.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX15.5.sdk/System/Library/Frameworks/JavaNativeFoundation.framework/Versions/Current/
+          sudo ln -s Versions/Current/Headers /Applications/Xcode_16.4.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX15.5.sdk/System/Library/Frameworks/JavaNativeFoundation.framework/Headers
+          sudo ln -s Versions/Current/Modules /Applications/Xcode_16.4.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX15.5.sdk/System/Library/Frameworks/JavaNativeFoundation.framework/Modules
 
       - name: Configure
         run: >
@@ -1426,7 +1448,10 @@ jobs:
         working-directory: jdk
 
       - name: Build
-        run: make CONF_NAME=macos-x64 images
+        run: |
+          cat build/macos-x64/spec.gmk
+          cat build/macos-x64/hotspot-spec.gmk
+          make CONF_NAME=macos-x64 images
         working-directory: jdk
 
       - name: Pack artifacts
@@ -1442,7 +1467,7 @@ jobs:
 
   macos_x64_test:
     name: macOS x64
-    runs-on: "macos-13"
+    runs-on: "macos-15-intel"
     needs:
       - prerequisites
       - macos_x64_build
@@ -1531,7 +1556,7 @@ jobs:
         run: brew install make gawk
 
       - name: Select Xcode version
-        run: sudo xcode-select --switch /Applications/Xcode_14.3.1.app/Contents/Developer
+        run: sudo xcode-select --switch /Applications/Xcode_16.4.app/Contents/Developer
 
       - name: Run tests
         run: >

@@ -846,6 +846,17 @@ AC_DEFUN_ONCE([TOOLCHAIN_MISC_CHECKS],
     # This is later checked when setting flags.
   fi
 
+  if test "x$TOOLCHAIN_TYPE" = xgcc; then
+    if test "x$OPENJDK_TARGET_CPU_ARCH" = "xaarch64" ; then
+      AC_MSG_CHECKING([for broken aarch64 gcc 4.x])
+      COMPILER_VERSION_NUMBER_MAJOR=`$ECHO "$COMPILER_VERSION_NUMBER" | $SED  "s/@<:@^0-9@:>@.*//"`
+      AC_MSG_RESULT([found $COMPILER_VERSION_NUMBER_MAJOR.x])
+      if test $COMPILER_VERSION_NUMBER_MAJOR -lt 5; then
+        AC_MSG_ERROR([GCC < 5 may incorrectly compile HotSpot on aarch64. See JDK-8360869.])
+      fi
+    fi
+  fi
+
   # Check for broken SuSE 'ld' for which 'Only anonymous version tag is allowed
   # in executable.'
   USING_BROKEN_SUSE_LD=no

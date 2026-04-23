@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -59,6 +59,7 @@ import com.sun.imageio.plugins.common.ReaderUtil;
 import com.sun.imageio.plugins.common.SubImageInputStream;
 import java.io.ByteArrayOutputStream;
 import sun.awt.image.ByteInterleavedRaster;
+import sun.misc.IOUtils;
 
 class PNGImageDataEnumeration implements Enumeration<InputStream> {
 
@@ -134,6 +135,7 @@ public class PNGImageReader extends ImageReader {
     static final int tRNS_TYPE = 0x74524e53;
     static final int zTXt_TYPE = 0x7a545874;
 
+    static final int MAX_INFLATED_TEXT_LENGTH = 262144;
     static final int PNG_COLOR_GRAY = 0;
     static final int PNG_COLOR_RGB = 2;
     static final int PNG_COLOR_PALETTE = 3;
@@ -620,18 +622,9 @@ public class PNGImageReader extends ImageReader {
 
     private static byte[] inflate(byte[] b) throws IOException {
         InputStream bais = new ByteArrayInputStream(b);
-        InputStream iis = new InflaterInputStream(bais);
-        ByteArrayOutputStream baos = new ByteArrayOutputStream();
-
-        int c;
-        try {
-            while ((c = iis.read()) != -1) {
-                baos.write(c);
-            }
-        } finally {
-            iis.close();
+        try (InputStream iis = new InflaterInputStream(bais)) {
+            return IOUtils.readNBytes(iis, MAX_INFLATED_TEXT_LENGTH);
         }
-        return baos.toByteArray();
     }
 
     private void parse_zTXt_chunk(int chunkLength) throws IOException {
