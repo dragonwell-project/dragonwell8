@@ -876,6 +876,13 @@ else
   else
     LIBFREETYPE_LIBS := -lfreetype
   endif
+  # on 32b, the old  msvsc do not understand inline, unluckily there is
+  # wrong detection in freetype 2.14 to use only __inline in such case
+  ifeq ($(TOOLCHAIN_TYPE), microsoft)
+    ifeq ($(OPENJDK_TARGET_CPU_BITS), 32)
+      BUILD_LIBFREETYPE_CFLAGS += -Dinline=__inline
+    endif
+  endif
 
   $(eval $(call SetupNativeCompilation,BUILD_LIBFREETYPE, \
       LIBRARY := freetype, \

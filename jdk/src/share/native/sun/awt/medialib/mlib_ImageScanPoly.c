@@ -74,6 +74,7 @@ mlib_status mlib_AffineEdges(mlib_affine_param *param,
   mlib_s32 top, bot;
   mlib_s32 topIdx, max_xsize = 0;
   mlib_s32 i, j, t;
+  int intSize;
 
   srcData = mlib_ImageGetData(src);
   dstData = mlib_ImageGetData(dst);
@@ -101,7 +102,7 @@ mlib_status mlib_AffineEdges(mlib_affine_param *param,
     return MLIB_FAILURE;
   }
 
-  int intSize = sizeof(mlib_s32);
+  intSize = sizeof(mlib_s32);
   if (!SAFE_TO_MULT(dstHeight, intSize) ||
       !SAFE_TO_ADD(dstHeight * intSize, 7)) {
     return MLIB_FAILURE;

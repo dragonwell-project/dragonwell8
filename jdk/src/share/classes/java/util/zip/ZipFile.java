@@ -320,16 +320,18 @@ class ZipFile implements ZipConstants, Closeable {
         long jzentry = 0;
         synchronized (this) {
             ensureOpen();
-            jzentry = getEntry(jzfile, zc.getBytes(name), true);
-            if (jzentry != 0) {
+            jzentry = getEntry(jzfile, zc.getBytes(name));
+            if (jzentry == 0 && !name.endsWith("/")) {
                 // If no entry is found for the specified 'name' and
                 // the 'name' does not end with a forward slash '/',
-                // the implementation tries to find the entry with a
-                // slash '/' appended to the end of the 'name', before
-                // returning null. When such entry is found, the name
-                // that actually is found (with a slash '/' attached)
-                // is used
-                // (disabled if jdk.util.zip.ensureTrailingSlash=false)
+                // we try to find an entry with a slash '/' appended
+                // to the end of the 'name'.
+                jzentry = getEntry(jzfile, zc.getBytes(name + "/"));
+            }
+            if (jzentry != 0) {
+                // When we search for the name of an entry with an appended
+                // slash '/', the name that is found (with a slash '/' attached)
+                // is used (disabled if jdk.util.zip.ensureTrailingSlash=false)
                 ZipEntry ze = ensuretrailingslash ? getZipEntry(null, jzentry)
                                                   : getZipEntry(name, jzentry);
                 freeEntry(jzfile, jzentry);
@@ -339,8 +341,7 @@ class ZipFile implements ZipConstants, Closeable {
         return null;
     }
 
-    private static native long getEntry(long jzfile, byte[] name,
-                                        boolean addSlash);
+    private static native long getEntry(long jzfile, byte[] name);
 
     // freeEntry releases the C jzentry struct.
     private static native void freeEntry(long jzfile, long jzentry);
@@ -372,9 +373,9 @@ class ZipFile implements ZipConstants, Closeable {
         synchronized (this) {
             ensureOpen();
             if (!zc.isUTF8() && (entry.flag & EFS) != 0) {
-                jzentry = getEntry(jzfile, zc.getBytesUTF8(entry.name), false);
+                jzentry = getEntry(jzfile, zc.getBytesUTF8(entry.name));
             } else {
-                jzentry = getEntry(jzfile, zc.getBytes(entry.name), false);
+                jzentry = getEntry(jzfile, zc.getBytes(entry.name));
             }
             if (jzentry == 0) {
                 return null;
