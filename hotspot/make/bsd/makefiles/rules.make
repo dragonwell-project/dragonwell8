@@ -31,7 +31,7 @@ DEMANGLER       = c++filt
 DEMANGLE        = $(DEMANGLER) < $@ > .$@ && mv -f .$@ $@
 
 # $(CC) is the c compiler (cc/gcc), $(CXX) is the c++ compiler (CC/g++).
-CC_COMPILE       = $(CC) $(CXXFLAGS) $(CFLAGS)
+CC_COMPILE       = $(CC) $(CFLAGS)
 CXX_COMPILE      = $(CXX) $(CXXFLAGS) $(CFLAGS)
 
 AS.S            = $(AS) $(ASFLAGS)

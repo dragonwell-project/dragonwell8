@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2012, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -96,8 +96,9 @@ public class ResponseCacheStream implements HttpCallback {
     public static void main(String[] args) throws Exception {
         MyResponseCache cache = new MyResponseCache();
         try {
+            InetAddress loopback = InetAddress.getLoopbackAddress();
             ResponseCache.setDefault(cache);
-            server = new TestHttpServer (new ResponseCacheStream());
+            server = new TestHttpServer (new ResponseCacheStream(), loopback, 0);
             System.out.println ("Server: listening on port: " + server.getLocalPort());
             URL url = new URL ("http://127.0.0.1:"+server.getLocalPort()+"/");
             System.out.println ("Client: connecting to " + url);

@@ -317,7 +317,9 @@ public class FcFontConfiguration extends FontConfiguration {
                      * For Ubuntu the ID is "Ubuntu".
                      */
                     Properties props = new Properties();
-                    props.load(new FileInputStream(f));
+                    try (FileInputStream fis = new FileInputStream(f)) {
+                        props.load(fis);
+                    }
                     osName = props.getProperty("DISTRIB_ID");
                     osVersion =  props.getProperty("DISTRIB_RELEASE");
             } else if ((f = new File("/etc/redhat-release")).canRead()) {
@@ -400,10 +402,9 @@ public class FcFontConfiguration extends FontConfiguration {
             File dir = fcInfoFile.getParentFile();
             dir.mkdirs();
             File tempFile = Files.createTempFile(dir.toPath(), "fcinfo", null).toFile();
-            FileOutputStream fos = new FileOutputStream(tempFile);
-            props.store(fos,
-                      "JDK Font Configuration Generated File: *Do Not Edit*");
-            fos.close();
+            try (FileOutputStream fos = new FileOutputStream(tempFile)) {
+                props.store(fos, "JDK Font Configuration Generated File: *Do Not Edit*");
+            }
             boolean renamed = tempFile.renameTo(fcInfoFile);
             if (!renamed && FontUtilities.debugFonts()) {
                 System.out.println("rename failed");

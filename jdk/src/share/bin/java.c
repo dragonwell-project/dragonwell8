@@ -729,7 +729,7 @@ SetJvmEnvironment(int argc, char **argv) {
 static int
 parse_size(const char *s, jlong *result) {
   jlong n = 0;
-  int args_read = sscanf(s, jlong_format_specifier(), &n);
+  int args_read = sscanf(s, JLONG_FORMAT_SPECIFIER, &n);
   if (args_read != 1) {
     return 0;
   }

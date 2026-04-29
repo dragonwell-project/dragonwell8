@@ -1043,7 +1043,7 @@ ContinueInNewThread0(int (JNICALL *continuation)(void *), jlong stack_size, void
     if (pthread_create(&tid, &attr, (void *(*)(void*))continuation, (void*)args) == 0) {
       void * tmp;
       pthread_join(tid, &tmp);
-      rslt = (int)tmp;
+      rslt = (int)(intptr_t)tmp;
     } else {
      /*
       * Continue execution in current thread if for some reason (e.g. out of
@@ -1061,7 +1061,7 @@ ContinueInNewThread0(int (JNICALL *continuation)(void *), jlong stack_size, void
     if (thr_create(NULL, stack_size, (void *(*)(void *))continuation, args, flags, &tid) == 0) {
       void * tmp;
       thr_join(tid, NULL, &tmp);
-      rslt = (int)tmp;
+      rslt = (int)(intptr_t)tmp;
     } else {
       /* See above. Continue in current thread if thr_create() failed */
       rslt = continuation(args);

@@ -713,12 +713,10 @@ public abstract class Toolkit {
                     File propsFile = new File(
                       System.getProperty("user.home") +
                       sep + ".accessibility.properties");
-                    FileInputStream in =
-                        new FileInputStream(propsFile);
-
-                    // Inputstream has been buffered in Properties class
-                    properties.load(in);
-                    in.close();
+                    try (FileInputStream in = new FileInputStream(propsFile)) {
+                        // Inputstream has been buffered in Properties class
+                        properties.load(in);
+                    }
                 } catch (Exception e) {
                     // Per-user accessibility properties file does not exist
                 }
@@ -731,12 +729,10 @@ public abstract class Toolkit {
                         File propsFile = new File(
                             System.getProperty("java.home") + sep + "lib" +
                             sep + "accessibility.properties");
-                        FileInputStream in =
-                            new FileInputStream(propsFile);
-
-                        // Inputstream has been buffered in Properties class
-                        properties.load(in);
-                        in.close();
+                        try (FileInputStream in = new FileInputStream(propsFile)) {
+                            // Inputstream has been buffered in Properties class
+                            properties.load(in);
+                        }
                     } catch (Exception e) {
                         // System-wide accessibility properties file does
                         // not exist;

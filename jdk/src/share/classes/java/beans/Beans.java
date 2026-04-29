@@ -191,13 +191,11 @@ public class Beans {
                 serialized = true;
                 oins.close();
             } catch (IOException ex) {
-                ins.close();
                 // Drop through and try opening the class.  But remember
                 // the exception in case we can't find the class either.
                 serex = ex;
-            } catch (ClassNotFoundException ex) {
+            } finally {
                 ins.close();
-                throw ex;
             }
         }
 

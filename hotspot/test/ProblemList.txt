@@ -69,7 +69,6 @@ compiler/rtm/locking/TestUseRTMAfterLockInflation.java 8183263 generic-x64,gener
 compiler/rtm/locking/TestUseRTMForInflatedLocks.java 8183263 generic-x64,generic-i586
 compiler/rtm/locking/TestUseRTMForStackLocks.java 8183263 generic-x64,generic-i586
 compiler/rtm/method_options/TestUseRTMLockElidingOption.java 8183263 generic-x64,generic-i586
-compiler/tiered/LevelTransitionTest.java https://github.com/dragonwell-project/dragonwell8/issues/469 generic-all
 
 # :temporary_disabled
 
@@ -101,3 +100,8 @@ jwarmup/TestNotifyDeopt.sh generic-all
 jwarmup/TestTieredCompilationInRecording.sh generic-all
 multi-tenant/TestParGCAllocatorLeak.sh generic-all
 multi-tenant/TestTenantJVMOptions.sh generic-all
+
+
+# :hotspot_gc
+
+gc/survivorAlignment/TestPromotionFromSurvivorToTenuredAfterMinorGC.java 8177765 generic-all
