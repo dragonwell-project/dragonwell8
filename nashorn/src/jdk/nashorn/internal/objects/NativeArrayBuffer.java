@@ -225,10 +225,13 @@ public final class NativeArrayBuffer extends ScriptObject {
     }
 
     ByteBuffer getBuffer(final int offset) {
-        return (ByteBuffer)nb.duplicate().position(offset);
+        return ((ByteBuffer)nb.duplicate().position(offset)).slice();
     }
 
     ByteBuffer getBuffer(final int offset, final int length) {
-        return (ByteBuffer)getBuffer(offset).limit(length);
+        if (length < 0) {
+            throw new IllegalArgumentException("length must not be negative");
+        }
+        return ((ByteBuffer)nb.duplicate().position(offset).limit(offset + length)).slice();
     }
 }

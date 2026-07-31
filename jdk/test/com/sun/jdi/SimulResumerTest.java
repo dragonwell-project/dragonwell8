@@ -182,7 +182,7 @@ public class SimulResumerTest extends TestScaffold {
                 int nframes = frames.size();
                 while (nframes > 0) {
                     try {
-                        thr.frames(0, frames.size() - 1);
+                        thr.frames(0, nframes - 1);
                         break;
                     } catch (IndexOutOfBoundsException iobe) {
                         // 6815126. let's try to get less frames

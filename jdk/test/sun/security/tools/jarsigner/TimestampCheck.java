@@ -35,6 +35,7 @@ import java.net.InetSocketAddress;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.security.KeyStore;
+import java.security.MessageDigest;
 import java.security.PrivateKey;
 import java.security.Signature;
 import java.security.cert.Certificate;
@@ -54,6 +55,7 @@ import jdk.testlibrary.JarUtils;
 import sun.security.pkcs.ContentInfo;
 import sun.security.pkcs.PKCS7;
 import sun.security.pkcs.PKCS9Attribute;
+import sun.security.pkcs.PKCS9Attributes;
 import sun.security.pkcs.SignerInfo;
 import sun.security.timestamp.TimestampToken;
 import sun.security.util.DerOutputStream;
@@ -228,7 +230,19 @@ public class TimestampCheck {
             Signature sig = Signature.getInstance(sigAlg);
             sig.initSign((PrivateKey)(ks.getKey(
                     alias, "changeit".toCharArray())));
-            sig.update(tstInfo.toByteArray());
+
+            AlgorithmId digestAlg = AlgorithmId.get(
+                    AlgorithmId.getDigAlgFromSigAlg(sigAlg));
+            PKCS9Attributes authAttrs = new PKCS9Attributes(new PKCS9Attribute[]{
+                    new PKCS9Attribute(PKCS9Attribute.CONTENT_TYPE_OID,
+                            ContentInfo.TIMESTAMP_TOKEN_INFO_OID),
+                    new PKCS9Attribute(PKCS9Attribute.SIGNING_TIME_OID,
+                            new Date()),
+                    new PKCS9Attribute(PKCS9Attribute.MESSAGE_DIGEST_OID,
+                            MessageDigest.getInstance(digestAlg.getName())
+                                    .digest(tstInfo.toByteArray()))
+            });
+            sig.update(authAttrs.getDerEncoding());
 
             ContentInfo contentInfo = new ContentInfo(new ObjectIdentifier(
                     "1.2.840.113549.1.9.16.1.4"),
@@ -242,10 +256,11 @@ public class TimestampCheck {
             SignerInfo signerInfo = new SignerInfo(
                     new X500Name(signer.getIssuerX500Principal().getName()),
                     signer.getSerialNumber(),
-                    AlgorithmId.get(AlgorithmId.getDigAlgFromSigAlg(sigAlg)),
+                    digestAlg,
+                    authAttrs,
                     AlgorithmId.get(AlgorithmId.getEncAlgFromSigAlg(sigAlg)),
-                    sig.sign());
-
+                    sig.sign(),
+                    null);
             SignerInfo[] signerInfos = {signerInfo};
             PKCS7 p7 = new PKCS7(algorithms, contentInfo,
                     signerCertificateChain, signerInfos);

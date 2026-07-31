@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -215,10 +215,10 @@ static PdhLookupPerfNameByIndexFunc PdhLookupPerfNameByIndex_i;
  */
 typedef struct {
     HQUERY      query;
-    uint64_t    lastUpdate; // Last time query was updated (ticks)
+    uint64_t    lastUpdate; // Last time query was updated (millis)
 } UpdateQueryS, *UpdateQueryP;
 
-// Min time between query updates (ticks)
+// Min time between query updates (millis)
 static const int MIN_UPDATE_INTERVAL = 500;
 
 /*
@@ -993,7 +993,7 @@ bindPdhFunctionPointers(HMODULE h) {
  */
 static int
 getPerformanceData(UpdateQueryP query, HCOUNTER c, PDH_FMT_COUNTERVALUE* value, DWORD format) {
-    clock_t now = clock();
+    uint64_t now = GetTickCount64();
 
     /*
      * Need to limit how often we update the query
