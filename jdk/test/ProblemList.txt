@@ -391,6 +391,7 @@ security/infra/java/security/cert/CertPathValidator/certification/CAInterop.java
 security/infra/java/security/cert/CertPathValidator/certification/CAInterop.java#certignarootca         8331883 generic-all
 security/infra/java/security/cert/CertPathValidator/certification/CAInterop.java#entrustrootcag4        8367256 generic-all
 security/infra/java/security/cert/CertPathValidator/certification/CAInterop.java#teliasonerarootcav1    8333640 generic-all
+security/infra/java/security/cert/CertPathValidator/certification/CAInterop.java#teliarootcav2          8380376 generic-all
 security/infra/java/security/cert/CertPathValidator/certification/CAInterop.java#microsoftrsa2017       8374886 generic-all
 security/infra/java/security/cert/CertPathValidator/certification/LuxTrustCA.java                       8314509 generic-all
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -671,7 +671,15 @@ class ServerImpl {
                             requestLine, "Bad request line");
                     return;
                 }
-                String uriStr = requestLine.substring (start, space);
+
+                // Read the request URI
+                String uriStr = requestLine.substring(start, space);
+                // Reject ambiguous URIs
+                if (uriStr.startsWith("//")) {
+                    reject(Code.HTTP_BAD_REQUEST,
+                            requestLine, "Bad request URI");
+                    return;
+                }
                 URI uri = new URI (uriStr);
                 start = space+1;
                 String version = requestLine.substring (start);
@@ -802,7 +810,7 @@ class ServerImpl {
                         requestLine, "NumberFormatException thrown");
             } catch (URISyntaxException e) {
                 reject (Code.HTTP_BAD_REQUEST,
-                        requestLine, "URISyntaxException thrown");
+                        requestLine, "Bad request URI");
             } catch (Exception e4) {
                 logger.log (Level.FINER, "ServerImpl.Exchange (2)", e4);
                 closeConnection(connection);

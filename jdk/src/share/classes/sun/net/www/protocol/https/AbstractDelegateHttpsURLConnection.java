@@ -186,7 +186,7 @@ public abstract class AbstractDelegateHttpsURLConnection extends
     public void connect() throws IOException {
         if (connected)
             return;
-        plainConnect();
+        super.connect();
         if (cachedResponse != null) {
             // using cached response
             return;

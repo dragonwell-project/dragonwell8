@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,6 +24,7 @@ package jdk.testlibrary.security;
 
 import jdk.testlibrary.Asserts;
 import sun.security.util.DerInputStream;
+import sun.security.util.DerOutputStream;
 import sun.security.util.DerValue;
 import sun.security.util.ObjectIdentifier;
 
@@ -113,5 +114,88 @@ public class DerUtils {
     public static void shouldNotExist(byte[] der, String location)
             throws Exception {
         Asserts.assertTrue(innerDerValue(der, location) == null);
+    }
+
+    /// Replaces a `DerValue` (deep) inside with another one.
+    ///
+    /// @param data the `DerValue`
+    /// @param target the location to edit. Cannot be empty.
+    /// @param replacement replace the value at `target` with this. Can be a `DerValue`
+    ///         or a `DerOutputStream`. Remove if `null`.
+    /// @return the new value
+    public static byte[] edit(byte[] data, String target, Object replacement)
+            throws IOException {
+        if (target.isEmpty()) throw new IOException("Must be a sub-location");
+        return modify0(data, "", target, replacement, false).toByteArray();
+    }
+
+    /// Inserts a `DerValue` (deep) into another one.
+    ///
+    /// @param data the `DerValue`
+    /// @param target the location to insert at. Cannot be empty. The new value
+    ///        is inserted before the existing value at `target`, and following
+    ///        values are shifted. After insertion, the value at `target`
+    ///        is the inserted value. A target ending exactly with `c` is not
+    ///        a valid insertion position because the content of an OCTET
+    ///        STRING must be only one `DerValue`.
+    /// @param addition the value to insert. Can be a `DerValue` or a
+    ///        `DerOutputStream`
+    /// @return the new value
+    public static byte[] insert(byte[] data, String target, Object addition)
+            throws IOException {
+        if (target.isEmpty()) throw new IOException("Must be a sub-location");
+        return modify0(data, "", target, addition, true).toByteArray();
+    }
+
+    /// Implementation of [#edit] and [#insert], recursively.
+    ///
+    /// @param data the `DerValue`
+    /// @param now the current location
+    /// @param target the location to edit or insert at
+    /// @param replacement the replacement or inserted value
+    /// @param insert true to insert before the target, false to replace it
+    /// @return the new value at this location
+    private static DerOutputStream modify0(byte[] data, String now, String target,
+            Object replacement, boolean insert) throws IOException {
+        DerOutputStream out = new DerOutputStream();
+        DerValue parent = DerUtils.innerDerValue(data, now);
+        if (target.equals(now + "c")) {
+            if (insert) {
+                throw new IOException("Action cannot be performed at position " + target);
+            }
+            if (replacement instanceof DerValue) {
+                out.putDerValue((DerValue) replacement);
+            } else if (replacement instanceof DerOutputStream) {
+                ((DerOutputStream) replacement).derEncode(out);
+            }
+        } else if (target.startsWith(now + "c")) { // not there yet, go inside
+            out.write(parent.tag, modify0(data, now + "c", target, replacement, insert));
+            return out;
+        } else {
+            for (int i = 0; ; i++) {
+                // We only support locations of one digit now
+                if (i > 9) throw new IllegalStateException("Too big " + i);
+                String pos = now + i;
+                DerValue sub = DerUtils.innerDerValue(data, pos); // current value
+                if (sub == null) break; // at the end
+                if (target.equals(pos)) { // the one we want to change
+                    if (replacement instanceof DerValue) {
+                        out.putDerValue((DerValue) replacement);
+                    } else if (replacement instanceof DerOutputStream) {
+                        ((DerOutputStream) replacement).derEncode(out);
+                    }
+                    if (insert) {
+                        out.putDerValue(sub);
+                    }
+                } else if (target.startsWith(pos)) { // not there yet, go inside
+                    modify0(data, pos, target, replacement, insert).derEncode(out);
+                } else { // the untouched values
+                    out.putDerValue(sub);
+                }
+            }
+        }
+        DerOutputStream ret = new DerOutputStream();
+        ret.write(parent.tag, out);
+        return ret;
     }
 }

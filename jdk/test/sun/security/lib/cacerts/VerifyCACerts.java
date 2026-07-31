@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,7 +28,7 @@
  *      8223499 8225392 8232019 8234245 8233223 8225068 8225069 8243321 8243320
  *      8243559 8225072 8258630 8259312 8256421 8225081 8225082 8225083 8245654
  *      8305975 8304760 8307134 8295894 8314960 8317373 8317374 8318759 8319187
- *      8321408 8316138 8341057 8303770 8350498 8359170 8361212
+ *      8321408 8316138 8341057 8303770 8350498 8359170 8361212 8372351
  * @summary Check root CA entries in cacerts file
  */
 import java.io.ByteArrayInputStream;
@@ -54,12 +54,12 @@ public class VerifyCACerts {
             + File.separator + "security" + File.separator + "cacerts";
 
     // The numbers of certs now.
-    private static final int COUNT = 109;
+    private static final int COUNT = 111;
 
     // SHA-256 of cacerts, can be generated with
     // shasum -a 256 cacerts | sed -e 's/../&:/g' | tr '[:lower:]' '[:upper:]' | cut -c1-95
     private static final String CHECKSUM
-            = "F2:0C:60:47:49:FA:13:2A:03:A4:52:20:AD:46:7C:D0:3F:3D:A7:59:D6:27:E9:9B:CC:D4:5A:04:8D:2A:DE:9F";
+            = "F3:8B:96:50:B5:FB:8C:20:47:E4:6E:B3:88:6C:2F:DF:F0:07:AA:F9:A7:E2:C1:D5:97:B3:92:1A:28:68:6A:F7";
 
     // map of cert alias to SHA-256 fingerprint
     @SuppressWarnings("serial")
@@ -284,6 +284,10 @@ public class VerifyCACerts {
                     "7E:76:26:0A:E6:9A:55:D3:F0:60:B0:FD:18:B2:A8:C0:14:43:C8:7B:60:79:10:30:C9:FA:0B:05:85:10:1A:38");
             put("sectigocodesignroote46 [jdk]",
                     "8F:63:71:D8:CC:5A:A7:CA:14:96:67:A9:8B:54:96:39:89:51:E4:31:9F:7A:FB:CC:6A:66:0D:67:3E:43:8D:0B");
+            put("wisekeyglobalrootgbca [jdk]",
+                    "6B:9C:08:E8:6E:B0:F7:67:CF:AD:65:CD:98:B6:21:49:E5:49:4A:67:F5:84:5E:7B:D1:ED:01:9F:27:B8:6B:D6");
+            put("wisekeyglobalrootgcca [jdk]",
+                    "85:60:F9:1C:36:24:DA:BA:95:70:B5:FE:A0:DB:E3:6F:F1:1A:83:23:BE:94:86:85:4F:B3:F3:4A:55:71:19:8D");
         }
     };
 

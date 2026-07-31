@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -260,25 +260,37 @@ enum Alert {
             } else if ((level == Level.WARNING) && (alert != null)) {
                 // Terminate the connection if an alert with a level of warning
                 // is received during handshaking, except the no_certificate
-                // warning.
-                if (alert.handshakeOnly && (tc.handshakeContext != null)) {
-                    // It's OK to get a no_certificate alert from a client of
-                    // which we requested client authentication.  However,
-                    // if we required it, then this is not acceptable.
-                    if (tc.sslConfig.isClientMode ||
-                            alert != Alert.NO_CERTIFICATE ||
-                            (tc.sslConfig.clientAuthType !=
+                // warning for SSLv3.
+                HandshakeContext hc = tc.handshakeContext;
+                if (alert.handshakeOnly && (hc != null)) {
+                    // In SSLv3, it's OK to get a no_certificate alert from a
+                    // client where we requested (want) client authentication.
+                    // If we required it (need), this is not acceptable
+                    // and must fail.
+                    //
+                    // no_certificate alerts are not acceptable in TLSv1.*.
+                    //
+                    if (!tc.sslConfig.isClientMode &&
+                            (hc.negotiatedProtocol == ProtocolVersion.SSL30) &&
+                            (alert == Alert.NO_CERTIFICATE) &&
+                            (tc.sslConfig.clientAuthType ==
                                     ClientAuthType.CLIENT_AUTH_REQUESTED)) {
-                        throw tc.fatal(Alert.HANDSHAKE_FAILURE,
-                            "received handshake warning: " + alert.description);
-                    } else {
-                        // Otherwise ignore the warning but remove the
-                        // Certificate and CertificateVerify handshake
-                        // consumer so the state machine doesn't expect it.
-                        tc.handshakeContext.handshakeConsumers.remove(
-                                SSLHandshake.CERTIFICATE.id);
-                        tc.handshakeContext.handshakeConsumers.remove(
+
+                        // We'll ignore the warning and remove the Certificate
+                        // and CertificateVerify handshake consumers so the
+                        // state machine isn't expecting them.
+                        if (hc.handshakeConsumers.remove(
+                                SSLHandshake.CERTIFICATE.id) != null) {
+                            hc.handshakeConsumers.remove(
                                 SSLHandshake.CERTIFICATE_VERIFY.id);
+                        } else {
+                            throw tc.fatal(Alert.HANDSHAKE_FAILURE,
+                                    "NO_CERTIFICATE alert received when certs" +
+                                    " were not expected or already received");
+                        }
+                    } else {
+                        throw tc.fatal(Alert.HANDSHAKE_FAILURE,
+                            "Received handshake warning: " + alert.description);
                     }
                 }  // Otherwise, ignore the warning
             } else {    // fatal or unknown
