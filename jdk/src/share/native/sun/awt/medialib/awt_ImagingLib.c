@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -2299,7 +2299,11 @@ allocateArray(JNIEnv *env, BufImageS_t *imageP,
     /* Means we need to fill in alpha */
     if (!cvtToDefault && addAlpha) {
         *mlibImagePP = (*sMlibSysFns.createFP)(MLIB_BYTE, 4, width, height);
-        if (*mlibImagePP != NULL) {
+        if (*mlibImagePP == NULL) {
+            (*env)->ReleasePrimitiveArrayCritical(env, rasterP->jdata, dataP,
+                                                  JNI_ABORT);
+            return -1;
+        } else {
             unsigned int *dstP  = (unsigned int *)
                 mlib_ImageGetData(*mlibImagePP);
             int dstride = (*mlibImagePP)->stride>>2;
@@ -2315,10 +2319,10 @@ allocateArray(JNIEnv *env, BufImageS_t *imageP,
                     dP[x] = sP[x] | 0xff000000;
                 }
             }
+            (*env)->ReleasePrimitiveArrayCritical(env, rasterP->jdata, dataP,
+                                                  JNI_ABORT);
+            return 0;
         }
-        (*env)->ReleasePrimitiveArrayCritical(env, rasterP->jdata, dataP,
-                                              JNI_ABORT);
-        return 0;
     }
     else if ((hintP->packing & BYTE_INTERLEAVED) == BYTE_INTERLEAVED) {
         int nChans = (cmP->isDefaultCompatCM ? 4 : hintP->numChans);
@@ -2333,6 +2337,11 @@ allocateArray(JNIEnv *env, BufImageS_t *imageP,
                                               hintP->sStride,
                                               (unsigned char *)dataP
                                               + hintP->dataOffset);
+        if (*mlibImagePP == NULL) {
+            (*env)->ReleasePrimitiveArrayCritical(env, rasterP->jdata, dataP,
+                                                  JNI_ABORT);
+            return -1;
+        }
     }
     else if ((hintP->packing & SHORT_INTERLEAVED) == SHORT_INTERLEAVED) {
         *mlibImagePP = (*sMlibSysFns.createStructFP)(MLIB_SHORT,
@@ -2342,6 +2351,11 @@ allocateArray(JNIEnv *env, BufImageS_t *imageP,
                                               imageP->raster.scanlineStride*2,
                                               (unsigned short *)dataP
                                               + hintP->channelOffset);
+        if (*mlibImagePP == NULL) {
+            (*env)->ReleasePrimitiveArrayCritical(env, rasterP->jdata, dataP,
+                                                  JNI_ABORT);
+            return -1;
+        }
     }
     else {
         /* Release the data array */
@@ -2441,6 +2455,11 @@ allocateRasterArray(JNIEnv *env, RasterS_t *rasterP,
                                               width, height,
                                               rasterP->scanlineStride*4,
                                               (unsigned char *)dataP + offset);
+        if (*mlibImagePP == NULL) {
+            (*env)->ReleasePrimitiveArrayCritical(env, rasterP->jdata, dataP,
+                                                  JNI_ABORT);
+            return -1;
+        }
         *dataPP = dataP;
         return 0;
     case sun_awt_image_IntegerComponentRaster_TYPE_BYTE_SAMPLES:
@@ -2469,6 +2488,11 @@ allocateRasterArray(JNIEnv *env, RasterS_t *rasterP,
                                               width, height,
                                               rasterP->scanlineStride,
                                               (unsigned char *)dataP + offset);
+        if (*mlibImagePP == NULL) {
+            (*env)->ReleasePrimitiveArrayCritical(env, rasterP->jdata, dataP,
+                                                  JNI_ABORT);
+            return -1;
+        }
         *dataPP = dataP;
         return 0;
     case sun_awt_image_IntegerComponentRaster_TYPE_USHORT_SAMPLES:
@@ -2499,6 +2523,11 @@ allocateRasterArray(JNIEnv *env, RasterS_t *rasterP,
                                                      width, height,
                                                      rasterP->scanlineStride*2,
                                                      (unsigned char *)dataP + offset);
+        if (*mlibImagePP == NULL) {
+            (*env)->ReleasePrimitiveArrayCritical(env, rasterP->jdata, dataP,
+                                                  JNI_ABORT);
+            return -1;
+        }
         *dataPP = dataP;
         return 0;
 

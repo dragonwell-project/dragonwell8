@@ -25,7 +25,7 @@
  * @test
  * @bug 8312065
  * @summary Socket.connect does not timeout as expected when profiling (i.e. keep receiving signal)
- * @requires (os.family != "windows")
+ * @requires (os.family == "linux")
  * @build B8312065
  * @run shell B8312065.sh
  */

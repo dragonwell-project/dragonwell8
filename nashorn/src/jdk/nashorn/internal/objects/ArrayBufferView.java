@@ -313,8 +313,8 @@ public abstract class ArrayBufferView extends ScriptObject {
         final ScriptObject source = (ScriptObject)array;
         final int offset = JSType.toInt32(offset0); // default=0
 
-        if (dest.elementLength() < length + offset || offset < 0) {
-            throw new RuntimeException("offset or array length out of bounds");
+        if (dest.elementLength() - length < offset || offset < 0) {
+            throw rangeError("inappropriate.array.length", JSType.toString(length));
         }
 
         copyElements(dest, length, source, offset);

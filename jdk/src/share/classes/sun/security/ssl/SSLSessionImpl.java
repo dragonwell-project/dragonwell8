@@ -401,8 +401,12 @@ final class SSLSessionImpl extends ExtendedSSLSession {
      * maximum lifetime in any case.
      */
     boolean isRejoinable() {
+        // TLS 1.3 can have no session id
+        if (protocolVersion.useTLS13PlusSpec()) {
+            return (!invalidated && isLocalAuthenticationValid());
+        }
         return sessionId != null && sessionId.length() != 0 &&
-            !invalidated && isLocalAuthenticationValid();
+                !invalidated && isLocalAuthenticationValid();
     }
 
     @Override
