@@ -2435,44 +2435,40 @@ current as well as long time former maintainer of giflib code
 
 -------------------------------------------------------------------------------
 
-%% This notice is provided with respect to Little CMS 2.15, which may be
+%% This notice is provided with respect to Little CMS 2.19.1, which may be
 included with JRE 8, JDK 8, and OpenJDK 8.
 
 --- begin of LICENSE ---
 
-README.1ST file information
 
-LittleCMS core is released under MIT License
+MIT License
 
 ---------------------------------
-
-Little CMS
-Copyright (c) 1998-2023 Marti Maria Saguer
+Copyright (C) 1998-2026 Marti Maria Saguer
 
 Permission is hereby granted, free of charge, to any person obtaining
-a copy of this software and associated documentation files (the
-"Software"), to deal in the Software without restriction, including
-without limitation the rights to use, copy, modify, merge, publish,
-distribute, sublicense, and/or sell copies of the Software, and to
-permit persons to whom the Software is furnished to do so, subject
-to the following conditions:
+a copy of this software and associated documentation files (the "Software"),
+to deal in the Software without restriction, including without limitation
+the rights to use, copy, modify, merge, publish, distribute, sublicense,
+and/or sell copies of the Software, and to permit persons to whom the Software
+is furnished to do so, subject to the following conditions:
 
-The above copyright notice and this permission notice shall be
-included in all copies or substantial portions of the Software.
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
 
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
-EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
-IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
-CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
-TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
-SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
+THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
+LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
+OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
+WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 ---------------------------------
-The below license applies to the following files:
+The below applies to the following file(s):
 liblcms/cmssm.c
 
-Copyright 2001, softSurfer (www.softsurfer.com)
+Copyright (C) 2001, softSurfer (www.softsurfer.com)
 
 This code may be freely used and modified for any purpose
 providing that this copyright notice is included with it.
@@ -2481,7 +2477,6 @@ liable for any real or imagined damage resulting from its use.
 Users of this code must verify correctness for their application.
 
 AUTHORS File Information:
-
 
 Main Author
 ------------
@@ -2526,6 +2521,8 @@ Philipp Knechtges
 Amyspark
 Lovell Fuller
 Eli Schwartz
+Diogo Teles Sant'Anna
+Vlad Erium
 
 Special Thanks
 --------------
@@ -2539,6 +2536,7 @@ Christian Albrecht
 Dimitrios Anastassakis
 Lemke Software
 Tim Zaman
+Amir Montazery and Open Source Technology Improvement Fund (ostif.org), Google, for fuzzer fundings.
 
 --- end of LICENSE ---
 
@@ -3832,14 +3830,14 @@ performance, or use of this material.
 
 -------------------------------------------------------------------------------
 
-%% This notice is provided with respect to zlib v1.3.1, which may be included
+%% This notice is provided with respect to zlib v1.3.2, which may be included
 with JRE 8, JDK 8, and OpenJDK 8.
 
 --- begin of LICENSE ---
 
-  version 1.3.1, January 22, 2024
+  version 1.3.2, February 17, 2026
 
-  Copyright (C) 1995-2024 Jean-loup Gailly and Mark Adler
+  Copyright (C) 1995-2026 Jean-loup Gailly and Mark Adler
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages

@@ -26,6 +26,7 @@
 package sun.security.ssl;
 
 import java.io.IOException;
+import java.net.SocketException;
 import java.security.AccessControlContext;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
@@ -344,7 +345,12 @@ class TransportContext implements ConnectionContext {
 
         // invalidate the session
         if (conSession != null) {
-            conSession.invalidate();
+            // In the case of a low-layer transport error, we want to prevent
+            // the session from being invalidated since this is not a TLS-level
+            // error event.
+            if (!(cause instanceof SocketException)) {
+                conSession.invalidate();
+            }
         }
 
         if (handshakeContext != null &&
