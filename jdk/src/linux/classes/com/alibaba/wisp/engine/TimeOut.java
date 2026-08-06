@@ -30,6 +30,7 @@ import java.util.concurrent.TimeUnit;
  */
 public class TimeOut {
     enum Action {
+        INIT,
         JVM_UNPARK,
         JDK_UNPARK,
         RESUME
@@ -67,6 +68,9 @@ public class TimeOut {
      */
     void doAction() {
         switch (action) {
+            case INIT:
+                // only be called in Wisp init process
+                break;
             case RESUME:
                 task.carrier.wakeupTask(task);
                 break;
