@@ -24,16 +24,42 @@
  * @summary Test ServerSocket isConnected() method
  * @requires os.family == "linux"
  * @library /lib/testlibrary
+ * @build SimpleClient
  * @run main/othervm -XX:+UnlockExperimentalVMOptions -XX:+EnableCoroutine -XX:+UseWispMonitor -Dcom.alibaba.wisp.transparentWispSwitch=true ServerSocketConnectionTest
  */
 
 import java.io.IOException;
 import java.net.*;
-import static jdk.testlibrary.Asserts.assertTrue;
-import static jdk.testlibrary.Asserts.assertFalse;
+
+import static jdk.testlibrary.Asserts.*;
 
 
 public class ServerSocketConnectionTest {
+
+    private static final String CLIENT = "SimpleClient";
+    private static final String PORT   = "4039";
+
+    public static void testJavaNetSocketAccessInitialization() throws Exception {
+        ServerSocket ss = null;
+        try {
+            ss = new ServerSocket(Integer.parseInt(PORT));
+            // We should avoid using the Socket class here to reproduce this issue.
+            // So we use another process here.
+            ProcessBuilder pb = jdk.testlibrary.ProcessTools.createJavaProcessBuilder(
+                CLIENT,
+                PORT  // port
+            );
+            pb.start();
+            ss.accept();
+        } catch (Exception e) {
+            e.printStackTrace();
+            fail("Test Failed!");
+        } finally {
+            if (ss != null) {
+                ss.close();
+            }
+        }
+    }
 
     private static void testIsConnectedAfterClosing() throws Exception {
         ServerSocket ss = null;
@@ -48,7 +74,7 @@ public class ServerSocketConnectionTest {
             s1.connect(isa);
         } catch (Exception e) {
             e.printStackTrace();
-            throw new RuntimeException("Test Failed!");
+            fail("Test Failed!");
         } finally {
             // close this socket
             if (s1 != null) {
@@ -74,7 +100,7 @@ public class ServerSocketConnectionTest {
             s1.connect(isa, -1);  // exception here
         } catch (IOException e) {
             e.printStackTrace();
-            throw new RuntimeException("Test Failed!");
+            fail("Test Failed!");
         } catch (IllegalArgumentException e) {
             // we shall go here.
             assertFalse(s1.isConnected());
@@ -93,7 +119,7 @@ public class ServerSocketConnectionTest {
             s1 = ss.accept();
         } catch (Exception e) {
             e.printStackTrace();
-            throw new RuntimeException("Test Failed!");
+            fail("Test Failed!");
         } finally {
             if (s1 != null) {
                 assertTrue(s1.isConnected());
@@ -105,6 +131,7 @@ public class ServerSocketConnectionTest {
     }
 
     public static void main(String args[]) throws Exception {
+        testJavaNetSocketAccessInitialization();
         testIsConnectedAfterClosing();
         testIsConnectedAfterConnectionFailure();
         testIsConnectedAfterAcception();
