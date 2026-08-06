@@ -1011,6 +1011,7 @@ class JavaThread: public Thread {
   bool wisp_preempted() const                    { return _wisp_preempted; }
   void set_wisp_preempted(bool b)                { _wisp_preempted = b; }
 
+  static ByteSize monitor_chunks_offset()        { return byte_offset_of(JavaThread, _monitor_chunks); }
   static ByteSize coroutine_temp_offset()        { return byte_offset_of(JavaThread, _coroutine_temp); }
 
   static ByteSize current_coroutine_offset()     { return byte_offset_of(JavaThread, _current_coroutine); }
