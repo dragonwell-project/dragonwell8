@@ -102,11 +102,13 @@ class Deoptimization : AllStatic {
   static int deoptimize_dependents();
 
   // Deoptimizes a frame lazily. nmethod gets patched deopt happens on return to the frame
-  static void deoptimize(JavaThread* thread, frame fr, RegisterMap *reg_map);
+  static void deoptimize(JavaThread* thread, frame fr, RegisterMap *reg_map,
+                         bool is_coroutine_frame = false);
 
   private:
   // Does the actual work for deoptimizing a single frame
-  static void deoptimize_single_frame(JavaThread* thread, frame fr);
+  static void deoptimize_single_frame(JavaThread* thread, frame fr,
+                                      bool is_coroutine_frame);
 
   // Helper function to revoke biases of all monitors in frame if UseBiasedLocking
   // is enabled
