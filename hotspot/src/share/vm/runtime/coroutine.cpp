@@ -25,6 +25,7 @@
 #include "precompiled.hpp"
 #include "prims/privilegedStack.hpp"
 #include "runtime/coroutine.hpp"
+#include "runtime/deoptimization.hpp"
 #include "runtime/interfaceSupport.hpp"
 #include "runtime/objectMonitor.hpp"
 #include "runtime/objectMonitor.inline.hpp"
@@ -359,6 +360,25 @@ public:
 void Coroutine::frames_do(void f(frame*, const RegisterMap* map)) {
   frames_do_Closure fc(f);
   frames_do(&fc);
+}
+
+class DeoptimizeMarkedMethodsClosure: public FrameClosure {
+ private:
+  JavaThread* _thread;
+
+ public:
+  DeoptimizeMarkedMethodsClosure(JavaThread* thread) : _thread(thread) {}
+
+  void frames_do(frame* fr, RegisterMap* map) {
+    if (fr->should_be_deoptimized()) {
+      Deoptimization::deoptimize(_thread, *fr, map, true);
+    }
+  }
+};
+
+void Coroutine::deoptimized_wrt_marked_nmethods() {
+  DeoptimizeMarkedMethodsClosure closure(_thread);
+  frames_do(&closure);
 }
 
 bool Coroutine::is_disposable() {

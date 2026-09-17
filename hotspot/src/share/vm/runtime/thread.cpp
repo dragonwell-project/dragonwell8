@@ -3013,19 +3013,30 @@ void JavaThread::make_zombies() {
 
 
 void JavaThread::deoptimized_wrt_marked_nmethods() {
-  if (!has_last_Java_frame()) return;
-  // BiasedLocking needs an updated RegisterMap for the revoke monitors pass
-  StackFrameStream fst(this, UseBiasedLocking);
-  for(; !fst.is_done(); fst.next()) {
-    if (fst.current()->should_be_deoptimized()) {
-      if (LogCompilation && xtty != NULL) {
-        nmethod* nm = fst.current()->cb()->as_nmethod_or_null();
-        xtty->elem("deoptimized thread='" UINTX_FORMAT "' compile_id='%d'",
-                   this->name(), nm != NULL ? nm->compile_id() : -1);
-      }
+  assert(SafepointSynchronize::is_at_safepoint(), "must be at safepoint");
 
-      Deoptimization::deoptimize(this, *fst.current(), fst.register_map());
+  if (has_last_Java_frame()) {
+    // BiasedLocking needs an updated RegisterMap for the revoke monitors pass
+    StackFrameStream fst(this, UseBiasedLocking);
+    for(; !fst.is_done(); fst.next()) {
+      if (fst.current()->should_be_deoptimized()) {
+        if (LogCompilation && xtty != NULL) {
+          nmethod* nm = fst.current()->cb()->as_nmethod_or_null();
+          xtty->elem("deoptimized thread='" UINTX_FORMAT "' compile_id='%d'",
+                     this->name(), nm != NULL ? nm->compile_id() : -1);
+        }
+
+        Deoptimization::deoptimize(this, *fst.current(), fst.register_map());
+      }
     }
+  }
+
+  if (EnableCoroutine && _coroutine_list != NULL) {
+    Coroutine* current = _coroutine_list;
+    do {
+      current->deoptimized_wrt_marked_nmethods();
+      current = current->next();
+    } while (current != _coroutine_list);
   }
 }
 
