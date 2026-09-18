@@ -284,13 +284,13 @@ bool frame::can_be_deoptimized() const {
   return !nm->is_at_poll_return(pc());
 }
 
-void frame::deoptimize(JavaThread* thread) {
+void frame::deoptimize(JavaThread* thread, bool is_coroutine_frame) {
   // Schedule deoptimization of an nmethod activation with this frame.
   assert(_cb != NULL && _cb->is_nmethod(), "must be");
   nmethod* nm = (nmethod*)_cb;
 
   // This is a fix for register window patching race
-  if (NeedsDeoptSuspend && Thread::current() != thread) {
+  if (!is_coroutine_frame && NeedsDeoptSuspend && Thread::current() != thread) {
     assert(SafepointSynchronize::is_at_safepoint(),
            "patching other threads for deopt may only occur at a safepoint");
 
@@ -355,7 +355,9 @@ void frame::deoptimize(JavaThread* thread) {
   patch_pc(thread, deopt);
 
 #ifdef ASSERT
-  {
+  if (is_coroutine_frame) {
+    assert(is_deoptimized_frame(), "missed deopt");
+  } else {
     RegisterMap map(thread, false);
     frame check = thread->last_frame();
     while (id() != check.id()) {
