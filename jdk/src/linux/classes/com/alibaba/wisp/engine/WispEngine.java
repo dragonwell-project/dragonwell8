@@ -161,7 +161,8 @@ public class WispEngine extends AbstractExecutorService {
             new ConcurrentLinkedQueue<>().iterator();
             new ConcurrentSkipListMap<>().keySet().iterator();
             WispCarrier carrier = WispCarrier.current();
-            carrier.addTimer(System.nanoTime() + Integer.MAX_VALUE, TimeOut.Action.JDK_UNPARK);
+            // This timer will never be processed
+            carrier.addTimer(System.nanoTime() + Integer.MAX_VALUE, TimeOut.Action.INIT);
             WispCarrier.current().current.timeOut.doAction();
             carrier.cancelTimer();
             carrier.createResumeEntry(new WispTask(carrier, null, false, false));
