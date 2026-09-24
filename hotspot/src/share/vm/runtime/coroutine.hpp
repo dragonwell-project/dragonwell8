@@ -115,12 +115,14 @@ private:
   GrowableArray<Metadata*>* _metadata_handles;
   JavaFrameAnchor _anchor;
   PrivilegedElement*  _privileged_stack_top;
+  MonitorChunk*   _monitor_chunks;
   java_lang_Thread::ThreadStatus _thread_status;
   int             _enable_steal_count;
   int             _java_call_counter;
   int             _last_native_call_counter;
   int             _clinit_call_counter;
   volatile int    _native_call_counter;
+  bool            _do_not_unlock_if_synchronized;
   // AppCDS support
   ClassLoaderData* _initiating_loader;
 
@@ -233,6 +235,8 @@ public:
   static ByteSize active_handles_offset()     { return byte_offset_of(Coroutine, _active_handles); }
   static ByteSize metadata_handles_offset()   { return byte_offset_of(Coroutine, _metadata_handles); }
   static ByteSize privileged_stack_top_offset(){ return byte_offset_of(Coroutine, _privileged_stack_top); }
+  static ByteSize monitor_chunks_offset()     { return byte_offset_of(Coroutine, _monitor_chunks); }
+  static ByteSize do_not_unlock_if_synchronized_offset()     { return byte_offset_of(Coroutine, _do_not_unlock_if_synchronized); }
   static ByteSize last_Java_sp_offset()       {
     return byte_offset_of(Coroutine, _anchor) + JavaFrameAnchor::last_Java_sp_offset();
   }
@@ -431,8 +435,14 @@ public:
 
   virtual bool is_lock_owned(address adr) const {
     CoroutineStack* stack = _coroutine->stack();
-    return stack->stack_base() >= adr &&
-      adr > (stack->stack_base() - stack->stack_size());
+    if (stack->stack_base() > adr && adr >= (stack->stack_base() - stack->stack_size())) {
+      return true;
+    }
+
+    for (MonitorChunk* chunk = monitor_chunks(); chunk != NULL; chunk = chunk->next()) {
+      if (chunk->contains(adr)) return true;
+    }
+    return false;
   }
 
   // we must set ObjectWaiter members before node enqueued(observed by other threads)
