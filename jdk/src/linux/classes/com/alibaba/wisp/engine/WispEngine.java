@@ -30,6 +30,7 @@ import java.dyn.Coroutine;
 import java.dyn.CoroutineExitException;
 import java.dyn.CoroutineSupport;
 import java.io.IOException;
+import java.net.Socket;
 import java.nio.channels.SelectableChannel;
 import java.nio.channels.SelectionKey;
 import java.util.*;
@@ -148,6 +149,7 @@ public class WispEngine extends AbstractExecutorService {
             Class.forName(ShutdownEngine.class.getName());
             Class.forName(AbstractShutdownTask.class.getName());
             Class.forName(ShutdownControlGroup.class.getName());
+            Class.forName(Socket.class.getName());
             if (WispConfiguration.WISP_PROFILE) {
                 Class.forName(WispPerfCounterMonitor.class.getName());
             }
