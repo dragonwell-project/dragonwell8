@@ -1205,17 +1205,19 @@ void Deoptimization::revoke_biases_of_monitors(CodeBlob* cb) {
 }
 
 
-void Deoptimization::deoptimize_single_frame(JavaThread* thread, frame fr) {
+void Deoptimization::deoptimize_single_frame(JavaThread* thread, frame fr,
+                                             bool is_coroutine_frame) {
   assert(fr.can_be_deoptimized(), "checking frame type");
 
   gather_statistics(Reason_constraint, Action_none, Bytecodes::_illegal);
 
   // Patch the nmethod so that when execution returns to it we will
   // deopt the execution state and return to the interpreter.
-  fr.deoptimize(thread);
+  fr.deoptimize(thread, is_coroutine_frame);
 }
 
-void Deoptimization::deoptimize(JavaThread* thread, frame fr, RegisterMap *map) {
+void Deoptimization::deoptimize(JavaThread* thread, frame fr, RegisterMap *map,
+                                bool is_coroutine_frame) {
   // Deoptimize only if the frame comes from compile code.
   // Do not deoptimize the frame which is already patched
   // during the execution of the loops below.
@@ -1227,7 +1229,7 @@ void Deoptimization::deoptimize(JavaThread* thread, frame fr, RegisterMap *map) 
   if (UseBiasedLocking) {
     revoke_biases_of_monitors(thread, fr, map);
   }
-  deoptimize_single_frame(thread, fr);
+  deoptimize_single_frame(thread, fr, is_coroutine_frame);
 
 }
 
