@@ -40,7 +40,8 @@
 # This class will support a QUERY_STRING of the form "forward=<port>"
 # with a REQUEST_METHOD "POST".  The body of the request will be
 # forwarded (as another POST request) to the server listening on the
-# specified port (must be >= 1024).  The response from this forwarded
+# specified port.  You must list here all such permitted ports in
+# the FORWARD_PERMIT configuration below.  The response from this forwarded
 # request will be the response to the original request.
 #
 # CONFIGURATION:
@@ -50,6 +51,13 @@
 # at the path "/home/peter/java":
 #
 # PATH=/home/peter/java/bin:$PATH
+#
+# Command "forward" is now limited to the permitted list of ports.
+# You can list multiple port or port ranges separated by comma (',').
+# Port range is specified as first-last.  Only ports >= 1024 are valid.
+# To retain the original behavior use "1024-65535" without the quotes.
+#
+# FORWARD_PERMIT=8080,1234-1239
 #
 PATH=/usr/local/java/bin:$PATH
 exec java \
@@ -71,4 +79,5 @@ exec java \
 	-DSERVER_PORT="$SERVER_PORT" \
 	-DSERVER_PROTOCOL="$SERVER_PROTOCOL" \
 	-DSERVER_SOFTWARE="$SERVER_SOFTWARE" \
+	-Dsun.rmi.transport.proxy.forwardPermit="$FORWARD_PERMIT" \
 	sun.rmi.transport.proxy.CGIHandler

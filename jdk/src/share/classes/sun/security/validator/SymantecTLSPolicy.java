@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,14 +25,8 @@
 package sun.security.validator;
 
 import java.security.cert.X509Certificate;
-import java.time.LocalDate;
-import java.time.Month;
-import java.time.ZoneOffset;
 import java.util.Arrays;
-import java.util.Date;
-import java.util.HashMap;
 import java.util.HashSet;
-import java.util.Map;
 import java.util.Set;
 
 import sun.security.x509.X509CertImpl;
@@ -42,26 +36,6 @@ import sun.security.x509.X509CertImpl;
  * restricted.
  */
 final class SymantecTLSPolicy {
-    private static final LocalDate DECEMBER_31_2019 =
-        LocalDate.of(2019, Month.DECEMBER, 31);
-    // SHA-256 certificate fingerprints of subCAs with later distrust dates
-    private static final Map<String, LocalDate> EXEMPT_SUBCAS = new HashMap();
-    static {
-        // Subject DN: C=US, O=Apple Inc., OU=Certification Authority,
-        //             CN=Apple IST CA 2 - G1
-        // Issuer DN: CN=GeoTrust Global CA, O=GeoTrust Inc., C=US
-        EXEMPT_SUBCAS.put("AC2B922ECFD5E01711772FEA8ED372DE9D1E2245FCE3F57A9CDBEC77296A424B",
-                          DECEMBER_31_2019);
-
-
-        // Subject DN: C=US, O=Apple Inc., OU=Certification Authority,
-        //             CN=Apple IST CA 8 - G1
-        // Issuer DN: CN=GeoTrust Primary Certification Authority - G2,
-        //            OU=(c) 2007 GeoTrust Inc. - For authorized use only,
-        //            O=GeoTrust Inc., C=US
-        EXEMPT_SUBCAS.put("A4FE7C7F15155F3F0AEF7AAA83CF6E06DEB97CA3F909DF920AC1490882D488ED",
-                          DECEMBER_31_2019);
-    }
 
     // SHA-256 certificate fingerprints of distrusted roots
     private static final Set<String> FINGERPRINTS = new HashSet<>(Arrays.asList(
@@ -144,9 +118,7 @@ final class SymantecTLSPolicy {
     ));
 
     // Any TLS Server certificate that is anchored by one of the Symantec
-    // roots above and is issued after this date will be distrusted.
-    private static final LocalDate APRIL_16_2019 =
-        LocalDate.of(2019, Month.APRIL, 16);
+    // roots above will be distrusted.
 
     /**
      * This method assumes the eeCert is a TLS Server Cert and chains back to
@@ -160,21 +132,10 @@ final class SymantecTLSPolicy {
                               throws ValidatorException {
         X509Certificate anchor = chain[chain.length-1];
         if (FINGERPRINTS.contains(fingerprint(anchor))) {
-            Date notBefore = chain[0].getNotBefore();
-            LocalDate ldNotBefore = notBefore.toInstant().atZone(ZoneOffset.UTC).toLocalDate();
-
-            // check if chain goes through one of the subCAs
-            if (chain.length > 2) {
-                X509Certificate subCA = chain[chain.length - 2];
-                LocalDate distrustDate = EXEMPT_SUBCAS.get(fingerprint(subCA));
-                if (distrustDate != null) {
-                    // reject if certificate is issued after specified date
-                    checkNotBefore(ldNotBefore, distrustDate, anchor);
-                    return; // success
-                }
-            }
-            // reject if certificate is issued after April 16, 2019
-            checkNotBefore(ldNotBefore, APRIL_16_2019, anchor);
+            throw new ValidatorException(
+                    "TLS Server certificate anchored by a distrusted legacy " +
+                    "Symantec root CA: " +anchor.getSubjectX500Principal(),
+                    ValidatorException.T_UNTRUSTED_CERT, anchor);
         }
     }
 
@@ -184,16 +145,5 @@ final class SymantecTLSPolicy {
                : X509CertImpl.getFingerprint("SHA-256", cert);
     }
 
-    private static void checkNotBefore(LocalDate notBeforeDate,
-            LocalDate distrustDate, X509Certificate anchor)
-            throws ValidatorException {
-        if (notBeforeDate.isAfter(distrustDate)) {
-            throw new ValidatorException
-                    ("TLS Server certificate issued after " + distrustDate +
-                     " and anchored by a distrusted legacy Symantec root CA: "
-                     + anchor.getSubjectX500Principal(),
-                     ValidatorException.T_UNTRUSTED_CERT, anchor);
-        }
-    }
     private SymantecTLSPolicy() {}
 }

@@ -111,6 +111,8 @@ import com.sun.org.omg.CORBA.portable.ValueHelper;
 
 import com.sun.org.omg.SendingContext.CodeBase;
 
+import sun.corba.SharedSecrets;
+
 public class CDRInputStream_1_0 extends CDRInputStreamBase
     implements RestorableInputStream
 {
@@ -589,6 +591,7 @@ public class CDRInputStream_1_0 extends CDRInputStreamBase
         checkForNegativeLength(len);
 
         len--;
+        SharedSecrets.getJavaCorbaAccess().checkBufferLength(len);
         char[] c = new char[len];
 
         for (int i = 0; i < len; i++)
@@ -642,6 +645,7 @@ public class CDRInputStream_1_0 extends CDRInputStreamBase
 
     public Principal read_Principal() {
         int len = read_long();
+        SharedSecrets.getJavaCorbaAccess().checkBufferLength(len);
         byte[] pvalue = new byte[len];
         read_octet_array(pvalue,0,len);
 
@@ -2191,6 +2195,7 @@ public class CDRInputStream_1_0 extends CDRInputStreamBase
             }
             else
             {
+                SharedSecrets.getJavaCorbaAccess().checkBufferLength(bbwi.buflen);
                  tmpBuf = new byte[bbwi.buflen];
                  // Microbenchmarks are showing a loop of ByteBuffer.get(int)
                  // being faster than ByteBuffer.get(byte[], int, int).
@@ -2205,6 +2210,7 @@ public class CDRInputStream_1_0 extends CDRInputStreamBase
             // Stretches across buffers.  Unless we provide an
             // incremental conversion interface, allocate and
             // copy the bytes.
+            SharedSecrets.getJavaCorbaAccess().checkBufferLength(numBytes);
             byte[] bytes = new byte[numBytes];
             read_octet_array(bytes, 0, bytes.length);
 

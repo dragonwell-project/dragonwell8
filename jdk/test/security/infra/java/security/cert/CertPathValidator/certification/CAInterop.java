@@ -387,6 +387,7 @@
  */
 
 /*
+<<<<<<< HEAD
  * @test id=emsignrootcag1
  * @bug 8319187
  * @summary Interoperability tests with eMudhra Root CA G1
@@ -407,6 +408,8 @@
  */
 
 /*
+=======
+>>>>>>> jdk8u512-ga
  * @test id=certainlyrootr1
  * @bug 8321408
  * @summary Interoperability tests with Certainly Root R1
@@ -662,13 +665,6 @@ public class CAInterop {
             case "teliarootcav2":
                     return new CATestURLs("https://juolukka.cover.telia.fi:10600",
                             "https://juolukka.cover.telia.fi:10601");
-
-            case "emsignrootcag1":
-                    return new CATestURLs("https://testovg1.emsign.com/RootOVG1.html",
-                            "https://testovg1r.emsign.com/RootOVG1MR.html");
-            case "emsigneccrootcag3":
-                    return new CATestURLs("https://testovg3.emsign.com/RootOVG3.html",
-                            "https://testovg3r.emsign.com/RootOVG3MR.html");
 
             case "certainlyrootr1":
                     return new CATestURLs("https://valid.root-r1.certainly.com",

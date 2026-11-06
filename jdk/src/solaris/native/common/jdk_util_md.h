@@ -37,7 +37,7 @@
 #define ISNAND(d) isnan(d)
 #elif defined(__linux__) || defined(_ALLBSD_SOURCE)
 #include <math.h>
-#define ISNANF(f) isnanf(f)
+#define ISNANF(f) isnan(f)
 #define ISNAND(d) isnan(d)
 #elif defined(_AIX)
 #include <math.h>
