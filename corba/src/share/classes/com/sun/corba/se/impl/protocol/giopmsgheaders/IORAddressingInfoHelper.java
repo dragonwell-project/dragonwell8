@@ -25,6 +25,7 @@
 
 package com.sun.corba.se.impl.protocol.giopmsgheaders;
 
+import sun.corba.SharedSecrets;
 
 /**
 * com/sun/corba/se/impl/protocol/giopmsgheaders/IORAddressingInfoHelper.java
@@ -94,7 +95,23 @@ abstract public class IORAddressingInfoHelper
   {
     com.sun.corba.se.impl.protocol.giopmsgheaders.IORAddressingInfo value = new com.sun.corba.se.impl.protocol.giopmsgheaders.IORAddressingInfo ();
     value.selected_profile_index = istream.read_ulong ();
-    value.ior = org.omg.IOP.IORHelper.read (istream);
+    // Inline org.omg.IOP.IORHelper.read with added checkBufferLength call.
+    org.omg.IOP.IOR _ior = new org.omg.IOP.IOR ();
+    _ior.type_id = istream.read_string ();
+    int _len = istream.read_long ();
+    SharedSecrets.getJavaCorbaAccess().checkBufferLength(_len);
+    _ior.profiles = new org.omg.IOP.TaggedProfile[_len];
+    for (int _i = 0; _i < _len; _i++) {
+      // Inline org.omg.IOP.TaggedProfileHelper.read with added checkBufferLength call.
+      org.omg.IOP.TaggedProfile _profile = new org.omg.IOP.TaggedProfile ();
+      _profile.tag = istream.read_ulong ();
+      int _len1 = istream.read_long ();
+      SharedSecrets.getJavaCorbaAccess().checkBufferLength(_len1);
+      _profile.profile_data = new byte[_len1];
+      istream.read_octet_array (_profile.profile_data, 0, _len1);
+      _ior.profiles[_i]  = _profile;
+    }
+    value.ior = _ior;
     return value;
   }
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,11 +27,20 @@ package build.tools.cldrconverter;
 
 import java.io.File;
 import java.io.IOException;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 import org.xml.sax.Attributes;
 import org.xml.sax.InputSource;
 import org.xml.sax.SAXException;
 
 class MetaZonesParseHandler extends AbstractLDMLHandler<String> {
+    // "from"/"to" attribute values of <usesMetazone> in metaZones.xml
+    private static final SimpleDateFormat MZ_TIME = new SimpleDateFormat("yyyy-MM-dd HH:mm");
+    private static final Date DATE_MIN = new Date(Long.MIN_VALUE);
+    private static final Date DATE_MAX = new Date(Long.MAX_VALUE);
+    private static final Date NOW = new Date();
+
     private String tzid, metazone;
 
     MetaZonesParseHandler() {
@@ -57,10 +66,21 @@ class MetaZonesParseHandler extends AbstractLDMLHandler<String> {
             break;
 
         case "usesMetazone":
-            // Ignore any historical zone names (for now)
-            if (attributes.getValue("to") == null) {
+            // uses the time of the JDK build to determine metazones.
+            Date from = parseMzTime(attributes.getValue("from"), DATE_MIN);
+            Date to = parseMzTime(attributes.getValue("to"), DATE_MAX);
+
+            if (from.before(NOW) && to.after(NOW)) {
                 metazone = attributes.getValue("mzone");
+
+                // Explicit metazone DST offsets. Only the "dst" offset is needed,
+                // as "std" is used by default when it doesn't match.
+                String dstOffset = attributes.getValue("dstOffset");
+                if (dstOffset != null) {
+                    CLDRConverter.explicitDstOffsets.put(tzid, dstOffset);
+                }
             }
+
             pushIgnoredContainer(qName);
             break;
 
@@ -81,12 +101,28 @@ class MetaZonesParseHandler extends AbstractLDMLHandler<String> {
         assert qName.equals(currentContainer.getqName()) : "current=" + currentContainer.getqName() + ", param=" + qName;
         switch (qName) {
         case "timezone":
-            if (tzid == null || metazone == null) {
+            if (tzid == null) {
                 throw new InternalError();
+            } else if (metazone == null) {
+                CLDRConverter.info("No metazone defined for %s%n", tzid);
+            } else {
+                put(tzid, metazone);
             }
-            put(tzid, metazone);
+            tzid = null;
+            metazone = null;
             break;
         }
         currentContainer = currentContainer.getParent();
+    }
+
+    private static Date parseMzTime(String value, Date defaultValue) throws SAXException {
+        if (value == null) {
+            return defaultValue;
+        }
+        try {
+            return MZ_TIME.parse(value);
+        } catch (ParseException e) {
+            throw new SAXException("invalid metazone time: " + value, e);
+        }
     }
 }

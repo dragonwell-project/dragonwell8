@@ -27,6 +27,7 @@ package sun.rmi.transport.proxy;
 import java.io.*;
 import java.net.*;
 import java.util.Hashtable;
+import java.util.Set;
 
 /**
  * CGIClientException is thrown when an error is detected
@@ -97,6 +98,48 @@ public final class CGIHandler {
     static String RequestMethod;
     static String ServerName;
     static int ServerPort;
+    static String ForwardPermit;
+    static Set<Integer> permittedPorts;
+
+    private static int parsePort(String str) throws CGIServerException {
+        int retval;
+        try {
+            retval = Integer.valueOf(str).intValue();
+        } catch (NumberFormatException e) {
+            throw new CGIServerException("invalid port");
+        }
+        if (retval < 1024 || retval > 0xFFFF) {
+            throw new CGIServerException("invalid port");
+        }
+        return retval;
+    }
+
+    private static Set<Integer> parseIntegerList(String str) throws CGIServerException {
+        Set<Integer> retval = new java.util.HashSet<>();
+        for (String range : str.split(",")) {
+            range = range.trim();
+            if (range.isEmpty()) {
+                continue;
+            }
+            String[] portStrArray = range.split("-", -1);
+            if (portStrArray.length > 2) {
+                throw new CGIServerException("invalid port range");
+            }
+            int first = parsePort(portStrArray[0]);
+            if (portStrArray.length == 1) {
+                retval.add(first);
+            } else {
+                int second = parsePort(portStrArray[1]);
+                if (first > second) {
+                    throw new CGIServerException("invalid port range");
+                }
+                for (int port = first; port <= second; ++port) {
+                    retval.add(port);
+                }
+            }
+        }
+        return retval;
+    }
 
     static {
         java.security.AccessController.doPrivileged(
@@ -108,6 +151,7 @@ public final class CGIHandler {
                 RequestMethod = System.getProperty("REQUEST_METHOD", "");
                 ServerName = System.getProperty("SERVER_NAME", "");
                 ServerPort = Integer.getInteger("SERVER_PORT", 0).intValue();
+                ForwardPermit = System.getProperty("sun.rmi.transport.proxy.forwardPermit", "");
                 return null;
             }
         });
@@ -140,6 +184,7 @@ public final class CGIHandler {
     public static void main(String args[])
     {
         try {
+            permittedPorts = parseIntegerList(ForwardPermit);
             String command, param;
             int delim = QueryString.indexOf("=");
             if (delim == -1) {
@@ -240,14 +285,14 @@ final class CGIForwardCommand implements CGICommandHandler {
         }
         if (port <= 0 || port > 0xFFFF)
             throw new CGIClientException("invalid port: " + port);
-        if (port < 1024)
+        if (port < 1024 || !CGIHandler.permittedPorts.contains(port))
             throw new CGIClientException("permission denied for port: " +
                                          port);
 
         byte buffer[];
         Socket socket;
         try {
-            socket = new Socket(InetAddress.getLocalHost(), port);
+            socket = new Socket(InetAddress.getLoopbackAddress(), port);
         } catch (IOException e) {
             throw new CGIServerException("could not connect to local port", e);
         }

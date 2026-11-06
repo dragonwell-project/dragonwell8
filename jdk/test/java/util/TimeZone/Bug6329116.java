@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,7 +25,7 @@
  * @test
  * @bug 6329116 6756569 6757131 6758988 6764308 6796489 6834474 6609737 6507067
  *      7039469 7090843 7103108 7103405 7158483 8008577 8059206 8064560 8072042
- *      8077685 8151876 8166875 8169191 8170316 8176044
+ *      8077685 8151876 8166875 8169191 8170316 8176044 8388214 8392377 8393337
  * @summary Make sure that timezone short display names are idenical to Olson's data.
  * @library /java/text/testlib
  * @build Bug6329116 TextFileReader
@@ -37,6 +37,22 @@ import java.text.*;
 import java.util.*;
 
 public class Bug6329116 extends IntlTest {
+
+    // As of CLDR v48.2, CLDR provides these short names for zones with explicit DST offsets.
+    private static final Map<String, String> CLDR_SHORT_NAMES;
+    static {
+        Map<String, String> names = new HashMap<>();
+        names.put("America/Edmonton", "MST");
+        names.put("America/Inuvik", "MST");
+        names.put("Canada/Mountain", "MST");
+        names.put("America/Yellowknife", "MST");
+        names.put("America/Vancouver", "PST");
+        names.put("Canada/Pacific", "PST");
+        names.put("America/Winnipeg", "CST");
+        names.put("Canada/Central", "CST");
+        names.put("America/Rainy_River", "CST");
+        CLDR_SHORT_NAMES = Collections.unmodifiableMap(names);
+    }
 
     static Locale[] locales = Locale.getAvailableLocales();
     static String[] timezones = TimeZone.getAvailableIDs();
@@ -238,6 +254,11 @@ public class Bug6329116 extends IntlTest {
         // If we get a TimeZone with GMT+hh:mm format, we can ignore the offset value
         if (tz.getDisplayName(Locale.ENGLISH).startsWith("GMT+") || tz.getDisplayName(Locale.ENGLISH).startsWith("GMT-")) {
             return tz.getDisplayName().substring(0, 3).equals(got.substring(0, 3));
+        }
+
+        // Some zones use CLDR short names even when the tzdata FORMAT changed.
+        if (!inDST) {
+            return CLDR_SHORT_NAMES.getOrDefault(tz.getID(), "").equals(got);
         }
 
         return false;

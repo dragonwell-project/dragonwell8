@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2002, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -29,6 +29,7 @@ import java.io.IOException;
 import java.lang.Integer;
 import java.net.InetAddress;
 import java.util.Arrays;
+import sun.net.util.IPAddressUtil;
 import sun.misc.HexDumpEncoder;
 import sun.security.util.BitArray;
 import sun.security.util.DerOutputStream;
@@ -69,11 +70,12 @@ import sun.security.util.DerValue;
  */
 public class IPAddressName implements GeneralNameInterface {
     private byte[] address;
-    private boolean isIPv4;
     private String name;
 
     /**
      * Create the IPAddressName object from the passed encoded Der value.
+     * <p>
+     * IPv4-Mapped IPv6 addresses/subnets normalized to IPv4.
      *
      * @params derValue the encoded DER IPAddressName.
      * @exception IOException on error.
@@ -84,24 +86,50 @@ public class IPAddressName implements GeneralNameInterface {
 
     /**
      * Create the IPAddressName object with the specified octets.
+     * <p>
+     * A valid address must consist of 4 bytes of address and
+     * optional 4 bytes of mask, or 16 bytes of address and
+     * optional 16 bytes of mask.
+     * <p>
+     * IPv4-Mapped IPv6 addresses/subnets normalized to IPv4.
      *
      * @params address the IP address
      * @throws IOException if address is not a valid IPv4 or IPv6 address
      */
     public IPAddressName(byte[] address) throws IOException {
-        /*
-         * A valid address must consist of 4 bytes of address and
-         * optional 4 bytes of 4 bytes of mask, or 16 bytes of address
-         * and optional 16 bytes of mask.
-         */
-        if (address.length == 4 || address.length == 8) {
-            isIPv4 = true;
-        } else if (address.length == 16 || address.length == 32) {
-            isIPv4 = false;
-        } else {
-            throw new IOException("Invalid IPAddressName");
+        // Treat IPv4-Mapped IPv6 address as a regular IPv4.
+        switch (address.length) {
+            case 4:
+            case 8: {
+                this.address = address;  // IPv4 address/subnet
+            }
+            break;
+            case 16: {
+                // Single IPv6 address.
+                byte[] newAddr = IPAddressUtil.convertFromIPv4MappedAddress(address);
+                this.address = (newAddr != null) ? newAddr : address;
+            }
+            break;
+            case 32: {
+                // IPv6 subnet.
+                byte[] newAddr = IPAddressUtil.convertFromIPv4MappedAddress(
+                        Arrays.copyOfRange(address, 0, 16));
+
+                if (newAddr == null) {
+                    this.address = address;
+                } else {
+                    byte[] ret = new byte[8];
+                    System.arraycopy(newAddr, 0, ret, 0, 4);
+                    System.arraycopy(ipv4MaskFromIpv6Mask(
+                                    Arrays.copyOfRange(address, 16, 32)),
+                            0, ret, 4, 4);
+                    this.address = ret;
+                }
+            }
+            break;
+            default:
+                throw new IOException("Invalid IPAddressName");
         }
-        this.address = address;
     }
 
     /**
@@ -119,6 +147,8 @@ public class IPAddressName implements GeneralNameInterface {
      * of the leftmost contiguous bits of the address comprise the prefix for
      * this subnet. Internally, a mask value is created using the prefix length.
      * <p>
+     * IPv4-Mapped IPv6 addresses/subnets normalized to IPv4.
+     *
      * @param name String form of IPAddressName
      * @throws IOException if name can not be converted to a valid IPv4 or IPv6
      *     address
@@ -137,11 +167,9 @@ public class IPAddressName implements GeneralNameInterface {
             // Parse name into byte-value address components and optional
             // prefix
             parseIPv6(name);
-            isIPv4 = false;
         } else if (name.indexOf('.') >= 0) {
             //name is IPv4: uses dots as value separators
             parseIPv4(name);
-            isIPv4 = true;
         } else {
             throw new IOException("Invalid IPAddress: " + name);
         }
@@ -150,7 +178,7 @@ public class IPAddressName implements GeneralNameInterface {
     /**
      * Parse an IPv4 address.
      *
-     * @param name IPv4 address with optional mask values
+     * @param name IPv4 address with an optional mask in dotted IP notation.
      * @throws IOException on error
      */
     private void parseIPv4(String name) throws IOException {
@@ -178,42 +206,76 @@ public class IPAddressName implements GeneralNameInterface {
     /**
      * Parse an IPv6 address.
      *
-     * @param name String IPv6 address with optional /<prefix length>
-     *             If /<prefix length> is present, address[] array will
-     *             be 32 bytes long, otherwise 16.
+     * @param name IPv6 address with an optional mask in CIDR notation.
      * @throws IOException on error
      */
-    private final static int MASKSIZE = 16;
     private void parseIPv6(String name) throws IOException {
-
         int slashNdx = name.indexOf('/');
+
         if (slashNdx == -1) {
             address = InetAddress.getByName(name).getAddress();
         } else {
-            address = new byte[32];
             byte[] base = InetAddress.getByName
                 (name.substring(0, slashNdx)).getAddress();
-            System.arraycopy(base, 0, address, 0, 16);
+            byte[] mask = ipv6MaskFromString(name.substring(slashNdx + 1));
 
-            // append a mask corresponding to the num of prefix bits specified
-            int prefixLen = Integer.parseInt(name.substring(slashNdx+1));
-            if (prefixLen < 0 || prefixLen > 128) {
-                throw new IOException("IPv6Address prefix length (" +
-                        prefixLen + ") in out of valid range [0,128]");
+            if (base.length == 16) {
+                // IPv6 address.
+                address = new byte[32];
+                System.arraycopy(base, 0, address, 0, 16);
+                System.arraycopy(mask, 0, address, 16, 16);
+            } else if (base.length == 4) {
+                // IPv4-Mapped IPv6 address.
+                address = new byte[8];
+                System.arraycopy(base, 0, address, 0, 4);
+                System.arraycopy(ipv4MaskFromIpv6Mask(mask), 0, address, 4, 4);
+            } else {
+                throw new IOException("Invalid IPAddress subnet: " + name);
             }
-
-            // create new bit array initialized to zeros
-            BitArray bitArray = new BitArray(MASKSIZE * 8);
-
-            // set all most significant bits up to prefix length
-            for (int i = 0; i < prefixLen; i++)
-                bitArray.set(i, true);
-            byte[] maskArray = bitArray.toByteArray();
-
-            // copy mask bytes into mask portion of address
-            for (int i = 0; i < MASKSIZE; i++)
-                address[MASKSIZE+i] = maskArray[i];
         }
+    }
+
+    private static byte[] ipv6MaskFromString(String ipv6Mask)
+            throws IOException {
+        int prefixLen;
+
+        try {
+            prefixLen = Integer.parseInt(ipv6Mask);
+        } catch (NumberFormatException e) {
+            throw new IOException(e);
+        }
+
+        if (prefixLen < 0 || prefixLen > 128) {
+            throw new IOException("IPv6Address prefix length ("
+                    + prefixLen + ") is out of valid range [0,128]");
+        }
+
+        // create new bit array initialized to zeros
+        BitArray bitArray = new BitArray(128);
+
+        // set all most significant bits up to prefix length
+        for (int i = 0; i < prefixLen; i++) {
+            bitArray.set(i, true);
+        }
+
+        return bitArray.toByteArray();
+    }
+
+    private static byte[] ipv4MaskFromIpv6Mask(byte[] ipv6Mask)
+            throws IOException {
+        if (ipv6Mask == null || ipv6Mask.length != 16) {
+            throw new IOException("IPv6 mask must be 16 bytes");
+        }
+
+        // For a mapped IPv4 subnet, the first 96 bits must be set.
+        for (int i = 0; i < 12; i++) {
+            if ((ipv6Mask[i] & 0xFF) != 0xFF) {
+                throw new IOException("Not an IPv4-mapped IPv6 mask: first 96"
+                        + " bits are not set");
+            }
+        }
+
+        return Arrays.copyOfRange(ipv6Mask, 12, 16);
     }
 
     /**
@@ -257,8 +319,8 @@ public class IPAddressName implements GeneralNameInterface {
         if (name != null)
             return name;
 
-        if (isIPv4) {
-            //IPv4 address or subdomain
+        if (address.length == 4 || address.length == 8) {
+            //IPv4 address or subnet
             byte[] host = new byte[4];
             System.arraycopy(address, 0, host, 0, 4);
             name = InetAddress.getByAddress(host).getHostAddress();
@@ -269,14 +331,14 @@ public class IPAddressName implements GeneralNameInterface {
                        InetAddress.getByAddress(mask).getHostAddress();
             }
         } else {
-            //IPv6 address or subdomain
+            //IPv6 address or subnet
             byte[] host = new byte[16];
             System.arraycopy(address, 0, host, 0, 16);
             name = InetAddress.getByAddress(host).getHostAddress();
             if (address.length == 32) {
-                // IPv6 subdomain: display prefix length
+                // IPv6 subnet: display prefix length
 
-                // copy subdomain into new array and convert to BitArray
+                // copy subnet into new array and convert to BitArray
                 byte[] maskBytes = new byte[16];
                 for (int i=16; i < 32; i++)
                     maskBytes[i-16] = address[i];
@@ -291,7 +353,7 @@ public class IPAddressName implements GeneralNameInterface {
                 // Verify remaining bits 0
                 for (; i < 16*8; i++) {
                     if (ba.get(i)) {
-                        throw new IOException("Invalid IPv6 subdomain - set " +
+                        throw new IOException("Invalid IPv6 subnet - set " +
                             "bit " + i + " not contiguous");
                     }
                 }
@@ -403,11 +465,12 @@ public class IPAddressName implements GeneralNameInterface {
         else {
             IPAddressName otherName = (IPAddressName)inputName;
             byte[] otherAddress = otherName.address;
-            if (otherAddress.length == 4 && address.length == 4)
+            if ((otherAddress.length == 4 && address.length == 4) ||
+                    (otherAddress.length == 16 && address.length == 16)) {
                 // Two host addresses
                 constraintType = NAME_SAME_TYPE;
-            else if ((otherAddress.length == 8 && address.length == 8) ||
-                     (otherAddress.length == 32 && address.length == 32)) {
+            } else if ((otherAddress.length == 8 && address.length == 8) ||
+                       (otherAddress.length == 32 && address.length == 32)) {
                 // Two subnet addresses
                 // See if one address fully encloses the other address
                 boolean otherSubsetOfThis = true;
@@ -442,7 +505,8 @@ public class IPAddressName implements GeneralNameInterface {
                     constraintType = NAME_WIDENS;
                 else
                     constraintType = NAME_SAME_TYPE;
-            } else if (otherAddress.length == 8 || otherAddress.length == 32) {
+            } else if ((otherAddress.length == 8 && address.length == 4) ||
+                       (otherAddress.length == 32 && address.length == 16)) {
                 //Other is a subnet, this is a host address
                 int i = 0;
                 int maskOffset = otherAddress.length/2;
@@ -456,7 +520,8 @@ public class IPAddressName implements GeneralNameInterface {
                     constraintType = NAME_WIDENS;
                 else
                     constraintType = NAME_SAME_TYPE;
-            } else if (address.length == 8 || address.length == 32) {
+            } else if ((otherAddress.length == 4 && address.length == 8) ||
+                       (otherAddress.length == 16 && address.length == 32)) {
                 //This is a subnet, other is a host address
                 int i = 0;
                 int maskOffset = address.length/2;

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2026, Oracle and/or its affiliates. All rights reserved.
  */
 /*
  * Licensed to the Apache Software Foundation (ASF) under one or more
@@ -208,6 +208,7 @@ public class XPathImpl implements javax.xml.xpath.XPath {
 
         XObject xobj = null;
 
+        xpathSupport.setJdkXmlFeatures(featureManager);
         xpathSupport.setVarStack(new JAXPVariableStack(variableResolver));
 
         // If item is null, then we will create a a Dummy contextNode

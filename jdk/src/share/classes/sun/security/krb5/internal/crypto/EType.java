@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2021, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -287,7 +287,7 @@ public abstract class EType {
         }
     }
 
-    public static boolean isSupported(int eTypeConst, int[] config) {
+    public static boolean isOneOf(int eTypeConst, int[] config) {
         for (int i = 0; i < config.length; i++) {
             if (eTypeConst == config[i]) {
                 return true;
@@ -298,7 +298,7 @@ public abstract class EType {
 
     public static boolean isSupported(int eTypeConst) {
         int[] enabledETypes = getBuiltInDefaults();
-        return isSupported(eTypeConst, enabledETypes);
+        return isOneOf(eTypeConst, enabledETypes);
     }
 
     /**

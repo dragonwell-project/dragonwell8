@@ -309,9 +309,6 @@ sun/security/pkcs11/rsa/TestKeyPairGenerator.java               linux-all,solari
 # 8151834
 sun/security/mscapi/SmallPrimeExponentP.java                    windows-i586
 
-#8176354
-sun/security/ssl/com/sun/net/ssl/internal/ssl/X509KeyManager/PreferredKey.java     generic-all
-
 # 8206909
 com/sun/crypto/provider/CICO/PBEFunc/CICOPBEFuncTest.java       solaris-sparcv9
 
@@ -332,6 +329,8 @@ javax/sound/sampled/DataLine/LongFramePosition.java    8055097 generic-all
 javax/sound/sampled/Clip/Drain/ClipDrain.java          7062792 generic-all
 
 javax/sound/sampled/Mixers/DisabledAssertionCrash.java 7067310 generic-all
+
+javax/sound/midi/Soundbanks/GetSoundBankSecurityException/GetSoundBankSecurityException.java 8178401 windows-all
 
 ############################################################################
 

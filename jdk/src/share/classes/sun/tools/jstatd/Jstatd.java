@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2004, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -31,6 +31,9 @@ import java.rmi.registry.Registry;
 import java.rmi.registry.LocateRegistry;
 import java.net.MalformedURLException;
 import sun.jvmstat.monitor.remote.*;
+import sun.misc.ObjectInputFilter;
+import sun.rmi.server.UnicastServerRef;
+import sun.rmi.transport.LiveRef;
 
 /**
  * Application providing remote access to the jvmstat instrumentation
@@ -45,6 +48,8 @@ public class Jstatd {
     private static Registry registry;
     private static int port = -1;
     private static boolean startRegistry = true;
+
+    private static final String rmiFilterPattern = "sun.jvmstat.monitor.remote.RemoteVm;com.sun.proxy.$Proxy*;java.lang.reflect.Proxy;java.rmi.server.RemoteObjectInvocationHandler;java.rmi.server.RemoteObject;!*";
 
     private static void printUsage() {
         System.err.println("usage: jstatd [-nr] [-p port] [-n rminame]");
@@ -137,9 +142,10 @@ public class Jstatd {
         try {
             // use 1.5.0 dynamically generated subs.
             System.setProperty("java.rmi.server.ignoreSubClasses", "true");
-            RemoteHostImpl remoteHost = new RemoteHostImpl();
-            RemoteHost stub = (RemoteHost) UnicastRemoteObject.exportObject(
-                    remoteHost, 0);
+            ObjectInputFilter filter = ObjectInputFilter.Config.createFilter(rmiFilterPattern);
+            RemoteHostImpl remoteHost = new RemoteHostImpl(filter);
+            UnicastServerRef ref = new UnicastServerRef(new LiveRef(0), filter);
+            ref.exportObject(remoteHost, null, false);
             bind(name.toString(), remoteHost);
         } catch (MalformedURLException e) {
             if (rminame != null) {
