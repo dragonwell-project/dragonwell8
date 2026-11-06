@@ -22,7 +22,7 @@
  */
 
 /* @test
- * @bug 4241361 4842702 4985614 6646605 5032358 6923692 6233323 8144977 8184993
+ * @bug 4241361 4842702 4985614 6646605 5032358 6923692 6233323 8144977 8184993 8186464
  * @summary Make sure we can read a zip file.
    @key randomness
  * @run main/othervm ReadZip
@@ -31,11 +31,23 @@
  */
 
 import java.io.*;
+import java.net.URI;
 import java.nio.file.Files;
+import java.nio.file.FileSystem;
+import java.nio.file.FileSystems;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.nio.file.StandardOpenOption;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.zip.*;
+
+import sun.misc.IOUtils;
+
+import static java.nio.charset.StandardCharsets.US_ASCII;
 
 public class ReadZip {
     private static void unreached (Object o)
@@ -144,8 +156,6 @@ public class ReadZip {
             newZip.delete();
         }
 
-
-
         // Throw a FNF exception when read a non-existing zip file
         try { unreached (new ZipFile(
                              new File(System.getProperty("test.src", "."),
@@ -153,5 +163,54 @@ public class ReadZip {
                                       + String.valueOf(new java.util.Random().nextInt())
                                       + ".zip")));
         } catch (FileNotFoundException fnfe) {}
+
+        // read a zip file with ZIP64 end
+        Path path = Paths.get(System.getProperty("test.dir", ""), "end64.zip");
+        try {
+            URI uri = URI.create("jar:" + path.toUri());
+            Map<String, Object> env = new HashMap<>();
+            env.put("create", "true");
+            env.put("forceZIP64End", "true");
+            try (FileSystem fs = FileSystems.newFileSystem(uri, env)) {
+                Files.write(fs.getPath("hello"), "hello".getBytes());
+            }
+            try (ZipFile zf = new ZipFile(path.toFile())) {
+                if (!"hello".equals(new String(IOUtils.readAllBytes(zf.getInputStream(new ZipEntry("hello"))),
+                                               US_ASCII)))
+                    throw new RuntimeException("zipfile: read entry failed");
+            } catch (IOException x) {
+                throw new RuntimeException("zipfile: zip64 end failed");
+            }
+            try (FileSystem fs = FileSystems.newFileSystem(uri, Collections.emptyMap())) {
+                if (!"hello".equals(new String(Files.readAllBytes(fs.getPath("hello")))))
+                    throw new RuntimeException("zipfs: read entry failed");
+            } catch (IOException x) {
+                throw new RuntimeException("zipfile: zip64 end failed");
+            }
+        } finally {
+            Files.deleteIfExists(path);
+        }
+
+        // read a zip file created via "echo hello | zip dst.zip -", which uses
+        // ZIP64 end record
+        if (Files.notExists(Paths.get("/usr/bin/zip")))
+            return;
+        try {
+            Process zip = new ProcessBuilder("zip", path.toString().toString(), "-").start();
+            OutputStream os = zip.getOutputStream();
+            os.write("hello".getBytes(US_ASCII));
+            os.close();
+            zip.waitFor();
+            if (zip.exitValue() == 0 && Files.exists(path)) {
+                try (ZipFile zf = new ZipFile(path.toFile())) {
+                    if (!"hello".equals(new String(IOUtils.readAllBytes(zf.getInputStream(new ZipEntry("-"))))))
+                        throw new RuntimeException("zipfile: read entry failed");
+                } catch (IOException x) {
+                    throw new RuntimeException("zipfile: zip64 end failed");
+                }
+            }
+        } finally {
+            Files.deleteIfExists(path);
+        }
     }
 }

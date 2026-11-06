@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -55,9 +55,6 @@ public class CheckBlacklistedCerts {
             }
         }
 
-        // All certs in the pem files
-        Set<Certificate> blacklisted = new HashSet<>();
-
         // Hopefully src comes with test, but it might be missing if doing
         // a -testonly JPRT job.
         File[] blacklists = {
@@ -73,6 +70,7 @@ public class CheckBlacklistedCerts {
         }
 
         CertificateFactory cf = CertificateFactory.getInstance("X.509");
+        int expectedCount = 0;
         for (File blacklist: blacklists) {
             System.out.print("Check for " + blacklist + ": ");
             if (!blacklist.exists()) {
@@ -83,8 +81,8 @@ public class CheckBlacklistedCerts {
                             = cf.generateCertificates(fis);
                     System.out.println(certs.size());
                     for (Certificate c: certs) {
-                        blacklisted.add(c);
                         X509Certificate cert = ((X509Certificate)c);
+                        expectedCount += cert.getSigAlgName().contains("ECDSA") ? 4 : 2;
                         if (!UntrustedCertificates.isUntrusted(cert)) {
                             System.out.println(cert.getSubjectDN() + " is trusted");
                             failed = true;
@@ -116,11 +114,11 @@ public class CheckBlacklistedCerts {
                 failed = true;
             }
             // There are two unique fingerprints for each RSA certificate
-            if (ccount != blacklisted.size() * 2
-                    && !blacklisted.isEmpty()) {
+            if (ccount != expectedCount
+                    && expectedCount != 0) {
                 System.out.println("Wrong blacklisted.certs size: "
-                        + ccount + " fingerprints, "
-                        + blacklisted.size() + " certs");
+                        + ccount + " fingerprints, expected"
+                        + expectedCount);
                 failed = true;
             }
         }

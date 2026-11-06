@@ -102,7 +102,9 @@ public class TestMisc {
             "Memory Soft Limit",
             "Memory Usage",
             "Maximum Memory Usage",
-            "memory_max_usage_in_bytes"
+            "memory_max_usage_in_bytes",
+            "rss_usage_in_bytes",
+            "cache_usage_in_bytes"
         };
 
         for (String s : expectedToContain) {

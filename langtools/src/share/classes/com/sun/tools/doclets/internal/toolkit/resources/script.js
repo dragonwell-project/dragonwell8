@@ -20,11 +20,15 @@ function updateTabs(type)
         var spanNode = sNode.firstChild;
         if (value == type) {
             sNode.className = activeTableTab;
-            spanNode.innerHTML = tabs[value][1];
+            spanNode.textContent = tabs[value][1];
         }
         else {
+            var a = document.createElement("a");
+            a.setAttribute("href", "javascript:show(" + value + ");");
+            a.textContent = tabs[value][1];
             sNode.className = tableTab;
-            spanNode.innerHTML = "<a href=\"javascript:show("+ value + ");\">" + tabs[value][1] + "</a>";
+            spanNode.textContent = "";
+            spanNode.appendChild(a);
         }
     }
 }

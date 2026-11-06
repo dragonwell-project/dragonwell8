@@ -225,11 +225,13 @@ public class DNSName implements GeneralNameInterface {
      * order zero bit.
      * <p>
      * @param inputName to be checked for being constrained
+     * @param matchWildcard whether to match a wildcard in inputName
      * @returns constraint type above
      * @throws UnsupportedOperationException if name is not exact match, but narrowing and widening are
      *          not supported for this name type.
      */
-    public int constrains(GeneralNameInterface inputName) throws UnsupportedOperationException {
+    public int constrains(GeneralNameInterface inputName, boolean matchWildcard)
+            throws UnsupportedOperationException {
         int constraintType;
         if (inputName == null)
             constraintType = NAME_DIFF_TYPE;
@@ -240,7 +242,9 @@ public class DNSName implements GeneralNameInterface {
                 (((DNSName)inputName).getName()).toLowerCase(Locale.ENGLISH);
             String thisName = name.toLowerCase(Locale.ENGLISH);
 
-            if (HOSTNAME_CHECKER.isMatched(thisName, inName, false))
+            if (inName.equals(thisName) || (matchWildcard
+                    && inName.contains("*")
+                    && HOSTNAME_CHECKER.isMatched(thisName, inName, false)))
                 constraintType = NAME_MATCH;
             else if (thisName.endsWith(inName)) {
                 int inNdx = thisName.lastIndexOf(inName);
@@ -259,6 +263,10 @@ public class DNSName implements GeneralNameInterface {
             }
         }
         return constraintType;
+    }
+
+    public int constrains(GeneralNameInterface inputName) {
+        return constrains(inputName, false);
     }
 
     /**

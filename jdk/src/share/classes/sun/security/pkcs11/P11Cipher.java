@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -73,9 +73,8 @@ final class P11Cipher extends CipherSpi {
         int setPaddingBytes(byte[] paddingBuffer, int startOff, int padLen);
 
         // DEC: return the length of trailing padding bytes given the specified
-        // padded data
-        int unpad(byte[] paddedData, int len)
-                throws BadPaddingException, IllegalBlockSizeException;
+        // padded data, returns -1 if invalid
+        int unpad(byte[] paddedData, int len) throws IllegalBlockSizeException;
     }
 
     private static class PKCS5Padding implements Padding {
@@ -97,23 +96,32 @@ final class P11Cipher extends CipherSpi {
         }
 
         public int unpad(byte[] paddedData, int len)
-                throws BadPaddingException, IllegalBlockSizeException {
+                throws IllegalBlockSizeException {
             if ((len < 1) || (len % blockSize != 0)) {
                 throw new IllegalBlockSizeException
                     ("Input length must be multiples of " + blockSize);
             }
-            byte padValue = paddedData[len - 1];
-            if (padValue < 1 || padValue > blockSize) {
-                throw new BadPaddingException("Invalid pad value!");
+
+            int padValue = paddedData[len - 1] & 0x0ff;
+            // check padValue >= 1; negative if fail
+            int invalid = (padValue - 1);
+            // check padValue <= blockSize; negative if fail
+            invalid |= (blockSize - padValue);
+
+            // check the last block for the padding bytes
+            for (int i = len - blockSize; i < len; i++) {
+                // mask = 0 for the first (blockSize - padValue) bytes in the
+                // block. Otherwise, use 0xffff to preserve the value
+                int mask = (len - padValue - i - 1) >> 8 ;
+                int valueCheck = ((paddedData[i] & 0x0ff) ^ padValue) & mask;
+                // again, assign negative value if fail
+                invalid |= -valueCheck;
             }
-            // sanity check padding bytes
-            int padStartIndex = len - padValue;
-            for (int i = padStartIndex; i < len; i++) {
-                if (paddedData[i] != padValue) {
-                    throw new BadPaddingException("Invalid pad bytes!");
-                }
-            }
-            return padValue;
+            // convert 'invalid' to -1 when 'invalid' is not 0
+            // right shifting by 8 should be sufficient since value range is
+            // small
+            invalid >>= 8; // 0 or -1
+            return (invalid | padValue);
         }
     }
 
@@ -848,6 +856,9 @@ final class P11Cipher extends CipherSpi {
                             padBuffer.length - k);
 
                     int actualPadLen = paddingObj.unpad(padBuffer, k);
+                    if (actualPadLen < 0) {
+                        throw new BadPaddingException("Invalid pad value!");
+                    }
                     k -= actualPadLen;
                     System.arraycopy(padBuffer, 0, out, outOfs, k);
                 } else {
@@ -946,6 +957,9 @@ final class P11Cipher extends CipherSpi {
                             0, padBuffer, k, padBuffer.length - k);
 
                     int actualPadLen = paddingObj.unpad(padBuffer, k);
+                    if (actualPadLen < 0) {
+                        throw new BadPaddingException("Invalid pad value!");
+                    }
                     k -= actualPadLen;
                     outArray = padBuffer;
                     outOfs = 0;

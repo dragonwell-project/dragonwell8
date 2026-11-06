@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2021 Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,6 +27,8 @@ package sun.security.ssl;
 
 import java.io.EOFException;
 import java.io.IOException;
+import java.io.InterruptedIOException;
+import java.net.SocketException;
 import java.nio.ByteBuffer;
 import javax.crypto.AEADBadTagException;
 import javax.crypto.BadPaddingException;
@@ -134,6 +136,9 @@ interface SSLTransport {
         } catch (EOFException eofe) {
             // rethrow EOFException, the call will handle it if neede.
             throw eofe;
+        } catch (InterruptedIOException | SocketException se) {
+            // don't close the Socket in case of timeouts or interrupts or SocketException.
+            throw se;
         } catch (IOException ioe) {
             throw context.fatal(Alert.UNEXPECTED_MESSAGE, ioe);
         }
