@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,7 +27,6 @@ package com.sun.jndi.ldap;
 
 import javax.naming.*;
 import javax.naming.directory.*;
-import javax.naming.spi.*;
 import javax.naming.event.*;
 import javax.naming.ldap.*;
 import javax.naming.ldap.LdapName;
@@ -53,6 +52,8 @@ import com.sun.jndi.toolkit.ctx.*;
 import com.sun.jndi.toolkit.dir.HierMemDirCtx;
 import com.sun.jndi.toolkit.dir.SearchFilter;
 import com.sun.jndi.ldap.ext.StartTlsResponseImpl;
+import com.sun.naming.internal.NamingManagerHelper;
+import com.sun.naming.internal.ObjectFactoriesFilter;
 
 /**
  * The LDAP context implementation.
@@ -384,6 +385,16 @@ final public class LdapCtx extends ComponentDirContext
         netscapeSchemaBug = existing.netscapeSchemaBug;
 
         initEnv();
+    }
+
+    /**
+     * Whether this LDAP provider implementation trusts serial data.
+     * See {@linkplain java.naming/ java.naming module info} for more info.
+     *
+     * @return true if this LDAP provider implementation trusts serial data
+     */
+    public static boolean trustSerialData() {
+        return Obj.trustSerialData();
     }
 
     public LdapContext newInstance(Control[] reqCtls) throws NamingException {
@@ -1110,8 +1121,8 @@ final public class LdapCtx extends ComponentDirContext
         }
 
         try {
-            return DirectoryManager.getObjectInstance(obj, name,
-                this, envprops, attrs);
+            return NamingManagerHelper.getDirObjectInstance(obj, name, this,
+                    envprops, attrs, ObjectFactoriesFilter.ldapFactoryFilter());
 
         } catch (NamingException e) {
             throw cont.fillInException(e);

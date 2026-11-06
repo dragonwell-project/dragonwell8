@@ -268,6 +268,10 @@ else
   ZLIB_CPPFLAGS := -I$(JDK_TOPDIR)/src/share/native/java/util/zip/zlib
   ifeq ($(OPENJDK_TARGET_OS), macosx)
     ZLIB_CPPFLAGS += -DHAVE_UNISTD_H=1 -DHAVE_STDARG_H=1
+  else ifeq ($(OPENJDK_TARGET_OS), linux)
+    ZLIB_CPPFLAGS += -DHAVE_UNISTD_H=1 -DHAVE_STDARG_H=1
+  else ifeq ($(OPENJDK_TARGET_OS), aix)
+    ZLIB_CPPFLAGS += -DHAVE_UNISTD_H=1 -DHAVE_STDARG_H=1
   endif
 endif
 

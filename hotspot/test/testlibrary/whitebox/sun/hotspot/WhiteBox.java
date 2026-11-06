@@ -255,9 +255,9 @@ public class WhiteBox {
 
   // Container testing
   public native boolean isContainerized();
-  public native void printOsInfo();
-  public native int validateCgroup(String procCgroups,
+  public native int validateCgroup(boolean cgroupsV2Enabled,
+                                   String controllersFile,
                                    String procSelfCgroup,
                                    String procSelfMountinfo);
-
+  public native void printOsInfo();
 }
