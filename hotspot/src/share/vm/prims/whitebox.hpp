@@ -72,7 +72,7 @@ class WhiteBox : public AllStatic {
   static void register_extended(JNIEnv* env, jclass wbclass, JavaThread* thread);
   static bool compile_method(Method* method, int comp_level, int bci, Thread* THREAD);
 #ifdef LINUX
-  static bool validate_cgroup(const char* proc_cgroups, const char* proc_self_cgroup, const char* proc_self_mountinfo, u1* cg_flags);
+  static bool validate_cgroup(bool cgroups_v2_enabled, const char* controllers_file, const char* proc_self_cgroup, const char* proc_self_mountinfo, u1* cg_flags);
 #endif
 };
 

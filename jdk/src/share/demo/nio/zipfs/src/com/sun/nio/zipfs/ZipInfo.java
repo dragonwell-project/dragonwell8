@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2009, 2023, Oracle and/or its affiliates. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -77,12 +77,12 @@ public class ZipInfo {
                 // loc.extra is bigger than the cen.extra, try to avoid to read
                 // twice
                 long len = LOCHDR + CENNAM(cen, pos) + CENEXT(cen, pos) + CENHDR;
-                if (zfs.readFullyAt(buf, 0, len, locoff(cen, pos)) != len)
+                if (zfs.readNBytesAt(buf, 0, len, locoff(cen, pos)) != len)
                     ZipFileSystem.zerror("read loc header failed");
                 if (LOCEXT(buf) > CENEXT(cen, pos) + CENHDR) {
                     // have to read the second time;
                     len = LOCHDR + LOCNAM(buf) + LOCEXT(buf);
-                    if (zfs.readFullyAt(buf, 0, len, locoff(cen, pos)) != len)
+                    if (zfs.readNBytesAt(buf, 0, len, locoff(cen, pos)) != len)
                         ZipFileSystem.zerror("read loc header failed");
                 }
                 printLOC(buf);

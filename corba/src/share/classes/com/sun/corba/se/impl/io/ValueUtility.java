@@ -38,15 +38,18 @@ import org.omg.CORBA.ValueMember;
 import com.sun.org.omg.CORBA.Initializer;
 import org.omg.CORBA.IDLType;
 import com.sun.org.omg.CORBA._IDLTypeStub;
+import org.omg.CORBA.MARSHAL;
 import org.omg.CORBA.ORB;
 import org.omg.CORBA.TypeCodePackage.*;
 import org.omg.CORBA.TypeCode;
 import org.omg.CORBA.TCKind;
 import java.lang.reflect.*;
 import com.sun.corba.se.impl.util.RepositoryId;
+import java.security.AccessController;
 import java.util.*;
 import javax.rmi.CORBA.Util;
 import javax.rmi.CORBA.ValueHandler;
+import sun.security.action.GetIntegerAction;
 
 /**
  * Holds utility methods for converting from ObjectStreamClass to
@@ -93,6 +96,26 @@ public class ValueUtility {
         null,       // tk_abstract_interface 32
     };
 
+    // The maximum allowed input buffer array length.  The maximum size of the
+    // incoming array in bytes depends on the element type.  An incoming length
+    // field containing a value larger than this will trigger a marshalling
+    // exception.
+    private static final int maximumBufferLength;
+    // This default was chosen to reject unreasonably large incoming data fields.
+    // For comparison, omniORB defaults the maximum acceptable GIOP message size
+    // to 2^21 bytes.
+    private static final int DEFAULT_MAXIMUM_BUFFER_LENGTH = 2097152;
+    // If com.sun.CORBA.maximumBufferLength is <= 0, the buffer length check is
+    // disabled.
+    private static final String MAXIMUM_PROPERTY = "com.sun.CORBA.maximumBufferLength";
+
+    static {
+        int value = AccessController.doPrivileged(
+            new GetIntegerAction(MAXIMUM_PROPERTY,
+                                 DEFAULT_MAXIMUM_BUFFER_LENGTH)).intValue();
+        maximumBufferLength = value > 0 ? value : 0;
+    }
+
     static {
         sun.corba.SharedSecrets.setJavaCorbaAccess(new sun.corba.JavaCorbaAccess() {
             public ValueHandlerImpl newValueHandlerImpl() {
@@ -104,6 +127,23 @@ public class ValueUtility {
                         loadClass(className);
                 } else {
                     return ClassLoader.getSystemClassLoader().loadClass(className);
+                }
+            }
+            public void checkBufferLength(int length) {
+                if (maximumBufferLength == 0) {
+                    // Check is disabled.
+                    return;
+                }
+                if (length < 0) {
+                    throw new MARSHAL("Requested buffer length is negative");
+                }
+                if (length > maximumBufferLength) {
+                    throw new MARSHAL("Requested buffer length " + length +
+                                      " exceeds " + MAXIMUM_PROPERTY +
+                                      (maximumBufferLength ==
+                                       DEFAULT_MAXIMUM_BUFFER_LENGTH ?
+                                       " default " : " setting ") +
+                                      "(" + maximumBufferLength + ")");
                 }
             }
         });
