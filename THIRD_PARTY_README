@@ -2131,7 +2131,7 @@ included with JDK 8 and OpenJDK 8 source distributions.
 
 -------------------------------------------------------------------------------
 
-%% This notice is provided with respect to libpng 1.6.57, which may be
+%% This notice is provided with respect to libpng 1.6.59, which may be
 included with JRE 8, JDK 8, and OpenJDK 8.
 
 --- begin of LICENSE ---
@@ -2309,6 +2309,7 @@ Authors, for copyright and licensing purposes.
  * Adam Richter
  * Alexander Smorkalov
  * Andreas Dilger
+ * Anthony Hurtado
  * Chris Blume
  * Cosmin Truta
  * Dave Martindale
@@ -2346,6 +2347,7 @@ Authors, for copyright and licensing purposes.
  * Vadim Barkov
  * Willem van Schaik
  * Yuelin Wang (王跃林)
+ * Yuki Sekiguchi
  * Zhijie Liang
  * Apple Inc.
     - Zixu Wang (王子旭)
