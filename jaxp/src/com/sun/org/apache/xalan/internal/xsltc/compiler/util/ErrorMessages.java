@@ -1012,10 +1012,10 @@ public class ErrorMessages extends ListResourceBundle {
          "smaller templates."
         },
 
-        {ErrorMsg.DESERIALIZE_TRANSLET_ERR, "When Java security is enabled, "
-              + "support for deserializing TemplatesImpl is disabled. This can be "
-              + "overridden by setting the jdk.xml.enableTemplatesImplDeserialization"
-              + " system property to true."},
+        {ErrorMsg.DESERIALIZE_TRANSLET_ERR,
+            "Support for deserializing TemplatesImpl is disabled. This can be "
+              + "overridden by setting the ''jdk.xml.enableTemplatesImplDeserialization'' "
+              + "property to ''true''."},
 
         {ErrorMsg.XPATH_GROUP_LIMIT,
             "JAXP0801001: the compiler encountered an XPath expression containing "

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -53,11 +53,14 @@ class KrbAsRep extends KrbKdcRep {
 
     private boolean DEBUG = Krb5.DEBUG;
 
-    KrbAsRep(byte[] ibuf) throws
+    KrbAsRep(byte[] ibuf, int[] requestedETypes) throws
             KrbException, Asn1Exception, IOException {
         DerValue encoding = new DerValue(ibuf);
         try {
             rep = new ASRep(encoding);
+            if (!EType.isOneOf(rep.encPart.getEType(), requestedETypes)) {
+                throw new KrbException("AS-REP enc_part not using requested etype");
+            }
         } catch (Asn1Exception e) {
             rep = null;
             KRBError err = new KRBError(encoding);

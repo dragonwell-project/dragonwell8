@@ -44,6 +44,7 @@ import java.util.logging.Logger;
 import java.util.logging.Level;
 import java.net.BindException;
 import java.net.InetSocketAddress;
+import java.net.ProtocolException;
 import java.net.ServerSocket;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -106,6 +107,7 @@ class ServerImpl {
     static final long REQ_RSP_TIMER_SCHEDULE = ServerConfig.getReqRspTimerScheduleMillis();
     static final long MAX_REQ_TIME = getTimeMillis(ServerConfig.getMaxReqTime());
     static final long MAX_RSP_TIME = getTimeMillis(ServerConfig.getMaxRspTime());
+    static final boolean HOST_VALIDATION_DISABLED = ServerConfig.isHostValidationDisabled();;
     static final boolean reqRspTimeoutEnabled = MAX_REQ_TIME != -1 || MAX_RSP_TIME != -1;
     // the maximum idle duration for a connection which is currently idle but has served
     // some request in the past
@@ -650,7 +652,16 @@ class ServerImpl {
                     connection.raw = rawin;
                     connection.rawout = rawout;
                 }
-                Request req = new Request (rawin, rawout);
+
+                Request req;
+                try {
+                    req = new Request(rawin, rawout, newconnection && !https);
+                } catch (ProtocolException pe) {
+                    logger.log(Level.FINE, "closing due to: " + pe);
+                    reject(Code.HTTP_BAD_REQUEST, "", pe.getMessage());
+                    return;
+                }
+
                 requestLine = req.requestLine();
                 if (requestLine == null) {
                     /* connection closed */
@@ -683,7 +694,14 @@ class ServerImpl {
                 URI uri = new URI (uriStr);
                 start = space+1;
                 String version = requestLine.substring (start);
-                Headers headers = req.headers();
+                Headers headers;
+                try {
+                    headers = req.headers();
+                } catch (ProtocolException pe) {
+                    reject(Code.HTTP_BAD_REQUEST, requestLine,
+                            "Failed to parse headers: " + pe.getMessage());
+                    return;
+                }
                 /* check key for illegal characters */
                 for (String k : headers.keySet()) {
                     if (!isValidHeaderKey(k)) {
@@ -725,6 +743,25 @@ class ServerImpl {
                     }
                     if (clen == 0) {
                         requestCompleted(connection);
+                    }
+                }
+                /* check if there's a single Host header */
+                if (!HOST_VALIDATION_DISABLED) {
+                    List<String> hostValueList = headers.get("Host");
+                    if (hostValueList == null || hostValueList.isEmpty()) {
+                        if (!version.equalsIgnoreCase("http/1.0")) {
+                            reject(400, requestLine, "Missing Host header");
+                            return;
+                        }
+                    } else if (hostValueList.size() > 1) {
+                        reject(400, requestLine, "Multiple Host headers");
+                        return;
+                    } else {
+                        String host = hostValueList.get(0);
+                        if (host.indexOf(',') != -1) {
+                            reject(400, requestLine, "Multiple Host header values");
+                            return;
+                        }
                     }
                 }
                 ctx = contexts.findContext (protocol, uri.getPath());

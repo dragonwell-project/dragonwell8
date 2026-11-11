@@ -111,10 +111,8 @@ jlong CgroupV1Subsystem::read_memory_limit_in_bytes() {
     }
     CgroupV1MemoryController* mem_controller = reinterpret_cast<CgroupV1MemoryController*>(_memory->controller());
     if (mem_controller->is_hierarchical()) {
-      const char* matchline = "hierarchical_memory_limit";
-      const char* format = "%s " JULONG_FORMAT;
-      GET_CONTAINER_INFO_LINE(julong, _memory->controller(), "/memory.stat", matchline,
-                             "Hierarchical Memory Limit is: " JULONG_FORMAT, format, hier_memlimit)
+      GET_CONTAINER_INFO_LINE(julong, _memory->controller(), "/memory.stat", "hierarchical_memory_limit",
+                             "Hierarchical Memory Limit is: " JULONG_FORMAT, JULONG_FORMAT, hier_memlimit)
       if (hier_memlimit >= os::Linux::physical_memory()) {
         if (PrintContainerInfo) {
           tty->print_cr("Hierarchical Memory Limit is: Unlimited");
@@ -142,15 +140,14 @@ jlong CgroupV1Subsystem::memory_and_swap_limit_in_bytes() {
     CgroupV1MemoryController* mem_controller = reinterpret_cast<CgroupV1MemoryController*>(_memory->controller());
     if (mem_controller->is_hierarchical()) {
       const char* matchline = "hierarchical_memsw_limit";
-      const char* format = "%s " JULONG_FORMAT;
       GET_CONTAINER_INFO_LINE(julong, _memory->controller(), "/memory.stat", matchline,
-                             "Hierarchical Memory and Swap Limit is : " JULONG_FORMAT, format, hier_memlimit)
-      if (hier_memlimit >= host_total_memsw) {
+                             "Hierarchical Memory and Swap Limit is : " JULONG_FORMAT, JULONG_FORMAT, hier_memswlimit)
+      if (hier_memswlimit >= host_total_memsw) {
         if (PrintContainerInfo) {
           tty->print_cr("Hierarchical Memory and Swap Limit is: Unlimited");
         }
       } else {
-        return (jlong)hier_memlimit;
+        return (jlong)hier_memswlimit;
       }
     }
     return (jlong)-1;
@@ -201,6 +198,17 @@ jlong CgroupV1Subsystem::memory_max_usage_in_bytes() {
   return memmaxusage;
 }
 
+jlong CgroupV1Subsystem::rss_usage_in_bytes() {
+  GET_CONTAINER_INFO_LINE(julong, _memory->controller(), "/memory.stat",
+                          "rss", JULONG_FORMAT, JULONG_FORMAT, rss);
+  return rss;
+}
+
+jlong CgroupV1Subsystem::cache_usage_in_bytes() {
+  GET_CONTAINER_INFO_LINE(julong, _memory->controller(), "/memory.stat",
+                          "cache", JULONG_FORMAT, JULONG_FORMAT, cache);
+  return cache;
+}
 
 jlong CgroupV1Subsystem::kernel_memory_usage_in_bytes() {
   GET_CONTAINER_INFO(jlong, _memory->controller(), "/memory.kmem.usage_in_bytes",

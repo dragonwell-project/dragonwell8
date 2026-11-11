@@ -385,6 +385,9 @@ findEND64(jzfile *zip, void *end64buf, jlong endpos)
 {
     char loc64[ZIP64_LOCHDR];
     jlong end64pos;
+    if (endpos < ZIP64_LOCHDR) {
+        return -1;
+    }
     if (readFullyAt(zip->zfd, loc64, ZIP64_LOCHDR, endpos - ZIP64_LOCHDR) == -1) {
         return -1;    // end64 locator not found
     }
@@ -567,6 +570,8 @@ readCEN(jzfile *zip, jint knownTotal)
 {
     /* Following are unsigned 32-bit */
     jlong endpos, end64pos, cenpos, cenlen, cenoff, total64;
+    jlong cenlen64, cenoff64, centot64;
+    unsigned char end64buf[ZIP64_ENDHDR];
     /* Following are unsigned 16-bit */
     jint total, tablelen, i, j;
     unsigned char *cenbuf = NULL;
@@ -594,20 +599,29 @@ readCEN(jzfile *zip, jint knownTotal)
     cenlen = ENDSIZ(endbuf);
     cenoff = ENDOFF(endbuf);
     total  = ENDTOT(endbuf);
-    if (cenlen == ZIP64_MAGICVAL || cenoff == ZIP64_MAGICVAL ||
-        total == ZIP64_MAGICCOUNT) {
-        unsigned char end64buf[ZIP64_ENDHDR];
-        if ((end64pos = findEND64(zip, end64buf, endpos)) != -1) {
-            cenlen = ZIP64_ENDSIZ(end64buf);
-            cenoff = ZIP64_ENDOFF(end64buf);
-            total64 = ZIP64_ENDTOT(end64buf);
+    if ((end64pos = findEND64(zip, end64buf, endpos)) != -1) {
+        // end64 candidate found,
+        cenlen64 = ZIP64_ENDSIZ(end64buf);
+        cenoff64 = ZIP64_ENDOFF(end64buf);
+        centot64 = ZIP64_ENDTOT(end64buf);
+        // double-check
+        if ((cenlen64 == cenlen || cenlen == ZIP64_MAGICVAL) &&
+            (cenoff64 == cenoff || cenoff == ZIP64_MAGICVAL) &&
+            (centot64 == total || total == ZIP64_MAGICCOUNT)) {
+            // to use the end64 values
+            cenlen = cenlen64;
+            cenoff = cenoff64;
+            total64 = centot64;
             /* ZIP64 size, offset and total-count fields are unsigned 64-bit
              * values. Sizes and offsets that do not fit in signed jlong
              * (i.e., >= 2^63), or total values that do not fit in jint, are
              * not supported and indicate a corrupt or invalid zip file.
              */
-            if (cenlen < 0 || cenoff < 0 || total64 < 0 || total64 > INT_MAX) {
+            if (cenlen < 0 || cenoff < 0) {
                 ZIP_FORMAT_ERROR("Zip64 END values exceed supported size");
+            }
+            if (total64 < 0 || total64 > INT_MAX || total64 > cenlen / CENHDR) {
+                ZIP_FORMAT_ERROR("invalid END header (total entries count too large)");
             }
             total = (jint)total64;
             endpos = end64pos;
@@ -615,15 +629,21 @@ readCEN(jzfile *zip, jint knownTotal)
         }
     }
 
-    if (cenlen > endpos)
+    // Validate END header
+    if (cenlen > endpos) {
         ZIP_FORMAT_ERROR("invalid END header (bad central directory size)");
+    }
     cenpos = endpos - cenlen;
 
     /* Get position of first local file (LOC) header, taking into
      * account that there may be a stub prefixed to the zip file. */
     zip->locpos = cenpos - cenoff;
-    if (zip->locpos < 0)
+    if (zip->locpos < 0) {
         ZIP_FORMAT_ERROR("invalid END header (bad central directory offset)");
+    }
+    if (cenlen + ENDHDR >= INT_MAX) {
+        ZIP_FORMAT_ERROR("invalid END header (central directory size too large)");
+    }
 
 #ifdef USE_MMAP
     if (zip->usemmap) {

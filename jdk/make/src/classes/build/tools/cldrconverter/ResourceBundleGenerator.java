@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -153,7 +153,8 @@ class ResourceBundleGenerator implements BundleGenerator {
                     if (value == null) {
                         CLDRConverter.warning("null value for " + key);
                     } else if (value instanceof String) {
-                        if (type == BundleType.TIMEZONE) {
+                        if (type == BundleType.TIMEZONE &&
+                            !key.startsWith(CLDRConverter.METAZONE_DSTOFFSET_PREFIX)) {
                             out.printf("            { \"%s\", %s },\n", key, CLDRConverter.saveConvert((String) value, useJava));
                         } else {
                             out.printf("            { \"%s\", \"%s\" },\n", key, CLDRConverter.saveConvert((String) value, useJava));
