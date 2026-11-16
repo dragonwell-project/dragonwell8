@@ -65,6 +65,7 @@ import com.sun.corba.se.impl.encoding.CDROutputStream;
 import com.sun.corba.se.impl.encoding.MarshalInputStream;
 
 import sun.corba.EncapsInputStreamFactory;
+import sun.corba.SharedSecrets;
 
 public class TypeCodeInputStream extends EncapsInputStream implements TypeCodeReader
 {
@@ -154,6 +155,7 @@ public class TypeCodeInputStream extends EncapsInputStream implements TypeCodeRe
         int encapLength = is.read_long();
 
         // read off part of the buffer corresponding to the encapsulation
+        SharedSecrets.getJavaCorbaAccess().checkBufferLength(encapLength);
         byte[] encapBuffer = new byte[encapLength];
         is.read_octet_array(encapBuffer, 0, encapBuffer.length);
 

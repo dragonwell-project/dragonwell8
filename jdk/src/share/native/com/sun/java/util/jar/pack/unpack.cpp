@@ -1095,8 +1095,12 @@ void unpacker::read_Utf8_values(entry* cpMap, int len, byte tag) {
       nbigsuf += 1;
       continue;
     }
+    if (suffix > (INT_MAX - 1) / 3) { // clamp size3 + 1
+      abort("suffix too large");
+      return;
+    }
     bytes& chars  = allsuffixes[i];
-    uint size3    = suffix * 3;     // max Utf8 length
+    uint size3    = (uint)suffix * 3; // max Utf8 length
     bool isMalloc = (suffix > SMALL);
     if (isMalloc) {
       chars.malloc(size3);
@@ -1138,22 +1142,32 @@ void unpacker::read_Utf8_values(entry* cpMap, int len, byte tag) {
   cp_Utf8_big_suffix.readData(nbigsuf);
   cp_Utf8_suffix.rewind();
   for (i = 0; i < len; i++) {
+    // suffix was verified on the previous pass, don't need to do it again
     int suffix = (i < SUFFIX_SKIP_1)? 0: cp_Utf8_suffix.getInt();
     int prefix = (i < PREFIX_SKIP_2)? 0: cp_Utf8_prefix.getInt();
-    if (prefix < 0 || prefix+suffix < 0) {
+    if (prefix < 0 || INT_MAX - suffix < prefix) {
        abort("bad utf8 prefix");
        return;
     }
     bytes& chars = allsuffixes[i];
     if (suffix == 0 && i >= SUFFIX_SKIP_1) {
       suffix = cp_Utf8_big_suffix.getInt();
+      if (suffix < 0 || INT_MAX - prefix < suffix) {
+        abort("bad utf8 suffix");
+        return;
+      }
       assert(chars.ptr == null);
       chars.len = suffix;  // just a momentary hack
     } else {
       assert(chars.ptr != null);
     }
-    if (maxlen < prefix + suffix) {
+    if (maxlen < prefix + suffix) { // has been verified to not overflow
       maxlen = prefix + suffix;
+      // this also clamps size3 of the next pass
+      if (maxlen > (INT_MAX - 1) / 3) {
+        abort("string too large");
+        return;
+      }
     }
   }
   //cp_Utf8_suffix.done();      // will use allsuffixes[i].len (ptr!=null)
@@ -1165,7 +1179,7 @@ void unpacker::read_Utf8_values(entry* cpMap, int len, byte tag) {
     bytes& chars = allsuffixes[i];
     if (chars.ptr != null)  continue;  // already input
     int suffix = (int)chars.len;  // pick up the hack
-    uint size3 = suffix * 3;
+    uint size3 = (uint)suffix * 3;  // verified on the previous pass
     if (suffix == 0)  continue;  // done with empty string
     chars.malloc(size3);
     CHECK;
@@ -1189,7 +1203,7 @@ void unpacker::read_Utf8_values(entry* cpMap, int len, byte tag) {
 
   // Finally, sew together all the prefixes and suffixes.
   bytes bigbuf;
-  bigbuf.malloc(maxlen * 3 + 1);  // max Utf8 length, plus slop for null
+  bigbuf.malloc((uint)maxlen * 3 + 1);  // max Utf8 length, plus slop for null
   CHECK;
   int prevlen = 0;  // previous string length (in chars)
   tmallocs.add(bigbuf.ptr);  // free after this block
@@ -1326,6 +1340,10 @@ void unpacker::read_signature_values(entry* cpMap, int len, byte tag) {
     for (int j = 0; j < (int)form.value.b.len; j++) {
       int c = form.value.b.ptr[j];
       if (c == 'L') nc++;
+      if (nc == USHRT_MAX) { // entry::nrefs is unsigned short
+        abort("too many class references");
+        return;
+      }
     }
     ncTotal += nc;
     e.refs = U_NEW(entry*, cpMap[i].nrefs = 1 + nc);
@@ -1403,6 +1421,14 @@ void unpacker::read_bootstrap_methods(entry* cpMap, int len, byte tag) {
   for (int i = 0; i < len; i++) {
     entry& e = cpMap[i];
     int argc = cp_BootstrapMethod_arg_count.getInt();
+    if (argc < 0) {
+      abort("negative number of arguments");
+      return;
+    }
+    if (USHRT_MAX - 1 < argc) { // entry::nrefs is unsigned short
+      abort("too many arguments");
+      return;
+    }
     cp.initValues(e, tag, i);
     e.value.i = argc;
     e.refs = U_NEW(entry*, e.nrefs = argc + 1);

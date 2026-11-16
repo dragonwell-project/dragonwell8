@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2024, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -34,7 +34,7 @@ import javax.net.ssl.*;
  * @library /lib/security
  * @run main/othervm Entrust after policyOn invalid
  * @run main/othervm Entrust after policyOff valid
- * @run main/othervm Entrust before policyOn valid
+ * @run main/othervm Entrust before policyOn invalid
  * @run main/othervm Entrust before policyOff valid
  */
 
@@ -48,7 +48,7 @@ public class Entrust {
             "entrustevca", "entrustrootcaec1", "entrustrootcag2",
             "entrustrootcag4", "entrust2048ca"};
 
-    // Date when the restrictions take effect
+    // Date after the restrictions took effect when distrust was first announced
     private static final ZonedDateTime DISTRUST_DATE =
             LocalDate.of(2024, 11, 12).atStartOfDay(ZoneOffset.UTC);
 

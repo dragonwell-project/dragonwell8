@@ -104,7 +104,7 @@ public class CImage extends CFRetainedResource {
             return createImageUsingNativeSize(nativeCreateNSImageFromImageName(name));
         }
 
-        private static int[] imageToArray(Image image, boolean prepareImage) {
+        private static BufferedImage getAsBufferedImage(Image image, boolean prepareImage) {
             if (image == null) return null;
 
             if (prepareImage && !(image instanceof BufferedImage)) {
@@ -136,17 +136,18 @@ public class CImage extends CFRetainedResource {
             g2.drawImage(image, 0, 0, null);
             g2.dispose();
 
-            return ((DataBufferInt)bimg.getRaster().getDataBuffer()).getData();
+            return bimg;
         }
 
         public byte[] getPlatformImageBytes(final Image image) {
-            int[] buffer = imageToArray(image, false);
+            BufferedImage bimg = getAsBufferedImage(image, false);
 
-            if (buffer == null) {
+            if (bimg == null) {
                 return null;
             }
+            int[] buffer = ((DataBufferInt)bimg.getRaster().getDataBuffer()).getData();
 
-            return nativeGetPlatformImageBytes(buffer, image.getWidth(null), image.getHeight(null));
+            return nativeGetPlatformImageBytes(buffer, bimg.getWidth(), bimg.getHeight());
         }
 
         /**
@@ -173,11 +174,13 @@ public class CImage extends CFRetainedResource {
                 return createFromImages(resolutionVariants, prepareImage);
             }
 
-            int[] buffer = imageToArray(image, prepareImage);
-            if (buffer == null) {
+            BufferedImage bimg = getAsBufferedImage(image, prepareImage);
+
+            if (bimg == null) {
                 return null;
             }
-            return new CImage(nativeCreateNSImageFromArray(buffer, image.getWidth(null), image.getHeight(null)));
+            int[] buffer = ((DataBufferInt)bimg.getRaster().getDataBuffer()).getData();
+            return new CImage(nativeCreateNSImageFromArray(buffer, bimg.getWidth(), bimg.getHeight()));
         }
 
         public CImage createFromImages(final List<Image> images) {
@@ -198,13 +201,14 @@ public class CImage extends CFRetainedResource {
             num = 0;
 
             for (final Image img : images) {
-                buffers[num] = imageToArray(img, prepareImage);
-                if (buffers[num] == null) {
+                BufferedImage bimg = getAsBufferedImage(img, prepareImage);
+                if (bimg == null) {
                     // Unable to process the image
                     continue;
                 }
-                w[num] = img.getWidth(null);
-                h[num] = img.getHeight(null);
+                buffers[num] = ((DataBufferInt)bimg.getRaster().getDataBuffer()).getData();
+                w[num] = bimg.getWidth();
+                h[num] = bimg.getHeight();
                 num++;
             }
 

@@ -34,6 +34,11 @@ COPY_FILES += \
     $(XMLSECURITY_RESOURCEDIR)/config.dtd \
     $(XMLSECURITY_RESOURCEDIR)/config.xml
 
+# WebRowSet-related XML schemas from java.sql.rowset
+COPY_FILES += \
+    $(JDK_TOPDIR)/src/share/classes/javax/sql/rowset/webrowset.xsd \
+    $(JDK_TOPDIR)/src/share/classes/javax/sql/rowset/sqlxml.xsd
+
 # Copy sun/tools related files into the classes directory.
 
 # Extra jstat files

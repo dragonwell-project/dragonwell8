@@ -34,6 +34,8 @@ import com.sun.corba.se.spi.ior.ObjectKey;
 import com.sun.corba.se.spi.logging.CORBALogDomains ;
 import com.sun.corba.se.impl.logging.ORBUtilSystemException ;
 
+import sun.corba.SharedSecrets;
+
 /**
  * This implements the GIOP 1.1 Request header.
  *
@@ -130,6 +132,7 @@ public final class RequestMessage_1_1 extends Message_1_1
             this.reserved[_o0] = istream.read_octet();
         }
         int _len1 = istream.read_long();
+        SharedSecrets.getJavaCorbaAccess().checkBufferLength(_len1);
         this.object_key = new byte[_len1];
         istream.read_octet_array(this.object_key, 0, _len1);
         this.operation = istream.read_string();

@@ -28,14 +28,22 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileReader;
 import java.io.InputStreamReader;
+import java.io.StringReader;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.OutputStreamWriter;
 import java.math.BigDecimal;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.sql.ResultSet;
+import java.sql.ResultSetMetaData;
+import java.sql.SQLException;
 import java.util.Arrays;
 import javax.sql.rowset.WebRowSet;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNull;
+import static org.testng.Assert.assertThrows;
 import static org.testng.Assert.assertEqualsNoOrder;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
@@ -97,7 +105,7 @@ public abstract class CommonWebRowSetTests extends CommonCachedRowSetTests {
     }
 
     /*
-     * Utility method to write a WebRowSet XML file via an Writer
+     * Utility method to write a WebRowSet XML file via a Writer
      */
     protected ByteArrayOutputStream writeWebRowSetWithOutputStreamWithWriter(WebRowSet rs) throws Exception {
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
@@ -107,7 +115,7 @@ public abstract class CommonWebRowSetTests extends CommonCachedRowSetTests {
     }
 
     /*
-     * Utility method to write a WebRowSet XML file via an Writer and populating
+     * Utility method to write a WebRowSet XML file via a Writer and populating
      * the WebRowSet via a ResultSet
      */
     protected ByteArrayOutputStream writeWebRowSetWithOutputStreamWithWriter(ResultSet rs) throws Exception {
@@ -395,6 +403,289 @@ public abstract class CommonWebRowSetTests extends CommonCachedRowSetTests {
             }
         }
         wrs1.close();
+    }
+
+    private static final String ROWSET_VALIDATION_PROPERTY
+            = "jdk.sql.rowset.webrowsetValidation";
+
+    @FunctionalInterface
+    private interface ThrowingRunnable {
+        void run() throws Exception;
+    }
+
+    /**
+     * Runs the given action with the WebRowSet validation system property set
+     * to the requested value, then restores the previous value.
+     *
+     * @param value the temporary property value, or {@code null} to clear it
+     * @param action the action to run while the property is set
+     */
+    private static synchronized void withRowSetValidation(String value,
+            ThrowingRunnable action) throws Exception {
+        String previous = System.getProperty(ROWSET_VALIDATION_PROPERTY);
+        try {
+            if (value == null) {
+                System.clearProperty(ROWSET_VALIDATION_PROPERTY);
+            } else {
+                System.setProperty(ROWSET_VALIDATION_PROPERTY, value);
+            }
+            action.run();
+        } finally {
+            if (previous == null) {
+                System.clearProperty(ROWSET_VALIDATION_PROPERTY);
+            } else {
+                System.setProperty(ROWSET_VALIDATION_PROPERTY, previous);
+            }
+        }
+    }
+
+    /**
+     * Verifies that an updated row written as XML can be read back with schema
+     * validation enabled.
+     */
+    @Test(dataProvider = "rowSetType")
+    public void testUpdatedRows(WebRowSet wrs) throws Exception {
+        try {
+            readCoffeeRows(wrs);
+            wrs.absolute(3);
+            wrs.updateInt(5, 21);
+            wrs.updateInt(6, 69);
+            wrs.updateRow();
+
+            ByteArrayOutputStream baos =
+                    writeWebRowSetWithOutputStreamWithWriter(wrs);
+            withRowSetValidation(null, () -> {
+                // Clearing the property ensures validation is enabled;
+                // verifies the writer emits schema-compliant
+                // modifyRow/updateValue XML.
+                try (WebRowSet wrs1 =
+                        readWebRowSetWithOInputStreamWithReader(baos)) {
+                    assertEquals(wrs1.size(), COFFEES_ROWS);
+                    assertEquals(getPrimaryKeys(wrs1), COFFEES_PRIMARY_KEYS);
+
+                    assertTrue(findRowByPrimaryKey(wrs1, 3, 1));
+                    assertTrue(wrs1.rowUpdated());
+                    assertEquals(wrs1.getInt(5), 21);
+                    assertEquals(wrs1.getInt(6), 69);
+                }
+            });
+        } finally {
+            wrs.close();
+        }
+    }
+
+    /**
+     * Verifies that a deleted row written as XML can be read back with schema
+     * validation enabled.
+     */
+    @Test(dataProvider = "rowSetType")
+    public void testDeletedRows(WebRowSet wrs)
+            throws Exception {
+        try {
+            readCoffeeRows(wrs);
+            assertTrue(deleteRowByPrimaryKey(wrs, 2, 1));
+
+            ByteArrayOutputStream baos =
+                    writeWebRowSetWithOutputStreamWithWriter(wrs);
+            withRowSetValidation(null, () -> {
+                // Clearing the property ensures validation is enabled; parsing
+                // fails if the writer omits schema-required empty updateValue
+                // elements.
+                try (WebRowSet wrs1 =
+                        readWebRowSetWithOInputStreamWithReader(baos)) {
+                    Object[] expectedRows = {1, 3, 4, 5};
+                    assertEquals(wrs1.size(), COFFEES_ROWS);
+                    assertEquals(getPrimaryKeys(wrs1), expectedRows);
+
+                    wrs1.setShowDeleted(true);
+                    assertTrue(findRowByPrimaryKey(wrs1, 2, 1));
+                    assertTrue(wrs1.rowDeleted());
+                    assertEquals(getPrimaryKeys(wrs1), COFFEES_PRIMARY_KEYS);
+                }
+            });
+        } finally {
+            wrs.close();
+        }
+    }
+
+    /**
+     * Verifies that null properties are written as schema-compliant empty
+     * elements and read back as null.
+     */
+    @Test(dataProvider = "rowSetType")
+    public void testNullProperties(WebRowSet wrs) throws Exception {
+        try {
+            readCoffeeRows(wrs);
+            assertNull(wrs.getCommand());
+            assertNull(wrs.getDataSourceName());
+            assertNull(wrs.getUrl());
+
+            ByteArrayOutputStream baos =
+                    writeWebRowSetWithOutputStreamWithWriter(wrs);
+            withRowSetValidation(null, () -> {
+                // Reading with validation enabled fails if the writer emits the
+                // legacy invalid <null/> form for nullable properties.
+                try (WebRowSet wrs1 =
+                        readWebRowSetWithOInputStreamWithReader(baos)) {
+                    assertEquals(wrs1.size(), COFFEES_ROWS);
+                    assertEquals(getPrimaryKeys(wrs1), COFFEES_PRIMARY_KEYS);
+                    assertNull(wrs1.getCommand());
+                    assertNull(wrs1.getDataSourceName());
+                    assertNull(wrs1.getUrl());
+                }
+            });
+        } finally {
+            wrs.close();
+        }
+    }
+
+    /**
+     * Verifies that legacy XML is rejected since schema validation is enabled
+     * by default.
+     */
+    @Test(dataProvider = "rowSetType")
+    public void testLegacyXmlWithValidation(WebRowSet wrs)
+            throws Exception {
+        String legacyXml = getLegacyXml();
+        withRowSetValidation(null, () -> {
+            try {
+                assertThrows(SQLException.class,
+                        () -> wrs.readXml(new StringReader(legacyXml)));
+            } finally {
+                wrs.close();
+            }
+        });
+    }
+
+    /**
+     * Verifies that legacy XML is accepted when schema validation is explicitly
+     * disabled.
+     */
+    @Test(dataProvider = "rowSetType")
+    public void testLegacyXmlWithoutValidation(WebRowSet wrs)
+            throws Exception {
+        String legacyXml = getLegacyXml()
+                // Exercise the path where an empty element follows a value bearing
+                // element. This is for JDK-8386783
+                .replace("<url>jdbc:derby://localhost:1527/testDB;create=true</url>", "<url/>");
+        withRowSetValidation("false", () -> {
+            try {
+                wrs.readXml(new StringReader(legacyXml));
+                assertNull(wrs.getUrl());
+                assertEquals(wrs.size(), COFFEES_ROWS);
+                assertEquals(getPrimaryKeys(wrs), COFFEES_PRIMARY_KEYS);
+
+                wrs.beforeFirst();
+                boolean foundUpdatedRow = false;
+                while (wrs.next()) {
+                    if (wrs.getInt(1) == 3) {
+                        foundUpdatedRow = true;
+                        assertTrue(wrs.rowUpdated());
+                        assertEquals(wrs.getInt(5), 21);
+                        assertEquals(wrs.getInt(6), 69);
+                    }
+                }
+                assertTrue(foundUpdatedRow);
+            } finally {
+                wrs.close();
+            }
+        });
+    }
+
+    /**
+     * Verifies that legacy null elements are rejected since schema validation
+     * is enabled by default.
+     */
+    @Test(dataProvider = "rowSetType")
+    public void testLegacyNullXmlWithValidation(WebRowSet wrs)
+            throws Exception {
+        String legacyXml = getLegacyNullXml();
+        withRowSetValidation(null, () -> {
+            try {
+                // Legacy <null/> property values are not valid against the
+                // standard schema.
+                assertThrows(SQLException.class,
+                        () -> wrs.readXml(new StringReader(legacyXml)));
+            } finally {
+                wrs.close();
+            }
+        });
+    }
+
+    /**
+     * Verifies that legacy null elements are accepted when schema validation is
+     * explicitly disabled.
+     */
+    @Test(dataProvider = "rowSetType")
+    public void testLegacyNullXmlWithoutValidation(WebRowSet wrs)
+            throws Exception {
+        String legacyXml = getLegacyNullXml();
+        withRowSetValidation("false", () -> {
+            try {
+                wrs.readXml(new StringReader(legacyXml));
+                assertEquals(wrs.size(), COFFEES_ROWS);
+                assertEquals(getPrimaryKeys(wrs), COFFEES_PRIMARY_KEYS);
+
+                // With validation disabled, preserve the old reader behavior
+                // for nullable properties and metadata represented by <null/>.
+                assertNull(wrs.getCommand());
+                assertNull(wrs.getDataSourceName());
+                assertNull(wrs.getUrl());
+
+                ResultSetMetaData md = wrs.getMetaData();
+                for (int i = 1; i <= md.getColumnCount(); i++) {
+                    assertEquals(md.getColumnLabel(i), "");
+                    assertEquals(md.getColumnTypeName(i), "");
+                }
+            } finally {
+                wrs.close();
+            }
+        });
+    }
+
+    /**
+     * Builds a legacy document from the schema-compliant UPDATED_COFFEE_ROWS_XML
+     * file. Older WebRowSet XML used currentRow/updateRow for modified rows,
+     * while the webrowset schema requires modifyRow/updateValue.
+     */
+    private String getLegacyXml() throws Exception {
+        return readFile(UPDATED_COFFEE_ROWS_XML)
+                .replace("<modifyRow>", "<currentRow>")
+                .replace("</modifyRow>", "</currentRow>")
+                .replace("updateValue", "updateRow");
+    }
+
+    /**
+     * Builds a legacy document from the schema-compliant COFFEE_ROWS_XML file.
+     * Older WebRowSet XML used nested {@code <null/>} elements for nullable
+     * string properties and metadata, while the webrowset schema requires
+     * simple string content.
+     */
+    private String getLegacyNullXml() throws Exception {
+        return readFile(COFFEE_ROWS_XML)
+                .replace("<command/>", "<command><null/></command>")
+                .replace("<datasource/>", "<datasource><null/></datasource>")
+                .replace("<url/>", "<url><null/></url>")
+                .replace("<column-label/>",
+                        "<column-label><null/></column-label>")
+                .replace("<column-type-name/>",
+                        "<column-type-name><null/></column-type-name>");
+    }
+
+    /**
+     * Reads the entire contents of the given file as a UTF-8 String.
+     */
+    private static String readFile(String path) throws Exception {
+        return new String(Files.readAllBytes(Paths.get(path)), StandardCharsets.UTF_8);
+    }
+
+    /**
+     * Reads COFFEE_ROWS_XML and populates the given WebRowSet.
+     */
+    private void readCoffeeRows(WebRowSet wrs) throws Exception {
+        try (FileInputStream fis = new FileInputStream(COFFEE_ROWS_XML)) {
+            wrs.readXml(fis);
+        }
     }
 
 }

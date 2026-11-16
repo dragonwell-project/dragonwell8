@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -109,6 +109,14 @@ final class Obj {
     static final int REF_OBJECT = 2;    // auxiliary reference object class
     static final int SER_OBJECT = 3;    // auxiliary serialized object class
     static final int MAR_OBJECT = 4;    // auxiliary marshalled object class
+
+    /**
+     * Whether deserialization of serial data is allowed
+     * @return true if deserialization of serial data is allowed
+     */
+    static boolean trustSerialData() {
+        return VersionHelper12.isSerialDataAllowed();
+    }
 
     /**
      * Encode an object in LDAP attributes.

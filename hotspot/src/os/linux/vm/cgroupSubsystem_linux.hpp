@@ -76,17 +76,19 @@ class CgroupController: public CHeapObj<mtInternal> {
 
 PRAGMA_DIAG_PUSH
 PRAGMA_FORMAT_NONLITERAL_IGNORED
+// Parses a subsystem's file, looking for a matching line.
+// If key is null, then the first line will be matched with scan_fmt.
+// If key isn't null, then each line will be matched, looking for something that matches "$key $scan_fmt".
+// The matching value will be assigned to returnval.
+// scan_fmt uses scanf() syntax.
+// Return value: 0 on match, OSCONTAINER_ERROR on error.
 template <typename T> int subsystem_file_line_contents(CgroupController* c,
                                               const char *filename,
-                                              const char *matchline,
+                                              const char *key,
                                               const char *scan_fmt,
                                               T returnval) {
   FILE *fp = NULL;
-  char *p;
   char file[MAXPATHLEN+1];
-  char buf[MAXPATHLEN+1];
-  char discard[MAXPATHLEN+1];
-  bool found_match = false;
 
   if (c == NULL) {
     if (PrintContainerInfo) {
@@ -115,46 +117,57 @@ template <typename T> int subsystem_file_line_contents(CgroupController* c,
     tty->print_cr("Path to %s is %s", filename, file);
   }
   fp = fopen(file, "r");
-  if (fp != NULL) {
-    int err = 0;
-    while ((p = fgets(buf, MAXPATHLEN, fp)) != NULL) {
-      found_match = false;
-      if (matchline == NULL) {
-        // single-line file case
-        int matched = sscanf(p, scan_fmt, returnval);
-        found_match = (matched == 1);
-      } else {
-        // multi-line file case
-        if (strstr(p, matchline) != NULL) {
-          // discard matchline string prefix
-          int matched = sscanf(p, scan_fmt, discard, returnval);
-          found_match = (matched == 2);
-        } else {
-          continue; // substring not found
-        }
-      }
-      if (found_match) {
-        fclose(fp);
-        return 0;
-      } else {
-        err = 1;
-        if (PrintContainerInfo) {
-          tty->print_cr("Type %s not found in file %s", scan_fmt, file);
-        }
-      }
-    }
-    if (err == 0) {
-      if (PrintContainerInfo) {
-        tty->print_cr("Empty file %s", file);
-      }
-    }
-  } else {
+  if (fp == NULL) {
     if (PrintContainerInfo) {
       tty->print_cr("Open of file %s failed, %s", file, strerror(errno));
     }
+    return OSCONTAINER_ERROR;
   }
-  if (fp != NULL)
+
+  const int buf_len = MAXPATHLEN+1;
+  char buf[buf_len];
+  char* line = fgets(buf, buf_len, fp);
+  if (line == NULL) {
+    if (PrintContainerInfo) {
+      tty->print_cr("Empty file %s", file);
+    }
     fclose(fp);
+    return OSCONTAINER_ERROR;
+  }
+
+  bool found_match = false;
+  if (key == NULL) {
+    // File consists of a single line according to caller, with only a value
+    int matched = sscanf(line, scan_fmt, returnval);
+    found_match = matched == 1;
+  } else {
+    // File consists of multiple lines in a "key value"
+    // fashion, we have to find the key.
+    const int key_len = strlen(key);
+    for (; line != NULL; line = fgets(buf, buf_len, fp)) {
+      char* key_substr = strstr(line, key);
+      char after_key = line[key_len];
+      if (key_substr == line
+          && isspace(after_key) != 0
+          && after_key != '\n') {
+        // Skip key, skip space
+        const char* value_substr = line + key_len + 1;
+        int matched = sscanf(value_substr, scan_fmt, returnval);
+        found_match = matched == 1;
+        if (found_match) {
+          break;
+        }
+      }
+    }
+  }
+  fclose(fp);
+  if (found_match) {
+    return 0;
+  }
+  if (PrintContainerInfo) {
+    tty->print_cr("Type %s (key == %s) not found in file %s", scan_fmt,
+                  (key == NULL ? "null" : key), file);
+  }
   return OSCONTAINER_ERROR;
 }
 PRAGMA_DIAG_POP
@@ -269,6 +282,8 @@ class CgroupSubsystem: public CHeapObj<mtInternal> {
     virtual jlong memory_and_swap_limit_in_bytes() = 0;
     virtual jlong memory_soft_limit_in_bytes() = 0;
     virtual jlong memory_max_usage_in_bytes() = 0;
+    virtual jlong rss_usage_in_bytes() = 0;
+    virtual jlong cache_usage_in_bytes() = 0;
 
     virtual char * cpu_cpuset_cpus() = 0;
     virtual char * cpu_cpuset_memory_nodes() = 0;
@@ -336,7 +351,8 @@ class CgroupSubsystemFactory: AllStatic {
     // Determine the cgroup type (version 1 or version 2), given
     // relevant paths to files. Sets 'flags' accordingly.
     static bool determine_type(CgroupInfo* cg_infos,
-                               const char* proc_cgroups,
+                               bool cgroups_v2_enabled,
+                               const char* controllers_file,
                                const char* proc_self_cgroup,
                                const char* proc_self_mountinfo,
                                u1* flags);

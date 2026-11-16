@@ -170,12 +170,11 @@ public final class ErrorMsg {
     public static final String OUTLINE_ERR_METHOD_TOO_BIG =
                                             "OUTLINE_ERR_METHOD_TOO_BIG";
 
-    public static final String DESERIALIZE_TRANSLET_ERR = "DESERIALIZE_TEMPLATES_ERR";
-
     public static final String XPATH_LIMIT = "XPATH_LIMIT";
     public static final String XPATH_GROUP_LIMIT = "XPATH_GROUP_LIMIT";
     public static final String XPATH_OPERATOR_LIMIT = "XPATH_OPERATOR_LIMIT";
     public static final String XPATH_TOTAL_OPERATOR_LIMIT = "XPATH_TOTAL_OPERATOR_LIMIT";
+    public static final String DESERIALIZE_TRANSLET_ERR = "DESERIALIZE_TEMPLATES_ERR";
 
     // All error messages are localized and are stored in resource bundles.
     // This array and the following 4 strings are read from that bundle.

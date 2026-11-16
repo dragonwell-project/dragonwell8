@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -224,6 +224,13 @@ public final class XalanConstants {
 
     //all access keyword
     public static final String ACCESS_EXTERNAL_ALL = "all";
+
+    /**
+     * jdk.xml.allowNonXSLTSysProps: controls whether XPath's system-property()
+     * function is permitted to access non-XSLT-defined JVM system properties.
+     */
+    public static final String XPATH_ALLOW_NON_XSLT_SYS_PROPS =
+            "jdk.xml.allowNonXSLTSysProps";
 
     /**
      * Default value when FEATURE_SECURE_PROCESSING (FSP) is set to true

@@ -924,6 +924,7 @@ imageio_fill_input_buffer(j_decompress_ptr cinfo)
     JNIEnv *env = (JNIEnv *)JNU_GetEnv(jvm, JNI_VERSION_1_2);
     int ret;
     jobject input = NULL;
+    jboolean isCopy;
 
     /* This is where input suspends */
     if (sb->suspendable) {
@@ -953,7 +954,7 @@ imageio_fill_input_buffer(j_decompress_ptr cinfo)
      * release it and get new copy, if we don't have native copy we rely
      * on JVM to maintain the pinned handle of java array.
      */
-    jboolean isCopy = sb->isCopy;
+    isCopy = sb->isCopy;
     if (isCopy) {
         unpinStreamBuffer(env, &data->streamBuf, src->next_input_byte, JNI_ABORT);
     }

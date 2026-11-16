@@ -1,5 +1,5 @@
  /*
-  * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+  * Copyright (c) 2017, 2026, Oracle and/or its affiliates. All rights reserved.
   */
 /*
  * Copyright 1999-2004 The Apache Software Foundation.
@@ -117,6 +117,7 @@ public class XPathExpressionImpl  implements javax.xml.xpath.XPathExpression{
             xpathSupport = new com.sun.org.apache.xpath.internal.XPathContext();
         }
 
+        xpathSupport.setJdkXmlFeatures(featureManager);
         xpathSupport.setVarStack(new JAXPVariableStack(variableResolver));
         XObject xobj = null;
 

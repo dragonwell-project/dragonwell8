@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2026, Oracle and/or its affiliates. All rights reserved.
  */
 /*
  * Licensed to the Apache Software Foundation (ASF) under one or more
@@ -48,7 +48,7 @@ import javax.xml.transform.ErrorListener;
 import javax.xml.transform.SourceLocator;
 import javax.xml.transform.TransformerException;
 import javax.xml.transform.URIResolver;
-import jdk.xml.internal.JdkXmlUtils;
+import jdk.xml.internal.JdkXmlFeatures;
 import org.xml.sax.XMLReader;
 
 /**
@@ -94,6 +94,11 @@ public class XPathContext extends DTMManager // implements ExpressionContext
   private boolean m_overrideDefaultParser;
 
   /**
+   * JDK XML feature settings
+   */
+  private JdkXmlFeatures m_jdkXmlFeatures;
+
+  /**
    * Though XPathContext context extends
    * the DTMManager, it really is a proxy for this object, which
    * is the real DTMManager.
@@ -125,6 +130,27 @@ public class XPathContext extends DTMManager // implements ExpressionContext
   public boolean isSecureProcessing()
   {
     return m_isSecureProcessing;
+  }
+
+  /**
+   * Sets the JDK XML feature settings for this XPath evaluation.
+   */
+  public void setJdkXmlFeatures(JdkXmlFeatures features)
+  {
+    m_jdkXmlFeatures = features;
+  }
+
+  /**
+   * {@return the JDK XML feature settings for this XPath evaluation}
+   *
+   * The settings are initialized from the global configuration if needed.
+   */
+  public JdkXmlFeatures getJdkXmlFeatures()
+  {
+    if (m_jdkXmlFeatures == null) {
+      m_jdkXmlFeatures = new JdkXmlFeatures(true);
+    }
+    return m_jdkXmlFeatures;
   }
 
   /**

@@ -54,6 +54,8 @@ import org.omg.CORBA.TypeCode;
 import org.omg.CORBA.Principal;
 import org.omg.CORBA.portable.IDLEntity;
 
+import sun.corba.SharedSecrets;
+
 /**
  * Implementation class that uses Java serialization for input streams.
  * This assumes a GIOP version 1.2 message format.
@@ -170,6 +172,7 @@ public class IDLJavaSerializationInputStream extends CDRInputStreamBase {
         if (buffer.hasArray()) {
             buf = buffer.array();
         } else {
+            SharedSecrets.getJavaCorbaAccess().checkBufferLength(bufSize);
             buf = new byte[bufSize];
             buffer.get(buf);
         }
@@ -567,6 +570,7 @@ public class IDLJavaSerializationInputStream extends CDRInputStreamBase {
         // We don't need an implementation for this method, since principal
         // is absent in GIOP version 1.2 or above.
         int len = read_long();
+        SharedSecrets.getJavaCorbaAccess().checkBufferLength(len);
         byte[] pvalue = new byte[len];
         read_octet_array(pvalue,0,len);
         Principal p = new com.sun.corba.se.impl.corba.PrincipalImpl();

@@ -53,6 +53,8 @@ import com.sun.corba.se.spi.logging.CORBALogDomains;
 import com.sun.corba.se.impl.logging.OMGSystemException;
 import com.sun.corba.se.impl.logging.UtilSystemException;
 
+import sun.corba.SharedSecrets;
+
 public final class ValueHandlerImpl implements javax.rmi.CORBA.ValueHandlerMultiFormat {
 
     // Property to override our maximum stream format version
@@ -596,6 +598,7 @@ public final class ValueHandlerImpl implements javax.rmi.CORBA.ValueHandlerMulti
         try {
             // Read length of coming array
             int length = in.read_ulong();
+            SharedSecrets.getJavaCorbaAccess().checkBufferLength(length);
             int i;
 
             if (sequence == null) {

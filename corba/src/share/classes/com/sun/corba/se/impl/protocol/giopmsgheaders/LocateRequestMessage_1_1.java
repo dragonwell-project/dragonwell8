@@ -31,6 +31,8 @@ import com.sun.corba.se.spi.orb.ORB;
 
 import com.sun.corba.se.spi.ior.ObjectKey;
 
+import sun.corba.SharedSecrets;
+
 /**
  * This implements the GIOP 1.1 LocateRequest header.
  *
@@ -82,6 +84,7 @@ public final class LocateRequestMessage_1_1 extends Message_1_1
         super.read(istream);
         this.request_id = istream.read_ulong();
         int _len1 = istream.read_long();
+        SharedSecrets.getJavaCorbaAccess().checkBufferLength(_len1);
         this.object_key = new byte[_len1];
         istream.read_octet_array(this.object_key, 0, _len1);
     }

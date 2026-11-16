@@ -25,6 +25,7 @@
 
 package com.sun.corba.se.impl.protocol.giopmsgheaders;
 
+import sun.corba.SharedSecrets;
 
 /**
 * com/sun/corba/se/impl/protocol/giopmsgheaders/TargetAddressHelper.java
@@ -112,13 +113,19 @@ abstract public class TargetAddressHelper
       case com.sun.corba.se.impl.protocol.giopmsgheaders.KeyAddr.value:
         byte _object_key[] = null;
         int _len1 = istream.read_long ();
+        SharedSecrets.getJavaCorbaAccess().checkBufferLength(_len1);
         _object_key = new byte[_len1];
         istream.read_octet_array (_object_key, 0, _len1);
         value.object_key (_object_key);
         break;
       case com.sun.corba.se.impl.protocol.giopmsgheaders.ProfileAddr.value:
-        org.omg.IOP.TaggedProfile _profile = null;
-        _profile = org.omg.IOP.TaggedProfileHelper.read (istream);
+        // Inline org.omg.IOP.TaggedProfileHelper.read with added checkBufferLength call.
+        org.omg.IOP.TaggedProfile _profile = new org.omg.IOP.TaggedProfile ();
+        _profile.tag = istream.read_ulong ();
+        int _len = istream.read_long ();
+        SharedSecrets.getJavaCorbaAccess().checkBufferLength(_len);
+        _profile.profile_data = new byte[_len];
+        istream.read_octet_array (_profile.profile_data, 0, _len);
         value.profile (_profile);
         break;
       case com.sun.corba.se.impl.protocol.giopmsgheaders.ReferenceAddr.value:

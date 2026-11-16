@@ -142,6 +142,30 @@ public final class TimeZoneNameUtility {
         }
     }
 
+    /**
+     * {@return the explicit metazone DST offset for the specified time zone ID, if exists}
+     * @param tzid the time zone ID
+     */
+    public static String explicitDstOffset(String tzid) {
+        LocaleProviderAdapter cldrAdapter =
+            LocaleProviderAdapter.forType(LocaleProviderAdapter.Type.CLDR);
+        if (cldrAdapter == null) {
+            return null;
+        }
+
+        Map<String, String> aliases = ZoneInfo.getAliasTable();
+        String canonicalID = aliases != null ? aliases.get(tzid) : null;
+        if (canonicalID == null) {
+            canonicalID = tzid;
+        }
+
+        String[] dstOffsets = cldrAdapter.getLocaleResources(Locale.ROOT)
+            .getTimeZoneNames("metazone.dstoffset." + canonicalID);
+        // First index is metazone.dstoffset.<canonicalID>, second index
+        // is the actual offset (if any)
+        return dstOffsets != null && dstOffsets.length >= 2 ? dstOffsets[1] : null;
+    }
+
     private static String[] retrieveDisplayNamesImpl(String id, Locale locale) {
         LocaleServiceProviderPool pool =
             LocaleServiceProviderPool.getPool(TimeZoneNameProvider.class);

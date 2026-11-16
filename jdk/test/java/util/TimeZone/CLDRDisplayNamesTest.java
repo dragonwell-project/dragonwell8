@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,12 +23,16 @@
 
 /*
  * @test
- * @bug 8005471
+ * @bug 8005471 8381379 8390388 8390380 8392519 8392377 8393344 8393337
  * @run main/othervm -Djava.locale.providers=CLDR CLDRDisplayNamesTest
  * @summary Make sure that localized time zone names of CLDR are used
  * if specified.
  */
 
+import java.text.SimpleDateFormat;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
 import static java.util.TimeZone.*;
 
@@ -71,6 +75,23 @@ public class CLDRDisplayNamesTest {
         },
     };
 
+    static final Object[][] EXPLICIT_DST_OFFSET_DATA = {
+        {ZonedDateTime.of(2026, 4, 5, 0, 0, 0, 0, ZoneId.of("Europe/Dublin")), "Irish Summer Time"},
+        {ZonedDateTime.of(2026, 12, 5, 0, 0, 0, 0, ZoneId.of("Europe/Dublin")), "Greenwich Mean Time"},
+        {ZonedDateTime.of(2026, 4, 5, 0, 0, 0, 0, ZoneId.of("Eire")), "Irish Summer Time"},
+        {ZonedDateTime.of(2026, 12, 5, 0, 0, 0, 0, ZoneId.of("Eire")), "Greenwich Mean Time"},
+        {ZonedDateTime.of(2026, 4, 5, 0, 0, 0, 0, ZoneId.of("America/Vancouver")), "Pacific Daylight Time"},
+        {ZonedDateTime.of(2026, 12, 5, 0, 0, 0, 0, ZoneId.of("America/Vancouver")), "Pacific Daylight Time"},
+        {ZonedDateTime.of(2026, 1, 5, 0, 0, 0, 0, ZoneId.of("America/Edmonton")), "Mountain Standard Time"},
+        {ZonedDateTime.of(2026, 7, 5, 0, 0, 0, 0, ZoneId.of("America/Edmonton")), "Mountain Daylight Time"},
+        {ZonedDateTime.of(2026, 1, 5, 0, 0, 0, 0, ZoneId.of("America/Yellowknife")), "Mountain Standard Time"},
+        {ZonedDateTime.of(2026, 7, 5, 0, 0, 0, 0, ZoneId.of("America/Yellowknife")), "Mountain Daylight Time"},
+        {ZonedDateTime.of(2026, 12, 5, 0, 0, 0, 0, ZoneId.of("America/Inuvik")), "Mountain Daylight Time"},
+        {ZonedDateTime.of(2026, 12, 5, 0, 0, 0, 0, ZoneId.of("America/Winnipeg")), "Central Daylight Time"},
+        {ZonedDateTime.of(2026, 12, 5, 0, 0, 0, 0, ZoneId.of("America/Rainy_River")), "Central Daylight Time"}
+
+    };
+
     public static void main(String[] args) {
         TimeZone tz = TimeZone.getTimeZone("America/Los_Angeles");
         int errors = 0;
@@ -87,6 +108,29 @@ public class CLDRDisplayNamesTest {
                 }
             }
         }
+
+        DateTimeFormatter dtf = DateTimeFormatter.ofPattern("zzzz", Locale.US);
+        SimpleDateFormat sdf = new SimpleDateFormat("zzzz", Locale.US);
+        for (Object[] data : EXPLICIT_DST_OFFSET_DATA) {
+            ZonedDateTime zdt = (ZonedDateTime) data[0];
+            String expected = (String) data[1];
+
+            String actual = dtf.format(zdt);
+            if (!expected.equals(actual)) {
+                System.err.printf("error: java.time got '%s' expected '%s' (zone=%s, date=%s)%n",
+                                  actual, expected, zdt.getZone(), zdt.toLocalDate());
+                errors++;
+            }
+
+            sdf.setTimeZone(TimeZone.getTimeZone(zdt.getZone().getId()));
+            actual = sdf.format(Date.from(zdt.toInstant()));
+            if (!expected.equals(actual)) {
+                System.err.printf("error: java.text got '%s' expected '%s' (zone=%s, date=%s)%n",
+                                  actual, expected, zdt.getZone(), zdt.toLocalDate());
+                errors++;
+            }
+        }
+
         if (errors > 0) {
             throw new RuntimeException("test failed");
         }

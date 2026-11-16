@@ -27,6 +27,7 @@ package sun.net.www.http;
 
 import java.io.*;
 import java.net.*;
+import java.net.Proxy.Type;
 import java.util.Locale;
 import java.util.OptionalInt;
 import sun.net.NetworkClient;
@@ -153,6 +154,13 @@ public class HttpClient extends NetworkClient {
      */
     @Deprecated
     public static synchronized void resetProperties() {
+    }
+
+    public Proxy getHttpProxy() {
+        if (proxy != null && proxy.type() == Type.HTTP) {
+            return proxy;
+        }
+        return null;
     }
 
     int getKeepAliveTimeout() {

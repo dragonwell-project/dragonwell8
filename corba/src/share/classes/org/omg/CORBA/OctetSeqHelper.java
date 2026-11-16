@@ -24,6 +24,7 @@
  */
 package org.omg.CORBA;
 
+import sun.corba.SharedSecrets;
 
 /**
 * The Helper for <tt>OctetSeq</tt>.  For more information on
@@ -85,6 +86,7 @@ public abstract class OctetSeqHelper
     {
         byte value[] = null;
         int _len0 = istream.read_long ();
+        SharedSecrets.getJavaCorbaAccess().checkBufferLength(_len0);
         value = new byte[_len0];
         istream.read_octet_array (value, 0, _len0);
         return value;

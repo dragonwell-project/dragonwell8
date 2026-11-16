@@ -149,7 +149,7 @@ ByteOffset LigatureSubstitutionProcessor::processStateEntry(LEGlyphStorage &glyp
                   TTGlyphID ligatureGlyph = SWAPW(*ligatureOffset.getAlias());
 
                   glyphStorage[componentGlyph] = LE_SET_GLYPH(glyphStorage[componentGlyph], ligatureGlyph);
-                  if(mm==nComponents) {
+                  if (mm == (nComponents - 1)) {
                     LE_DEBUG_BAD_FONT("exceeded nComponents");
                     mm--; // don't overrun the stack.
                   }

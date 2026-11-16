@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,6 +27,7 @@ import static org.testng.Assert.assertEquals;
 
 import java.text.DateFormatSymbols;
 import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.time.format.DecimalStyle;
 import java.time.format.DateTimeFormatter;
@@ -36,20 +37,25 @@ import java.time.temporal.ChronoField;
 import java.time.temporal.TemporalQueries;
 import java.time.zone.ZoneRulesProvider;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Random;
 import java.util.Set;
 import java.util.TimeZone;
+import java.util.spi.TimeZoneNameProvider;
 import jdk.testlibrary.RandomFactory;
+import sun.util.locale.provider.LocaleProviderAdapter;
 
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 /*
  * @test
- * @bug 8081022 8151876 8166875
+ * @bug 8081022 8151876 8166875 8390388 8388214 8392519 8393344
  * @key randomness
  */
 
@@ -58,6 +64,24 @@ import org.testng.annotations.Test;
  */
 @Test
 public class TestZoneTextPrinterParser extends AbstractTestPrinterParser {
+
+    // Explicit dstOffset attributes from CLDR pre-release v49 metazone data.
+    private static final Map<String, ZoneOffset> CLDR_EXPLICIT_DST_OFFSETS;
+    static {
+        Map<String, ZoneOffset> offsets = new HashMap<>();
+        offsets.put("America/Edmonton", ZoneOffset.of("-06:00"));
+        offsets.put("America/Inuvik", ZoneOffset.of("-06:00"));
+        offsets.put("America/Rainy_River", ZoneOffset.of("-05:00"));
+        offsets.put("America/Yellowknife", ZoneOffset.of("-06:00"));
+        offsets.put("America/Vancouver", ZoneOffset.of("-07:00"));
+        offsets.put("America/Winnipeg", ZoneOffset.of("-05:00"));
+        offsets.put("Canada/Central", ZoneOffset.of("-05:00"));
+        offsets.put("Canada/Mountain", ZoneOffset.of("-06:00"));
+        offsets.put("Canada/Pacific", ZoneOffset.of("-07:00"));
+        offsets.put("Europe/Dublin", ZoneOffset.of("+01:00"));
+        offsets.put("Eire", ZoneOffset.of("+01:00"));
+        CLDR_EXPLICIT_DST_OFFSETS = Collections.unmodifiableMap(offsets);
+    }
 
     protected static DateTimeFormatter getFormatter(Locale locale, TextStyle style) {
         return new DateTimeFormatterBuilder().appendZoneText(style)
@@ -82,10 +106,22 @@ public class TestZoneTextPrinterParser extends AbstractTestPrinterParser {
                 }
                 zdt = zdt.withZoneSameLocal(ZoneId.of(zid));
                 TimeZone tz = TimeZone.getTimeZone(zid);
-                boolean isDST = tz.inDaylightTime(new Date(zdt.toInstant().toEpochMilli()));
+                long epochMilli = zdt.toInstant().toEpochMilli();
+                boolean isDST = tz.inDaylightTime(new Date(epochMilli));
+                // Some zones now use an explicit daylight offset in CLDR without
+                // java.util.TimeZone reporting DST for the instant.
+                ZoneOffset explicitDstOffset = CLDR_EXPLICIT_DST_OFFSETS.get(zid);
                 for (Locale locale : locales) {
-                    String longDisplayName = tz.getDisplayName(isDST, TimeZone.LONG, locale);
-                    String shortDisplayName = tz.getDisplayName(isDST, TimeZone.SHORT, locale);
+                    boolean useDaylightName = isDST;
+                    // JDK 8 does not use CLDR by default, so apply this rule only
+                    // when CLDR supplies the names for the locale.
+                    if (explicitDstOffset != null
+                            && LocaleProviderAdapter.getAdapter(TimeZoneNameProvider.class, locale)
+                                    .getAdapterType() == LocaleProviderAdapter.Type.CLDR) {
+                        useDaylightName = zdt.getOffset().equals(explicitDstOffset);
+                    }
+                    String longDisplayName = tz.getDisplayName(useDaylightName, TimeZone.LONG, locale);
+                    String shortDisplayName = tz.getDisplayName(useDaylightName, TimeZone.SHORT, locale);
                     if ((longDisplayName.startsWith("GMT+") && shortDisplayName.startsWith("GMT+"))
                             || (longDisplayName.startsWith("GMT-") && shortDisplayName.startsWith("GMT-"))) {
                         printText(locale, zdt, TextStyle.FULL, tz, tz.getID());
@@ -93,9 +129,9 @@ public class TestZoneTextPrinterParser extends AbstractTestPrinterParser {
                         continue;
                     }
                     printText(locale, zdt, TextStyle.FULL, tz,
-                            tz.getDisplayName(isDST, TimeZone.LONG, locale));
+                            tz.getDisplayName(useDaylightName, TimeZone.LONG, locale));
                     printText(locale, zdt, TextStyle.SHORT, tz,
-                            tz.getDisplayName(isDST, TimeZone.SHORT, locale));
+                            tz.getDisplayName(useDaylightName, TimeZone.SHORT, locale));
                 }
             }
         }

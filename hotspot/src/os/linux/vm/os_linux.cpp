@@ -62,6 +62,7 @@
 #include "services/attachListener.hpp"
 #include "services/memTracker.hpp"
 #include "services/runtimeService.hpp"
+#include "utilities/align.hpp"
 #include "utilities/decoder.hpp"
 #include "utilities/defaultStream.hpp"
 #include "utilities/events.hpp"
@@ -901,6 +902,16 @@ bool os::create_thread(Thread* thread, ThreadType thr_type, size_t stack_size) {
     }
 
     stack_size = MAX2(stack_size, os::Linux::min_stack_allowed);
+
+    // Add an additional page to the stack size to reduce its chances of getting large page aligned
+    // so that the stack does not get backed by a transparent huge page.
+    size_t default_large_page_size = os::large_page_size();
+    if (default_large_page_size != 0 &&
+        stack_size >= default_large_page_size &&
+        is_aligned(stack_size, default_large_page_size)) {
+      stack_size += os::vm_page_size();
+    }
+
     pthread_attr_setstacksize(&attr, stack_size);
   } else {
     // let pthread_create() pick the default value.
@@ -2353,6 +2364,8 @@ void os::Linux::print_container_info(outputStream* st) {
   OSContainer::print_container_helper(st, OSContainer::memory_soft_limit_in_bytes(), "memory_soft_limit_in_bytes");
   OSContainer::print_container_helper(st, OSContainer::memory_usage_in_bytes(), "memory_usage_in_bytes");
   OSContainer::print_container_helper(st, OSContainer::memory_max_usage_in_bytes(), "memory_max_usage_in_bytes");
+  OSContainer::print_container_helper(st, OSContainer::rss_usage_in_bytes(), "rss_usage_in_bytes");
+  OSContainer::print_container_helper(st, OSContainer::cache_usage_in_bytes(), "cache_usage_in_bytes");
 
   OSContainer::print_version_specific_info(st);
 
@@ -3625,6 +3638,10 @@ bool os::Linux::setup_large_page_type(size_t page_size) {
 }
 
 void os::large_page_init() {
+  // Always initialize the default large page size even if large pages are not being used.
+  size_t large_page_size = Linux::setup_large_page_size();
+
+  // Handle the case where we do not want to use huge pages
   if (!UseLargePages &&
       !UseTransparentHugePages &&
       !UseHugeTLBFS &&
@@ -3642,7 +3659,6 @@ void os::large_page_init() {
     return;
   }
 
-  size_t large_page_size = Linux::setup_large_page_size();
   UseLargePages          = Linux::setup_large_page_type(large_page_size);
 
   set_coredump_filter();

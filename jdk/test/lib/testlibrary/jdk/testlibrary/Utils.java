@@ -43,6 +43,7 @@ import java.util.List;
 import java.util.LinkedList;
 import java.util.Objects;
 import java.util.Set;
+import java.nio.ByteBuffer;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -1190,5 +1191,17 @@ public final class Utils {
                 }
                 return Collections.unmodifiableSet(s);
         }
+    }
+
+    /* Implementation of ByteBuffer.slice(int, int) for JDK 8u */
+    public static final ByteBuffer slice(ByteBuffer buffer, int index, int length) {
+        final int limit = buffer.limit();
+        final int position = buffer.position();
+        buffer.position(index);
+        buffer.limit(index + length);
+        ByteBuffer slice = buffer.slice();
+        buffer.limit(limit);
+        buffer.position(position);
+        return slice;
     }
 }

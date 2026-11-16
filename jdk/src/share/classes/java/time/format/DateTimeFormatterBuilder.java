@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -3697,10 +3697,16 @@ public final class DateTimeFormatterBuilder {
             String zname = zone.getId();
             if (!(zone instanceof ZoneOffset)) {
                 TemporalAccessor dt = context.getTemporal();
+                int type = GENERIC;
+                // Check if an explicit metazone DST offset exists
+                String dstOffset = TimeZoneNameUtility.explicitDstOffset(zname);
+                if (dt.isSupported(OFFSET_SECONDS) && dstOffset != null) {
+                    type = ZoneOffset.from(dt).equals(ZoneOffset.of(dstOffset)) ? DST : STD;
+                } else if (dt.isSupported(ChronoField.INSTANT_SECONDS)) {
+                    type = zone.getRules().isDaylightSavings(Instant.from(dt)) ? DST : STD;
+                }
                 String name = getDisplayName(zname,
-                                             dt.isSupported(ChronoField.INSTANT_SECONDS)
-                                             ? (zone.getRules().isDaylightSavings(Instant.from(dt)) ? DST : STD)
-                                             : GENERIC,
+                                             type,
                                              context.getLocale());
                 if (name != null) {
                     zname = name;

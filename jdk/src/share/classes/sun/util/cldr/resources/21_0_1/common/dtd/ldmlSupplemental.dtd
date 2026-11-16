@@ -440,6 +440,8 @@ Except as contained in this notice, the name of a copyright holder shall not be 
 <!ATTLIST usesMetazone mzone NMTOKEN #REQUIRED >
 <!ATTLIST usesMetazone from CDATA #IMPLIED >
 <!ATTLIST usesMetazone to CDATA #IMPLIED >
+<!ATTLIST usesMetazone stdOffset CDATA #IMPLIED >
+<!ATTLIST usesMetazone dstOffset CDATA #IMPLIED >
 
 <!ELEMENT mapTimezones ( mapZone* ) >
 <!ATTLIST mapTimezones type NMTOKEN #IMPLIED >

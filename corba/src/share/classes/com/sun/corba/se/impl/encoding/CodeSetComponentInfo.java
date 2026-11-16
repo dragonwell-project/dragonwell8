@@ -42,6 +42,8 @@ import org.omg.CORBA.CompletionStatus;
 import com.sun.corba.se.spi.logging.CORBALogDomains;
 import com.sun.corba.se.impl.logging.ORBUtilSystemException;
 
+import sun.corba.SharedSecrets;
+
 public final class CodeSetComponentInfo {
 
     /**
@@ -88,6 +90,7 @@ public final class CodeSetComponentInfo {
         public void read(MarshalInputStream in) {
             nativeCodeSet = in.read_ulong();
             int len = in.read_long();
+            SharedSecrets.getJavaCorbaAccess().checkBufferLength(len);
             conversionCodeSets = new int[len];
             in.read_ulong_array(conversionCodeSets, 0, len);
 

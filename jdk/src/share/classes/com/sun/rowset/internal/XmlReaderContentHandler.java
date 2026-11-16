@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -84,7 +84,7 @@ public class XmlReaderContentHandler extends DefaultHandler {
     private String propertyValue;
     private String metaDataValue;
 
-    private int tag;
+    private int tag = -1;
     private int state;
 
     private WebRowSetImpl rs;
@@ -370,16 +370,25 @@ public class XmlReaderContentHandler extends DefaultHandler {
      */
     private final static int MetaNullTag = 19;
 
-    private String [] data = {"currentRow", "columnValue", "insertRow", "deleteRow", "insdel", "updateRow", "null" , "emptyString"};
+    private String [] data = {"currentRow", "columnValue", "insertRow", "deleteRow",
+            "modifyRow", "updateValue", "null" , "emptyString"};
 
     private final static int RowTag = 0;
     private final static int ColTag = 1;
     private final static int InsTag = 2;
     private final static int DelTag = 3;
-    private final static int InsDelTag = 4;
+    private final static int ModTag = 4;
     private final static int UpdTag = 5;
     private final static int NullTag = 6;
     private final static int EmptyStringTag = 7;
+    private final static int InsDelTag = 8;
+    private final static int UpdRowTag = 9;
+
+    private static final String XSI_NS = "http://www.w3.org/2001/XMLSchema-instance";
+
+    // Error messages
+    private static final String SCHEMA_LOC_MESSAGE = "readXML : Malformed xsi:schemaLocation: %s.";
+    private static final String SCHEMA_MESSAGE = "readXML : Non-standard schema specified for namespace %s : %s.";
 
     /**
      * A constant indicating the state of this <code>XmlReaderContentHandler</code>
@@ -419,6 +428,9 @@ public class XmlReaderContentHandler extends DefaultHandler {
 
     private  JdbcRowSetResourceBundle resBundle;
 
+    private boolean sawRoot;
+    private final boolean validating;
+
     /**
      * Constructs a new <code>XmlReaderContentHandler</code> object that will
      * assist the SAX parser in reading a <code>WebRowSet</code> object in the
@@ -431,6 +443,20 @@ public class XmlReaderContentHandler extends DefaultHandler {
      * @param r the <code>RowSet</code> object in XML format that will be read
      */
     public XmlReaderContentHandler(RowSet r) {
+        this(r, true);
+    }
+
+    /**
+     * Constructs a new {@code XmlReaderContentHandler} with a validation flag.
+     * When validation is disabled, the handler accepts legacy WebRowSet XML tags
+     * in addition to the standard tags.
+     *
+     * @param r the {@code RowSet} object in XML format that will be read
+     * @param validating the flag indicating whether schema validation is on
+     */
+    XmlReaderContentHandler(RowSet r, boolean validating) {
+        this.validating = validating;
+
         // keep the rowset we've been given
         rs = (WebRowSetImpl)r;
 
@@ -481,21 +507,27 @@ public class XmlReaderContentHandler extends DefaultHandler {
         items = properties.length;
 
         for (i=0;i<items;i++) {
-            propMap.put(properties[i], Integer.valueOf(i));
+            propMap.put(properties[i], i);
         }
 
         colDefMap = new HashMap<>();
         items = colDef.length;
 
         for (i=0;i<items;i++) {
-            colDefMap.put(colDef[i], Integer.valueOf(i));
+            colDefMap.put(colDef[i], i);
         }
 
         dataMap = new HashMap<>();
         items = data.length;
 
         for (i=0;i<items;i++) {
-            dataMap.put(data[i], Integer.valueOf(i));
+            dataMap.put(data[i], i);
+        }
+
+        if (!validating) {
+            // Accept legacy tags when schema validation is disabled.
+            dataMap.put("insdel", InsDelTag);
+            dataMap.put("updateRow", UpdRowTag);
         }
 
         //Initialize connection map here
@@ -540,6 +572,11 @@ public class XmlReaderContentHandler extends DefaultHandler {
      * @exception SAXException if a general SAX error occurs
      */
     public void startElement(String uri, String lName, String qName, Attributes attributes) throws SAXException {
+        if (validating && !sawRoot) {
+            sawRoot = true;
+            checkSchemaLocation(attributes);
+        }
+
         int tag;
         String name = "";
 
@@ -586,7 +623,8 @@ public class XmlReaderContentHandler extends DefaultHandler {
             } else {
                 setTag(tag);
 
-                if (tag == RowTag || tag == DelTag || tag == InsTag) {
+                if (tag == RowTag || tag == DelTag || tag == InsTag ||
+                        tag == ModTag || tag == InsDelTag) {
                     idx = 0;
                     try {
                         rs.moveToInsertRow();
@@ -601,6 +639,47 @@ public class XmlReaderContentHandler extends DefaultHandler {
             setState(name);
         }
 
+    }
+
+    /**
+     * Verifies that the optional xsi:schemaLocation attribute, if present,
+     * references the standard WebRowSet XML schema.
+     *
+     * <p>The XML parser is configured with the standard WebRowSet schema
+     * explicitly through the JAXP Validation API, so schema validation does
+     * not depend on xsi:schemaLocation being present in the XML instance
+     * document. This method therefore performs only an additional consistency
+     * check on the schema hint provided by the document.</p>
+     *
+     * @param attributes the attributes of the root webRowSet element
+     * @throws SAXException if a non-standard schema location is specified
+     */
+    private void checkSchemaLocation(Attributes attributes) throws SAXException {
+        String schemaLocation = attributes.getValue(XSI_NS, "schemaLocation");
+
+        // schemaLocation is optional when schema is supplied explicitly
+        if (schemaLocation == null || schemaLocation.trim().isEmpty()) {
+            return;
+        }
+
+        String[] tokens = schemaLocation.trim().split("\\s+");
+        if (tokens.length % 2 != 0) {
+            throw new SAXException(String.format(SCHEMA_LOC_MESSAGE, schemaLocation));
+        }
+
+        for (int i = 0; i < tokens.length; i += 2) {
+            String ns = tokens[i];
+            String xsd = tokens[i + 1];
+
+            if (!isWebRowSetSchema(xsd)) {
+                throw new SAXException(String.format(SCHEMA_MESSAGE, ns, xsd));
+            }
+        }
+    }
+
+    private static boolean isWebRowSetSchema(String xsd) {
+        return xsd.equals(WebRowSetXmlReader.WEBROWSET_XSD)
+                || xsd.endsWith("/" + WebRowSetXmlReader.WEBROWSET_XSD);
     }
 
     /**
@@ -743,6 +822,8 @@ public class XmlReaderContentHandler extends DefaultHandler {
                 }
                 break;
             case RowTag:
+            case ModTag:
+            case InsDelTag:
                 try {
                     rs.insertRow();
                     rs.moveToCurrentRow();
@@ -752,6 +833,8 @@ public class XmlReaderContentHandler extends DefaultHandler {
                     // rowInserted flagging
                     rs.setOriginalRow();
 
+                    // Legacy currentRow elements can carry update tags when
+                    // schema validation is disabled.
                     applyUpdates();
                 } catch (SQLException ex) {
                     throw new SAXException(MessageFormat.format(resBundle.handleGetObject("xmlrch.errconstr").toString(), ex.getMessage()));
@@ -763,6 +846,8 @@ public class XmlReaderContentHandler extends DefaultHandler {
                     rs.moveToCurrentRow();
                     rs.next();
                     rs.setOriginalRow();
+                    // Legacy deleteRow elements may omit update tags when
+                    // schema validation is disabled.
                     applyUpdates();
                     rs.deleteRow();
                 } catch (SQLException ex) {
@@ -780,33 +865,20 @@ public class XmlReaderContentHandler extends DefaultHandler {
                 }
                 break;
 
-            case InsDelTag:
-                try {
-                    rs.insertRow();
-                    rs.moveToCurrentRow();
-                    rs.next();
-                    rs.setOriginalRow();
-                    applyUpdates();
-                } catch (SQLException ex) {
-                    throw new SAXException(MessageFormat.format(resBundle.handleGetObject("xmlrch.errinsdel").toString() , ex.getMessage()));
-                }
-                break;
-
              case UpdTag:
-                 try {
-                        if(getNullValue())
-                         {
-                          insertValue(null);
-                          setNullValue(false);
-                         } else if(getEmptyStringValue()) {
-                               insertValue("");
-                               setEmptyStringValue(false);
-                         } else {
-                            updates.add(upd);
-                         }
-                 }  catch(SQLException ex) {
-                        throw new SAXException(MessageFormat.format(resBundle.handleGetObject("xmlrch.errupdate").toString() , ex.getMessage()));
-                 }
+             case UpdRowTag:
+                 // Empty updateValue/updateRow placeholders are ignored when
+                 // they carry no value.
+                 if(getNullValue())
+                  {
+                   addUpdate(null);
+                   setNullValue(false);
+                  } else if(getEmptyStringValue()) {
+                        addUpdate("");
+                        setEmptyStringValue(false);
+                  } else if(!tempUpdate.isEmpty()) {
+                     addUpdate(tempUpdate);
+                  }
                 break;
 
             default:
@@ -826,10 +898,7 @@ public class XmlReaderContentHandler extends DefaultHandler {
                 while (i.hasNext()) {
                     upd = (Object [])i.next();
                     idx = ((Integer)upd[0]).intValue();
-
-                   if(!(lastval.equals(upd[1]))){
-                       insertValue((String)(upd[1]));
-                    }
+                    insertValue((String)(upd[1]));
                 }
 
                 rs.updateRow();
@@ -840,6 +909,19 @@ public class XmlReaderContentHandler extends DefaultHandler {
         }
 
 
+    }
+
+    /**
+     * Queues an update value for the current column to be applied when the
+     * row element is complete.
+     *
+     * @param value the update value, can be {@code null}
+     */
+    private void addUpdate(String value) {
+        upd = new Object[2];
+        upd[0] = Integer.valueOf(idx);
+        upd[1] = value;
+        updates.add(upd);
     }
 
     /**
@@ -862,6 +944,13 @@ public class XmlReaderContentHandler extends DefaultHandler {
         try {
             switch (getState()) {
             case PROPERTIES:
+
+                // If tag is -1, startElement has not registered a valid tag
+                // Thus, we are in whitespace between elements, and should exit
+                if (tag == -1) {
+                    break;
+                }
+
                 propertyValue = new String(ch, start, length);
 
                 /**
@@ -1029,10 +1118,12 @@ public class XmlReaderContentHandler extends DefaultHandler {
     private void setPropertyValue(String s) throws SQLException {
         // find out if we are going to be dealing with a null
         boolean nullValue = getNullValue();
+        // Empty nullable properties preserve the legacy <null/> behavior while
+        // remaining schema-valid.
 
         switch(getTag()) {
         case CommandTag:
-            if (nullValue)
+            if (nullValue || s == null || s.isEmpty())
                ; //rs.setCommand(null);
             else
                 rs.setCommand(s);
@@ -1044,7 +1135,7 @@ public class XmlReaderContentHandler extends DefaultHandler {
                 rs.setConcurrency(getIntegerValue(s));
             break;
         case DatasourceTag:
-            if (nullValue)
+            if (nullValue || s == null || s.isEmpty())
                 rs.setDataSourceName(null);
             else
                 rs.setDataSourceName(s);
@@ -1131,14 +1222,14 @@ public class XmlReaderContentHandler extends DefaultHandler {
                 rs.setShowDeleted(getBooleanValue(s));
             break;
         case TableNameTag:
-            if (nullValue)
+            if (nullValue || s == null || s.isEmpty())
                 //rs.setTableName(null);
                 ;
             else
                 rs.setTableName(s);
             break;
         case UrlTag:
-            if (nullValue)
+            if (nullValue || s == null || s.isEmpty())
                 rs.setUrl(null);
             else
                 rs.setUrl(s);
@@ -1307,8 +1398,7 @@ public class XmlReaderContentHandler extends DefaultHandler {
             tempStr = tempStr.concat(columnValue);
             break;
         case UpdTag:
-            upd = new Object[2];
-
+        case UpdRowTag:
             /**
               * This has been added for handling of special characters. When special
               * characters are encountered the characters function gets called for
@@ -1318,12 +1408,6 @@ public class XmlReaderContentHandler extends DefaultHandler {
               **/
 
             tempUpdate = tempUpdate.concat(new String(ch,start,len));
-            upd[0] = Integer.valueOf(idx);
-            upd[1] = tempUpdate;
-            //updates.add(upd);
-
-            lastval = (String)upd[1];
-            //insertValue(ch, start, len);
             break;
         case InsTag:
 
@@ -1332,7 +1416,7 @@ public class XmlReaderContentHandler extends DefaultHandler {
 
     private void insertValue(String s) throws SQLException {
 
-        if (getNullValue()) {
+        if (s == null || getNullValue()) {
             rs.updateNull(idx);
             return;
         }
