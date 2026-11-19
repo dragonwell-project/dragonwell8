@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -69,6 +69,7 @@ public class Krb5 {
     public static final int TKT_OPTS_INITIAL      = 9;
     public static final int TKT_OPTS_PRE_AUTHENT  = 10;
     public static final int TKT_OPTS_HW_AUTHENT   = 11;
+    public static final int TKT_OPTS_TRANSIT_POLICY_CHECKED   = 12;
     public static final int TKT_OPTS_DELEGATE     = 13;
     public static final int TKT_OPTS_ENC_PA_REP   = 15;
     public static final int TKT_OPTS_MAX          = 31;
@@ -248,6 +249,10 @@ public class Krb5 {
     public static final int KDC_ERR_KEY_EXPIRED          = 23;   //Password has expired - change password to reset
     public static final int KDC_ERR_PREAUTH_FAILED       = 24;   //Pre-authentication information was invalid
     public static final int KDC_ERR_PREAUTH_REQUIRED     = 25;   //Additional pre-authentication required
+    public static final int KDC_ERR_SERVER_NOMATCH       = 26;   //Requested server and ticket don't match
+    public static final int KDC_ERR_MUST_USE_USER2USER   = 27;   //Server principal valid for user2user only
+    public static final int KDC_ERR_PATH_NOT_ACCEPTED    = 28;   //KDC Policy rejects transited path
+    public static final int KDC_ERR_SVC_UNAVAILABLE      = 29;   //A service is not available
     public static final int KRB_AP_ERR_BAD_INTEGRITY     = 31;   //Integrity check on decrypted field failed
     public static final int KRB_AP_ERR_TKT_EXPIRED       = 32;   //Ticket expired
     public static final int KRB_AP_ERR_TKT_NYV           = 33;   //Ticket not yet valid
@@ -267,13 +272,13 @@ public class Krb5 {
     public static final int KRB_AP_ERR_METHOD            = 48;   //Alternative authentication method required
     public static final int KRB_AP_ERR_BADSEQ            = 49;   //Incorrect sequence number in message
     public static final int KRB_AP_ERR_INAPP_CKSUM       = 50;   //Inappropriate type of checksum in message
+    public static final int KRB_AP_PATH_NOT_ACCEPTED     = 51;   //Policy rejects transited path
     public static final int KRB_ERR_RESPONSE_TOO_BIG     = 52;   //Response too big for UDP, retry with TCP
     public static final int KRB_ERR_GENERIC              = 60;   //Generic error (description in e-text)
     public static final int KRB_ERR_FIELD_TOOLONG        = 61;   //Field is too long for this implementation
     public static final int KRB_ERR_WRONG_REALM          = 68;   //Wrong realm
-    public static final int KRB_CRYPTO_NOT_SUPPORT      = 100;    //Client does not support this crypto type
-    public static final int KRB_AP_ERR_NOREALM          = 62;
-    public static final int KRB_AP_ERR_GEN_CRED         = 63;
+
+    public static final int KRB_CRYPTO_NOT_SUPPORT      = 100;   //Client does not support this crypto type
     //  public static final int KRB_AP_ERR_CKSUM_NOKEY          =101;    //Lack of the key to generate the checksum
     // error codes specific to this implementation
     public static final int KRB_AP_ERR_REQ_OPTIONS = 101; //Invalid TGS_REQ
@@ -341,6 +346,10 @@ public class Krb5 {
         errMsgList.put(KDC_ERR_KEY_EXPIRED, "Password has expired - change password to reset");
         errMsgList.put(KDC_ERR_PREAUTH_FAILED, "Pre-authentication information was invalid");
         errMsgList.put(KDC_ERR_PREAUTH_REQUIRED, "Additional pre-authentication required");
+        errMsgList.put(KDC_ERR_SERVER_NOMATCH, "Requested server and ticket don't match");
+        errMsgList.put(KDC_ERR_MUST_USE_USER2USER, "Server principal valid for user2user only");
+        errMsgList.put(KDC_ERR_PATH_NOT_ACCEPTED, "KDC Policy rejects transited path");
+        errMsgList.put(KDC_ERR_SVC_UNAVAILABLE, "A service is not available");
         errMsgList.put(KRB_AP_ERR_BAD_INTEGRITY, "Integrity check on decrypted field failed");
         errMsgList.put(KRB_AP_ERR_TKT_EXPIRED, "Ticket expired");
         errMsgList.put(KRB_AP_ERR_TKT_NYV, "Ticket not yet valid");
@@ -360,10 +369,11 @@ public class Krb5 {
         errMsgList.put(KRB_AP_ERR_METHOD, "Alternative authentication method required");
         errMsgList.put(KRB_AP_ERR_BADSEQ, "Incorrect sequence number in message");
         errMsgList.put(KRB_AP_ERR_INAPP_CKSUM, "Inappropriate type of checksum in message");
+        errMsgList.put(KRB_AP_PATH_NOT_ACCEPTED, "Policy rejects transited path");
         errMsgList.put(KRB_ERR_RESPONSE_TOO_BIG, "Response too big for UDP, retry with TCP");
         errMsgList.put(KRB_ERR_GENERIC, "Generic error (description in e-text)");
         errMsgList.put(KRB_ERR_FIELD_TOOLONG, "Field is too long for this implementation");
-        errMsgList.put(KRB_AP_ERR_NOREALM, "Realm name not available"); //used in setDefaultCreds() in sun.security.krb5.Credentials
+        errMsgList.put(KRB_ERR_WRONG_REALM, "Wrong realm");
 
         // error messages specific to this implementation
 
@@ -393,7 +403,6 @@ public class Krb5 {
         errMsgList.put(ASN1_CANNOT_ENCODE, "Encoding failed due to invalid parameter(s)");
         errMsgList.put(KRB_CRYPTO_NOT_SUPPORT, "Client has no support for crypto type");
         errMsgList.put(KRB_AP_ERR_REQ_OPTIONS, "Invalid option setting in ticket request.");
-        errMsgList.put(KRB_AP_ERR_GEN_CRED, "Fail to create credential.");
     }
 
 }

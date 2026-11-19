@@ -104,6 +104,8 @@ import javax.naming.InitialContext;
 import javax.naming.NamingException;
 import javax.rmi.ssl.SslRMIClientSocketFactory;
 import javax.security.auth.Subject;
+import sun.misc.ObjectInputFilter;
+import sun.misc.ObjectInputFilter.Status;
 import sun.reflect.misc.ReflectUtil;
 import sun.rmi.server.UnicastRef2;
 import sun.rmi.transport.LiveRef;
@@ -1985,6 +1987,77 @@ public class RMIConnector implements JMXConnector, Serializable, JMXAddressable 
         return IIOPHelper.narrow(stub, RMIServer.class);
     }
 
+    /**
+     * ObjectInputFilter implementation for JMXServiceURL.
+     * Optional filters may be set from the env and System Property.
+     * If not decisive, the default filter is checked.
+     */
+    private static final class JMXURLObjectInputFilter implements ObjectInputFilter {
+
+        // Default filter.  Intentionally does NOT end in "!*", to leave some classes UNDECIDED.
+        private static final String DEFAULT_URL_FILTER_PATTERN =
+            // Permit proxy classes including older style com.sun.proxy.$Proxy0
+            "java.lang.reflect.Proxy;" +
+            "java.rmi.server.RemoteObjectInvocationHandler;" +
+            "com.sun.proxy.$Proxy*;" +
+            "java.rmi.server.RemoteStub;" +
+            "java.rmi.server.RemoteObject;" +
+            "javax.management.remote.rmi.RMIServerImpl_Stub;";
+
+        private static final String URL_FILTER_OVERRIDE_PATTERN_NAME = "jmx.remote.rmi.connector.url.filter.pattern";
+
+        private final ObjectInputFilter envFilter;
+
+        private final ObjectInputFilter systemPropertyFilter;
+
+        private final ObjectInputFilter defaultFilter;
+
+        private static ObjectInputFilter filterFromPattern(String pattern) {
+            // createFilter returns null on empty pattern (pattern must not be null)
+            return ObjectInputFilter.Config.createFilter(pattern != null ? pattern : "");
+        }
+
+        public JMXURLObjectInputFilter(Map<String, ?> env) {
+            envFilter = filterFromPattern((String) env.get(URL_FILTER_OVERRIDE_PATTERN_NAME));
+            systemPropertyFilter = filterFromPattern(
+                    AccessController.doPrivileged((PrivilegedAction<String>) () -> {
+                        return System.getProperty(URL_FILTER_OVERRIDE_PATTERN_NAME);
+            }));
+            defaultFilter = ObjectInputFilter.Config.createFilter(DEFAULT_URL_FILTER_PATTERN);
+        }
+
+        @Override
+        public Status checkInput(FilterInfo info) {
+            Status status = Status.UNDECIDED;
+            // Check custom filters, if set.  Try next filter if UNDECIDED.
+            if (envFilter != null) {
+                status = envFilter.checkInput(info);
+                if (status != Status.UNDECIDED) {
+                    return status;
+                }
+            }
+            if (systemPropertyFilter != null) {
+                status = systemPropertyFilter.checkInput(info);
+                if (status != Status.UNDECIDED) {
+                    return status;
+                }
+            }
+            status = defaultFilter.checkInput(info);
+            if (status != Status.UNDECIDED) {
+                return status;
+            }
+            // Finally, permit client socket factory or RMIServer, to avoid requiring an exhaustive filter.
+            // Otherwise, return REJECTED.
+            Class<?> c = info.serialClass();
+            if (RMIClientSocketFactory.class.isAssignableFrom(c)
+                || RMIServer.class.isAssignableFrom(c)) {
+                return Status.ALLOWED;
+            } else {
+                return Status.REJECTED;
+            }
+        }
+    }
+
     private RMIServer findRMIServerJRMP(String base64, Map<String, ?> env, boolean isIiop)
         throws IOException {
         // could forbid "iiop:" URL here -- but do we need to?
@@ -2002,13 +2075,20 @@ public class RMIConnector implements JMXConnector, Serializable, JMXAddressable 
                 (loader == null) ?
                     new ObjectInputStream(bin) :
                     new ObjectInputStreamWithLoader(bin, loader);
+
+        final JMXURLObjectInputFilter filter = new JMXURLObjectInputFilter(env);
+        AccessController.doPrivileged((PrivilegedAction<Void>) () -> {
+            ObjectInputFilter.Config.setObjectInputFilter(oin, filter);
+            return null;
+        });
+
         final Object stub;
         try {
             stub = oin.readObject();
         } catch (ClassNotFoundException e) {
             throw new MalformedURLException("Class not found: " + e);
         }
-        return (RMIServer)stub;
+        return (RMIServer) stub;
     }
 
     private static final class ObjectInputStreamWithLoader
