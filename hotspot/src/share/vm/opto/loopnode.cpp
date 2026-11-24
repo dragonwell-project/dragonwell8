@@ -1375,6 +1375,7 @@ const TypeInt* PhaseIdealLoop::filtered_type( Node *n, Node* n_ctrl) {
     Node* region = phi->in(0);
     assert(n_ctrl == NULL || n_ctrl == region, "ctrl parameter must be region");
     if (region && region != C->top()) {
+      // Compute the union over the types of the paths/inputs.
       for (uint i = 1; i < phi->req(); i++) {
         Node* val   = phi->in(i);
         Node* use_c = region->in(i);
@@ -1385,10 +1386,17 @@ const TypeInt* PhaseIdealLoop::filtered_type( Node *n, Node* n_ctrl) {
           } else {
             filtered_t = filtered_t->meet(val_t)->is_int();
           }
+        } else {
+          // We found no constriant, so we have to assume that this path
+          // is unconstrained, i.e. it could have the whole int range.
+          filtered_t = TypeInt::INT;
         }
       }
     }
   }
+
+  // The filtered type may be worse than what we already know
+  // about n, so take the intersection.
   const TypeInt* n_t = _igvn.type(n)->is_int();
   if (filtered_t != NULL) {
     n_t = n_t->join(filtered_t)->is_int();
@@ -1399,6 +1407,8 @@ const TypeInt* PhaseIdealLoop::filtered_type( Node *n, Node* n_ctrl) {
 
 //------------------------------filtered_type_from_dominators--------------------------------
 // Return a possibly more restrictive type for val based on condition control flow of dominators
+// Note: we can also return "nullptr", which means "no constraint", and should be interpreted
+//       as if we returned TypeInt::INT.
 const TypeInt* PhaseIdealLoop::filtered_type_from_dominators( Node* val, Node *use_ctrl) {
   if (val->is_Con()) {
      return val->bottom_type()->is_int();
